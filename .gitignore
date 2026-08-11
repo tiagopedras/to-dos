@@ -1,0 +1,23 @@
+# The to-do list itself. Real tasks about real, named people: probation
+# reviews, salary conversations, contract dates, personal objectives. It is the
+# private half of this repo and it never leaves the machine.
+todo.md
+
+# Written by the board before its first save of each run. Same content as
+# todo.md, so same reason.
+backups/
+todo-backup-*.md
+
+# The board writes todo.md via a temp file and swaps it in. If it ever crashes
+# mid-write, this is left behind holding the whole list.
+todo.md.tmp
+*.md.tmp
+
+# Anything scratch, in case a working copy of the list is ever parked here.
+*.local.md
+scratch/
+
+# macOS and Python noise
+.DS_Store
+__pycache__/
+*.py[cod]
