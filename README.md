@@ -52,7 +52,7 @@ Everything else is worked out from tags at render time, never stored twice:
 | --- | --- |
 | Matrix | `impact:` against `effort:`, as a 3×3 grid. One dot per open task, coloured by bucket. |
 | This week | `week` |
-| Quick wins | `effort:S` grouped by `ai:`, plus any step with a written message. Anything waiting on an unfinished blocker is left out. |
+| Quick wins | `effort:S` grouped by `ai:`, plus any step with a written message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
 | Big rocks | `impact:high` and `effort:L` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
 | Delegate to Claude | `ai:full`, ordered by `rank:` |
@@ -77,6 +77,19 @@ python3 skills/pa-todo-meeting/scripts/check_todo.py todo.md
 `references/conventions.md` is the file format. `references/audit-checklist.md`
 is what to check by hand that the script cannot.
 
+### Two dates, not one
+
+`due:` is the deadline. `start:` is the earliest the work can begin. One date used
+to carry both meanings, which made "finish by the 7th" and "cannot begin until
+the 1st" indistinguishable — so a filter for what is actionable had to guess, and
+either guess was wrong half the time.
+
+Quick wins reads `start:` and ignores `due:` completely. A passed deadline never
+hides anything: overdue is the most actionable state on the list, not the least.
+Where the gate is another task rather than a calendar date, `blocked-by:` is the
+better tool — it resolves itself when the blocker is ticked instead of needing a
+date re-guessed by hand.
+
 ## File format
 
 ```
@@ -86,6 +99,7 @@ is what to check by hand that the script cannot.
   - [ ] A sub-step `due:2026-08-19` `ai:full`
     - Suggested message: "..."   <- ready to send
     - Prompt: "..."              <- ready to paste
+  - [ ] A gated step `start:2026-09-01` `blocked-by:some-slug`
 ```
 
 Tags work on sub-steps as readily as on tasks, and usually belong there.

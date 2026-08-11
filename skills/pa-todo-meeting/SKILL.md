@@ -122,6 +122,8 @@ So the whole update is the tag:
 | To change this | Set this on the task |
 | --- | --- |
 | How much it matters, how heavy it is | `impact:high\|med\|low` plus `effort:S\|M\|L` |
+| When it must be finished | `due:YYYY-MM-DD` |
+| When it can first be started | `start:YYYY-MM-DD`, only where something real gates it |
 | The one thing for now | `headline:YYYY-MM-DD`, the date it was set |
 | What is in this week | `week` |
 | What blocks what | `blocked-by:slug`, and `#slug` on the blocker |
@@ -139,7 +141,8 @@ Three things still need judgement rather than a tag:
 
 - **Capacity.** No more than two M-effort items tagged `week`. The checker counts them but will not decide. If three are competing, say so and ask which one loses the tag rather than listing all three.
 - **Untagging.** Dropping `week` from something that slipped is the edit nobody makes. Do it explicitly at the end of a session, or the tag becomes a record of intentions.
-- **A blocked quick win.** Quick wins now leaves out anything waiting on an unfinished blocker, because he cannot act on it. So a wrong or stale `blocked-by:` does not just mislabel a task, it hides it. When you tick a blocker, check what it was blocking in the same move.
+- **A blocked quick win.** Quick wins leaves out anything waiting on an unfinished blocker or a `start:` that has not arrived, because he cannot act on either. So a wrong or stale gate does not just mislabel a task, it hides it. When you tick a blocker, check what it was blocking in the same move.
+- **Which of the two dates you are setting.** `due:` is the deadline. `start:` is the earliest it can begin. Asking "is this a deadline, or the day it becomes possible?" takes one line and stops the two collapsing back into one. Where the gate is another task, use `blocked-by:` rather than guessing a date — it updates itself when the blocker is ticked.
 
 Write or refresh the suggested message on every live contact step you touched. Anything with a message on it shows up in Quick wins automatically, whatever its parent's effort tag says, so there is nothing to promote by hand any more.
 

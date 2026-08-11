@@ -33,13 +33,25 @@ Every top-level task carries impact, effort and a delegation tag. Dates only whe
 
 - `impact:high` / `med` / `low` — how much it moves the needle for the team, the design system or the business
 - `effort:S` / `M` / `L` — S is under half a day, M is one to three days, L is a week or more
-- `due:YYYY-MM-DD` — only when there is a genuine date
+- `due:YYYY-MM-DD` — the deadline. When it has to be finished by. Only when there is a genuine date.
+- `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
 - `urgent` — time-critical with no fixed date. Never combine with `due:`, they are alternatives.
 - `ai:full` — hand to Claude, review the output. The work is reading, comparing, extracting, formatting or generating from a source that already exists.
 - `ai:partial` — Claude does the heavy lift, judgement or delivery stays his. Usually Claude drafts, he decides.
 - `ai:none` — inherently his. Conversations, decisions, relationships, anything whose value is that it came from him.
 
 Sub-steps carry their own `due:` where the parent needs back-planning, and their own `ai:` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
+
+### Two dates, not one
+
+Added 11 Aug 2026. `due:` used to carry two different facts at once: the day something has to be finished, and the day it becomes possible to do. Nothing could tell them apart, so Quick wins had to guess — and either guess was wrong half the time. A September deadline on a bookable meeting is not the same thing as a September deadline on a step that cannot start until the request goes out.
+
+- **`due:` is the deadline.** It never means "do it then". An overdue task is the most actionable thing on the list, not the least, so a passed deadline never hides anything.
+- **`start:` is the gate.** Quick wins leaves out anything whose `start:` has not arrived, because he cannot act on it yet. A `start:` in the past does nothing and should come off the line — the checker flags it.
+
+Only add `start:` where something real gates the work: a person is back on the 1st, the quarter has not begun, a form does not exist yet. Where the gate is **another task**, use `blocked-by:` instead. That is the more precise tool and it updates itself when the blocker is ticked, whereas a date has to be re-guessed by hand. A step now carries its own `blocked-by:`, so "cannot start until the step before it is done" is expressible directly.
+
+A sub-step takes the later of its own `start:` and its parent's, since a step cannot begin before the task it sits inside can.
 
 ### The four tags that replaced the copies
 
@@ -112,7 +124,7 @@ He works from five views: This week, Quick wins, Big rocks, Dependency chain and
 | View | Built from |
 | --- | --- |
 | This week | `week` |
-| Quick wins | `effort:S` grouped by `ai:`, plus any live step carrying a suggested message. Anything still waiting on an unfinished blocker is left out. |
+| Quick wins | `effort:S` grouped by `ai:`, plus any live step carrying a suggested message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
 | Big rocks | `impact:high` and `effort:L` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
 | Delegate to Claude | `ai:full`, ordered by `rank:` |
@@ -126,7 +138,8 @@ The consequence to accept is that todo.md on its own no longer shows him a weekl
 ### What the views still expect of the tasks
 
 - **Quick wins earns its place from the message, not the effort tag.** Any live step with a written message appears there whatever its parent is, because sending one message out of an `effort:L` probation pack is a gap-sized job. There is nothing to promote by hand, but it does mean a message written on the wrong step puts the wrong thing in front of him.
-- **Quick wins only shows what he can act on now.** Anything whose `blocked-by:` names an unticked task, or names a slug that does not exist, is left out and counted in a line at the top. A quick win he cannot start is not a win. The consequence: a stale or wrong `blocked-by:` now hides a task rather than just mislabelling it, so when you tick a blocker, check what it was blocking in the same move.
+- **Quick wins only shows what he can act on now.** Two things take a task out: a `blocked-by:` naming an unticked task or a slug that does not exist, and a `start:` that has not arrived. Both are counted in a line at the top so the section never quietly shrinks. A quick win he cannot start is not a win. The consequence: a stale `blocked-by:` or a forgotten `start:` now hides a task rather than just mislabelling it, so when you tick a blocker, check what it was blocking in the same move.
+- **A deadline never hides anything.** Quick wins ignores `due:` entirely. Something overdue is the most actionable item on the list.
 - **Every message states whether it is safe to send.** `Suggested message:` is ready. `Suggested message (draft):` is one he edits first, and the board shows it with a warning. Sensitive subjects are always drafts.
 - **Undated contact steps still surface.** They sort last rather than disappearing, because those are the ones that rot quietly. Leave the `[date]` gap in the text rather than inventing one.
 - **A prompt lives on the thing it delegates**, which is usually a sub-step rather than a whole task.

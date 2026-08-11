@@ -66,6 +66,7 @@ WEEK = re.compile(r"`week`")
 BLOCKED_BY = re.compile(r"`blocked-by:([a-z0-9,\- ]+)`")
 RANK = re.compile(r"`rank:(\d+)`")
 HEADLINE = re.compile(r"`headline:([^`]*)`")
+START = re.compile(r"`start:([^`]*)`")
 PROMPT_NOTE = re.compile(r"^\s*-\s+Prompt:", re.IGNORECASE)
 
 
@@ -525,6 +526,55 @@ def check_prompt_coverage(tasks):
     return findings
 
 
+def check_start_dates(lines):
+    """`start:` is the earliest the work can begin. `due:` is the deadline.
+
+    Two failures matter. A start date after its own deadline is a contradiction,
+    and one of the two is simply wrong. A start date that has already passed is
+    dead weight: it hides nothing and reads as a constraint that no longer
+    exists, so it should come off the line.
+    """
+    findings = []
+    today = dt.date.today()
+    for i, line in enumerate(lines, start=1):
+        m = START.search(line)
+        if not m:
+            continue
+        raw = m.group(1).strip()
+        try:
+            start = parse_date(raw)
+        except (ValueError, TypeError):
+            findings.append(
+                Finding(i, "FIX", f"`start:{raw}` is not a YYYY-MM-DD date.")
+            )
+            continue
+
+        due_m = DUE.search(line)
+        if due_m:
+            due = parse_date(due_m.group(1))
+            if start > due:
+                findings.append(
+                    Finding(
+                        i,
+                        "FIX",
+                        f"start:{raw} is after due:{due_m.group(1)}. It cannot begin "
+                        f"after it is meant to be finished, so one of the two is wrong.",
+                    )
+                )
+                continue
+
+        if start <= today:
+            findings.append(
+                Finding(
+                    i,
+                    "CHECK",
+                    f"start:{raw} has passed, so it is not holding anything back. "
+                    f"Drop the tag.",
+                )
+            )
+    return findings
+
+
 def check_headline(lines):
     """Exactly one `headline:` in the file, or none.
 
@@ -712,6 +762,7 @@ def main():
         ("Prompts on tasks", check_prompt_coverage(tasks)),
         ("Delegate ranks", check_ranks(tasks)),
         ("The one thing", check_headline(lines)),
+        ("Start dates", check_start_dates(lines)),
         ("Tag hygiene", check_tag_hygiene(lines, tasks)),
         ("Suggested messages", check_suggested_messages(lines)),
         ("Freshness", check_stale(lines, today)),

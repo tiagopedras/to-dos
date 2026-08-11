@@ -187,6 +187,21 @@
   .mdot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .mdot.urgent{box-shadow:0 0 0 2px var(--red-bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
   .mdot.hl{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
+  /* The real card, floating beside the dot. Fixed so the scrolling column it
+     lives in cannot clip it, and inert so it cannot intercept the click. */
+  .mpreview{
+    position:fixed; left:0; top:0; z-index:40; width:252px; pointer-events:none;
+    opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
+  }
+  .mpreview.on{opacity:1; transform:none}
+  .mpreview .card{
+    cursor:default; border-color:var(--ink-faint);
+    box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
+  }
+  .mpreview .card.done{opacity:1}      /* a preview is for reading, not for dimming */
+  @media (prefers-reduced-motion:reduce){
+    .mpreview{transition:none}
+  }
   .mlegend{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 4px}
   .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft)}
   .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
@@ -221,7 +236,9 @@
      narrow — wrapping them would break the left-to-right order of the flow. */
   .col.donecol{background:transparent; border-style:dashed}
   .col.donecol h2{color:var(--ink-faint)}
-  .col.donecol .card{opacity:.62}
+  /* Done work should recede far enough that the eye skips it, but stay readable
+     on hover so the column is still a record you can check. */
+  .col.donecol .card{opacity:.38}
   .col.donecol .card:hover{opacity:1}
   .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
   .col h2{
@@ -333,7 +350,8 @@
     border-left:3px solid var(--bc,var(--line)); padding:9px 11px; margin:0 0 8px;
   }
   .ref:last-child{margin-bottom:0}
-  .ref.done{opacity:.6}
+  .ref.done{opacity:.42}
+  .ref.done:hover{opacity:1}
   .ref.done .reftitle{text-decoration:line-through}
   .refhead{display:flex; align-items:flex-start; gap:7px}
   .reftitle{
@@ -422,7 +440,8 @@
   .card:hover{border-color:var(--ink-faint)}
   .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .card.dragging{opacity:.4}
-  .card.done{opacity:.55}
+  .card.done{opacity:.34}
+  .card.done:hover{opacity:1}
   .card.done .title{text-decoration:line-through}
   .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
   .bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
@@ -432,6 +451,11 @@
   .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
   .tag.impact-high{color:var(--ink)}
   .tag.due{background:var(--chip)}
+  /* A start date reads as a gate, not a warning: hollow rather than filled, so a
+     deadline still wins the eye on a card carrying both. */
+  .tag.start{
+    background:transparent; border:1px dashed var(--line); color:var(--ink-faint); font-weight:550;
+  }
   .tag.due.soon{background:var(--amber-bg); color:var(--amber)}
   .tag.due.over{background:var(--red-bg); color:var(--red)}
   .tag.urgent{background:var(--red-bg); color:var(--red)}
@@ -532,6 +556,12 @@
   .dgrip:hover::after, .dgrip.active::after{background:var(--accent)}
   body.resizing{cursor:col-resize; user-select:none}
   .help{font-size:11.5px; color:var(--ink-faint); line-height:1.5}
+  .datewarn{
+    margin:0; padding:8px 10px; border-radius:8px; font-size:12px; line-height:1.45;
+    background:var(--red-bg); color:var(--red);
+    border:1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  }
+  .datenote{margin:0; font-size:11.5px; color:var(--ink-faint); line-height:1.5}
 
   /* ---------- start screen ---------- */
   .start{max-width:560px; margin:8vh auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px; box-shadow:var(--shadow)}
@@ -628,7 +658,8 @@ function parseTask(rawLines){
   let blockedBy = [], rank = null, slug = '', headline = '';
   rest = rest.replace(/`([A-Za-z][\w-]*):([^`]*)`/g, (whole, k, v) => {
     const key = k.toLowerCase();
-    if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai') tags[key] = v.trim();
+    if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai' ||
+        key === 'start') tags[key] = v.trim();
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
     else if (key === 'headline') headline = v.trim();
@@ -649,6 +680,10 @@ function parseTask(rawLines){
     impact: tags.impact || '',
     effort: tags.effort || '',
     due: tags.due || '',
+    /* The deadline and the earliest possible start are two different facts. One
+       date was doing both jobs, which meant nothing could tell "finish by the
+       7th" apart from "cannot begin until the 1st". */
+    start: tags.start || '',
     ai: tags.ai || '',
     urgent, week, slug, blockedBy, rank, headline, extra,
     body: rawLines.slice(1),
@@ -668,6 +703,7 @@ function serializeTask(t){
     if (t.slug)   tags.push('`#' + t.slug + '`');
     if (t.impact) tags.push('`impact:' + t.impact + '`');
     if (t.effort) tags.push('`effort:' + t.effort + '`');
+    if (t.start)  tags.push('`start:' + t.start + '`');
     if (t.due)    tags.push('`due:' + t.due + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
@@ -936,6 +972,29 @@ function dueInfo(s){
   else if (days <= 4) { cls = 'soon'; note = 'in ' + days + 'd'; }
   return { label, cls, note, days };
 }
+/* `start:` is the earliest the work can begin. Only the future matters — a start
+   date that has passed is just history, and showing it would be noise on every
+   card that has ever had one. */
+function startInfo(s){
+  const d = parseDue(s);
+  if (!d) return null;
+  const days = Math.round((d - today()) / 86400000);
+  if (days <= 0) return null;                      // already open, nothing to say
+  return {
+    days,
+    label: 'from ' + d.toLocaleDateString(undefined, { day:'numeric', month:'short' }),
+    note: days === 1 ? 'tomorrow' : 'in ' + days + 'd'
+  };
+}
+function notYet(s){ return !!startInfo(s); }
+/* The stricter of two start dates. Both may be blank. */
+function laterOf(a, b){
+  const da = parseDue(a), db = parseDue(b);
+  if (!da) return b || '';
+  if (!db) return a || '';
+  return da > db ? a : b;
+}
+
 const SUB_RE = /^(\s*)-\s+\[([ xX])\]\s+(.*)$/;
 function subSteps(t){
   const out = [];
@@ -1036,7 +1095,11 @@ function renderTabs(){
   });
 }
 
-function cardHTML(t, color, bucketLabel){
+/* opts.static drops the drag and focus attributes. The matrix hover preview is
+   the same card, but it is a picture of one rather than one you can act on, so
+   it must not be draggable or land in the tab order. */
+function cardHTML(t, color, bucketLabel, opts){
+  opts = opts || {};
   const subs = subSteps(t);
   const doneSubs = subs.filter(s => s.done).length;
   const di = dueInfo(t.due);
@@ -1048,6 +1111,8 @@ function cardHTML(t, color, bucketLabel){
   if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '">' + esc(t.impact) + ' impact</span>';
   if (t.effort) meta += '<span class="tag">' + esc(t.effort) + '</span>';
   if (t.urgent) meta += '<span class="tag urgent">urgent</span>';
+  const si = startInfo(t.start);
+  if (si) meta += '<span class="tag start">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
   if (di) meta += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (t.ai) meta += '<span class="tag ai ai-' + esc(t.ai) + '">ai: ' + esc(t.ai) + '</span>';
 
@@ -1060,7 +1125,9 @@ function cardHTML(t, color, bucketLabel){
     prog = '<div class="notecount">' + notes + ' note' + (notes > 1 ? 's' : '') + '</div>';
   }
 
-  return '<article class="card' + (t.done ? ' done' : '') + '" draggable="true" tabindex="0" role="button" data-id="' + t.id + '" style="--bc:' + color + '">' +
+  return '<article class="card' + (t.done ? ' done' : '') + '"' +
+    (opts.static ? '' : ' draggable="true" tabindex="0" role="button"') +
+    ' data-id="' + t.id + '" style="--bc:' + color + '">' +
     (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +
     '<div class="title">' + esc(t.title) + '</div>' +
     (meta ? '<div class="meta">' + meta + '</div>' : '') +
@@ -1094,7 +1161,8 @@ function splitBody(t){
         line: idx,                           // index back into the body, so it can be ticked
         done: m[2].toLowerCase() === 'x',
         text,
-        due: (/`due:([^`]*)`/.exec(text) || [,''])[1].trim(),
+        due:   (/`due:([^`]*)`/.exec(text)   || [,''])[1].trim(),
+        start: (/`start:([^`]*)`/.exec(text) || [,''])[1].trim(),
         ai:  (/`ai:([^`]*)`/.exec(text)  || [,''])[1].trim(),
         /* Half the blockers in the file are steps, not whole tasks. Without the
            slug here, a `blocked-by:` pointing at one never resolves, so anything
@@ -1102,6 +1170,12 @@ function splitBody(t){
         slug: (/`#([a-z0-9][a-z0-9-]*)`/i.exec(text) || [,''])[1].toLowerCase(),
         rank: /`rank:(\d+)`/.test(text) ? +/`rank:(\d+)`/.exec(text)[1] : null,
         week: /`week`/.test(text),
+        /* A step can wait on another step, which is the difference between "must
+           be finished by the 7th" and "cannot start until the request goes out".
+           A date cannot say the second thing, so without this the two are
+           indistinguishable and Quick wins has to guess. */
+        blockedBy: (/`blocked-by:([^`]*)`/.exec(text) || [,''])[1]
+                     .split(',').map(s => s.trim()).filter(Boolean),
         clean: text.replace(/`[A-Za-z#][\w-]*:?[^`]*`/g, '').replace(/`(urgent|week)`/g, '')
                    .replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim(),
         notes: []
@@ -1151,7 +1225,7 @@ function allItems(){
         id: t.id, task: t, sub: null, color,
         bucket: b.name, tier: tier.name, parent: '',
         title: t.title, done: t.done,
-        due: t.due, ai: t.ai, impact: t.impact, effort: t.effort,
+        due: t.due, start: t.start, ai: t.ai, impact: t.impact, effort: t.effort,
         urgent: t.urgent, week: t.week, rank: t.rank,
         slug: t.slug, blockedBy: t.blockedBy || [],
         message: own.message, draft: own.draft, prompt: own.prompt
@@ -1162,9 +1236,13 @@ function allItems(){
           id: t.id, task: t, sub: s, color,
           bucket: b.name, tier: tier.name, parent: t.title,
           title: s.clean, done: s.done || t.done,
-          due: s.due, ai: s.ai || t.ai, impact: '', effort: '',
+          due: s.due,
+          /* A step cannot begin before the task it sits inside can, so it takes
+             the later of its own start and its parent's. */
+          start: laterOf(s.start, t.start),
+          ai: s.ai || t.ai, impact: '', effort: '',
           urgent: false, week: s.week, rank: s.rank,
-          slug: s.slug, blockedBy: [],
+          slug: s.slug, blockedBy: s.blockedBy,
           message: meta.message, draft: meta.draft, prompt: meta.prompt
         });
       });
@@ -1202,6 +1280,8 @@ function byDue(a, b){
 
 function refTags(it){
   let out = '';
+  const si = startInfo(it.start);
+  if (si) out += '<span class="tag start">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
   const di = dueInfo(it.due);
   if (di) out += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (it.urgent) out += '<span class="tag urgent">urgent</span>';
@@ -1272,8 +1352,12 @@ function weekSection(items){
    a section that quietly shrinks looks like a section with nothing in it. */
 function quickSection(items){
   const open = items.filter(i => !i.done);
-  const live = open.filter(i => actionable(items, i));
-  const held = open.length - live.length;
+  // Two separate reasons something is not a quick win yet: it waits on another
+  // task, or its start date has not arrived. Neither is about the deadline —
+  // an overdue task is the most actionable thing on the list, not the least.
+  const live = open.filter(i => actionable(items, i) && !notYet(i.start));
+  const heldByDep = open.filter(i => !actionable(items, i)).length;
+  const heldByDate = open.filter(i => actionable(items, i) && notYet(i.start)).length;
   const isS = i => i.sub === null && i.effort === 'S';
   const seen = new Set();
   const take = arr => arr.filter(i => { const k = i.id + '|' + i.title; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -1283,9 +1367,11 @@ function quickSection(items){
   const decide   = take(live.filter(i => isS(i) && i.ai === 'partial'));
   const talk     = take(live.filter(i => isS(i) && i.ai === 'none'));
 
-  const note = held
-    ? '<p class="refheld">' + held + (held > 1 ? ' items are' : ' item is') +
-      ' left out, still waiting on something. See <strong>Dependency chain</strong>.</p>'
+  const reasons = [];
+  if (heldByDep)  reasons.push('<strong>' + heldByDep + '</strong> waiting on another task');
+  if (heldByDate) reasons.push('<strong>' + heldByDate + '</strong> not startable yet');
+  const note = reasons.length
+    ? '<p class="refheld">Left out: ' + reasons.join(' · ') + '.</p>'
     : '';
 
   const out =
@@ -1459,18 +1545,66 @@ const CELL_ADVICE = {
   'low/L':  'Cut these'
 };
 
+/* No `title` attribute. The browser's own tooltip would appear next to the
+   floating preview a second later, saying a worse version of the same thing.
+   aria-label still carries it for anyone not using a pointer. */
 function matrixDot(t, color){
   const di = dueInfo(t.due);
-  const tip = [
+  const label = [
     t.title,
     t.bucket + ' · ' + t.tierName,
-    di ? 'due ' + di.label + (di.note ? ' (' + di.note + ')' : '') : 'no date',
-    t.ai ? 'ai: ' + t.ai : ''
-  ].filter(Boolean).join('\n');
+    di ? 'due ' + di.label + (di.note ? ', ' + di.note : '') : 'no date'
+  ].filter(Boolean).join(', ');
   return '<button class="mdot' + (t.headline ? ' hl' : '') + (t.urgent ? ' urgent' : '') +
     '" data-open="' + t.id + '" style="--bc:' + color + '"' +
-    ' title="' + esc(tip) + '" aria-label="' + esc(t.title) + '"></button>';
+    ' aria-label="' + esc(label) + '"></button>';
 }
+
+/* ---- Hover preview ----
+   The dot says where a task sits, not what it is. Rather than a tooltip that
+   paraphrases the card, this shows the card itself — the same cardHTML the board
+   renders — so hovering a dot answers the same question as looking at the board.
+
+   Fixed position and appended to the body, because the grid sits inside a
+   scrolling column and an absolutely positioned child would be clipped by it.
+   pointer-events:none throughout, so the preview can never sit between the
+   cursor and the dot it describes and swallow the click. */
+let mPreviewEl = null;
+function matrixPreview(){
+  if (!mPreviewEl) {
+    mPreviewEl = document.createElement('div');
+    mPreviewEl.className = 'mpreview';
+    mPreviewEl.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(mPreviewEl);
+  }
+  return mPreviewEl;
+}
+function showMatrixPreview(dot){
+  const loc = locate(dot.dataset.open);
+  if (!loc) return;
+  const el = matrixPreview();
+  const color = BUCKET_COLOR[state.doc.buckets.indexOf(loc.bucket) % BUCKET_COLOR.length];
+  const where = loc.bucket.name + ' · ' + (loc.task.done ? DONE_COL : loc.tier.name);
+  el.innerHTML = cardHTML(loc.task, color, where, { static: true });
+  el.classList.add('on');
+  placeMatrixPreview(dot);
+}
+/* Beside the dot, flipping to the other side rather than running off the edge,
+   and never taller than the window allows. */
+function placeMatrixPreview(dot){
+  const el = mPreviewEl;
+  if (!el) return;
+  const r = dot.getBoundingClientRect();
+  const w = el.offsetWidth, h = el.offsetHeight, gap = 12, edge = 8;
+  let left = r.right + gap;
+  if (left + w > window.innerWidth - edge) left = r.left - gap - w;
+  left = Math.max(edge, Math.min(left, window.innerWidth - w - edge));
+  let top = r.top + r.height / 2 - h / 2;
+  top = Math.max(edge, Math.min(top, window.innerHeight - h - edge));
+  el.style.left = Math.round(left) + 'px';
+  el.style.top = Math.round(top) + 'px';
+}
+function hideMatrixPreview(){ if (mPreviewEl) mPreviewEl.classList.remove('on'); }
 
 /* Top-level tasks only. Sub-steps carry no impact or effort of their own, so
    they have no position here — placing them under their parent's scores would
@@ -1565,6 +1699,9 @@ function refSection(title, hint, html){
 }
 
 function renderSections(viewId){
+  // The grid is rebuilt from scratch here, so any preview on screen is pointing
+  // at a dot that no longer exists.
+  hideMatrixPreview();
   const items = allItems();
   let html = '', single = false, split = false, wide = false, cols = 4, lead = '';
 
@@ -1996,32 +2133,39 @@ function calendarHTML(month, selected){
       '<button type="button" class="calsm" data-day="">Clear</button>' +
     '</div>';
 }
-let calMonth = null;
-function wireDatePicker(t, touch){
-  const btn = $('#f-due'), cal = $('#f-cal');
-  const draw = () => { cal.innerHTML = calendarHTML(calMonth, parseDue(t.due) ? t.due : ''); };
+/* One picker per date field, so `field` says which one is being edited. Both
+   dates use the same calendar; only the value they write differs. */
+const calMonth = {};
+function wireDatePicker(t, touch, field){
+  const btn = $('#f-' + field), cal = $('#f-cal-' + field);
+  if (!btn || !cal) return;
+  const draw = () => { cal.innerHTML = calendarHTML(calMonth[field], parseDue(t[field]) ? t[field] : ''); };
   btn.onclick = () => {
     const closed = cal.classList.toggle('hidden');
     if (closed) return;
-    const from = parseDue(t.due) || today();
-    calMonth = new Date(from.getFullYear(), from.getMonth(), 1);
+    const from = parseDue(t[field]) || today();
+    calMonth[field] = new Date(from.getFullYear(), from.getMonth(), 1);
     draw();
     cal.scrollIntoView({ block:'nearest' });
   };
   cal.onclick = e => {
     const nav = e.target.closest('[data-cal]');
     if (nav) {
-      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + (+nav.dataset.cal), 1);
+      const m = calMonth[field];
+      calMonth[field] = new Date(m.getFullYear(), m.getMonth() + (+nav.dataset.cal), 1);
       draw();
       return;
     }
     const day = e.target.closest('[data-day]');
     if (!day) return;
-    t.due = day.dataset.day;
+    t[field] = day.dataset.day;
     cal.classList.add('hidden');
-    btn.textContent = dueLabel(t.due);
-    btn.classList.toggle('empty', !t.due);
+    btn.textContent = dueLabel(t[field]);
+    btn.classList.toggle('empty', !t[field]);
     touch();
+    // The two dates constrain each other, so a change can make the other one
+    // wrong. Re-open so the warning appears or clears straight away.
+    openDrawer(state.openTask);
   };
 }
 
@@ -2101,16 +2245,30 @@ function openDrawer(id, focusTitle){
         : 'The task that makes the others easier or unnecessary. Only one at a time.') +
       '</span>' +
     '</div>' +
+    /* Two dates, because one was doing two jobs. "Can start" is when the work
+       becomes possible; "Due" is when it has to be finished. Quick wins reads
+       the first and ignores the second. */
     '<div class="grid2">' +
+      '<div class="field"><span>Can start</span>' +
+        '<button type="button" class="dpbtn' + (parseDue(t.start) ? '' : ' empty') + '" id="f-start">' +
+          esc(t.start ? dueLabel(t.start) : 'Any time') + '</button>' +
+      '</div>' +
       '<div class="field"><span>Due</span>' +
         '<button type="button" class="dpbtn' + (parseDue(t.due) ? '' : ' empty') + '" id="f-due">' +
           esc(dueLabel(t.due)) + '</button>' +
       '</div>' +
-      '<div class="field"><span>Flags</span>' +
-        '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + '> urgent</label>' +
-      '</div>' +
     '</div>' +
-    '<div class="cal hidden" id="f-cal"></div>' +
+    '<div class="cal hidden" id="f-cal-start"></div>' +
+    '<div class="cal hidden" id="f-cal-due"></div>' +
+    (parseDue(t.start) && parseDue(t.due) && parseDue(t.start) > parseDue(t.due)
+      ? '<p class="datewarn">This cannot start until after it is due. One of the two dates is wrong.</p>'
+      : '') +
+    (notYet(t.start)
+      ? '<p class="datenote">Hidden from Quick wins until ' + esc(dueLabel(t.start)) + '.</p>'
+      : '') +
+    '<div class="field"><span>Flags</span>' +
+      '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + '> urgent</label>' +
+    '</div>' +
     (subs.length ? '<div class="field"><span>Sub-steps <em class="sublabel">drag to reorder</em></span>' +
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
@@ -2151,7 +2309,8 @@ function openDrawer(id, focusTitle){
   };
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };
   $('#f-headline').onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
-  wireDatePicker(t, touch);
+  wireDatePicker(t, touch, 'start');
+  wireDatePicker(t, touch, 'due');
 
   /* Done is the tick box in the file, not a section, so picking it here ticks
      the task off and picking anything else unticks it — exactly what dragging a
@@ -2427,6 +2586,32 @@ $('#lists').addEventListener('click', e => {
   if (!locate(open.dataset.open)) return;
   openDrawer(open.dataset.open);
 });
+
+/* Matrix hover preview. Delegated from #lists, which survives every re-render,
+   rather than bound per dot — the grid is rebuilt on any edit and per-dot
+   handlers would be re-attached thirty times for nothing.
+
+   Keyboard gets the same treatment through focusin: the dots are real buttons,
+   so tabbing through the grid should show what each one is. */
+$('#lists').addEventListener('mouseover', e => {
+  const dot = e.target.closest('.mdot');
+  if (dot) showMatrixPreview(dot);
+});
+$('#lists').addEventListener('mouseout', e => {
+  if (e.target.closest('.mdot')) hideMatrixPreview();
+});
+$('#lists').addEventListener('focusin', e => {
+  const dot = e.target.closest('.mdot');
+  if (dot) showMatrixPreview(dot);
+});
+$('#lists').addEventListener('focusout', e => {
+  if (e.target.closest('.mdot')) hideMatrixPreview();
+});
+/* A preview left floating over a scrolled page points at the wrong dot, and one
+   left up after a click sits on top of the drawer that just opened. */
+window.addEventListener('scroll', hideMatrixPreview, { passive: true });
+window.addEventListener('resize', hideMatrixPreview);
+$('#lists').addEventListener('click', () => hideMatrixPreview(), true);
 
 /* Copy a ready-written message to the clipboard. Used by the list views and by
    the two suggestion sections at the bottom of the panel. */
