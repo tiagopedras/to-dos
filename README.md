@@ -30,10 +30,19 @@ missing either score shows a *needs scoring* marker and is counted in the header
 because a blank score reads as low and the task sinks without anyone deciding it
 should. Sorting never rewrites the file: your own order is still the file order.
 
+The **Matrix** view draws the same two scores as a 3×3 grid, impact down the side
+and effort across the top, so the shape of the whole list is visible at once —
+how much sits in the expensive corner, whether the cheap high-impact cell is
+actually empty. A task is one dot rather than a card, because nine cells on one
+screen leaves a thumbnail each; the title is on hover and a click opens the real
+task. Anything missing a score sits in a tray under the grid instead of being
+dropped, since a dropped task is one that never gets scored.
+
 **The one thing.** A single task carries `headline:<date it was set>` and appears
 in a bar above the columns, with a count of how many other tasks it frees. It is
 the task that makes the others easier or unnecessary, which is a different
-question from which one scores highest. It stays chosen until it is solved.
+question from which one scores highest. It stays chosen until it is solved. Its
+dot on the matrix is ringed, so you can see where your one thing actually sits.
 
 ### Views
 
@@ -41,6 +50,7 @@ Everything else is worked out from tags at render time, never stored twice:
 
 | View | Built from |
 | --- | --- |
+| Matrix | `impact:` against `effort:`, as a 3×3 grid. One dot per open task, coloured by bucket. |
 | This week | `week` |
 | Quick wins | `effort:S` grouped by `ai:`, plus any step with a written message. Anything waiting on an unfinished blocker is left out. |
 | Big rocks | `impact:high` and `effort:L` |

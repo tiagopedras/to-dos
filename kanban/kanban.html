@@ -134,6 +134,81 @@
   }
   .tag.needsscore{background:var(--amber-bg); color:var(--amber)}
 
+  /* ---------- the matrix ----------
+     Nine cells. Impact down the left, effort across the top, so the cheap
+     high-impact corner is top-left where the eye lands first. Cells are tinted
+     by impact ÷ effort, which makes the gradient run corner to corner and turns
+     "where is my work sitting" into something you see rather than count. */
+  .mgrid{
+    display:grid; grid-template-columns:auto repeat(3, minmax(150px, 1fr));
+    gap:6px; margin:14px 0 0;
+  }
+  /* Both axis names sit in the corner cell, stacked and arrowed, so neither
+     overlaps the other and each says which way it runs. */
+  .mcorner{
+    min-width:74px; display:flex; flex-direction:column; align-items:flex-end;
+    justify-content:flex-end; gap:1px; padding:0 9px 8px 0;
+  }
+  .maxis{
+    font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-faint); white-space:nowrap;
+  }
+  .mhead{
+    padding:0 0 7px; text-align:center; font-size:12.5px; font-weight:700;
+    color:var(--ink-soft); display:flex; flex-direction:column; gap:2px;
+  }
+  .mhead .mhint{font-size:10.5px; font-weight:500; color:var(--ink-faint)}
+  .mside{
+    display:flex; align-items:center; justify-content:flex-end; padding-right:9px;
+    font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+    color:var(--ink-soft); min-width:62px;
+  }
+  .mcell{
+    border:1px solid var(--line); border-radius:10px; padding:8px 9px 9px; min-height:96px;
+    display:flex; flex-direction:column; gap:7px;
+    /* --w is impact ÷ effort, 0.33 to 3. Divided by 3 it drives the tint. */
+    background:color-mix(in srgb, var(--accent) calc(var(--w,1) * 4%), var(--panel));
+  }
+  .mcell.first{border-color:color-mix(in srgb, var(--accent) 50%, transparent)}
+  .mcell.empty{background:transparent; border-style:dashed}
+  .mcellhead{display:flex; align-items:baseline; gap:6px}
+  .madvice{flex:1; font-size:11px; font-weight:620; color:var(--ink-soft); line-height:1.3}
+  .mcell.first .madvice{color:var(--accent)}
+  .mcell.empty .madvice{color:var(--ink-faint); font-weight:550}
+  .mcount{font-size:11px; font-weight:700; color:var(--ink-faint)}
+  .mdots{display:flex; flex-wrap:wrap; gap:5px; align-content:flex-start}
+  /* One task. Bucket colour carries which area it belongs to, the title is on
+     hover, and a click opens the real card — so nothing is lost by shrinking it. */
+  .mdot{
+    width:14px; height:14px; border-radius:50%; border:0; padding:0; flex:none;
+    background:var(--bc); opacity:.85; cursor:pointer;
+  }
+  .mdot:hover{opacity:1; transform:scale(1.25)}
+  .mdot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .mdot.urgent{box-shadow:0 0 0 2px var(--red-bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
+  .mdot.hl{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
+  .mlegend{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 4px}
+  .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft)}
+  .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
+  .mkeyhl i{background:transparent; box-shadow:0 0 0 2px var(--accent)}
+  .mkeyurg i{background:var(--ink-faint); box-shadow:0 0 0 1.5px var(--bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
+  .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-soft) !important}
+  .mread strong{font-weight:700; color:var(--ink)}
+  /* Tasks with a score missing cannot be placed, so they sit under the grid
+     rather than being dropped. A dropped task is one he never scores. */
+  .mtray{
+    margin-top:12px; padding:10px 11px; border:1px dashed color-mix(in srgb, var(--amber) 45%, transparent);
+    background:var(--amber-bg); border-radius:10px;
+  }
+  .mtrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
+  .mtrayhead strong{font-size:12.5px; font-weight:700; color:var(--amber)}
+  .mtrayhead span{font-size:11.5px; color:var(--ink-soft)}
+  @media (max-width:720px){
+    .mgrid{grid-template-columns:auto repeat(3, minmax(84px, 1fr))}
+    .madvice{font-size:10px}
+    .mhead .mhint{display:none}
+  }
+
   /* ---------- board ---------- */
   main{padding:14px 16px 40px; overflow-x:auto}
   /* --cols is set from the number of sections found in the file. */
@@ -191,6 +266,7 @@
      columns pack them without leaving the row-sized gaps a grid would. */
   .lists{columns:2; column-gap:12px; max-width:1180px}
   .lists.single{columns:1; max-width:820px}   /* one section reads better full width */
+  .lists.wide{columns:1; max-width:1180px}    /* the matrix needs the room for nine cells */
   /* Overview puts every section in its own column, like the board. It never
      stacks: when the window is narrow the row scrolls sideways instead. */
   .lists.split{
@@ -1345,9 +1421,140 @@ function viewDefs(){
   return [
     { id:'overview', label:'Overview' },
     { id:'board',    label:'Board' },
+    { id:'matrix',   label:'Matrix' },
     { id:'quick',    label:'Quick wins' },
     { id:'delegate', label:'Delegate to Claude' }
   ];
+}
+
+/* =========================================================================
+   4c. The matrix: impact against effort
+   Tier one drawn as a grid rather than a sorted column. Nine cells, impact up
+   the side, effort across the bottom, so the eye reads the shape of the whole
+   list at once: how much sits in the expensive corner, whether the cheap
+   high-impact cell is actually empty.
+
+   A card per task will not fit — nine cells across one screen means roughly a
+   thumbnail each — so a task is one dot, coloured by its bucket. The title is on
+   hover and a click opens it, which keeps the grid scannable while losing
+   nothing: everything is still one gesture from the real task.
+   ========================================================================= */
+
+const MATRIX_IMPACT = ['high', 'med', 'low'];      // top row down
+const MATRIX_EFFORT = ['S', 'M', 'L'];             // left column across
+const EFFORT_HINT = { S: 'under half a day', M: 'one to three days', L: 'a week or more' };
+
+/* What each cell means, said plainly. The corner cells are the only two that
+   need no explanation, and the middle is where lists quietly rot, so it gets the
+   bluntest label. */
+const CELL_ADVICE = {
+  'high/S': 'Do these first',
+  'high/M': 'Worth the time',
+  'high/L': 'Protect time, or break down',
+  'med/S':  'Clear in a gap',
+  'med/M':  'Fine, not urgent',
+  'med/L':  'Ask for a smaller version',
+  'low/S':  'Batch or hand over',
+  'low/M':  'Probably not worth it',
+  'low/L':  'Cut these'
+};
+
+function matrixDot(t, color){
+  const di = dueInfo(t.due);
+  const tip = [
+    t.title,
+    t.bucket + ' · ' + t.tierName,
+    di ? 'due ' + di.label + (di.note ? ' (' + di.note + ')' : '') : 'no date',
+    t.ai ? 'ai: ' + t.ai : ''
+  ].filter(Boolean).join('\n');
+  return '<button class="mdot' + (t.headline ? ' hl' : '') + (t.urgent ? ' urgent' : '') +
+    '" data-open="' + t.id + '" style="--bc:' + color + '"' +
+    ' title="' + esc(tip) + '" aria-label="' + esc(t.title) + '"></button>';
+}
+
+/* Top-level tasks only. Sub-steps carry no impact or effort of their own, so
+   they have no position here — placing them under their parent's scores would
+   double-count the same piece of work. Done tasks are left out: this is a tool
+   for deciding what is next, not a record of what happened. */
+function matrixTasks(){
+  const out = [];
+  state.doc.buckets.forEach((b, bi) => {
+    const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
+    b.tiers.forEach(tier => tier.tasks.forEach(t => {
+      if (t.done || !matches(t)) return;
+      out.push({ id: t.id, title: t.title, impact: t.impact, effort: t.effort,
+                 due: t.due, ai: t.ai, urgent: t.urgent, headline: !!t.headline,
+                 bucket: b.name, tierName: tier.name, color });
+    }));
+  });
+  return out;
+}
+
+function matrixSection(){
+  const tasks = matrixTasks();
+  const placed = tasks.filter(t => IMPACT_N[t.impact] && EFFORT_N[t.effort]);
+  const missing = tasks.filter(t => !IMPACT_N[t.impact] || !EFFORT_N[t.effort]);
+
+  const legend = '<div class="mlegend">' +
+    state.doc.buckets.map((b, i) =>
+      '<span class="mkey" style="--bc:' + BUCKET_COLOR[i % BUCKET_COLOR.length] + '">' +
+      '<i></i>' + esc(b.name) + '</span>').join('') +
+    '<span class="mkey mkeyhl"><i></i>the one thing</span>' +
+    '<span class="mkey mkeyurg"><i></i>urgent</span>' +
+  '</div>';
+
+  let grid = '<div class="mgrid">' +
+    '<div class="mcorner">' +
+      '<span class="maxis">Effort →</span>' +
+      '<span class="maxis">↓ Impact</span>' +
+    '</div>' +
+    MATRIX_EFFORT.map(e => '<div class="mhead">' + esc(e) +
+      '<span class="mhint">' + esc(EFFORT_HINT[e]) + '</span></div>').join('');
+
+  MATRIX_IMPACT.forEach(imp => {
+    grid += '<div class="mside">' + esc(imp) + '</div>';
+    MATRIX_EFFORT.forEach(eff => {
+      const key = imp + '/' + eff;
+      const inCell = placed.filter(t => t.impact === imp && t.effort === eff);
+      const score = IMPACT_N[imp] / EFFORT_N[eff];
+      grid += '<div class="mcell' + (key === 'high/S' ? ' first' : '') +
+          (inCell.length ? '' : ' empty') + '" data-score="' + score.toFixed(2) + '"' +
+          ' style="--w:' + score.toFixed(2) + '">' +
+        '<div class="mcellhead">' +
+          '<span class="madvice">' + esc(CELL_ADVICE[key]) + '</span>' +
+          '<span class="mcount">' + inCell.length + '</span>' +
+        '</div>' +
+        '<div class="mdots">' + inCell.map(t => matrixDot(t, t.color)).join('') + '</div>' +
+      '</div>';
+    });
+  });
+  grid += '</div>';
+
+  const tray = missing.length
+    ? '<div class="mtray"><div class="mtrayhead">' +
+        '<strong>' + missing.length + ' not on the matrix</strong>' +
+        '<span>Missing an impact or an effort score, so they have no position. ' +
+        'Click one to score it.</span></div>' +
+        '<div class="mdots">' + missing.map(t => matrixDot(t, t.color)).join('') + '</div>' +
+      '</div>'
+    : '';
+
+  const total = placed.length;
+  const cheapWins = placed.filter(t => t.impact === 'high' && t.effort === 'S').length;
+  const cut = placed.filter(t => t.impact === 'low' && t.effort === 'L').length;
+  const heavy = placed.filter(t => t.effort === 'L').length;
+  let read = '';
+  if (total) {
+    const bits = [];
+    bits.push(cheapWins
+      ? '<strong>' + cheapWins + '</strong> high impact and cheap — start there'
+      : 'nothing is both high impact and cheap right now');
+    bits.push('<strong>' + heavy + '</strong> of ' + total + ' need a week or more');
+    if (cut) bits.push('<strong>' + cut + '</strong> in the cut corner');
+    read = '<p class="mread">' + bits.join(' · ') + '</p>';
+  }
+
+  return legend + read + grid + tray;
 }
 
 function refSection(title, hint, html){
@@ -1359,7 +1566,7 @@ function refSection(title, hint, html){
 
 function renderSections(viewId){
   const items = allItems();
-  let html = '', single = false, split = false, cols = 4, lead = '';
+  let html = '', single = false, split = false, wide = false, cols = 4, lead = '';
 
   if (viewId === 'overview') {
     const ctx = contextSection();
@@ -1373,6 +1580,11 @@ function renderSections(viewId){
     if (ctx) secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.', ctx));
     cols = secs.length;
     html = secs.join('');
+  } else if (viewId === 'matrix') {
+    wide = true;
+    html = refSection('Impact against effort',
+      'Every open task by its two scores. One dot per task, coloured by bucket — hover for the title, click to open it.',
+      matrixSection());
   } else if (viewId === 'quick') {
     single = true;
     html = refSection('Quick wins', 'Everything `effort:S`, plus any step whose message is already written.', quickSection(items));
@@ -1390,7 +1602,8 @@ function renderSections(viewId){
   }
 
   $('#lists').innerHTML = (lead ? '<p class="help listlead">' + lead + '</p>' : '') +
-    '<div class="lists' + (single ? ' single' : '') + (split ? ' split' : '') + '"' +
+    '<div class="lists' + (single ? ' single' : '') + (split ? ' split' : '') +
+      (wide ? ' wide' : '') + '"' +
       (split ? ' style="--refcols:' + cols + '"' : '') + '>' + html + '</div>' +
     '<p class="help listnote">Generated from the tags on the tasks, so every card here is a real task. ' +
     'Open one to change it, then Save.</p>';
@@ -1421,6 +1634,9 @@ function renderView(){
   $('#allBuckets').classList.add('hidden');
   $('#scoreChip').classList.add('hidden');
   $('#headline').classList.add('hidden');
+  // Its chip is board-only, so leaving it on here would filter a view with no
+  // visible control to explain why half the tasks are missing.
+  state.unscoredOnly = false;
   renderSections(def.id);
 }
 
