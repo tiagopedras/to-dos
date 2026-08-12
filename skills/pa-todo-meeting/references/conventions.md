@@ -23,6 +23,8 @@ Inside each bucket, three states. These replaced Now / Next / Later / Parked on 
 
 Backlog absorbed the old Parked state, so it holds two different things: real work nobody has scheduled yet, and work deliberately deferred. A deferred item needs a revisit date in its note, otherwise the two become indistinguishable and the deferred one is never looked at again.
 
+**New tasks do not go into Doing.** That state is his own statement that something is live, so it is only ever set from what he says: he has started it, is working on it, is mid-way through it. A task arriving on the list goes to To do if prioritisation puts it next up, or Backlog if it does not, whatever its score or date. Adding to Doing on his behalf makes the state a wish list rather than a record of what is in flight.
+
 A state can be empty. Leave the empty headings in place, they make the shape scannable and they stop a bucket looking abandoned.
 
 ## Tags

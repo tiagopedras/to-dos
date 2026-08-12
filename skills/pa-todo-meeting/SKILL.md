@@ -9,6 +9,14 @@ This skill maintains one specific file: the owner's master to-do list. He is a d
 
 The file lives at `~/Code/to-dos/todo.md`. If that path is not reachable, look for `todo.md` in whatever folder is connected before asking him where it is.
 
+## The first thing every session does: name the thread
+
+Rename the conversation to `PA — <today's date>`, written the way he reads dates, so `PA — 12 Aug 2026`. Do it as the very first action of the session, before reading the file, before answering, before anything else.
+
+This applies to **every** use of this skill, not only a full check-in. A one-line "add this to my list" gets the same title as a bucket-by-bucket review. He runs this skill constantly and every thread otherwise looks identical in his history; the date is the only thing that tells one from another, so a session that skipped the rename is a session he cannot find again.
+
+Use the session-title tool the session provides — `set_session_title`, which may appear namespaced, for example `mcp__ccd_session_mgmt__set_session_title`. Set it once and do not rename it again later in the same session. If no such tool exists in this session, skip it silently: do not announce it, do not apologise for it, and do not ask him to rename the thread himself.
+
 ## Why this skill exists
 
 Each session starts with no memory of the last one. The file is the memory. That works only if every session reads the conventions before editing, because an update that quietly breaks the format costs more than the update was worth. Read `references/conventions.md` at the start of every session, before touching anything.
@@ -78,7 +86,7 @@ On a quiet morning where nothing has changed, moves 1 and 5 are the whole sessio
 
 ### 1. Read and report
 
-**Name the session first.** Set the session title to `PA check-in — <today's date>`, written the way he reads dates, so `PA check-in — 11 Aug 2026`. Do this once, at the start, before reading anything, using the session-title tool available in the session (`set_session_title`). He runs this skill often and every session otherwise looks the same in his history; the date is the only thing that tells one from another. If no such tool is available, skip it silently rather than announcing it or asking him to rename anything.
+**Name the session first**, as described in the first thing every session does, above.
 
 **Check the board is not holding unsaved changes first.** The board keeps his edits in the browser until he presses Save, and it writes the whole file when he does. If he has it open with unsaved work and you edit the file underneath him, whichever of you saves last wins and the other's work is gone silently. If there is any chance it is open, ask him to Save or Reload before you start. This is the one way to lose real work in this setup.
 
@@ -135,6 +143,12 @@ All of these work on sub-steps as well as tasks, and usually belong there. Half 
 
 **Every new task gets tier one applied in the same edit that creates it.** A task added without both scores is an unscored task he has to come back to, which is the friction this skill exists to remove. Suggest, name the comparison, and only ask when nothing is close.
 
+**A new task never lands in Doing unless he said he is doing it.** Doing is a statement about right now, and filling it on his behalf turns it into a wish list — which is how the state stops meaning anything. Only put a new task there when he says he has started it, is working on it, or is in the middle of it. Everything else goes to **To do** when it is scored high enough or dated inside the next few weeks to be next up, and **Backlog** when it is real work with no time pressure yet. If it genuinely sits on the line, put it in To do and say which one you chose in its line of the report. A `due:` date inside the next fortnight does not by itself justify Doing; it justifies To do plus the date.
+
+**Reporting back when he adds tasks.** When the ask was "add this", the reply is a plain list of the tasks added and nothing else. One line per task: the title, its bucket and state, and the two scores — "Chase HR on the form — People, To do · med impact · S". No preamble, no explanation of the tags, no mention of the checker, the file, the board, or anything else you did in passing. If you also had to fix or tidy something to make the add work, that is one short line at the end, not a paragraph.
+
+If you scored a task yourself, say the scores in that line and name the comparison in a few words: "same as the sign-off chase". If you could not score it — nothing on the list is close, or the effort needs a first step defined — leave the scores out and end with one question asking him to score those tasks. Do not guess to avoid asking, and do not write the task in without scores and stay quiet about it.
+
 **Only one `headline:` in the file.** Setting a new one means clearing the old one in the same edit. Two headlines is the same failure as a week with two priorities.
 
 Three things still need judgement rather than a tag:
@@ -173,6 +187,8 @@ Re-run the checker. Fix anything it flags before delivering, since handing over 
 **The file is edited in place, on his disk.** Use `Edit` and it is already saved; there is nothing to upload, attach or commit. Earlier versions of this skill described a `SendUserFile` and `device_commit_files` handover, which belonged to a setup where the file arrived as an attachment. That does not apply here and following it wastes a turn on a tool that will not do anything useful.
 
 If he has the board open, tell him to press **Reload** on it. The board read the file when it opened and will not notice your changes until it re-reads, and if he saves from a stale board he overwrites everything you just did.
+
+**If the session was only an add**, the closing report is the task list described in move 3 — nothing about what changed, what to focus on, or the headline unless he asks. The two-part report below is for a real review session.
 
 **The closing report is short. Two parts, nothing else:**
 
