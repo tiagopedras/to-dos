@@ -719,6 +719,11 @@ function serializeTask(t){
   return [first].concat(body);
 }
 
+/* Everything between the task lines — blank lines, stray prose, the `---` rule at
+   the foot of a bucket — is kept verbatim so that saving a file nobody edited
+   gives back the same bytes. `lead` is what sits under a column heading, `sep`
+   is what follows a task, `tail` is what closes a column, `tail` on the bucket
+   is what closes the bucket (so a column added later lands above the rule). */
 function parseDoc(text){
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const doc = { pre: [], buckets: [], post: [] };
@@ -729,16 +734,21 @@ function parseDoc(text){
   while (i < lines.length) {
     const bm = BUCKET_RE.exec(lines[i]);
     if (!bm) break;
-    const bucket = { num: bm[1], name: bm[2].trim(), intro: [], tiers: [] };
+    const bucket = { num: bm[1], name: bm[2].trim(), raw: lines[i], intro: [], tiers: [], tail: [] };
     i++;
     while (i < lines.length && !TIER_RE.test(lines[i]) && !/^##\s/.test(lines[i])) bucket.intro.push(lines[i++]);
 
     while (i < lines.length && TIER_RE.test(lines[i])) {
-      const tier = { name: TIER_RE.exec(lines[i])[1].trim(), pre: [], tasks: [] };
+      const tier = { name: TIER_RE.exec(lines[i])[1].trim(), raw: lines[i],
+                     lead: null, tasks: [], tail: [] };
       i++;
+      let gap = [];                                   // lines seen since the last task
       while (i < lines.length && !TIER_RE.test(lines[i]) && !/^##\s/.test(lines[i])) {
         const line = lines[i];
         if (TASK_RE.test(line)) {
+          if (tier.tasks.length) tier.tasks[tier.tasks.length - 1].sep = gap;
+          else tier.lead = gap;
+          gap = [];
           const raw = [line];
           i++;
           while (i < lines.length) {
@@ -754,11 +764,33 @@ function parseDoc(text){
           }
           tier.tasks.push(parseTask(raw));
         } else {
-          if (line.trim() !== '' && !HR_RE.test(line)) tier.pre.push(line);
+          gap.push(line);
           i++;
         }
       }
+      if (tier.tasks.length) {
+        tier.tail = gap;
+      } else {
+        /* Empty column: the blank line belongs under the heading, anything after
+           it closes the column, so a first card lands between the two. */
+        let k = 0;
+        while (k < gap.length && gap[k].trim() === '') k++;
+        tier.lead = gap.slice(0, k);
+        tier.tail = gap.slice(k);
+      }
       bucket.tiers.push(tier);
+    }
+    /* Hand the closing blank/rule lines back to the bucket, so they stay at the
+       bottom even if a new column is appended. */
+    if (bucket.tiers.length) {
+      const last = bucket.tiers[bucket.tiers.length - 1];
+      let cut = last.tail.length;
+      while (cut > 0 && (last.tail[cut - 1].trim() === '' || HR_RE.test(last.tail[cut - 1]))) cut--;
+      /* Leave one blank line with the column, so a card appended to it is still
+         separated from the rule below. */
+      if (cut < last.tail.length && last.tail[cut].trim() === '') cut++;
+      bucket.tail = last.tail.slice(cut);
+      last.tail = last.tail.slice(0, cut);
     }
     doc.buckets.push(bucket);
   }
@@ -769,17 +801,22 @@ function parseDoc(text){
 function serializeDoc(doc){
   const out = doc.pre.slice();
   doc.buckets.forEach(b => {
-    out.push('## ' + b.num + '. ' + b.name);
+    out.push(b.raw != null ? b.raw : '## ' + b.num + '. ' + b.name);
     out.push.apply(out, b.intro);
     b.tiers.forEach(tier => {
-      out.push('### ' + tier.name, '');
-      if (tier.pre.length) { out.push.apply(out, tier.pre); out.push(''); }
-      tier.tasks.forEach(t => { out.push.apply(out, serializeTask(t)); out.push(''); });
+      out.push(tier.raw != null ? tier.raw : '### ' + tier.name);
+      out.push.apply(out, tier.lead != null ? tier.lead : ['']);
+      tier.tasks.forEach((t, idx) => {
+        out.push.apply(out, serializeTask(t));
+        const last = idx === tier.tasks.length - 1;
+        out.push.apply(out, last ? (tier.tail || ['']) : (t.sep != null ? t.sep : ['']));
+      });
+      if (!tier.tasks.length) out.push.apply(out, tier.tail || []);
     });
-    out.push('---', '');
+    out.push.apply(out, b.tail != null ? b.tail : []);
   });
   out.push.apply(out, doc.post);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '\n');
+  return out.join('\n');
 }
 
 /* =========================================================================
@@ -898,7 +935,7 @@ function unblockCount(t){
 /* The board calls this column Backlog, so the file says Backlog too. */
 function renameParked(doc){
   let changed = false;
-  doc.buckets.forEach(b => b.tiers.forEach(t => { if (t.name === 'Parked') { t.name = 'Backlog'; changed = true; } }));
+  doc.buckets.forEach(b => b.tiers.forEach(t => { if (t.name === 'Parked') { t.name = 'Backlog'; t.raw = null; changed = true; } }));
   if (changed) doc.pre = doc.pre.map(l => l.replace(/\*\*Parked\*\*/g, '**Backlog**'));
   return changed;
 }
@@ -916,7 +953,7 @@ function allTiers(){
 function ensureTier(bucket, name){
   const found = bucket.tiers.find(t => t.name === name);
   if (found) return found;
-  const tier = { name, pre: [], tasks: [] };
+  const tier = { name, raw: null, lead: [''], tasks: [], tail: [''] };
   const order = allTiers();
   const pos = order.indexOf(name);
   let at = bucket.tiers.length;
