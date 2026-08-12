@@ -8,7 +8,7 @@ people, so `todo.md` and its backups are ignored. What is here is the machinery.
 
 ## The board
 
-`kanban/kanban.html` is one self-contained page. No build step, no dependencies.
+`kanban/index.html` is one self-contained page. No build step, no dependencies.
 It parses `todo.md` into buckets, states and tags, renders them as columns, and
 writes the file back when you save.
 

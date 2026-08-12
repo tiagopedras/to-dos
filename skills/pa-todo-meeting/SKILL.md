@@ -226,7 +226,7 @@ The exception is failure. If the checker still flags something, an edit could no
 ## Where things live
 
 - `todo.md` — at the root of the to-dos folder. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
-- `kanban/kanban.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
+- `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
 - `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
 - `backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.

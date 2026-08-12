@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tiny local server for the to-do board.
 
-This file lives in kanban/ and serves the folder above it, so kanban/kanban.html
+This file lives in kanban/ and serves the folder above it, so kanban/index.html
 and todo.md at the project root are both reachable. It accepts PUT /todo.md so the
 board can write your changes straight back, and keeps backups in backups/.
 Listens on 127.0.0.1 only, so nothing outside this machine can reach it.
@@ -24,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 BACKUP_DIR = os.path.join(ROOT, "backups")
 TARGET = "todo.md"
-PAGE = "kanban/kanban.html"
+PAGE = "kanban/index.html"
 PORT = 8765
 MAX_BYTES = 5 * 1024 * 1024
 backup_made = False
