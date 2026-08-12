@@ -49,7 +49,7 @@ unchanged.
 
 **Backups** come in two kinds, listed at `kanban/backups.html` (the **Backups**
 button in the header). A *session* backup is taken before the first save of each
-run, and the last ten are kept. A *weekly* snapshot is taken the first time the
+run, and the last fifty are kept. A *weekly* snapshot is taken the first time the
 board notices a new ISO week — on startup, on a save, or on its own half-hourly
 check while it sits running — and the last twelve are kept. The two are pruned
 separately, so a busy fortnight of saves can never delete the only copy of how the
@@ -66,6 +66,25 @@ ways out: keep what is in the tab, download it first, or discard it and take the
 file. Nothing is overwritten until that choice is made. Renames are shown as
 renames rather than as a delete plus an add, because the second reads like lost
 work.
+
+### Archiving finished work
+
+A task ticked off more than 30 days ago is history rather than a list, so the
+header offers to move it out: **Archive N finished**. It goes to
+`backups/done-archive.md`, which is append-only, never pruned, and written to by
+nothing else — so this is a move, not a delete, and the record outlives the
+backups that would otherwise be the only copy. Sub-steps and notes travel with the
+task. A fresh backup of the whole list is taken first, and the archive file is
+written *before* anything leaves `todo.md`, so a failure loses nothing.
+
+It is never automatic. The list shrinking on its own while the tab is open is
+indistinguishable from the board losing work.
+
+This needs a completion date, which the file did not record: `done:YYYY-MM-DD` is
+written when a task is ticked. Tasks that were already ticked before this existed
+are stamped with the day they are first seen, because there is no way to recover
+when they were actually finished — so nothing is ever archived before it has sat
+for a full 30 days under a date the board can vouch for.
 
 ### How the board prioritises
 

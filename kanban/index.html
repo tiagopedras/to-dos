@@ -638,6 +638,7 @@
          title="Saves on its own every 5 minutes, but only when something has changed.">
     <input type="checkbox" id="autosave"> Auto-save
   </label>
+  <button class="btn hidden" id="archiveBtn"></button>
   <button class="btn" id="reload" title="Re-read the file from disk">Reload</button>
   <a class="btn" id="backupsLink" href="/kanban/backups.html" target="_blank"
      title="Every copy of todo.md the board has kept">Backups</a>
@@ -719,7 +720,7 @@ function parseTask(rawLines){
   rest = rest.replace(/`([A-Za-z][\w-]*):([^`]*)`/g, (whole, k, v) => {
     const key = k.toLowerCase();
     if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai' ||
-        key === 'start') tags[key] = v.trim();
+        key === 'start' || key === 'done') tags[key] = v.trim();
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
     else if (key === 'headline') headline = v.trim();
@@ -744,6 +745,10 @@ function parseTask(rawLines){
        date was doing both jobs, which meant nothing could tell "finish by the
        7th" apart from "cannot begin until the 1st". */
     start: tags.start || '',
+    /* The day it was ticked off. Nothing in the file used to record this, so
+       "finished a while ago" was unanswerable — which is exactly what archiving
+       old finished work needs to know. Written when a task is ticked. */
+    doneOn: tags.done || '',
     ai: tags.ai || '',
     urgent, week, slug, blockedBy, rank, headline, extra,
     body: rawLines.slice(1),
@@ -765,6 +770,7 @@ function serializeTask(t){
     if (t.effort) tags.push('`effort:' + t.effort + '`');
     if (t.start)  tags.push('`start:' + t.start + '`');
     if (t.due)    tags.push('`due:' + t.due + '`');
+    if (t.done && t.doneOn) tags.push('`done:' + t.doneOn + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
     if (t.ai)     tags.push('`ai:' + t.ai + '`');
@@ -959,6 +965,21 @@ function unblockCount(t){
 }
 
 /* The board calls this column Backlog, so the file says Backlog too. */
+/* Tasks ticked off before the board started dating them have no `done:` at all,
+   so nothing can tell whether they were finished yesterday or in March. They are
+   stamped with today on first sight: the clock has to start somewhere, and
+   starting it now means nothing is archived before it has been sat with for the
+   full thirty days. Returns how many were stamped, to say so rather than quietly
+   marking the file dirty. */
+function stampDoneDates(doc){
+  let n = 0;
+  const now = ymd(today());
+  doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (t.done && !t.doneOn) { t.doneOn = now; t.dirty = true; n++; }
+  })));
+  return n;
+}
+
 function renameParked(doc){
   let changed = false;
   doc.buckets.forEach(b => b.tiers.forEach(t => { if (t.name === 'Parked') { t.name = 'Backlog'; changed = true; } }));
@@ -1000,6 +1021,17 @@ function locate(id){
   }
   return null;
 }
+/* The single way a task's tick is changed. Five places used to set .done by hand,
+   and every one of them would now have to remember to date it — so they all go
+   through here instead. Returns true if anything actually changed. */
+function setDone(t, on){
+  if (t.done === on) return false;
+  t.done = on;
+  t.doneOn = on ? ymd(today()) : '';
+  t.dirty = true;
+  return true;
+}
+
 function markDirty(){
   state.dirty = true;
   $('#save').disabled = false;
@@ -1812,6 +1844,9 @@ function renderSections(viewId){
 /* Two views: the board, and the hand-written summaries from the end of the file.
    The bucket tabs, the AI filter and search only make sense on the board. */
 function renderView(){
+  // Up front, not at the end: the board case returns early, and the chip belongs
+  // to the header rather than to any one view.
+  updateArchiveChip();
   const defs = viewDefs();
   if (!defs.some(d => d.id === state.view)) state.view = 'board';
   const def = defs.find(d => d.id === state.view);
@@ -1845,6 +1880,7 @@ function renderView(){
    alone does nothing when a list view is up. */
 function refreshView(){
   if (state.view === 'board') renderBoard(); else renderSections(state.view);
+  updateArchiveChip();
 }
 
 /* The bar above the board. Empty it is a slim invitation, not a banner: an empty
@@ -2074,11 +2110,11 @@ function dropTask(id, tierName, zone, clientY){
 
   // Done is not a section in the file — it is the tick box on the task.
   if (tierName === DONE_COL) {
-    if (!loc.task.done) { loc.task.done = true; loc.task.dirty = true; markDirty(); refreshView(); }
+    if (setDone(loc.task, true)) { markDirty(); refreshView(); }
     if (state.openTask === id) openDrawer(id);
     return;
   }
-  if (loc.task.done) { loc.task.done = false; loc.task.dirty = true; }   // dragged back out of Done
+  setDone(loc.task, false);                       // dragged back out of Done
 
   const targetTier = ensureTier(loc.bucket, tierName);
 
@@ -2381,11 +2417,11 @@ function openDrawer(id, focusTitle){
   $('#f-tier').onchange = e => {
     const pick = e.target.value;
     if (pick === DONE_COL) {
-      if (!t.done) { t.done = true; t.dirty = true; }
+      setDone(t, true);
       markDirty(); refreshView(); openDrawer(id);
       return;
     }
-    if (t.done) { t.done = false; t.dirty = true; }
+    setDone(t, false);
     const target = ensureTier(loc.bucket, pick);
     if (target !== loc.tier) {
       loc.tier.tasks.splice(loc.index, 1);
@@ -2515,6 +2551,7 @@ function load(text, name){
   if (!doc.buckets.length) throw new Error('No task buckets found — expected headings like "## 1. People".');
   state.doc = doc;
   const renamed = renameParked(state.doc);
+  const stamped = stampDoneDates(state.doc);
   state.originalText = text;
   state.fileName = name || 'todo.md';
   $('#start').classList.add('hidden');
@@ -2524,6 +2561,11 @@ function load(text, name){
   markClean('');
   renderView();
   if (renamed) { markDirty(); $('#status').textContent = 'renamed “Parked” to “Backlog” — save to apply'; }
+  if (stamped) {
+    markDirty();
+    $('#status').textContent = 'dated ' + stamped + ' finished task' + (stamped === 1 ? '' : 's') +
+      ' as done today — save to apply';
+  }
 }
 
 function showErr(msg){
@@ -2553,14 +2595,14 @@ async function loadFile(){
 /* auto: this save was the timer's idea, not his, so a failure must not throw a
    dialog in front of whatever he is doing. It shows in the status line instead,
    and the changes stay in the tab either way. */
-async function saveFile(auto){
+async function saveFile(auto, forceBackup){
   if (!state.doc || !state.dirty) return;
   const text = serializeDoc(state.doc);
   const btn = $('#save');
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
-    const res = await fetch('/todo.md', {
+    const res = await fetch('/todo.md' + (forceBackup ? '?backup=force' : ''), {
       method: 'PUT',
       headers: { 'Content-Type':'text/markdown; charset=utf-8' },
       body: text
@@ -2865,6 +2907,116 @@ async function watchTick(){
   offerReload(diskText, false);
 }
 
+/* =========================================================================
+   Archiving finished work
+
+   A task ticked off a month ago is history, not a list. It comes out of todo.md
+   and goes into backups/done-archive.md, which is append-only and never pruned —
+   so this is a move, not a delete, and the record outlives the backups that
+   would otherwise have been the only copy.
+
+   Never automatic. The list shrinking on its own, while the tab is open, is
+   indistinguishable from the board losing work.
+   ========================================================================= */
+
+const ARCHIVE_DAYS = 30;
+
+function daysSince(iso){
+  const d = parseDue(iso);
+  return d ? Math.round((today() - d) / 86400000) : null;
+}
+
+/* Ticked, dated, and dated long enough ago. An undated done task is left alone:
+   without a date there is no claim to make about its age. */
+function archivable(){
+  const out = [];
+  if (!state.doc) return out;
+  state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (!t.done || !t.doneOn) return;
+    const age = daysSince(t.doneOn);
+    if (age != null && age > ARCHIVE_DAYS) out.push({ bucket:b, tier, task:t, age });
+  })));
+  return out.sort((x, y) => y.age - x.age);
+}
+
+function updateArchiveChip(){
+  const btn = $('#archiveBtn');
+  if (!btn) return;
+  const n = archivable().length;
+  btn.classList.toggle('hidden', n === 0);
+  btn.textContent = 'Archive ' + n + ' finished';
+  btn.title = n + ' task' + (n === 1 ? '' : 's') + ' ticked off more than ' +
+              ARCHIVE_DAYS + ' days ago. Moves them to backups/done-archive.md.';
+}
+
+/* Grouped by where they were, because "which bucket was this in" is most of what
+   makes an archived task findable a year later. */
+function archiveMarkdown(list){
+  const groups = new Map();
+  list.forEach(it => {
+    const key = it.bucket.name + ' · ' + it.tier.name;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it.task);
+  });
+  const out = [];
+  groups.forEach((tasks, key) => {
+    out.push('### ' + key, '');
+    tasks.forEach(t => { out.push.apply(out, serializeTask(t)); });
+    out.push('');
+  });
+  return out.join('\n');
+}
+
+async function archiveOldDone(){
+  const list = archivable();
+  if (!list.length) return;
+
+  const body =
+    '<div class="changes"><h3>Moving out of todo.md (' + list.length + ')</h3><ul>' +
+    list.slice(0, 40).map(it =>
+      '<li><span class="what">' + it.age + 'd</span><span><strong>' + esc(it.task.title) +
+      '</strong> <span class="where">' + esc(it.bucket.name + ' · ' + it.tier.name) +
+      ' · ticked ' + esc(it.task.doneOn) + '</span></span></li>').join('') +
+    '</ul>' + (list.length > 40 ? '<div class="none">…and ' + (list.length - 40) + ' more.</div>' : '') +
+    '</div>';
+
+  showModal('Archive finished work',
+    'These were ticked off more than ' + ARCHIVE_DAYS + ' days ago. They move to ' +
+    '<strong>backups/done-archive.md</strong>, which is never pruned, and a fresh backup of ' +
+    'the whole list is taken first. Sub-steps and notes go with them.',
+    body,
+    [{ label:'Archive ' + list.length, primary:true, run:runArchive },
+     { label:'Not now' }]);
+
+  async function runArchive(){
+    const text = archiveMarkdown(list);
+    try {
+      const res = await fetch('/archive', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const info = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
+    } catch (err) {
+      alert('Nothing was archived, and nothing was removed from todo.md.\n\n' +
+            (err.message || err));
+      return;
+    }
+    // Only now is it safe to take them out: the copy is already on disk.
+    list.forEach(it => {
+      const i = it.tier.tasks.indexOf(it.task);
+      if (i > -1) it.tier.tasks.splice(i, 1);
+    });
+    closeDrawer();
+    markDirty();
+    refreshView();
+    await saveFile(false, true);
+    $('#status').textContent = 'archived ' + list.length + ' finished task' +
+      (list.length === 1 ? '' : 's') + ' → backups/done-archive.md';
+  }
+}
+
 setInterval(autosaveTick, 30 * 1000);              // checked often, saves at most every 5 minutes
 setInterval(watchTick, WATCH_MS);
 
@@ -2882,6 +3034,7 @@ $('#autosave').onchange = e => {
 $('#save').onclick = () => saveFile();   /* not saveFile directly: the click event would read as "auto" */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
 $('#reload').onclick = reload;
+$('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };
 $('#aiFilter').onchange = e => { state.aiFilter = e.target.value; closeDrawer(); renderBoard(); };
@@ -2896,7 +3049,7 @@ $('#lists').addEventListener('click', e => {
     const found = locate(tick.dataset.tick);
     if (!found) return;
     if (tick.dataset.sub != null) toggleSub(found.task, +tick.dataset.sub);
-    else { found.task.done = !found.task.done; found.task.dirty = true; markDirty(); }
+    else { setDone(found.task, !found.task.done); markDirty(); }
     renderView();
     return;
   }

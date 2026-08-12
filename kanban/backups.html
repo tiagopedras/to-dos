@@ -180,7 +180,26 @@ async function draw(){
     const weekly = all.filter(b => b.kind === 'weekly').sort((x, y) => y.name.localeCompare(x.name));
     const session = all.filter(b => b.kind === 'session');
 
-    $('#out').innerHTML =
+    /* The archive goes first and on its own. Every other file here is a copy of
+       something that still exists; this is the only one holding work that has
+       been taken out of the list. */
+    const a = data.archive;
+    const archive = !a ? '' :
+      '<h2>Archived finished work</h2>' +
+      '<div class="row">' +
+        '<span class="tag">never pruned</span>' +
+        '<a class="when" href="' + esc(a.url) + '" target="_blank">' + esc(when(a.modified)) + '</a>' +
+        '<span class="ago">' + esc(ago(a.modified)) + '</span>' +
+        '<span class="spacer"></span>' +
+        '<span class="name">' + esc(a.name) + '</span>' +
+        '<span class="size">' + size(a.bytes) + '</span>' +
+      '</div>' +
+      '<p class="note" style="margin-top:8px">' + a.sections +
+        (a.sections === 1 ? ' batch' : ' batches') +
+        ' of tasks that were ticked off more than a month ago and lifted out of todo.md. ' +
+        'Nothing is ever removed from this file.</p>';
+
+    $('#out').innerHTML = archive +
       group('Weekly snapshots', weekly, 'None yet — the first one is taken the next time the board runs in a new week.') +
       group('Recent sessions', session, 'None yet — one is taken before the first save of each run.');
 

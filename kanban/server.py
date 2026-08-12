@@ -32,7 +32,7 @@ backup_made = False
 
 SESSION_PREFIX = "todo-backup-"
 WEEKLY_PREFIX = "todo-backup-week-"
-KEEP_BACKUPS = 10      # rolling snapshots, one per run of the board
+KEEP_BACKUPS = 50      # rolling snapshots, one per run of the board
 KEEP_WEEKLY = 12       # weekly snapshots, roughly a quarter of history
 
 
@@ -105,6 +105,56 @@ def weekly_backup_watcher(every=1800):
         time.sleep(every)
 
 
+ARCHIVE = "done-archive.md"
+
+
+def archive_done(text):
+    """Append finished work lifted out of todo.md, under a dated heading.
+
+    A separate file rather than a reliance on the backups: a backup is a copy of
+    the whole list at a moment, and every one of them is eventually pruned, so
+    work archived today would quietly stop existing in twelve weeks. This file is
+    never pruned and never written to by anything else — it only grows.
+    """
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    path = os.path.join(BACKUP_DIR, ARCHIVE)
+    new = not os.path.exists(path)
+    with open(path, "a", encoding="utf-8", newline="") as fh:
+        if new:
+            fh.write("# Finished and archived\n\n"
+                     "Tasks lifted out of todo.md once they had been ticked off for more\n"
+                     "than a month. Newest section last. Nothing here is ever deleted.\n")
+        fh.write("\n## Archived %s\n\n" % datetime.date.today().isoformat())
+        fh.write(text.rstrip("\n") + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return ARCHIVE
+
+
+def archive_info():
+    """The archive is not a backup and is not listed as one — it is the only file
+    here that is never pruned, and it holds work that is in no current copy of
+    todo.md at all."""
+    path = os.path.join(BACKUP_DIR, ARCHIVE)
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    sections = 0
+    try:
+        with open(path, encoding="utf-8") as fh:
+            sections = sum(1 for line in fh if line.startswith("## Archived "))
+    except OSError:
+        pass
+    return {
+        "name": ARCHIVE,
+        "bytes": st.st_size,
+        "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        "url": "/backups/" + ARCHIVE,
+        "sections": sections,
+    }
+
+
 def backup_listing():
     """What the backup index page reads. Newest first."""
     out = []
@@ -158,10 +208,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path.split("?")[0] == "/backups.json":
             return self._json(200, {
                 "backups": backup_listing(),
+                "archive": archive_info(),
                 "keep": {"session": KEEP_BACKUPS, "weekly": KEEP_WEEKLY},
                 "week": week_tag(),
             })
         return super().do_GET()
+
+    def _body(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            return None
+        if length <= 0 or length > MAX_BYTES:
+            return None
+        return self.rfile.read(length)
+
+    def do_POST(self):
+        if self.path.split("?")[0] != "/archive":
+            return self._json(404, {"error": "nothing to post there"})
+        data = self._body()
+        if data is None:
+            return self._json(400, {"error": "bad or empty body"})
+        try:
+            payload = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return self._json(400, {"error": "body was not valid JSON"})
+        text = payload.get("text") or ""
+        if not text.strip():
+            return self._json(400, {"error": "nothing to archive"})
+        name = archive_done(text)
+        sys.stdout.write("archived finished work to backups/%s\n" % name)
+        sys.stdout.flush()
+        return self._json(200, {"ok": True, "archive": name})
 
     def do_PUT(self):
         global backup_made
@@ -190,6 +268,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         # A save is also a chance to notice the week turned over.
         weekly_name = weekly_backup()
+
+        # A write that removes tasks asks for its own backup, whether or not this
+        # run has already taken one. One per session is the right amount for
+        # ordinary edits and the wrong amount for the save that empties something
+        # out of the file.
+        forced = "backup=force" in self.path
+        if forced:
+            backup_made = False
 
         # One backup per run, before the first write of this session.
         if not backup_made and os.path.exists(path):

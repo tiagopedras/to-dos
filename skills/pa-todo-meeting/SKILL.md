@@ -230,6 +230,7 @@ The exception is failure. If the checker still flags something, an edit could no
 - `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
 - `backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
+- `backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
 
 **Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
 

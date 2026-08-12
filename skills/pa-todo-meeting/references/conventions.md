@@ -38,6 +38,7 @@ Every top-level task carries impact, effort and a delegation tag. Dates only whe
 - `due:YYYY-MM-DD` — the deadline. When it has to be finished by. Only when there is a genuine date.
 - `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
 - `urgent` — time-critical with no fixed date. Never combine with `due:`, they are alternatives.
+- `done:YYYY-MM-DD` — the day it was ticked off. Written by the board, not by hand. Never add it to an open task, and never remove it from a ticked one: it is what decides when finished work is old enough to be archived out of the file.
 - `ai:full` — hand to Claude, review the output. The work is reading, comparing, extracting, formatting or generating from a source that already exists.
 - `ai:partial` — Claude does the heavy lift, judgement or delivery stays his. Usually Claude drafts, he decides.
 - `ai:none` — inherently his. Conversations, decisions, relationships, anything whose value is that it came from him.
