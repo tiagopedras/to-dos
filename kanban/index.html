@@ -706,6 +706,42 @@ const HR_RE     = /^---\s*$/;
 let uidCounter = 0;
 const uid = () => 't' + (++uidCounter);
 
+/* Two tag syntaxes, one meaning. `impact`, `effort`, `due` and `ai` moved to
+   Dataview's inline-field form on 12 Aug 2026 — `[due:: 2026-08-21]` rather than
+   a code span — because those four are what the Dataview queries in views.md
+   filter on, and Dataview cannot see inside a code span. The rest stay code
+   spans: nothing queries them, and the line is already busy enough.
+
+   Both forms are read everywhere, permanently, not as a migration window. The
+   backups, the done-archive and anything he pastes back out of an old snapshot
+   are full of the old form, and a board that silently loses the scores off a
+   restored task is worse than one that reads both. Only the new form is
+   written.
+
+   The bracket pattern insists on the double colon, so `[[a wikilink]]` and
+   `[label](a link)` are left alone.
+
+   One pass over both forms rather than one pass each, so an unrecognised tag
+   keeps its position on the line instead of drifting to the end of it the next
+   time the task is saved. */
+const ANY_TAG_RE = /\[([A-Za-z][\w-]*)::\s*([^\]]*)\]|`([A-Za-z][\w-]*):([^`]*)`/g;
+/* Every tag form, for stripping a line back to its readable title. */
+const ALL_TAGS_RE = /\[[A-Za-z][\w-]*::[^\]]*\]|`[A-Za-z#][\w-]*:?[^`]*`/g;
+
+/* One field, either syntax, or '' when the line does not carry it. */
+function readField(text, key){
+  const m = new RegExp('\\[' + key + '::\\s*([^\\]]*)\\]|`' + key + ':([^`]*)`', 'i').exec(text);
+  if (!m) return '';
+  return (m[1] != null ? m[1] : m[2]).trim();
+}
+function hasField(text, key){
+  return new RegExp('\\[' + key + '::|`' + key + ':', 'i').test(text);
+}
+/* Strips every tag in both syntaxes, leaving the words a human wrote. */
+function stripTags(text){
+  return text.replace(ALL_TAGS_RE, '').replace(/`(urgent|week)`/g, '');
+}
+
 /* Pulls every tag off a task line. The four added on 10 Aug 2026 — #slug, week,
    blocked-by: and rank: — are the sole source for the sections above the board,
    so they are parsed as first-class fields rather than left in `extra`. Anything
@@ -717,7 +753,11 @@ function parseTask(rawLines){
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
   let blockedBy = [], rank = null, slug = '', headline = '';
-  rest = rest.replace(/`([A-Za-z][\w-]*):([^`]*)`/g, (whole, k, v) => {
+  /* Either syntax lands here, so a tag means the same thing whichever form it
+     arrived in. `whole` is what goes into `extra`, which keeps an unrecognised
+     tag exactly as it was written. */
+  const take = (whole, bk, bv, sk, sv) => {
+    const k = bk != null ? bk : sk, v = bk != null ? bv : sv;
     const key = k.toLowerCase();
     if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai' ||
         key === 'start' || key === 'done') tags[key] = v.trim();
@@ -726,7 +766,8 @@ function parseTask(rawLines){
     else if (key === 'headline') headline = v.trim();
     else extra.push(whole);
     return ' ';
-  });
+  };
+  rest = rest.replace(ANY_TAG_RE, take);
   rest = rest.replace(/`#([a-z0-9][a-z0-9-]*)`/gi, (whole, s) => { slug = s.toLowerCase(); return ' '; });
   let urgent = false, week = false;
   rest = rest.replace(/`urgent`/g, () => { urgent = true; return ' '; });
@@ -765,15 +806,18 @@ function serializeTask(t){
     const box = t.done ? '[x]' : '[ ]';
     const name = t.bold === false ? t.title : '**' + t.title + '**';
     const tags = [];
+    /* The four Dataview reads are written as inline fields; the rest stay code
+       spans. Order is unchanged, so a task rewritten by the board still diffs
+       cleanly against one edited by hand. */
     if (t.slug)   tags.push('`#' + t.slug + '`');
-    if (t.impact) tags.push('`impact:' + t.impact + '`');
-    if (t.effort) tags.push('`effort:' + t.effort + '`');
+    if (t.impact) tags.push('[impact:: ' + t.impact + ']');
+    if (t.effort) tags.push('[effort:: ' + t.effort + ']');
     if (t.start)  tags.push('`start:' + t.start + '`');
-    if (t.due)    tags.push('`due:' + t.due + '`');
+    if (t.due)    tags.push('[due:: ' + t.due + ']');
     if (t.done && t.doneOn) tags.push('`done:' + t.doneOn + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
-    if (t.ai)     tags.push('`ai:' + t.ai + '`');
+    if (t.ai)     tags.push('[ai:: ' + t.ai + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
     if (t.headline) tags.push('`headline:' + t.headline + '`');
@@ -1096,11 +1140,10 @@ function subSteps(t){
   t.body.forEach((line, i) => {
     const m = SUB_RE.exec(line);
     if (!m) return;
-    const dueMatch = /`due:([^`]*)`/.exec(m[3]);
     out.push({
       line: i, indent: m[1], done: m[2].toLowerCase() === 'x', text: m[3],
-      due: dueMatch ? dueMatch[1].trim() : '',
-      clean: m[3].replace(/`[A-Za-z][\w-]*:[^`]*`/g, '').replace(/`urgent`/g, '').replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim()
+      due: readField(m[3], 'due'),
+      clean: stripTags(m[3]).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim()
     });
   });
   return out;
@@ -1256,9 +1299,9 @@ function splitBody(t){
         line: idx,                           // index back into the body, so it can be ticked
         done: m[2].toLowerCase() === 'x',
         text,
-        due:   (/`due:([^`]*)`/.exec(text)   || [,''])[1].trim(),
-        start: (/`start:([^`]*)`/.exec(text) || [,''])[1].trim(),
-        ai:  (/`ai:([^`]*)`/.exec(text)  || [,''])[1].trim(),
+        due:   readField(text, 'due'),
+        start: readField(text, 'start'),
+        ai:    readField(text, 'ai'),
         /* Half the blockers in the file are steps, not whole tasks. Without the
            slug here, a `blocked-by:` pointing at one never resolves, so anything
            waiting on it looks permanently stuck. */
@@ -1271,8 +1314,7 @@ function splitBody(t){
            indistinguishable and Quick wins has to guess. */
         blockedBy: (/`blocked-by:([^`]*)`/.exec(text) || [,''])[1]
                      .split(',').map(s => s.trim()).filter(Boolean),
-        clean: text.replace(/`[A-Za-z#][\w-]*:?[^`]*`/g, '').replace(/`(urgent|week)`/g, '')
-                   .replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim(),
+        clean: stripTags(text).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim(),
         notes: []
       });
       return;
@@ -2161,7 +2203,7 @@ function stripDelegation(t){
     const m = SUB_RE.exec(line);
     if (m && (base === null || m[1].length <= base)) {
       base = m[1].length;
-      inherits = !/`ai:[^`]*`/.test(m[3]);                 // no ai: of its own, so it follows the parent
+      inherits = !hasField(m[3], 'ai');                    // no ai: of its own, so it follows the parent
       let text = m[3];
       if (inherits) text = text.replace(/\s*`rank:\d+`/g, '');
       out.push(m[1] + '- [' + m[2] + '] ' + text);

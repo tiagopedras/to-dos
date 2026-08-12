@@ -8,6 +8,15 @@ todo.md
 backups/
 todo-backup-*.md
 
+# The Obsidian views. Dataview Serializer fills these in with the tasks the
+# queries match, so the file ends up holding the list as well. The queries
+# themselves are committed as views.template.md.
+views.md
+
+# Obsidian's own state, if the folder is ever opened as a vault.
+.obsidian/
+.trash/
+
 # The board writes todo.md via a temp file and swaps it in. If it ever crashes
 # mid-write, this is left behind holding the whole list.
 todo.md.tmp

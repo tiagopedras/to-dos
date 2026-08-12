@@ -1,6 +1,6 @@
 # Manual audit checklist
 
-`scripts/check_todo.py` covers dates, tag consistency, whether every `blocked-by:` resolves to a real `#slug`, whether every `ai:full` carries a prompt, whether ranks are unique, and whether This week and the `week` tags agree in both directions. What it cannot judge is meaning. Work through this list after a large restructure, or when you have added several tasks with dependencies.
+`scripts/check_todo.py` covers dates, tag consistency, whether every `blocked-by:` resolves to a real `#slug`, whether every `ai:full` carries a prompt, whether ranks are unique, whether the four queried tags are written in the form Dataview can read, and whether This week and the `week` tags agree in both directions. What it cannot judge is meaning. Work through this list after a large restructure, or when you have added several tasks with dependencies.
 
 The script's output is the starting point, not the whole audit. A file can pass the script and still be wrong.
 

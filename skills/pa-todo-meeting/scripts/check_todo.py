@@ -4,7 +4,8 @@
 Catches the mechanical mistakes that are easy to make by hand and awkward to
 spot by eye: deadlines landing on weekends or UK bank holidays, sub-step dates
 running past their parent, a blocked-by: pointing at a task that does not exist,
-an ai:full task with no prompt to hand over, and a week that is over-committed.
+an ai:full task with no prompt to hand over, a week that is over-committed, and a
+queried tag written in a form Dataview cannot read.
 
 The file used to carry five sections copied out of the buckets, and most of this
 script existed to prove those copies still matched. They were removed on 10 Aug
@@ -49,11 +50,45 @@ BANK_HOLIDAYS = {
     "2027-12-28": "Boxing Day (substitute)",
 }
 
-DUE = re.compile(r"`due:(\d{4}-\d{2}-\d{2})`")
-DUE_LOOSE = re.compile(r"due:(\d{4}-\d{2}-\d{2})")
-IMPACT = re.compile(r"`impact:(high|med|low)`")
-EFFORT = re.compile(r"`effort:([SML])`")
-AI_TAG = re.compile(r"`ai:(full|partial|none)`")
+# Two syntaxes, one meaning. impact, effort, due and ai are written as Dataview
+# inline fields — [due:: 2026-08-21] — because views.md queries them and Dataview
+# cannot see inside a code span. The older `due:2026-08-21` form is still read,
+# and always will be: the backups, the done-archive and anything pasted back out
+# of an old snapshot are full of it, and a checker that stopped seeing a score
+# would report a scored task as unscored. Only the new form is written.
+def field_re(key, value=r"[^`\]]*", loose=False):
+    """A tag in any accepted syntax. Exactly one group ever matches."""
+    pats = [
+        r"\[\s*" + key + r"\s*::\s*(" + value + r")\s*\]",
+        r"`\s*" + key + r":\s*(" + value + r")\s*`",
+    ]
+    if loose:
+        # A tag typed with no wrapper at all. Tolerated when reading a value,
+        # never used as proof the tag is properly written.
+        pats.append(r"\b" + key + r":\s*(" + value + r")")
+    return re.compile("|".join(pats), re.I)
+
+
+def field_value(m):
+    """The one group that matched, whichever syntax it came from."""
+    for g in m.groups():
+        if g is not None:
+            return g.strip()
+    return None
+
+
+DATE = r"\d{4}-\d{2}-\d{2}"
+DUE = field_re("due", DATE)
+DUE_LOOSE = field_re("due", DATE, loose=True)
+IMPACT = field_re("impact", r"high|med|low")
+EFFORT = field_re("effort", r"[SML]")
+AI_TAG = field_re("ai", r"full|partial|none")
+
+# The four that have to be inline fields to be queryable, written the old way.
+# Harmless to every reader in this repo, invisible to Dataview, which is the
+# whole reason the syntax changed.
+OLD_SPAN = re.compile(r"`(impact|effort|due|ai):([^`]*)`", re.I)
+
 BOLD_TITLE = re.compile(r"\*\*(.+?)\*\*")
 TASK_LINE = re.compile(r"^(\s*)- \[( |x)\] (.*)$")
 
@@ -143,7 +178,8 @@ def check_working_days(lines):
     findings = []
     for i, line in enumerate(lines, start=1):
         for m in DUE.finditer(line):
-            date = parse_date(m.group(1))
+            raw = field_value(m)
+            date = parse_date(raw)
             problem = working_day_problem(date)
             if not problem:
                 continue
@@ -155,7 +191,7 @@ def check_working_days(lines):
                 Finding(
                     i,
                     "FIX",
-                    f"due:{m.group(1)} is {problem}. "
+                    f"due:{raw} is {problem}. "
                     f"Pull back to {back.isoformat()} ({back.strftime('%a')}), "
                     f"or push to {fwd.isoformat()} ({fwd.strftime('%a')}) if the step "
                     f"waits on someone else replying.",
@@ -298,14 +334,18 @@ def parse_tasks(lines):
         blocked_m = BLOCKED_BY.search(body)
         rank_m = RANK.search(body)
         ai_m = AI_TAG.search(body)
+        impact_m = IMPACT.search(body)
+        effort_m = EFFORT.search(body)
         entry = {
             "line": i,
             "indent": len(indent),
             "checked": checked,
             "body": body,
-            "due": parse_date(due_m.group(1)) if due_m else None,
-            "impact": (IMPACT.search(body).group(1) if IMPACT.search(body) else None),
-            "effort": (EFFORT.search(body).group(1) if EFFORT.search(body) else None),
+            "due": parse_date(field_value(due_m)) if due_m else None,
+            # Normalised, because the patterns are case-insensitive and the
+            # checks below compare against "high" and "M" literally.
+            "impact": field_value(impact_m).lower() if impact_m else None,
+            "effort": field_value(effort_m).upper() if effort_m else None,
             "title": (BOLD_TITLE.search(body).group(1) if BOLD_TITLE.search(body) else body),
             "section": section,
             "tier": tier_of(lines, i - 1),
@@ -317,7 +357,7 @@ def parse_tasks(lines):
                 else []
             ),
             "rank": int(rank_m.group(1)) if rank_m else None,
-            "ai": ai_m.group(1) if ai_m else None,
+            "ai": field_value(ai_m).lower() if ai_m else None,
             "prompt": prompt_under(lines, i, len(indent)),
             "subs": [],
         }
@@ -406,11 +446,55 @@ def check_tag_hygiene(lines, tasks):
                 findings.append(
                     Finding(task["line"], "CHECK", f"\"{task['title']}\" is missing an {name}: tag.")
                 )
-        if not AI_TAG.search(task["body"]):
+        if task["ai"] is None:
             findings.append(
                 Finding(task["line"], "CHECK", f"\"{task['title']}\" is missing an ai: tag.")
             )
     return findings
+
+
+def check_field_syntax(lines):
+    """The four queried tags have to be inline fields, not code spans.
+
+    `due:2026-08-21` still reads correctly here and on the board, which is what
+    makes this worth a check rather than leaving it to be noticed: nothing breaks
+    visibly, the task simply drops out of every Dataview view in views.md and
+    the section quietly comes up short. The board writes the bracket form, so a
+    code span means the line was typed by hand.
+    """
+    hits = []
+    for i, line in enumerate(lines, start=1):
+        if not TASK_LINE.match(line):
+            continue
+        for m in OLD_SPAN.finditer(line):
+            hits.append((i, m.group(1).lower(), m.group(2).strip()))
+
+    # One finding per tag reads fine for the handful a hand-edit leaves behind.
+    # A whole file in the old form — a restored backup, or the archive — would be
+    # hundreds, which buries every other check in the report, so past a few it
+    # collapses to a count.
+    if len(hits) > 6:
+        where = sorted({i for i, _, _ in hits})
+        return [
+            Finding(
+                where[0],
+                "FIX",
+                f"{len(hits)} tags across {len(where)} lines are still in the old "
+                f"code-span form (`due:...`). Dataview cannot read inside a code span, "
+                f"so none of them reach views.md. Lines {where[0]}–{where[-1]}. This "
+                f"is a whole-file conversion, not a hand edit.",
+            )
+        ]
+
+    return [
+        Finding(
+            i,
+            "FIX",
+            f"`{key}:{value}` is the old code-span form. Dataview cannot read inside a "
+            f"code span, so views.md will not see it. Write it as [{key}:: {value}].",
+        )
+        for i, key, value in hits
+    ]
 
 
 def check_stale(lines, today):
@@ -551,13 +635,13 @@ def check_start_dates(lines):
 
         due_m = DUE.search(line)
         if due_m:
-            due = parse_date(due_m.group(1))
+            due = parse_date(field_value(due_m))
             if start > due:
                 findings.append(
                     Finding(
                         i,
                         "FIX",
-                        f"start:{raw} is after due:{due_m.group(1)}. It cannot begin "
+                        f"start:{raw} is after due:{field_value(due_m)}. It cannot begin "
                         f"after it is meant to be finished, so one of the two is wrong.",
                     )
                 )
@@ -764,6 +848,7 @@ def main():
         ("The one thing", check_headline(lines)),
         ("Start dates", check_start_dates(lines)),
         ("Tag hygiene", check_tag_hygiene(lines, tasks)),
+        ("Field syntax", check_field_syntax(lines)),
         ("Suggested messages", check_suggested_messages(lines)),
         ("Freshness", check_stale(lines, today)),
     ]

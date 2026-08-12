@@ -1,0 +1,107 @@
+# Views
+
+**This is the committed copy of the queries.** The one that runs is `views.md`,
+which is ignored by git because the answers it fills in are the real list: named
+people, probation reviews, salary conversations. Start it with:
+
+```bash
+cp views.template.md views.md
+```
+
+Change a query in both, or change it here and copy it across again. That is the
+one piece of duplication in this repo, and it is here because the alternative is
+committing the list itself.
+
+---
+
+Quick wins, Big rocks and Delegate to Claude, rebuilt from the tags on the tasks
+in `todo.md`. Nothing here is written by hand.
+
+This file exists for reading the list in Obsidian rather than on the board. The
+board works the same views out at render time and does not need it. Both read the
+same four tags off the same tasks, so they cannot disagree about what is in a
+view — where they differ is listed at the bottom, and the differences are known
+rather than accidental.
+
+**It needs two plugins:** Dataview, which runs the queries, and Dataview
+Serializer, which writes their answers back into this file as ordinary markdown.
+The second one is the reason the queries live here and not in `todo.md`: the
+serialized output is plain markdown, so it still reads correctly in a terminal, on
+GitHub, or in any editor that has never heard of Dataview.
+
+Two things to set up once, in Obsidian:
+
+- Open this folder as the vault, or put the vault above it. Dataview only sees
+  files inside the vault.
+- Exclude `backups/` in Settings → Files and links → Excluded files. Every backup
+  is a full copy of the list, and without this the views count each task a dozen
+  times over.
+
+Serialized output is generated. Editing it by hand lasts until the next save,
+which is exactly the failure the five copied sections had before they were
+removed. Change the tag on the task instead.
+
+---
+
+## Quick wins
+
+Everything `[effort:: S]` and not yet done, split by who does it. Small enough to
+finish inside a gap in the day.
+
+### All of it (`[ai:: full]`)
+
+<!-- QueryToSerialize: TASK FROM "todo" WHERE !completed AND effort = "S" AND ai = "full" SORT due ASC -->
+
+### Part of it (`[ai:: partial]`)
+
+<!-- QueryToSerialize: TASK FROM "todo" WHERE !completed AND effort = "S" AND ai = "partial" SORT due ASC -->
+
+### None of it (`[ai:: none]`)
+
+<!-- QueryToSerialize: TASK FROM "todo" WHERE !completed AND effort = "S" AND ai = "none" SORT due ASC -->
+
+---
+
+## Big rocks
+
+`[impact:: high]` and `[effort:: L]`. A week or more of work that matters, so it
+needs protected time rather than a gap.
+
+<!-- QueryToSerialize: TASK FROM "todo" WHERE !completed AND impact = "high" AND effort = "L" SORT due ASC -->
+
+---
+
+## Delegate to Claude
+
+Everything `[ai:: full]`, whole tasks and single steps together. Each one should
+carry its prompt as a note underneath it in `todo.md`.
+
+In file order, which is the order the buckets are already in — highest impact
+first, lower effort first within that. Not `rank:` order, for the reason below.
+
+<!-- QueryToSerialize: TASK FROM "todo" WHERE !completed AND ai = "full" -->
+
+---
+
+## Where this differs from the board
+
+Three differences, all of them because Dataview reads tags and the board reads the
+file's shape. None of them is a bug to be fixed here; two of them close on their
+own if `rank:`, `start:` and `blocked-by:` ever become inline fields too.
+
+**Delegate to Claude is not in `rank:` order.** On the board it is sorted by how
+much time each item gives back. `rank:` is still a code span, and Dataview cannot
+read inside a code span, so this list comes out in file order instead. That is not
+random — the buckets are already ordered by impact against effort — but it is not
+the same judgement. Treat the board as the authority on what to hand over first.
+
+**Quick wins here does not hide what you cannot start.** The board leaves out
+anything waiting on an unfinished `blocked-by:`, and anything whose `start:` has
+not arrived yet. Both of those are code spans as well, so this version shows the
+task anyway. A quick win listed here may turn out to be one you cannot act on
+today.
+
+**A step only appears if it carries the tag itself.** The board treats a sub-step
+with no `[ai:: ]` of its own as carrying its parent's. Dataview reads every line
+on its own and does not inherit, so a step that should show up in Delegate to
+Claude needs the tag written on the step.

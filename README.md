@@ -90,8 +90,8 @@ for a full 30 days under a date the board can vouch for.
 
 Two tiers, at two different moments.
 
-**Impact against effort, at intake.** Every task carries `impact:high|med|low`
-and `effort:S|M|L`. Any column can be sorted on impact divided by effort, so a
+**Impact against effort, at intake.** Every task carries `[impact:: high|med|low]`
+and `[effort:: S|M|L]`. Any column can be sorted on impact divided by effort, so a
 med/S beats a high/L — high impact for the lighter lift comes first. A task
 missing either score shows a *needs scoring* marker and is counted in the header,
 because a blank score reads as low and the task sinks without anyone deciding it
@@ -117,15 +117,41 @@ Everything else is worked out from tags at render time, never stored twice:
 
 | View | Built from |
 | --- | --- |
-| Matrix | `impact:` against `effort:`, as a 3×3 grid. One dot per open task, coloured by bucket. |
+| Matrix | `[impact:: ]` against `[effort:: ]`, as a 3×3 grid. One dot per open task, coloured by bucket. |
 | This week | `week` |
-| Quick wins | `effort:S` grouped by `ai:`, plus any step with a written message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
-| Big rocks | `impact:high` and `effort:L` |
+| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any step with a written message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
+| Big rocks | `[impact:: high]` and `[effort:: L]` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
-| Delegate to Claude | `ai:full`, ordered by `rank:` |
+| Delegate to Claude | `[ai:: full]`, ordered by `rank:` |
 
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
+
+### The same views in Obsidian
+
+Quick wins, Big rocks and Delegate to Claude also exist as Dataview queries, for
+reading the list in Obsidian rather than on the board. Two plugins do the work:
+**Dataview** runs the queries, and **Dataview Serializer** writes their answers
+back into the file as ordinary markdown, so the result still reads correctly
+somewhere that has never heard of either plugin.
+
+`views.template.md` is the committed copy of the queries. The one that runs is
+`views.md`, which git ignores, because once the queries have run it holds the real
+list. Start it with:
+
+```bash
+cp views.template.md views.md
+```
+
+Then open this folder as an Obsidian vault and exclude `backups/` in Settings →
+Files and links, or every backup counts as another copy of every task.
+
+Three things the Obsidian version does worse than the board, all listed in the
+file itself: Delegate is in deadline order rather than `rank:` order, Quick wins
+does not hide what is blocked or not yet startable, and a sub-step needs its own
+`[ai:: ]` because Dataview does not inherit the parent's. All three are because
+`rank:`, `start:` and `blocked-by:` are still code spans, which Dataview cannot
+read inside. The board remains the authority.
 
 ## The skill
 
@@ -135,7 +161,8 @@ verify. It is packaged as `skills/pa-todo-meeting.skill` for installing.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
-more than one `headline:`, missing scores. Run it directly:
+more than one `headline:`, missing scores, and a queried tag written in a form
+Dataview cannot read. Run it directly:
 
 ```bash
 python3 skills/pa-todo-meeting/scripts/check_todo.py todo.md
@@ -162,11 +189,23 @@ date re-guessed by hand.
 ```
 ## 1. People                      <- bucket
 ### Doing                         <- state
-- [ ] **A task** `impact:high` `effort:M` `due:2026-08-21` `ai:partial`
-  - [ ] A sub-step `due:2026-08-19` `ai:full`
+- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial]
+  - [ ] A sub-step [due:: 2026-08-19] [ai:: full]
     - Suggested message: "..."   <- ready to send
     - Prompt: "..."              <- ready to paste
   - [ ] A gated step `start:2026-09-01` `blocked-by:some-slug`
 ```
 
 Tags work on sub-steps as readily as on tasks, and usually belong there.
+
+### Two tag syntaxes
+
+`impact`, `effort`, `due` and `ai` are written as Dataview inline fields, in
+brackets with a double colon. Everything else is a backtick code span.
+
+The split is not cosmetic. Dataview cannot read inside a code span, so those four
+had to come out of one for the Obsidian views to work, and the rest stayed in one
+because a line carrying eight bracketed fields is unreadable and nothing queries
+them. The older `` `due:2026-08-21` `` form is still read correctly by the board and
+by the checker, permanently — the backups and the done archive are full of it —
+but nothing writes it any more, and the checker flags one on a task line.

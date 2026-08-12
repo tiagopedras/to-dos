@@ -31,19 +31,29 @@ A state can be empty. Leave the empty headings in place, they make the shape sca
 
 Every top-level task carries impact, effort and a delegation tag. Dates only where real.
 
-`impact:` and `effort:` together are tier one of how he prioritises, and they are set at intake, not later. Neither is optional. A task missing either one shows a **needs scoring** marker on the board and is counted in the header, because a blank score reads as low and the task sinks without anyone deciding that it should.
+`impact` and `effort` together are tier one of how he prioritises, and they are set at intake, not later. Neither is optional. A task missing either one shows a **needs scoring** marker on the board and is counted in the header, because a blank score reads as low and the task sinks without anyone deciding that it should.
 
-- `impact:high` / `med` / `low` — how much it moves the needle for the team, the design system or the business
-- `effort:S` / `M` / `L` — S is under half a day, M is one to three days, L is a week or more
-- `due:YYYY-MM-DD` — the deadline. When it has to be finished by. Only when there is a genuine date.
+- `[impact:: high]` / `med` / `low` — how much it moves the needle for the team, the design system or the business
+- `[effort:: S]` / `M` / `L` — S is under half a day, M is one to three days, L is a week or more
+- `[due:: YYYY-MM-DD]` — the deadline. When it has to be finished by. Only when there is a genuine date.
+- `[ai:: full]` — hand to Claude, review the output. The work is reading, comparing, extracting, formatting or generating from a source that already exists.
+- `[ai:: partial]` — Claude does the heavy lift, judgement or delivery stays his. Usually Claude drafts, he decides.
+- `[ai:: none]` — inherently his. Conversations, decisions, relationships, anything whose value is that it came from him.
 - `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
-- `urgent` — time-critical with no fixed date. Never combine with `due:`, they are alternatives.
+- `urgent` — time-critical with no fixed date. Never combine with `due`, they are alternatives.
 - `done:YYYY-MM-DD` — the day it was ticked off. Written by the board, not by hand. Never add it to an open task, and never remove it from a ticked one: it is what decides when finished work is old enough to be archived out of the file.
-- `ai:full` — hand to Claude, review the output. The work is reading, comparing, extracting, formatting or generating from a source that already exists.
-- `ai:partial` — Claude does the heavy lift, judgement or delivery stays his. Usually Claude drafts, he decides.
-- `ai:none` — inherently his. Conversations, decisions, relationships, anything whose value is that it came from him.
 
-Sub-steps carry their own `due:` where the parent needs back-planning, and their own `ai:` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
+Sub-steps carry their own `[due:: ]` where the parent needs back-planning, and their own `[ai:: ]` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
+
+### Two tag syntaxes, and which one to write
+
+Changed 12 Aug 2026. The first four are written as Dataview inline fields, in brackets with a double colon. Everything else stays a backtick code span. Both lists are above; the split is not cosmetic.
+
+Dataview cannot see inside a code span, so a tag written as `` `due:2026-08-21` `` is invisible to the queries in views.md, which rebuild Quick wins, Big rocks and Delegate to Claude for reading the list in Obsidian. Those three views need impact, effort, due and ai, and only those, which is why only those four moved. The rest kept the code span, because a line carrying eight bracketed fields is unreadable and nothing queries them.
+
+**Write the bracket form.** The board writes it, and the checker flags a code span on a task line as a FIX. Old-form tags are still read correctly by both the board and the checker, and always will be — the backups and the done-archive are full of them, and losing a score off a restored task would be worse than accepting two syntaxes. That tolerance is for reading, not for writing.
+
+The nuisance to accept: `[due:: 2026-08-21]` is uglier in a plain text editor than `` `due:2026-08-21` `` was. That was the trade, and it was made to stop the views being hand-maintained in a second place.
 
 ### Two dates, not one
 
@@ -82,7 +92,7 @@ Do not invent another tag to avoid writing a note. The test is whether one of th
 Every `ai:full` task or sub-step carries a prompt, on the task, indented one level deeper, in the same shape as a suggested message:
 
 ```
-  - [ ] Collect responses into the feedback sheet `due:2026-08-19` `ai:full` `rank:8`
+  - [ ] Collect responses into the feedback sheet [due:: 2026-08-19] [ai:: full] `rank:8`
     - Prompt: "Take the 360 feedback responses for [name], ..."
 ```
 
@@ -99,7 +109,7 @@ The reason is that these steps stall for days, and what stalls them is writing t
 Format, indented one level deeper than the step it belongs to:
 
 ```
-  - [ ] Remind [name] I need their list of achievements `due:2026-08-12` `ai:none`
+  - [ ] Remind [name] I need their list of achievements [due:: 2026-08-12] [ai:: none]
     - Suggested message: "Hey [name] 👋 ..."
 ```
 
@@ -127,12 +137,18 @@ He works from five views: This week, Quick wins, Big rocks, Dependency chain and
 | View | Built from |
 | --- | --- |
 | This week | `week` |
-| Quick wins | `effort:S` grouped by `ai:`, plus any live step carrying a suggested message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
-| Big rocks | `impact:high` and `effort:L` |
+| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any live step carrying a suggested message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
+| Big rocks | `[impact:: high]` and `[effort:: L]` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
-| Delegate to Claude | `ai:full`, ordered by `rank:` |
+| Delegate to Claude | `[ai:: full]`, ordered by `rank:` |
 
 Above the board sits the headline, from `headline:`. It is one task, not a view of many.
+
+### The same three views in Obsidian
+
+Added 12 Aug 2026. Quick wins, Big rocks and Delegate to Claude also exist as Dataview queries in views.md, for reading the list in Obsidian instead of on the board. That file is generated by the Dataview Serializer plugin and is never edited by hand, so it is not a copy in the sense the removed sections were: it is rebuilt from the same tags every time the file is touched, and it cannot say something the tags do not.
+
+It is a second reader of the tags, not a second place to maintain them. Three things it does worse than the board, listed in views.md itself and worth knowing before trusting it: Delegate is in deadline order rather than `rank:` order, Quick wins does not hide what is blocked or not yet startable, and a sub-step needs its own `[ai:: ]` because Dataview does not inherit the parent's. All three are because `rank:`, `start:` and `blocked-by:` are still code spans.
 
 **Do not write any of them back into the file.** A section in the file is a copy, and a copy is only correct until the next thing changes. That was the actual failure mode: the board could tick a sub-step and the section above it would keep saying the work was outstanding, and whichever one he happened to read is what he believed. Nothing is stored twice now, so nothing can disagree.
 

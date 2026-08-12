@@ -51,7 +51,7 @@ Two rules, at two different moments. Keep them separate. Tier one decides what i
 
 ### Tier one — impact against effort, at intake
 
-Every task gets two scores when it lands. `impact:high|med|low` is how much it matters. `effort:S|M|L` is how heavy the lift is. Nothing enters the list without both.
+Every task gets two scores when it lands. `[impact:: high|med|low]` is how much it matters. `[effort:: S|M|L]` is how heavy the lift is. Nothing enters the list without both.
 
 **Suggest both scores rather than asking.** When the task looks like one already on the list, score it the same and name the comparison: "Scored this high/S, same as the sign-off chase note — one message, unblocks someone." When two similar tasks disagree, say so and pick one. Only ask him when nothing on the list is close, or when the two obvious comparisons point different ways.
 
@@ -125,19 +125,23 @@ Use `Edit` on the specific lines. Rewriting the whole file for a two-line change
 
 **There are no sections to rebuild.** The file is four buckets and nothing else. This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude were removed on 10 Aug 2026 and are now worked out by the board every time it renders. Never add them back as text: a section in the file is a copy, and a copy has to be maintained by hand every session or it starts describing a file that has moved on. That is the exact failure this change removed.
 
+Three of them also exist in `views.md`, which Obsidian regenerates from the tags with Dataview. That is a different thing from a section in todo.md: nothing writes it by hand, so it cannot fall behind. Never edit it, and never rebuild it in this session — changing the tag on the task is the whole of the update.
+
 So the whole update is the tag:
 
 | To change this | Set this on the task |
 | --- | --- |
-| How much it matters, how heavy it is | `impact:high\|med\|low` plus `effort:S\|M\|L` |
-| When it must be finished | `due:YYYY-MM-DD` |
+| How much it matters, how heavy it is | `[impact:: high\|med\|low]` plus `[effort:: S\|M\|L]` |
+| When it must be finished | `[due:: YYYY-MM-DD]` |
+| What Claude does | `[ai:: full\|partial\|none]`, plus `rank:N` where it is full |
 | When it can first be started | `start:YYYY-MM-DD`, only where something real gates it |
 | The one thing for now | `headline:YYYY-MM-DD`, the date it was set |
 | What is in this week | `week` |
 | What blocks what | `blocked-by:slug`, and `#slug` on the blocker |
-| What Claude does, and in what order | `ai:full` plus `rank:N` |
 | The message he sends | a `Suggested message:` note on the step |
 | The prompt he pastes | a `Prompt:` note on the step |
+
+**The first three are written in brackets with a double colon, the rest in backticks.** Not a style choice: Dataview cannot read inside a code span, and impact, effort, due and ai are the four the queries in views.md need to rebuild Quick wins, Big rocks and Delegate to Claude. Writing one of those four as `` `due:2026-08-21` `` still parses everywhere in this repo but drops the task out of every Obsidian view, silently. `scripts/check_todo.py` flags it as a FIX. The older form is still read, so nothing has to be converted on sight — but never write it.
 
 All of these work on sub-steps as well as tasks, and usually belong there. Half of any given week is sub-steps, and the prompts mostly sit on steps rather than whole tasks. `#slug` on a step works too, so a step can be the thing other tasks wait on.
 
