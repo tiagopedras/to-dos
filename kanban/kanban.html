@@ -453,7 +453,7 @@
   .tag.due{background:var(--chip)}
   /* A start date reads as a gate, not a warning: hollow rather than filled, so a
      deadline still wins the eye on a card carrying both. */
-  .tag.start{
+  .tag.startdate{
     background:transparent; border:1px dashed var(--line); color:var(--ink-faint); font-weight:550;
   }
   .tag.due.soon{background:var(--amber-bg); color:var(--amber)}
@@ -1112,7 +1112,7 @@ function cardHTML(t, color, bucketLabel, opts){
   if (t.effort) meta += '<span class="tag">' + esc(t.effort) + '</span>';
   if (t.urgent) meta += '<span class="tag urgent">urgent</span>';
   const si = startInfo(t.start);
-  if (si) meta += '<span class="tag start">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
+  if (si) meta += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
   if (di) meta += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (t.ai) meta += '<span class="tag ai ai-' + esc(t.ai) + '">ai: ' + esc(t.ai) + '</span>';
 
@@ -1281,7 +1281,7 @@ function byDue(a, b){
 function refTags(it){
   let out = '';
   const si = startInfo(it.start);
-  if (si) out += '<span class="tag start">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
+  if (si) out += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
   const di = dueInfo(it.due);
   if (di) out += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (it.urgent) out += '<span class="tag urgent">urgent</span>';
