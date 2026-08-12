@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>To-do backups</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --ink-soft:#5d636e; --ink-faint:#8b919c;
+    --line:#e3e6ea; --line-soft:#eef0f3; --accent:#2f6feb; --accent-ink:#fff;
+    --red:#c8322f; --red-bg:#fdecec; --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
+    --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14161a; --panel:#1c1f25; --ink:#e9ebee; --ink-soft:#a5abb6; --ink-faint:#7b818c;
+      --line:#2b3038; --line-soft:#23272e; --chip:#262b33;
+      --red:#ff8a85; --red-bg:#3a1f1f; --green:#6fd398; --green-bg:#16301f;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{cursor:pointer; font:inherit; color:inherit}
+  header{
+    position:sticky; top:0; z-index:5; background:var(--panel);
+    border-bottom:1px solid var(--line); padding:12px 20px;
+    display:flex; gap:12px; align-items:center;
+  }
+  h1{font-size:15px; font-weight:650; margin:0; letter-spacing:-.01em}
+  .spacer{flex:1}
+  .btn{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border-radius:7px; padding:6px 11px; font-size:13px; font-weight:520; text-decoration:none;
+    display:inline-flex; align-items:center;
+  }
+  .btn:hover{border-color:var(--ink-faint)}
+  main{max-width:860px; margin:0 auto; padding:22px 20px 60px}
+  .lede{color:var(--ink-soft); font-size:13px; margin:0 0 20px; max-width:60ch}
+  h2{font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.06em;
+     color:var(--ink-faint); margin:26px 0 9px}
+  .row{
+    display:flex; align-items:center; gap:12px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:11px 13px;
+    margin-bottom:7px; box-shadow:var(--shadow);
+  }
+  .when{font-weight:600; min-width:14.5em; color:inherit; text-decoration:none}
+  .when:hover{text-decoration:underline}
+  .ago{color:var(--ink-faint); font-size:12.5px; min-width:8em}
+  .size{color:var(--ink-faint); font-size:12.5px; min-width:5em; text-align:right}
+  .tag{
+    font-size:11px; font-weight:650; border-radius:5px; padding:2px 7px;
+    background:var(--green-bg); color:var(--green);
+  }
+  .tag.session{background:var(--chip); color:var(--ink-soft)}
+  .name{font-size:11.5px; color:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .empty{color:var(--ink-faint); font-size:13px; padding:14px 0}
+  .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+  .note{color:var(--ink-faint); font-size:12.5px; margin-top:24px; max-width:62ch}
+  @media (max-width:640px){
+    .row{flex-wrap:wrap}
+    .when,.ago,.size{min-width:0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>To-do backups</h1>
+  <span class="spacer"></span>
+  <button class="btn" id="refresh">Refresh</button>
+  <a class="btn" href="/kanban/kanban.html">Back to the board</a>
+</header>
+
+<main>
+  <p class="lede">Every copy of <strong>todo.md</strong> the board has kept. Click one to read it.
+    Nothing here is ever written back automatically — to restore a copy, open it, then
+    copy what you need across.</p>
+  <div id="out"></div>
+  <p class="note" id="note"></p>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function size(n){
+  return n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 102400 ? 1 : 0) + ' KB';
+}
+
+/* "3 days ago" is what tells him whether a copy is worth opening. The exact
+   timestamp is there too, because for a backup the exact moment is the point. */
+function ago(iso){
+  const then = new Date(iso), mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return mins + ' minutes ago';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs === 1 ? 'an hour ago' : hrs + ' hours ago';
+  const days = Math.round(hrs / 24);
+  if (days < 7) return days === 1 ? 'yesterday' : days + ' days ago';
+  const wks = Math.round(days / 7);
+  return wks === 1 ? 'last week' : wks + ' weeks ago';
+}
+
+function when(iso){
+  return new Date(iso).toLocaleString(undefined, {
+    weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+/* The week label is in the file name, and it is more use than the file name. */
+function weekOf(name){
+  const m = /week-(\d{4})-W(\d{2})/.exec(name);
+  return m ? 'Week ' + m[2] + ', ' + m[1] : null;
+}
+
+function row(b){
+  const wk = weekOf(b.name);
+  return '<div class="row">' +
+    '<span class="tag' + (b.kind === 'weekly' ? '' : ' session') + '">' +
+      (b.kind === 'weekly' ? (wk || 'weekly') : 'session') + '</span>' +
+    '<a class="when" href="' + esc(b.url) + '" target="_blank">' + esc(when(b.modified)) + '</a>' +
+    '<span class="ago">' + esc(ago(b.modified)) + '</span>' +
+    '<span class="spacer"></span>' +
+    '<span class="name">' + esc(b.name) + '</span>' +
+    '<span class="size">' + size(b.bytes) + '</span>' +
+  '</div>';
+}
+
+function group(title, list, blank){
+  return '<h2>' + esc(title) + '</h2>' +
+    (list.length ? list.map(row).join('') : '<div class="empty">' + esc(blank) + '</div>');
+}
+
+async function draw(){
+  try {
+    const res = await fetch('/backups.json?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) throw new Error('the server answered ' + res.status);
+    const data = await res.json();
+    const all = data.backups || [];
+    // Weekly ones go by their week label, not their timestamp: a snapshot copied
+    // late still belongs to its own week.
+    const weekly = all.filter(b => b.kind === 'weekly').sort((x, y) => y.name.localeCompare(x.name));
+    const session = all.filter(b => b.kind === 'session');
+
+    $('#out').innerHTML =
+      group('Weekly snapshots', weekly, 'None yet — the first one is taken the next time the board runs in a new week.') +
+      group('Recent sessions', session, 'None yet — one is taken before the first save of each run.');
+
+    $('#note').textContent =
+      'This week is ' + data.week + '. The board keeps the last ' + data.keep.session +
+      ' session backups and the last ' + data.keep.weekly +
+      ' weekly ones, then deletes the oldest.';
+  } catch (err) {
+    $('#out').innerHTML = '<div class="err"><strong>Could not read the backup list.</strong><br>' +
+      'The board helper needs to be running — double-click <strong>board.command</strong> in the ' +
+      'to-dos folder.<br><span style="opacity:.75">(' + esc(err.message || err) + ')</span></div>';
+    $('#note').textContent = '';
+  }
+}
+
+$('#refresh').onclick = draw;
+draw();
+</script>
+</body>
+</html>

@@ -570,6 +570,60 @@
   .start .drops{border:1.5px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--ink-faint); font-size:13px; margin-top:14px}
   .start .drops.over{border-color:var(--accent); color:var(--accent)}
   .err{background:var(--red-bg); color:var(--red); padding:9px 11px; border-radius:8px; font-size:12.5px; margin-top:12px}
+
+  /* ---------- auto-save toggle ---------- */
+  .autotoggle{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px;
+    color:var(--ink-soft); white-space:nowrap; cursor:pointer;
+  }
+  .autotoggle input{margin:0; accent-color:var(--accent)}
+
+  /* ---------- conflict modal ----------
+     The one place the board interrupts. It only appears when the file on disk
+     and the unsaved work in the tab have both moved, because that is the only
+     situation where picking wrong loses something. */
+  /* Its own class, not the drawer's .scrim — that one is a permanent element
+     kept at opacity 0, and sharing the rule would break it. */
+  .mscrim{
+    position:fixed; inset:0; z-index:60; background:rgba(16,20,28,.45);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .sheet{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 12px 40px rgba(16,20,28,.28); width:min(560px,100%);
+    max-height:min(78vh,660px); display:flex; flex-direction:column; overflow:hidden;
+  }
+  .sheet h2{font-size:15px; font-weight:660; margin:0; letter-spacing:-.01em}
+  .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--line-soft)}
+  .sheet .msub{font-size:13px; color:var(--ink-soft); margin:7px 0 0; line-height:1.5}
+  .sheet .mid{padding:14px 20px; overflow:auto; flex:1 1 auto}
+  .sheet .foot{
+    padding:13px 20px; border-top:1px solid var(--line-soft);
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; background:var(--bg);
+  }
+  .changes{margin:0 0 16px}
+  .changes:last-child{margin-bottom:0}
+  .changes h3{
+    font-size:11px; font-weight:660; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-faint); margin:0 0 7px;
+  }
+  .changes ul{list-style:none; margin:0; padding:0}
+  .changes li{
+    display:flex; gap:8px; align-items:baseline; font-size:12.5px;
+    padding:5px 0; border-bottom:1px solid var(--line-soft); line-height:1.4;
+  }
+  .changes li:last-child{border-bottom:0}
+  .changes .what{
+    flex:0 0 auto; font-size:10.5px; font-weight:660; text-transform:uppercase;
+    letter-spacing:.04em; border-radius:4px; padding:2px 6px; background:var(--chip); color:var(--ink-soft);
+  }
+  .changes .what.added{background:var(--green-bg); color:var(--green)}
+  .changes .what.removed{background:var(--red-bg); color:var(--red)}
+  .changes .what.ticked{background:var(--green-bg); color:var(--green)}
+  .changes .what.moved,
+  .changes .what.renamed{background:var(--amber-bg); color:var(--amber)}
+  .changes .where{color:var(--ink-faint)}
+  .changes .none{font-size:12.5px; color:var(--ink-faint)}
   .hidden{display:none !important}
 </style>
 </head>
@@ -580,7 +634,13 @@
   <span class="tabs" id="viewToggle"></span>
   <span class="spacer"></span>
   <span class="status" id="status">read only</span>
+  <label class="autotoggle" for="autosave"
+         title="Saves on its own every 5 minutes, but only when something has changed.">
+    <input type="checkbox" id="autosave"> Auto-save
+  </label>
   <button class="btn" id="reload" title="Re-read the file from disk">Reload</button>
+  <a class="btn" id="backupsLink" href="/kanban/backups.html" target="_blank"
+     title="Every copy of todo.md the board has kept">Backups</a>
   <button class="btn" id="download">Download copy</button>
   <button class="btn primary" id="save" disabled>Save to file</button>
 
@@ -798,6 +858,9 @@ const state = {
   sort: {},           /* column name -> 'priority'; absent means his own order */
   view: 'overview',   /* the view the file opens on */
   openTask: null,
+  /* Last-Modified of todo.md as this tab last agreed with it. Used to notice
+     edits made outside the board. */
+  diskStamp: null,
   drawerWidth: +(localStorage.getItem('todo-board-drawer') || 400)
 };
 state.sort = readSort();
@@ -2478,6 +2541,7 @@ async function loadFile(){
     const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) throw new Error('the server answered ' + res.status);
     load(await res.text(), 'todo.md');
+    state.diskStamp = res.headers.get('Last-Modified') || null;
   } catch (err) {
     showErr('<strong>Could not read todo.md.</strong><br>Close this tab and start the board by ' +
             'double-clicking <strong>board.command</strong> in the to-dos folder. ' +
@@ -2486,7 +2550,10 @@ async function loadFile(){
   }
 }
 
-async function saveFile(){
+/* auto: this save was the timer's idea, not his, so a failure must not throw a
+   dialog in front of whatever he is doing. It shows in the status line instead,
+   and the changes stay in the tab either way. */
+async function saveFile(auto){
   if (!state.doc || !state.dirty) return;
   const text = serializeDoc(state.doc);
   const btn = $('#save');
@@ -2501,9 +2568,21 @@ async function saveFile(){
     const info = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
     state.originalText = text;
-    markClean('saved ' + new Date().toLocaleTimeString() + (info.backup ? ' · backup: backups/' + info.backup : '') + ' · todo.md');
+    lastSaveAt = Date.now();
+    markClean((auto ? 'auto-saved ' : 'saved ') + new Date().toLocaleTimeString() +
+      (info.backup ? ' · backup: backups/' + info.backup : '') +
+      (info.weekly ? ' · weekly: backups/' + info.weekly : '') + ' · todo.md');
+    // Our own write moved the file, so record it — otherwise the watcher would
+    // read the new timestamp as somebody else's edit.
+    await rememberStamp();
   } catch (err) {
     markDirty();
+    if (auto) {
+      const s = $('#status');
+      s.textContent = 'auto-save failed at ' + new Date().toLocaleTimeString() + ' — your changes are still here';
+      s.classList.add('dirty');
+      return;
+    }
     // A failed fetch means the local helper is not answering, not a bad file.
     const helperGone = err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(err.message || err));
     if (helperGone) {
@@ -2529,13 +2608,278 @@ function downloadText(text, name){
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
-async function reload(){
-  if (state.dirty && !confirm('Discard unsaved changes and re-read todo.md from disk?')) return;
-  loadFile();
+/* =========================================================================
+   Telling him what actually changed
+
+   Both halves of the conflict modal need the same answer to the same question:
+   what is different between these two versions of the file? Tasks are matched
+   by title, because a title is what he recognises — an id would be accurate and
+   useless. Repeated titles are matched in the order they appear.
+   ========================================================================= */
+
+function flattenDoc(doc){
+  const seen = Object.create(null);
+  const out = new Map();
+  doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    /* A slug is a real identity — a task carrying one is still the same task
+       after it is renamed. Everything else falls back to its title. */
+    const base = t.slug ? 'slug:' + t.slug : t.title.trim().toLowerCase();
+    seen[base] = (seen[base] || 0) + 1;
+    const lines = serializeTask(t);
+    out.set(base + '#' + seen[base], {
+      title: t.title, bucket: b.name, tier: tier.name, done: t.done,
+      block: lines.join('\n'),
+      body: lines.slice(1).join('\n').trim()
+    });
+  })));
+  return out;
 }
 
+/* An added task and a removed one in the same column, carrying the same
+   sub-steps, is one task that was renamed. Saying so is worth the pass: "new"
+   plus "deleted" reads like work was lost when nothing was. */
+function foldRenames(changes){
+  const added = changes.filter(c => c.what === 'added' && c.body);
+  const removed = changes.filter(c => c.what === 'removed' && c.body);
+  const used = new Set();
+  removed.forEach(r => {
+    const hit = added.find(x => !used.has(x) && x.body === r.body &&
+                                x.bucket === r.bucket && x.tier === r.tier);
+    if (!hit) return;
+    used.add(hit);
+    hit.what = 'renamed';
+    hit.where = 'was “' + r.title + '”';
+    r.drop = true;
+  });
+  return changes.filter(c => !c.drop);
+}
+
+/* One line per task that moved, in the order they appear in the file. */
+function describeChanges(fromText, toText){
+  let a, b;
+  try { a = flattenDoc(parseDoc(fromText)); b = flattenDoc(parseDoc(toText)); }
+  catch (err) { return null; }          // unparseable: better to say nothing than to guess
+
+  const changes = [];
+  b.forEach((to, key) => {
+    const from = a.get(key);
+    if (!from) {
+      changes.push({ what:'added', title:to.title, bucket:to.bucket, tier:to.tier, body:to.body,
+                     where:to.bucket + ' · ' + (to.done ? DONE_COL : to.tier) });
+      return;
+    }
+    if (from.done !== to.done) {
+      changes.push({ what: to.done ? 'ticked' : 'untick', title: to.title,
+                     where: to.done ? 'marked done' : 'put back to ' + to.tier });
+      return;
+    }
+    if (from.tier !== to.tier || from.bucket !== to.bucket) {
+      changes.push({ what:'moved', title:to.title,
+                     where: (from.bucket !== to.bucket ? from.bucket + ' · ' : '') + from.tier +
+                            ' → ' + (to.bucket !== from.bucket ? to.bucket + ' · ' : '') + to.tier });
+      return;
+    }
+    if (from.block !== to.block) changes.push({ what:'edited', title:to.title, where:to.bucket + ' · ' + to.tier });
+  });
+  a.forEach((from, key) => {
+    if (!b.has(key)) changes.push({ what:'removed', title:from.title, bucket:from.bucket,
+                                    tier:from.tier, body:from.body,
+                                    where:'was in ' + from.bucket + ' · ' + from.tier });
+  });
+  return foldRenames(changes);
+}
+
+const CHANGE_LABEL = { added:'new', removed:'deleted', ticked:'done', untick:'reopened',
+                       moved:'moved', edited:'edited', renamed:'renamed' };
+
+function changesHTML(title, changes, blank, limit){
+  let body;
+  if (changes === null) body = '<div class="none">Could not read the details — treat both versions as different.</div>';
+  else if (!changes.length) body = '<div class="none">' + esc(blank) + '</div>';
+  else {
+    const cap = limit || 12;
+    const shown = changes.slice(0, cap);
+    body = '<ul>' + shown.map(c =>
+      '<li><span class="what ' + c.what + '">' + CHANGE_LABEL[c.what] + '</span>' +
+      '<span><strong>' + esc(c.title) + '</strong>' +
+      (c.where ? ' <span class="where">' + esc(c.where) + '</span>' : '') + '</span></li>').join('') +
+      '</ul>';
+    if (changes.length > cap) {
+      body += '<div class="none">…and ' + (changes.length - cap) + ' more.</div>';
+    }
+  }
+  return '<div class="changes"><h3>' + esc(title) +
+    (Array.isArray(changes) && changes.length ? ' (' + changes.length + ')' : '') + '</h3>' + body + '</div>';
+}
+
+/* =========================================================================
+   Conflict modal
+   ========================================================================= */
+
+let modalEl = null;
+
+function closeModal(){
+  if (modalEl) { modalEl.remove(); modalEl = null; }
+  document.removeEventListener('keydown', modalKeys);
+}
+function modalKeys(e){ if (e.key === 'Escape') closeModal(); }
+
+/* buttons: [{ label, primary, danger, run }] — the first is the safe default. */
+function showModal(heading, sub, bodyHTML, buttons){
+  closeModal();
+  modalEl = document.createElement('div');
+  modalEl.className = 'mscrim';
+  modalEl.innerHTML =
+    '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
+      '<div class="top"><h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
+      '<div class="mid">' + bodyHTML + '</div>' +
+      '<div class="foot">' + buttons.map((b, i) =>
+        '<button class="btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : '') +
+        '" data-i="' + i + '">' + esc(b.label) + '</button>').join('') +
+      '</div>' +
+    '</div>';
+  // Clicking the backdrop is a cancel, not a choice. Nothing is decided by it.
+  modalEl.onclick = e => { if (e.target === modalEl) closeModal(); };
+  modalEl.querySelectorAll('.foot .btn').forEach(btn => {
+    btn.onclick = () => { const b = buttons[+btn.dataset.i]; closeModal(); if (b.run) b.run(); };
+  });
+  document.body.appendChild(modalEl);
+  document.addEventListener('keydown', modalKeys);
+  const first = modalEl.querySelector('.foot .btn');
+  if (first) first.focus();
+}
+
+async function reload(){
+  if (!state.dirty) return loadFile();
+  // Same collision as an outside edit, so it gets the same modal — he can see
+  // what he would be throwing away before he throws it away.
+  let diskText = null;
+  try {
+    const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+    if (res.ok) diskText = await res.text();
+  } catch (err) { /* handled below by the null check */ }
+  offerReload(diskText, true);
+}
+
+/* The modal both Reload and the watcher end up in. diskText may be null if the
+   file could not be read, in which case discarding is not offered. */
+function offerReload(diskText, manual){
+  const mine = describeChanges(state.originalText, serializeDoc(state.doc));
+  const theirs = diskText === null ? null : describeChanges(state.originalText, diskText);
+
+  const sub = manual
+    ? 'Re-reading the file will throw away everything you have not saved.'
+    : '<strong>todo.md changed on disk</strong> while you had unsaved changes here. ' +
+      'Nothing has been overwritten either way — pick which version wins.';
+
+  const body =
+    changesHTML('Your unsaved changes', mine, 'Nothing — your tab matches the file.') +
+    (diskText === null
+      ? '<div class="changes"><h3>Changed on disk</h3><div class="none">Could not read the file to compare.</div></div>'
+      : changesHTML('Changed on disk', theirs, 'Nothing found — the file may only have been re-saved.'));
+
+  const buttons = [{ label:'Keep my changes', primary:true }];
+  buttons.push({ label:'Download my copy first', run: () => downloadText(serializeDoc(state.doc), state.fileName) });
+  if (diskText !== null) {
+    buttons.push({ label:'Discard mine, use the file', danger:true, run: () => {
+      try { load(diskText, 'todo.md'); rememberStamp(); closeDrawer(); markClean('reloaded from disk'); }
+      catch (err) { alert('Could not read the file on disk: ' + (err.message || err)); }
+    }});
+  }
+  showModal('Two versions of this list', sub, body, buttons);
+}
+
+/* =========================================================================
+   Auto-save and watching the file
+
+   Two jobs that share one fact: what the file on disk looked like the last time
+   this tab agreed with it. Last-Modified is enough — the board is the only
+   thing writing, so a changed timestamp means a real change.
+   ========================================================================= */
+
+const AUTOSAVE_MS = 5 * 60 * 1000;
+const WATCH_MS = 15 * 1000;
+let autosaveOn = localStorage.getItem('todo-board-autosave') !== 'off';   // on unless turned off
+let conflictShown = false;
+
+async function diskStamp(){
+  try {
+    const res = await fetch('/todo.md', { method:'HEAD', cache:'no-store' });
+    if (!res.ok) return null;
+    return res.headers.get('Last-Modified') || null;
+  } catch (err) { return null; }
+}
+async function rememberStamp(){ state.diskStamp = await diskStamp(); }
+
+/* Saves only when there is something to save, so an idle tab never touches the
+   file and never triggers a backup for no reason. The clock runs from the last
+   save, not from page load, so a manual save also resets the five minutes.
+
+   Checked every 30 seconds rather than on a 5-minute timer, so that a save
+   deferred for a good reason — a field in mid-edit — is retried soon after
+   instead of waiting out another full interval. */
+let lastSaveAt = Date.now();
+async function autosaveTick(){
+  if (!autosaveOn || !state.doc || !state.dirty || modalEl) return;
+  if (Date.now() - lastSaveAt < AUTOSAVE_MS) return;
+  const el = document.activeElement;
+  if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
+  await saveFile(true);
+}
+
+/* Picks up edits made outside the board — Claude working through the list, or
+   the file being changed in an editor. With nothing unsaved here, reloading is
+   free, so it happens quietly. With unsaved work, it asks. */
+async function watchTick(){
+  if (!state.doc || modalEl || conflictShown) return;
+  const stamp = await diskStamp();
+  if (!stamp) return;                              // helper stopped; saveFile reports that
+  if (!state.diskStamp) { state.diskStamp = stamp; return; }
+  if (stamp === state.diskStamp) return;
+
+  if (!state.dirty) {
+    try {
+      const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+      if (!res.ok) return;
+      const text = await res.text();
+      if (text === state.originalText) { state.diskStamp = stamp; return; }
+      const changes = describeChanges(state.originalText, text);
+      closeDrawer();                               // ids are rebuilt by the parse
+      load(text, 'todo.md');
+      state.diskStamp = stamp;
+      const n = changes ? changes.length : 0;
+      markClean('reloaded — the file changed on disk' + (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : ''));
+    } catch (err) { /* try again on the next tick */ }
+    return;
+  }
+
+  // Unsaved work here and a changed file there: his call, not the board's.
+  conflictShown = true;
+  let diskText = null;
+  try {
+    const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+    if (res.ok) diskText = await res.text();
+  } catch (err) { /* offerReload copes with null */ }
+  state.diskStamp = stamp;                         // asked once per outside change
+  conflictShown = false;
+  offerReload(diskText, false);
+}
+
+setInterval(autosaveTick, 30 * 1000);              // checked often, saves at most every 5 minutes
+setInterval(watchTick, WATCH_MS);
+
+$('#autosave').checked = autosaveOn;
+$('#autosave').onchange = e => {
+  autosaveOn = e.target.checked;
+  localStorage.setItem('todo-board-autosave', autosaveOn ? 'on' : 'off');
+  lastSaveAt = Date.now();                         // turning it on is not a save trigger
+  $('#status').textContent = autosaveOn
+    ? 'auto-save on — every 5 minutes when something has changed'
+    : 'auto-save off';
+};
+
 /* wiring */
-$('#save').onclick = saveFile;
+$('#save').onclick = () => saveFile();   /* not saveFile directly: the click event would read as "auto" */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
 $('#reload').onclick = reload;
 $('#retry').onclick = loadFile;

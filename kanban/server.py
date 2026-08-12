@@ -14,9 +14,9 @@ import http.server
 import json
 import os
 import shutil
-import socket
 import sys
 import threading
+import time
 import webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,18 +30,99 @@ MAX_BYTES = 5 * 1024 * 1024
 backup_made = False
 
 
-KEEP_BACKUPS = 10
+SESSION_PREFIX = "todo-backup-"
+WEEKLY_PREFIX = "todo-backup-week-"
+KEEP_BACKUPS = 10      # rolling snapshots, one per run of the board
+KEEP_WEEKLY = 12       # weekly snapshots, roughly a quarter of history
+
+
+def is_weekly(name):
+    return name.startswith(WEEKLY_PREFIX)
+
+
+def week_tag(when=None):
+    """ISO week label, e.g. 2026-W33. Weeks start on Monday."""
+    year, week, _ = (when or datetime.date.today()).isocalendar()
+    return "%04d-W%02d" % (year, week)
+
+
+def backup_names():
+    if not os.path.isdir(BACKUP_DIR):
+        return []
+    return sorted(n for n in os.listdir(BACKUP_DIR)
+                  if n.startswith(SESSION_PREFIX) and n.endswith(".md"))
 
 
 def prune_backups():
-    """Keep only the most recent backups so the folder does not fill up."""
-    names = sorted(n for n in os.listdir(BACKUP_DIR)
-                   if n.startswith("todo-backup-") and n.endswith(".md"))
-    for old in names[:-KEEP_BACKUPS]:
+    """Keep the folder small without ever touching the weekly snapshots.
+
+    The rolling backups exist to undo the last few sessions, so ten is plenty.
+    The weekly ones are the long memory and are pruned on their own, far slower
+    schedule — otherwise a busy fortnight of saves would quietly delete the
+    only copy of how the list looked last month.
+    """
+    names = backup_names()
+    session = [n for n in names if not is_weekly(n)]
+    weekly = [n for n in names if is_weekly(n)]
+    for old in session[:-KEEP_BACKUPS] + weekly[:-KEEP_WEEKLY]:
         try:
             os.remove(os.path.join(BACKUP_DIR, old))
         except OSError:
             pass
+
+
+def weekly_backup():
+    """One snapshot per calendar week, the first time the board notices a new week.
+
+    Taken whether or not anything was saved, so a week that opened with the
+    board running is captured as it was before that week's edits started.
+    Returns the file name if one was written, otherwise None.
+    """
+    path = os.path.join(ROOT, TARGET)
+    if not os.path.exists(path):
+        return None
+    name = WEEKLY_PREFIX + week_tag() + ".md"
+    dest = os.path.join(BACKUP_DIR, name)
+    if os.path.exists(dest):
+        return None
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    shutil.copy2(path, dest)
+    prune_backups()
+    return name
+
+
+def weekly_backup_watcher(every=1800):
+    """Check for a new week while the board runs, so crossing midnight on a
+    Sunday is enough to trigger the snapshot — no save required."""
+    while True:
+        try:
+            name = weekly_backup()
+            if name:
+                sys.stdout.write("weekly backup: backups/%s\n" % name)
+                sys.stdout.flush()
+        except OSError as err:
+            sys.stdout.write("weekly backup failed: %s\n" % err)
+        time.sleep(every)
+
+
+def backup_listing():
+    """What the backup index page reads. Newest first."""
+    out = []
+    for name in backup_names():
+        full = os.path.join(BACKUP_DIR, name)
+        try:
+            st = os.stat(full)
+        except OSError:
+            continue
+        out.append({
+            "name": name,
+            "kind": "weekly" if is_weekly(name) else "session",
+            "bytes": st.st_size,
+            "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+            "url": "/backups/" + name,
+        })
+    out.sort(key=lambda b: b["modified"], reverse=True)
+    return out
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -63,6 +144,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
+
+    def do_GET(self):
+        if self.path.split("?")[0] == "/backups.json":
+            return self._json(200, {
+                "backups": backup_listing(),
+                "keep": {"session": KEEP_BACKUPS, "weekly": KEEP_WEEKLY},
+                "week": week_tag(),
+            })
+        return super().do_GET()
 
     def do_PUT(self):
         global backup_made
@@ -89,6 +179,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = os.path.join(ROOT, TARGET)
         backup_name = None
 
+        # A save is also a chance to notice the week turned over.
+        weekly_name = weekly_backup()
+
         # One backup per run, before the first write of this session.
         if not backup_made and os.path.exists(path):
             stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
@@ -107,7 +200,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             os.fsync(fh.fileno())
         os.replace(tmp, path)
 
-        self._json(200, {"ok": True, "bytes": len(data), "backup": backup_name})
+        self._json(200, {"ok": True, "bytes": len(data),
+                         "backup": backup_name, "weekly": weekly_name})
 
 
 def main():
@@ -129,8 +223,14 @@ def main():
             return 0
         raise
 
+    first_weekly = weekly_backup()
+    if first_weekly:
+        print("weekly backup: backups/%s" % first_weekly)
+    threading.Thread(target=weekly_backup_watcher, daemon=True).start()
+
     url = "http://127.0.0.1:%d/%s" % (PORT, PAGE)
     print("To-do board running at %s" % url)
+    print("Backups: http://127.0.0.1:%d/kanban/backups.html" % PORT)
     print("Leave this window open while you use the board. Press Ctrl-C to stop.")
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

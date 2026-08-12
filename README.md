@@ -14,10 +14,42 @@ writes the file back when you save.
 
 `kanban/server.py` is a small local server so the page can read and write its
 neighbouring file — a browser will not let a page opened straight off the disk do
-that. It listens on `127.0.0.1` only, refuses to write anything except `todo.md`,
-and takes one backup per run before its first save.
+that. It listens on `127.0.0.1` only and refuses to write anything except
+`todo.md`.
 
 Start it by double-clicking `board.command`.
+
+### Saving, backups and outside edits
+
+Four things keep the file safe without anyone having to remember to press a
+button. All of them work off one fact: the file's timestamp the last time the open
+tab agreed with what was on disk.
+
+**Auto-save** runs every five minutes, and only when something has actually
+changed — an idle tab never touches the file. It holds off while a field is being
+typed into, and a failed auto-save reports in the status line rather than throwing
+a dialog. There is a toggle in the header; the setting sticks. Manual saving is
+unchanged.
+
+**Backups** come in two kinds, listed at `kanban/backups.html` (the **Backups**
+button in the header). A *session* backup is taken before the first save of each
+run, and the last ten are kept. A *weekly* snapshot is taken the first time the
+board notices a new ISO week — on startup, on a save, or on its own half-hourly
+check while it sits running — and the last twelve are kept. The two are pruned
+separately, so a busy fortnight of saves can never delete the only copy of how the
+list looked last month.
+
+**Auto-reload** picks up edits made outside the board: Claude working through the
+list, or the file opened in an editor. With nothing unsaved in the tab, reloading
+costs nothing, so it happens quietly and says so in the status line.
+
+**The conflict modal** is the one time the board interrupts. If the file changed on
+disk *and* there is unsaved work in the tab, it lists both sets of changes — task
+by task, marked new, deleted, done, moved, renamed or edited — and offers three
+ways out: keep what is in the tab, download it first, or discard it and take the
+file. Nothing is overwritten until that choice is made. Renames are shown as
+renames rather than as a delete plus an add, because the second reads like lost
+work.
 
 ### How the board prioritises
 
