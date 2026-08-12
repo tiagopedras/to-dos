@@ -136,9 +136,42 @@ function group(title, list, blank){
     (list.length ? list.map(row).join('') : '<div class="empty">' + esc(blank) + '</div>');
 }
 
+/* The helper answering is an older copy of server.py — started before this page
+   existed, and still holding the port, so launching board.command again just
+   opens a tab against it. Stopping it goes by port rather than by name, because
+   the name depends on which folder it was started from. */
+function stale(){
+  $('#out').innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
+    'It is running, but it is an older copy that does not know about backups yet. ' +
+    'Starting <strong>board.command</strong> again will not help — it just opens a tab against ' +
+    'the old one.<br><br>Save anything unsaved on the board first, then run this in Terminal:' +
+    '<br><code style="display:inline-block; margin-top:7px; font-size:12px">' +
+    'lsof -ti tcp:8765 | xargs kill</code><br><br>Then double-click <strong>board.command</strong> again.</div>';
+  $('#note').textContent = '';
+}
+
+/* Opened by double-clicking the file in Finder rather than through the board.
+   A page on file:// has no server to ask, so every fetch fails outright — which
+   reads as "the helper is not running" even when it is. */
+function offline(){
+  $('#out').innerHTML = '<div class="err"><strong>Open this page from the board, not from Finder.</strong><br>' +
+    'This page has to be served by the board helper to read anything. Double-clicking the ' +
+    'file opens it on its own, with nothing to ask.<br><br>Start <strong>board.command</strong>, ' +
+    'then use the <strong>Backups</strong> button in the board header — or go straight to' +
+    '<br><code style="display:inline-block; margin-top:7px; font-size:12px">' +
+    'http://127.0.0.1:8765/kanban/backups.html</code></div>';
+  $('#note').textContent = '';
+}
+
 async function draw(){
+  if (location.protocol === 'file:') return offline();
   try {
     const res = await fetch('/backups.json?t=' + Date.now(), { cache:'no-store' });
+    /* A 404 here is not a missing page, it is a helper old enough not to know
+       about this one. Worth telling apart: the fix is a restart, and the generic
+       "start the helper" message sends him to restart something that is already
+       running. */
+    if (res.status === 404) { stale(); return; }
     if (!res.ok) throw new Error('the server answered ' + res.status);
     const data = await res.json();
     const all = data.backups || [];

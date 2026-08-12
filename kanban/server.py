@@ -130,8 +130,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*a, directory=ROOT, **kw)
 
     def log_message(self, fmt, *args):
-        if "PUT" in (args[0] if args else ""):
+        # Only saves are worth a line. Everything else is noise.
+        #
+        # args[0] is a request line for a normal hit but an HTTPStatus when the
+        # base class logs an error, and "in" against one of those raises — which
+        # killed the connection mid-response, so the browser reported a network
+        # failure instead of the 404 the server had actually decided on. Any
+        # missing file became an unexplainable "Failed to fetch".
+        first = args[0] if args else ""
+        if isinstance(first, str) and "PUT" in first:
             sys.stdout.write("saved todo.md\n")
+            sys.stdout.flush()
 
     def _json(self, code, payload):
         body = json.dumps(payload).encode()
@@ -217,8 +226,20 @@ def main():
         httpd = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     except OSError as err:
         if err.errno in (48, 98):
-            print("Port %d is already in use — the board may already be running." % PORT)
-            print("Open http://127.0.0.1:%d/%s" % (PORT, PAGE))
+            # Attaching to whatever already holds the port is usually right, but
+            # not always: a helper left running from days ago is an older copy of
+            # this file, and the board it serves will be missing anything added
+            # since. Say so here, because from the browser it looks like a bug.
+            print("Port %d is already in use — the board is already running." % PORT)
+            print("Opening that one: http://127.0.0.1:%d/%s" % (PORT, PAGE))
+            print("")
+            print("If the board is missing something that should be there, that copy is")
+            print("out of date. Stop it and start this one instead:")
+            print("")
+            print("    lsof -ti tcp:%d | xargs kill" % PORT)
+            print("")
+            print("then start board.command again.")
+            print("")
             webbrowser.open("http://127.0.0.1:%d/%s" % (PORT, PAGE))
             return 0
         raise
@@ -232,6 +253,12 @@ def main():
     print("To-do board running at %s" % url)
     print("Backups: http://127.0.0.1:%d/kanban/backups.html" % PORT)
     print("Leave this window open while you use the board. Press Ctrl-C to stop.")
+    # If this window is ever closed without stopping first, the helper keeps
+    # running with nothing attached to it — no window left to press Ctrl-C in,
+    # and the next launch just opens a tab against this stale copy. Printing the
+    # way out here means it is in the scrollback when it is needed.
+    print("Running as process %d. If this window is gone, stop it with:" % os.getpid())
+    print("    lsof -ti tcp:%d | xargs kill" % PORT)
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         httpd.serve_forever()

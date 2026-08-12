@@ -19,6 +19,22 @@ that. It listens on `127.0.0.1` only and refuses to write anything except
 
 Start it by double-clicking `board.command`.
 
+### Stopping it
+
+Ctrl-C in that window, which is what the window tells you. If the window has been
+closed without stopping it first, the helper carries on with nothing attached to
+it — and because it still holds the port, launching `board.command` again only
+opens a tab against that stale copy, which is how a board ends up missing features
+that are sitting right there in the file. Stop it by port:
+
+```bash
+lsof -ti tcp:8765 | xargs kill
+```
+
+By port rather than by name, because the process name depends on which folder it
+was started from. The startup output prints this command, so it is in the
+scrollback when it is needed.
+
 ### Saving, backups and outside edits
 
 Four things keep the file safe without anyone having to remember to press a
