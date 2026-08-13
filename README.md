@@ -63,8 +63,8 @@ typed into, and a failed auto-save reports in the status line rather than throwi
 a dialog. There is a toggle in the header; the setting sticks. Manual saving is
 unchanged.
 
-**Backups** come in two kinds, listed at `kanban/backups.html` (the **Backups**
-button in the header). A *session* backup is taken before the first save of each
+**Backups** come in two kinds, listed on the **Backups** tab in the header. A
+*session* backup is taken before the first save of each
 run, and the last fifty are kept. A *weekly* snapshot is taken the first time the
 board notices a new ISO week — on startup, on a save, or on its own half-hourly
 check while it sits running — and the last twelve are kept. The two are pruned

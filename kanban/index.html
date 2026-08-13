@@ -33,6 +33,25 @@
   button,input,select,textarea{font:inherit;color:inherit}
   button{cursor:pointer}
 
+  /* ---------- backup preview mode ----------
+     A border around the whole viewport plus a sticky bar above the header —
+     belt and braces so there is no way to be in this mode and not notice.
+     The frame is a fixed overlay rather than a body border, so it can't shift
+     layout or get clipped by an inner scroll container. */
+  .lockframe{
+    position:fixed; inset:0; border:3px solid var(--amber); pointer-events:none; z-index:40;
+  }
+  .lockbar{
+    position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:10px;
+    padding:8px 16px; background:var(--amber-bg); color:var(--amber);
+    border-bottom:1px solid var(--amber); font-size:12.5px;
+  }
+  .lockbar strong{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  }
+  .lockbar .btn{background:var(--panel); border-color:var(--amber); color:var(--ink)}
+  body.locked header{top:37px}
+
   /* ---------- header ---------- */
   header{
     position:sticky; top:0; z-index:20; background:var(--panel);
@@ -52,6 +71,11 @@
   .btn.primary:disabled{opacity:.45; cursor:default}
   .btn.ghost{border-color:transparent; color:var(--ink-soft)}
   .btn.danger{color:var(--red); border-color:var(--line)}
+  .menugroup{display:inline-flex; align-items:center; gap:9px}
+  .menulabel{
+    font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-faint);
+  }
 
   .filters{display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%}
   .tabs{display:inline-flex; gap:3px; background:var(--chip); padding:3px; border-radius:9px}
@@ -87,6 +111,11 @@
     background:color-mix(in srgb, var(--accent) 6%, var(--panel)); box-shadow:var(--shadow);
   }
   .headline.over{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel))}
+  /* Set, the whole bar opens the task, the same as a card. The empty bar has
+     nothing to open, so only the set state takes the pointer and the focus ring. */
+  .headline.set{cursor:pointer}
+  .headline.set:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
+  .headline.set:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .hllabel{
     flex:none; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink-faint);
@@ -95,11 +124,12 @@
   .hlempty{font-size:12.5px; color:var(--ink-faint)}
   .hlempty strong{font-weight:640; color:var(--ink-soft)}
   .hlmain{flex:1; min-width:0}
+  /* Not a button any more: the bar around it is the thing you click, and a button
+     inside a button is neither valid nor tabbable in a sensible order. */
   .hltitle{
-    display:block; text-align:left; background:transparent; border:0; padding:0;
     font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.3;
   }
-  .hltitle:hover{text-decoration:underline}
+  .headline.set:hover .hltitle{text-decoration:underline}
   .hlmeta{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px}
   .hlwhere{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint)}
   .tag.unblocks{background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green)}
@@ -282,16 +312,22 @@
   /* CSS columns rather than grid: sections are wildly different heights, and
      columns pack them without leaving the row-sized gaps a grid would. */
   .lists{columns:2; column-gap:12px; max-width:1180px}
-  .lists.single{columns:1; max-width:820px}   /* one section reads better full width */
-  .lists.wide{columns:1; max-width:1180px}    /* the matrix needs the room for nine cells */
   /* Overview puts every section in its own column, like the board. It never
      stacks: when the window is narrow the row scrolls sideways instead. */
   .lists.split{
-    columns:auto; max-width:none; display:grid; align-items:start; gap:12px;
-    grid-template-columns:repeat(var(--refcols,4), minmax(280px,1fr));
-    min-width:calc(var(--refcols,4) * 292px);
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:repeat(var(--refcols,4), minmax(380px,1fr));
+    min-width:calc(var(--refcols,4) * 394px);
   }
   .lists.split .listcard{margin:0}
+  /* Matrix pairs the nine cells with the dependency chain beside them. The grid
+     keeps the room it needs and the chain takes a fixed reading width, rather
+     than the two splitting the window evenly. */
+  .lists.mview{
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:minmax(620px,1fr) 400px; min-width:1034px;
+  }
+  .lists.mview .listcard{margin:0}
   /* In a column this narrow, a Copy button sitting beside the text leaves it
      two words wide. Give the text the full row and drop the button under it. */
   .lists.split .msg{flex-wrap:wrap; margin-left:0}
@@ -321,6 +357,45 @@
   .listcard li.chk.done{color:var(--ink-faint); text-decoration:line-through}
   .listcard li.chk.done .box{border-color:color-mix(in srgb, var(--green) 45%, transparent)}
   .listcard code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ---------- backups view ----------
+     Scoped under .backupsview so its .row/.tag/.name/.empty/.err don't collide
+     with the task-card classes of the same name used everywhere else. */
+  .backupsview h2{
+    font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-faint); margin:20px 0 9px;
+  }
+  .backupsview h2:first-of-type{margin-top:4px}
+  .backupsview .row{
+    display:flex; align-items:center; gap:12px; background:var(--bg);
+    border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin-bottom:7px;
+  }
+  .backupsview .when{font-weight:600; color:inherit; text-decoration:none; min-width:14.5em}
+  .backupsview .when:hover{text-decoration:underline}
+  .backupsview .ago{color:var(--ink-faint); font-size:12.5px; min-width:8em}
+  .backupsview .size{color:var(--ink-faint); font-size:12.5px; min-width:5em; text-align:right}
+  .backupsview .tag{
+    font-size:11px; font-weight:650; border-radius:5px; padding:2px 7px;
+    background:var(--green-bg); color:var(--green);
+  }
+  .backupsview .tag.session{background:var(--chip); color:var(--ink-soft)}
+  .backupsview .name{
+    font-size:11.5px; color:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .backupsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  .backupsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+  .backupsview .loadbtn{flex:none; font-size:12px; padding:4px 10px}
+  @media (max-width:640px){
+    .backupsview .row{flex-wrap:wrap}
+    .backupsview .when, .backupsview .ago, .backupsview .size{min-width:0}
+  }
+
+  /* ---------- drawer, read-only ----------
+     Disabled controls already grey themselves out; this just makes the footer
+     say so instead of offering Delete on something there is nothing to delete
+     from. */
+  #drawer.readonly #del{display:none}
+  #drawer.readonly #dfootHelp{color:var(--amber)}
   .msglead{margin:0 0 4px 14px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .msg{
     margin:2px 0 12px 14px; padding:10px 12px; background:var(--bg); border:1px solid var(--line);
@@ -411,6 +486,12 @@
   /* Context entries are facts, not work: no tick box, no link, nothing to open. */
   .ref.ctx{border-left-color:var(--line); padding:8px 11px}
   .ctxtext{font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  /* A string with nowhere to wrap — a pasted URL in Context, a long slug in a
+     message — used to run straight out through the side of its card. "anywhere"
+     rather than "break-word" so it also stops that string forcing the whole
+     column wider than the one it is sitting in. */
+  .ref, .msg, .msgtext, .ctxtext{min-width:0}
+  .ctxtext, .msgtext, .reftitle, .refchip, .refwaits, .listcard p, .listcard li{overflow-wrap:anywhere}
   .ctxtext strong{color:var(--ink); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
   #lists.hidden{display:none}
@@ -499,12 +580,23 @@
   .sub:hover{border-color:var(--line)}
   .sub.checked .subtext{color:var(--ink-faint); text-decoration:line-through}
   .sub input{margin-top:3px; flex:none}
-  .sub .subtext{flex:1}
+  .sub .subtext{flex:1; cursor:text}
+  .sub .subtext:hover{color:var(--accent)}
+  .sub.checked .subtext:hover{color:var(--ink-faint)}
   .sub .grip{cursor:grab; color:var(--ink-faint); opacity:.45; font-size:13px; line-height:1.5; user-select:none; flex:none}
   .sub:hover .grip{opacity:.9}
   .sub.dragging{opacity:.4}
   .sub.over-top{box-shadow:inset 0 2px 0 var(--accent)}
   .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .subedit{
+    flex:1; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
+    border-radius:5px; padding:2px 6px; font-size:13px; font-family:inherit;
+  }
+  .addsub{
+    align-self:flex-start; margin-top:6px; border:1px dashed var(--line); background:transparent;
+    color:var(--ink-soft); border-radius:7px; padding:6px 10px; font-size:12.5px; font-weight:600;
+  }
+  .addsub:hover{border-color:var(--ink-faint); color:var(--ink)}
 
   /* ---------- date picker ---------- */
   .dpbtn{
@@ -629,21 +721,30 @@
 </head>
 <body>
 
+<div class="lockframe hidden" id="lockFrame" aria-hidden="true"></div>
+<div class="lockbar hidden" id="lockBar">
+  <strong>Backup Preview</strong>
+  <span id="lockBarLabel"></span>
+  <span class="spacer"></span>
+  <button class="btn" id="exitLock">Return to today's list</button>
+</div>
+
 <header id="hdr" class="hidden">
   <h1>My To-Do list</h1>
   <span class="tabs" id="viewToggle"></span>
   <span class="spacer"></span>
   <span class="status" id="status">read only</span>
-  <label class="autotoggle" for="autosave"
+  <label class="autotoggle" id="autoWrap" for="autosave"
          title="Saves on its own every 5 minutes, but only when something has changed.">
     <input type="checkbox" id="autosave"> Auto-save
   </label>
   <button class="btn hidden" id="archiveBtn"></button>
-  <button class="btn" id="reload" title="Re-read the file from disk">Reload</button>
-  <a class="btn" id="backupsLink" href="/kanban/backups.html" target="_blank"
-     title="Every copy of todo.md the board has kept">Backups</a>
-  <button class="btn" id="download">Download copy</button>
-  <button class="btn primary" id="save" disabled>Save to file</button>
+  <span class="menugroup" id="dataMenu">
+    <span class="menulabel">Data</span>
+    <button class="btn" id="reload" title="Re-read the file from disk">Reload</button>
+    <button class="btn" id="download">Download copy</button>
+    <button class="btn primary" id="save" disabled>Save to file</button>
+  </span>
 
   <div class="filters">
     <span class="tabs" id="bucketFilters"></span>
@@ -679,7 +780,7 @@
 <aside id="drawer">
   <div class="dgrip" id="dgrip" title="Drag to resize · double-click to reset"></div>
   <div class="dhead">
-    <strong>Edit task</strong>
+    <strong id="drawerTitle">Edit task</strong>
     <span class="spacer"></span>
     <button class="btn ghost" id="closeDrawer">Close</button>
   </div>
@@ -687,7 +788,7 @@
   <div class="dfoot">
     <button class="btn danger" id="del">Delete task</button>
     <span class="spacer"></span>
-    <span class="help">Changes apply straight away</span>
+    <span class="help" id="dfootHelp">Changes apply straight away</span>
   </div>
 </aside>
 
@@ -953,9 +1054,20 @@ const state = {
   /* Last-Modified of todo.md as this tab last agreed with it. Used to notice
      edits made outside the board. */
   diskStamp: null,
-  drawerWidth: +(localStorage.getItem('todo-board-drawer') || 400)
+  drawerWidth: +(localStorage.getItem('todo-board-drawer') || 400),
+  /* Backup Preview: state.doc holds an old backup instead of the live file, and
+     nothing may write to it. Every mutation path checks this before touching
+     anything; see updateLockUI for what it hides. */
+  locked: false,
+  lockedLabel: ''
 };
 state.sort = readSort();
+/* The URL's #slug is the one thing a refresh doesn't wipe, so read it before the
+   first render — otherwise every reload snaps back to the default view. */
+(function initViewFromHash(){
+  const id = location.hash.slice(1);
+  if (viewDefs().some(d => d.id === id)) state.view = id;
+})();
 
 const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--accent)'];
 const DONE_COL = 'Done';
@@ -1027,6 +1139,7 @@ function headlineTask(){
 /* Clearing every other one first is what keeps "one thing" true. Two headlines
    in the file is the same failure as a week with two priorities. */
 function setHeadline(id){
+  if (state.locked) return;
   const loc = locate(id);
   if (!loc) return;
   clearHeadline(true);
@@ -1036,6 +1149,7 @@ function setHeadline(id){
   if (state.openTask) openDrawer(state.openTask);
 }
 function clearHeadline(quiet){
+  if (state.locked) return;
   state.doc.buckets.forEach(b => b.tiers.forEach(ti => ti.tasks.forEach(t => {
     if (t.headline) { t.headline = ''; t.dirty = true; }
   })));
@@ -1111,6 +1225,7 @@ function locate(id){
    and every one of them would now have to remember to date it — so they all go
    through here instead. Returns true if anything actually changed. */
 function setDone(t, on){
+  if (state.locked) return false;
   if (t.done === on) return false;
   t.done = on;
   t.doneOn = on ? ymd(today()) : '';
@@ -1119,6 +1234,7 @@ function setDone(t, on){
 }
 
 function markDirty(){
+  if (state.locked) return;
   state.dirty = true;
   $('#save').disabled = false;
   const s = $('#status');
@@ -1210,6 +1326,7 @@ function rebuildBody(t, notes, subs, subsAt){
   t.body = notes.slice(0, at).concat(subs, notes.slice(at));
 }
 function moveSub(t, from, to){
+  if (state.locked) return;
   const p = bodyParts(t);
   if (from === to || from < 0 || from >= p.subs.length) return;
   const item = p.subs.splice(from, 1)[0];
@@ -1218,10 +1335,35 @@ function moveSub(t, from, to){
   markDirty();
 }
 function toggleSub(t, lineIdx){
+  if (state.locked) return;
   const m = SUB_RE.exec(t.body[lineIdx]);
   if (!m) return;
   const box = m[2].toLowerCase() === 'x' ? '[ ]' : '[x]';
   t.body[lineIdx] = m[1] + '- ' + box + ' ' + m[3];
+  markDirty();
+}
+/* Replaces the text of one sub-step in place, keeping its indent and tick state.
+   The line still carries whatever tags it had — due dates and the rest — since
+   the edit box holds the raw line, the same convention the notes textarea uses. */
+function setSubText(t, lineIdx, text){
+  if (state.locked) return;
+  const m = SUB_RE.exec(t.body[lineIdx]);
+  if (!m) return;
+  t.body[lineIdx] = m[1] + '- [' + m[2] + '] ' + text;
+  markDirty();
+}
+function removeSubLine(t, lineIdx){
+  if (state.locked) return;
+  t.body.splice(lineIdx, 1);
+  markDirty();
+}
+/* Appends a blank step at the end of the list. It comes back empty rather than
+   with placeholder text, because the caller drops straight into editing it. */
+function addSub(t){
+  if (state.locked) return;
+  const p = bodyParts(t);
+  p.subs.push('  - [ ] ');
+  rebuildBody(t, p.notes, p.subs, p.subsAt);
   markDirty();
 }
 
@@ -1306,7 +1448,7 @@ function cardHTML(t, color, bucketLabel, opts){
   }
 
   return '<article class="card' + (t.done ? ' done' : '') + '"' +
-    (opts.static ? '' : ' draggable="true" tabindex="0" role="button"') +
+    (opts.static ? '' : ' tabindex="0" role="button"' + (opts.noDrag ? '' : ' draggable="true"')) +
     ' data-id="' + t.id + '" style="--bc:' + color + '">' +
     (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +
     '<div class="title">' + esc(t.title) + '</div>' +
@@ -1316,8 +1458,9 @@ function cardHTML(t, color, bucketLabel, opts){
 }
 
 /* =========================================================================
-   4b. Reference views: This week, Quick wins, Big rocks, Dependency chain,
-       Delegate to Claude.
+   4b. Reference sections. Overview is four columns — Big rocks, This week, Quick
+       wins, Delegate to Claude — plus Context. Dependency chain sits on Matrix,
+       beside the nine cells.
 
    These used to be rendered as prose straight out of the markdown, which meant
    an entry was a sentence that happened to look like a task. Nothing connected
@@ -1680,17 +1823,190 @@ function contextSection(){
   return html;
 }
 
-/* Four views. Each reference section is generated from the tags on the tasks,
+/* Four tabs. Each reference section is generated from the tags on the tasks,
    so nothing here can name a task that is not on the board. */
 function viewDefs(){
   return [
     { id:'overview', label:'Overview' },
     { id:'board',    label:'Board' },
     { id:'matrix',   label:'Matrix' },
-    { id:'quick',    label:'Quick wins' },
-    { id:'delegate', label:'Delegate to Claude' }
+    { id:'backups',  label:'Backups' }
   ];
 }
+
+/* =========================================================================
+   4b2. Backups — every copy of todo.md the board has kept, read from the same
+   /backups.json the old standalone backups.html used. Fetched fresh each time
+   the tab is opened, since a backup can land at any moment.
+   ========================================================================= */
+function backupSize(n){
+  return n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 102400 ? 1 : 0) + ' KB';
+}
+
+/* "3 days ago" is what tells him whether a copy is worth opening. The exact
+   timestamp is there too, because for a backup the exact moment is the point. */
+function backupAgo(iso){
+  const then = new Date(iso), mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return mins + ' minutes ago';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs === 1 ? 'an hour ago' : hrs + ' hours ago';
+  const days = Math.round(hrs / 24);
+  if (days < 7) return days === 1 ? 'yesterday' : days + ' days ago';
+  const wks = Math.round(days / 7);
+  return wks === 1 ? 'last week' : wks + ' weeks ago';
+}
+
+function backupWhen(iso){
+  return new Date(iso).toLocaleString(undefined, {
+    weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+/* The week label is in the file name, and it is more use than the file name. */
+function backupWeekOf(name){
+  const m = /week-(\d{4})-W(\d{2})/.exec(name);
+  return m ? 'Week ' + m[2] + ', ' + m[1] : null;
+}
+
+function backupRowHTML(b){
+  const wk = backupWeekOf(b.name);
+  const label = (b.kind === 'weekly' ? (wk || 'weekly snapshot') : 'session backup') +
+    ' · ' + backupWhen(b.modified);
+  return '<div class="row">' +
+    '<span class="tag' + (b.kind === 'weekly' ? '' : ' session') + '">' +
+      (b.kind === 'weekly' ? (wk || 'weekly') : 'session') + '</span>' +
+    '<a class="when" href="' + esc(b.url) + '" target="_blank">' + esc(backupWhen(b.modified)) + '</a>' +
+    '<span class="ago">' + esc(backupAgo(b.modified)) + '</span>' +
+    '<span class="spacer"></span>' +
+    '<span class="name">' + esc(b.name) + '</span>' +
+    '<span class="size">' + backupSize(b.bytes) + '</span>' +
+    '<button type="button" class="btn loadbtn" data-load-url="' + esc(b.url) + '" data-load-label="' + esc(label) + '">Load</button>' +
+  '</div>';
+}
+
+function backupGroupHTML(title, list, blank){
+  return '<h2>' + esc(title) + '</h2>' +
+    (list.length ? list.map(backupRowHTML).join('') : '<div class="empty">' + esc(blank) + '</div>');
+}
+
+async function renderBackupsView(){
+  $('#lists').innerHTML = '<div class="listcard backupsview"><h3>Backups</h3>' +
+    '<p class="help listnote">Every copy of todo.md the board has kept. Click one to read it, ' +
+    'or Load it to look through it on the board — Backup Preview opens read-only, so nothing in ' +
+    'it can be changed or saved over today\'s list.</p>' +
+    '<div id="backupsOut">Loading…</div></div>';
+  try {
+    const res = await fetch('/backups.json?t=' + Date.now(), { cache:'no-store' });
+    if (res.status === 404) {
+      $('#backupsOut').innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
+        'It is running, but it is an older copy that does not know about backups yet. Save anything ' +
+        'unsaved on the board first, then run this in Terminal:<br>' +
+        '<code style="display:inline-block; margin-top:7px; font-size:12px">' +
+        'lsof -ti tcp:8765 | xargs kill</code><br><br>Then double-click <strong>board.command</strong> again.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('the server answered ' + res.status);
+    const data = await res.json();
+    const all = data.backups || [];
+    // Weekly ones go by their week label, not their timestamp: a snapshot copied
+    // late still belongs to its own week.
+    const weekly = all.filter(b => b.kind === 'weekly').sort((x, y) => y.name.localeCompare(x.name));
+    const session = all.filter(b => b.kind === 'session');
+
+    /* The archive goes first and on its own. Every other file here is a copy of
+       something that still exists; this is the only one holding work that has
+       been taken out of the list. */
+    const a = data.archive;
+    const archive = !a ? '' :
+      '<h2>Archived finished work</h2>' +
+      '<div class="row">' +
+        '<span class="tag">never pruned</span>' +
+        '<a class="when" href="' + esc(a.url) + '" target="_blank">' + esc(backupWhen(a.modified)) + '</a>' +
+        '<span class="ago">' + esc(backupAgo(a.modified)) + '</span>' +
+        '<span class="spacer"></span>' +
+        '<span class="name">' + esc(a.name) + '</span>' +
+        '<span class="size">' + backupSize(a.bytes) + '</span>' +
+      '</div>' +
+      '<p class="help" style="margin-top:8px">' + a.sections +
+        (a.sections === 1 ? ' batch' : ' batches') +
+        ' of tasks that were ticked off more than a month ago and lifted out of todo.md. ' +
+        'Nothing is ever removed from this file.</p>';
+
+    $('#backupsOut').innerHTML = archive +
+      backupGroupHTML('Weekly snapshots', weekly, 'None yet — the first one is taken the next time the board runs in a new week.') +
+      backupGroupHTML('Recent sessions', session, 'None yet — one is taken before the first save of each run.') +
+      '<p class="help listnote">This week is ' + esc(data.week) + '. The board keeps the last ' +
+        data.keep.session + ' session backups and the last ' + data.keep.weekly +
+        ' weekly ones, then deletes the oldest.</p>';
+
+    $('#backupsOut').querySelectorAll('[data-load-url]').forEach(btn => {
+      btn.onclick = () => loadBackupPreview(btn.dataset.loadUrl, btn.dataset.loadLabel);
+    });
+  } catch (err) {
+    $('#backupsOut').innerHTML = '<div class="err"><strong>Could not read the backup list.</strong><br>' +
+      esc(String(err.message || err)) + '</div>';
+  }
+}
+
+/* =========================================================================
+   4b3. Backup Preview — loading one of the files above straight into the
+   board, so it can be looked through the same way as today's list, without
+   any risk of it landing back on disk as the live todo.md.
+
+   state.doc becomes the backup's parsed content and state.locked goes true;
+   every place that would otherwise write to state.doc (setDone, dropTask,
+   addTask, the drawer's field handlers, sub-step edits, headline, archive,
+   saveFile, autosave, the outside-edit watcher) checks state.locked first and
+   refuses. Exiting always re-fetches todo.md fresh from disk rather than
+   restoring anything from memory — simplest, and no live edit can be lost
+   from a mode that never allowed any.
+   ========================================================================= */
+async function loadBackupPreview(url, label){
+  if (state.dirty) {
+    alert('You have unsaved changes on today\'s list.\n\n' +
+          'Save or discard them first, then Load the backup again.');
+    return;
+  }
+  try {
+    const res = await fetch(url + '?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) throw new Error('the server answered ' + res.status);
+    const text = await res.text();
+    const doc = parseDoc(text);
+    if (!doc.buckets.length) throw new Error('that file has no task buckets in it');
+    closeDrawer();
+    state.doc = doc;
+    state.originalText = text;
+    state.fileName = url.split('/').pop();
+    state.activeBucket = ALL_BUCKETS;
+    state.view = 'board';
+    state.locked = true;
+    state.lockedLabel = label;
+    updateLockUI();
+    renderView();
+  } catch (err) {
+    alert('Could not load that backup.\n\n' + (err.message || err));
+  }
+}
+
+async function exitBackupPreview(){
+  state.locked = false;
+  state.lockedLabel = '';
+  updateLockUI();
+  await loadFile();
+}
+
+function updateLockUI(){
+  document.body.classList.toggle('locked', state.locked);
+  $('#lockFrame').classList.toggle('hidden', !state.locked);
+  $('#lockBar').classList.toggle('hidden', !state.locked);
+  $('#lockBarLabel').textContent = state.locked
+    ? 'Viewing ' + state.lockedLabel + ' — nothing here can be edited or saved.'
+    : '';
+  $('#dataMenu').classList.toggle('hidden', state.locked);
+  $('#autoWrap').classList.toggle('hidden', state.locked);
+}
+$('#exitLock').onclick = exitBackupPreview;
 
 /* =========================================================================
    4c. The matrix: impact against effort
@@ -1877,50 +2193,58 @@ function refSection(title, hint, html){
          '</section>';
 }
 
+/* The split grid is written out here rather than in the stylesheet because
+   Context is the last column and the only one with a different width: it is
+   prose in full sentences, not cards, and at card width it reads as a ribbon.
+   repeat() cannot take a computed count reliably across browsers, so the tracks
+   are listed one by one. */
+const REF_TRACK = 'minmax(380px,1fr)';
+const CTX_TRACK = 'minmax(540px,1.5fr)';
+function splitGridCSS(cols, hasCtx){
+  const plain = hasCtx ? cols - 1 : cols;
+  const tracks = Array(plain).fill(REF_TRACK);
+  if (hasCtx) tracks.push(CTX_TRACK);
+  // Below this the row scrolls sideways instead of squeezing the columns.
+  const minW = plain * 394 + (hasCtx ? 554 : 0);
+  return 'grid-template-columns:' + tracks.join(' ') + ';min-width:' + minW + 'px';
+}
+
 function renderSections(viewId){
   // The grid is rebuilt from scratch here, so any preview on screen is pointing
   // at a dot that no longer exists.
   hideMatrixPreview();
   const items = allItems();
-  let html = '', single = false, split = false, wide = false, cols = 4, lead = '';
+  let html = '', split = false, mview = false, cols = 4, hasCtx = false;
 
   if (viewId === 'overview') {
     const ctx = contextSection();
     split = true;
     // One section per column, left to right, the same way the board reads.
     const secs = [
+      refSection('Big rocks', 'High impact, L effort. Needs protected time.', bigRocksSection(items)),
       refSection('This week', 'Everything tagged `week`, soonest first.', weekSection(items)),
-      refSection('Dependency chain', 'Built from every `blocked-by:` tag.', chainSection(items)),
-      refSection('Big rocks', 'High impact, L effort. Needs protected time.', bigRocksSection(items))
+      refSection('Quick wins', 'Everything `effort:S`, plus any step whose message is already written.', quickSection(items)),
+      refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order.', delegateSection(items))
     ];
-    if (ctx) secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.', ctx));
+    if (ctx) {
+      secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.', ctx));
+      hasCtx = true;
+    }
     cols = secs.length;
     html = secs.join('');
   } else if (viewId === 'matrix') {
-    wide = true;
+    mview = true;
+    // The chain sits beside the matrix: both answer "what can I actually start",
+    // one by score and one by what is still waiting on something else.
     html = refSection('Impact against effort',
       'Every open task by its two scores. One dot per task, coloured by bucket — hover for the title, click to open it.',
-      matrixSection());
-  } else if (viewId === 'quick') {
-    single = true;
-    html = refSection('Quick wins', 'Everything `effort:S`, plus any step whose message is already written.', quickSection(items));
-  } else if (viewId === 'delegate') {
-    split = true;
-    // A column per bucket, in file order, so this reads the same way as the
-    // board. Empty buckets keep their column rather than being dropped: a gap
-    // where a bucket should be reads as a bug, and "nothing here" is an answer.
-    const secs = state.doc.buckets.map(b =>
-      refSection(b.name, '', delegateSection(items.filter(i => i.bucket === b.name)))
-    );
-    cols = secs.length;
-    lead = 'Everything tagged <code>ai:full</code>, in <code>rank:</code> order within each bucket.';
-    html = secs.join('');
+      matrixSection()) +
+      refSection('Dependency chain', 'Built from every `blocked-by:` tag.', chainSection(items));
   }
 
-  $('#lists').innerHTML = (lead ? '<p class="help listlead">' + lead + '</p>' : '') +
-    '<div class="lists' + (single ? ' single' : '') + (split ? ' split' : '') +
-      (wide ? ' wide' : '') + '"' +
-      (split ? ' style="--refcols:' + cols + '"' : '') + '>' + html + '</div>' +
+  $('#lists').innerHTML =
+    '<div class="lists' + (split ? ' split' : '') + (mview ? ' mview' : '') + '"' +
+      (split ? ' style="' + splitGridCSS(cols, hasCtx) + '"' : '') + '>' + html + '</div>' +
     '<p class="help listnote">Generated from the tags on the tasks, so every card here is a real task. ' +
     'Open one to change it, then Save.</p>';
 }
@@ -1932,9 +2256,17 @@ function renderView(){
   // to the header rather than to any one view.
   updateArchiveChip();
   const defs = viewDefs();
+  // Quick wins and Delegate to Claude are columns of Overview now, so an old
+  // #quick or #delegate link lands where its content actually lives.
+  if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
   if (!defs.some(d => d.id === state.view)) state.view = 'board';
   const def = defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
+  // Keep the URL in step with whichever tab is on screen, so a refresh (or a
+  // link back to this page) lands on the same view instead of the default.
+  // replaceState rather than the hash setter: it doesn't add a history entry
+  // or fire hashchange, so this can't loop with the listener below.
+  if (location.hash.slice(1) !== state.view) history.replaceState(null, '', '#' + state.view);
 
   $('#viewToggle').innerHTML = defs.map(d =>
     '<button class="tab' + (d.id === state.view ? ' on' : '') + '" data-view="' + d.id + '">' + esc(d.label) + '</button>'
@@ -1956,6 +2288,7 @@ function renderView(){
   // Its chip is board-only, so leaving it on here would filter a view with no
   // visible control to explain why half the tasks are missing.
   state.unscoredOnly = false;
+  if (def.id === 'backups') { renderBackupsView(); return; }
   renderSections(def.id);
 }
 
@@ -1963,7 +2296,9 @@ function renderView(){
    as the board now, so an edit has to show up where it was made — renderBoard
    alone does nothing when a list view is up. */
 function refreshView(){
-  if (state.view === 'board') renderBoard(); else renderSections(state.view);
+  if (state.view === 'board') renderBoard();
+  else if (state.view === 'backups') renderBackupsView();
+  else renderSections(state.view);
   updateArchiveChip();
 }
 
@@ -1972,12 +2307,18 @@ function refreshView(){
 function renderHeadline(){
   const bar = $('#headline');
   const hl = headlineTask();
-  bar.classList.toggle('hidden', state.view !== 'board');
+  bar.classList.toggle('hidden', state.view !== 'board' || state.locked);
   bar.classList.toggle('set', !!hl);
   if (!hl) {
     bar.innerHTML = '<span class="hllabel">The one thing</span>' +
       '<span class="hlempty">Nothing set. Drag a card here, or open a task and press ' +
       '<strong>Make this the headline</strong>.</span>';
+    // Nothing to open, so the bar goes back to being a strip of text. Left set,
+    // the old role and handler would survive the removal and open a stale task.
+    bar.removeAttribute('role');
+    bar.removeAttribute('tabindex');
+    bar.onclick = null;
+    bar.onkeydown = null;
     return;
   }
   const t = hl.task;
@@ -1996,7 +2337,7 @@ function renderHeadline(){
 
   bar.innerHTML = '<span class="hllabel">The one thing</span>' +
     '<div class="hlmain">' +
-      '<button class="hltitle" data-open="' + t.id + '">' + esc(t.title) + '</button>' +
+      '<div class="hltitle">' + esc(t.title) + '</div>' +
       '<div class="hlmeta">' +
         '<span class="hlwhere">' + esc(hl.bucket.name) + ' · ' +
           esc(t.done ? DONE_COL : hl.tier.name) + '</span>' + tags +
@@ -2006,10 +2347,19 @@ function renderHeadline(){
       (age === null ? '' : '<span class="hlage">' +
         (age <= 0 ? 'set today' : 'set ' + age + ' day' + (age > 1 ? 's' : '') + ' ago') + '</span>') +
       (t.done ? '<span class="hldone">solved — pick the next one</span>' : '') +
-      '<button class="hlclear" id="hlClear">Clear</button>' +
+      '<button class="hlclear" id="hlClear">Remove</button>' +
     '</div>';
 
-  $('#hlClear').onclick = () => clearHeadline(false);
+  /* The whole bar opens the task, like a card. Only the Remove button is carved
+     out of that, or the one gesture that gets rid of the headline would open it. */
+  bar.setAttribute('role', 'button');
+  bar.setAttribute('tabindex', '0');
+  bar.onclick = e => { if (!e.target.closest('.hlclear')) openDrawer(t.id); };
+  bar.onkeydown = e => {
+    if (e.target.closest('.hlclear')) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(t.id); }
+  };
+  $('#hlClear').onclick = e => { e.stopPropagation(); clearHeadline(false); };
 }
 
 function renderBoard(){
@@ -2052,7 +2402,7 @@ function renderBoard(){
         .map(x => x.e);
     }
     const n = entries.length;
-    const cards = entries.map(e => cardHTML(e.t, e.color, e.label)).join('');
+    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked })).join('');
 
     const sortBtn = isDone ? '' :
       '<button class="sortbtn' + (mode === 'priority' ? ' on' : '') + '" data-sort="' + esc(name) + '"' +
@@ -2066,43 +2416,49 @@ function renderBoard(){
       '<h2>' + esc(name) + (TIER_HINT[name] ? ' <span class="hint">' + esc(TIER_HINT[name]) + '</span>' : '') +
       sortBtn + '<span class="count">' + n + '</span></h2>' +
       '<div class="drop" data-tier="' + esc(name) + '">' + (n ? cards : '<div class="empty">Nothing here</div>') + '</div>' +
-      (isDone || many ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
+      (isDone || many || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
     '</section>';
   }).join('');
 
   board.querySelectorAll('.card').forEach(el => {
     el.onclick = () => openDrawer(el.dataset.id);
     el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(el.dataset.id); } };
-    el.ondragstart = e => {
-      e.dataTransfer.setData('text/plain', el.dataset.id);
-      e.dataTransfer.effectAllowed = 'move';
-      dragId = el.dataset.id;
-      requestAnimationFrame(() => el.classList.add('dragging'));
-    };
-    el.ondragend = () => { el.classList.remove('dragging'); dragId = null; hideDropLine(); };
   });
-  board.querySelectorAll('.drop').forEach(zone => {
-    zone.ondragover = e => {
-      e.preventDefault();
-      zone.classList.add('over');
-      showDropLine(zone, e.clientY);
-    };
-    // Moving onto a card inside the zone counts as leaving the zone in most
-    // browsers, so check where the pointer actually went before clearing.
-    zone.ondragleave = e => {
-      if (zone.contains(e.relatedTarget)) return;
-      zone.classList.remove('over');
-      hideDropLine();
-    };
-    zone.ondrop = e => {
-      e.preventDefault();
-      zone.classList.remove('over');
-      hideDropLine();
-      const id = e.dataTransfer.getData('text/plain') || dragId;
-      if (id) dropTask(id, zone.dataset.tier, zone, e.clientY);
-    };
-  });
-  board.querySelectorAll('.addbtn').forEach(el => { el.onclick = () => addTask(el.dataset.add); });
+  // Drag-and-drop, the add-task footer and their wiring only mean anything for
+  // the live file — a backup preview has nothing to reorder into.
+  if (!state.locked) {
+    board.querySelectorAll('.card').forEach(el => {
+      el.ondragstart = e => {
+        e.dataTransfer.setData('text/plain', el.dataset.id);
+        e.dataTransfer.effectAllowed = 'move';
+        dragId = el.dataset.id;
+        requestAnimationFrame(() => el.classList.add('dragging'));
+      };
+      el.ondragend = () => { el.classList.remove('dragging'); dragId = null; hideDropLine(); };
+    });
+    board.querySelectorAll('.drop').forEach(zone => {
+      zone.ondragover = e => {
+        e.preventDefault();
+        zone.classList.add('over');
+        showDropLine(zone, e.clientY);
+      };
+      // Moving onto a card inside the zone counts as leaving the zone in most
+      // browsers, so check where the pointer actually went before clearing.
+      zone.ondragleave = e => {
+        if (zone.contains(e.relatedTarget)) return;
+        zone.classList.remove('over');
+        hideDropLine();
+      };
+      zone.ondrop = e => {
+        e.preventDefault();
+        zone.classList.remove('over');
+        hideDropLine();
+        const id = e.dataTransfer.getData('text/plain') || dragId;
+        if (id) dropTask(id, zone.dataset.tier, zone, e.clientY);
+      };
+    });
+    board.querySelectorAll('.addbtn').forEach(el => { el.onclick = () => addTask(el.dataset.add); });
+  }
   board.querySelectorAll('.sortbtn').forEach(el => {
     el.onclick = () => {
       setSortMode(el.dataset.sort, sortMode(el.dataset.sort) === 'priority' ? 'manual' : 'priority');
@@ -2189,6 +2545,7 @@ function hideDropLine(){ if (dropLine && dropLine.parentNode) dropLine.remove();
 /* Move a task to another tier, inserting near where it was dropped.
    Cards from other buckets are ignored when working out the position. */
 function dropTask(id, tierName, zone, clientY){
+  if (state.locked) return;
   const loc = locate(id);
   if (!loc) return;
 
@@ -2221,6 +2578,7 @@ function dropTask(id, tierName, zone, clientY){
 }
 
 function addTask(tierName){
+  if (state.locked) return;
   const tier = ensureTier(activeBucket(), tierName);
   const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', ai:'',
               urgent:false, week:false, slug:'', blockedBy:[], rank:null, extra:[], body:[], raw:'', dirty:true };
@@ -2385,11 +2743,50 @@ function suggestionSection(label, list){
     '</div>';
 }
 
+/* Turns one sub-step's text into an editable field in place. The row's drag
+   handle stays put, but the row itself must stop being draggable while an
+   input sits inside it, or selecting text tries to drag the row instead.
+   Clearing the text and leaving removes the step, so there is no separate
+   delete control to add just for this. */
+function editSubtext(span, t, lineIdx, id){
+  if (state.locked) return;
+  const row = span.closest('.sub');
+  const m = SUB_RE.exec(t.body[lineIdx]);
+  if (!m) return;
+  row.draggable = false;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'subedit';
+  input.value = m[3];
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let settled = false;
+  const finish = save => {
+    if (settled) return;
+    settled = true;
+    if (save) {
+      const val = input.value.trim();
+      if (val) setSubText(t, lineIdx, val); else removeSubLine(t, lineIdx);
+    }
+    refreshView();
+    openDrawer(id);
+  };
+  input.onblur = () => finish(true);
+  input.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+}
+
 function openDrawer(id, focusTitle){
   const loc = locate(id);
   if (!loc) return;
   state.openTask = id;
   const t = loc.task;
+  // A backup preview opens the same panel to look at a task, but nothing in it
+  // may change — every field below is disabled and nothing is wired to it.
+  const ro = state.locked;
   // Same list as the board, Done included: a ticked-off task is in the Done
   // column there, so the panel says the same thing rather than hiding it in a
   // tick box that has nothing to do with the other columns.
@@ -2397,30 +2794,37 @@ function openDrawer(id, focusTitle){
   const nowIn = t.done ? DONE_COL : loc.tier.name;
   const subs = subSteps(t);
   const sugg = suggestions(t);
+  const dis = ro ? ' disabled' : '';
+
+  $('#drawer').classList.toggle('readonly', ro);
+  $('#drawerTitle').textContent = ro ? 'View task (read-only)' : 'Edit task';
+  $('#dfootHelp').textContent = ro
+    ? 'Read-only — from a backup, nothing here can be changed.'
+    : 'Changes apply straight away';
 
   $('#dbody').innerHTML =
-    '<label class="field"><span>Task</span><input type="text" id="f-title" value="' + esc(t.title) + '"></label>' +
+    '<label class="field"><span>Task</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
     '<div class="grid2">' +
-      '<label class="field"><span>Bucket</span><select id="f-bucket">' +
+      '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
         state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
       '</select></label>' +
-      '<label class="field"><span>Column</span><select id="f-tier">' +
+      '<label class="field"><span>Column</span><select id="f-tier"' + dis + '>' +
         cols.map(n => '<option' + (n === nowIn ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
       '</select></label>' +
     '</div>' +
     '<div class="grid2">' +
-      '<label class="field"><span>Impact</span><select id="f-impact">' +
+      '<label class="field"><span>Impact</span><select id="f-impact"' + dis + '>' +
         ['','high','med','low'].map(v => '<option value="' + v + '"' + (v === t.impact ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
       '</select></label>' +
-      '<label class="field"><span>Effort</span><select id="f-effort">' +
+      '<label class="field"><span>Effort</span><select id="f-effort"' + dis + '>' +
         ['','S','M','L'].map(v => '<option value="' + v + '"' + (v === t.effort ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
       '</select></label>' +
     '</div>' +
-    '<label class="field"><span>Who does it (ai:)</span><select id="f-ai">' +
+    '<label class="field"><span>Who does it (ai:)</span><select id="f-ai"' + dis + '>' +
       ['','full','partial','none'].map(v => '<option value="' + v + '"' + (v === t.ai ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
     '</select></label>' +
     '<div class="field"><span>The one thing</span>' +
-      '<button type="button" class="hlset' + (t.headline ? ' on' : '') + '" id="f-headline">' +
+      '<button type="button" class="hlset' + (t.headline ? ' on' : '') + '" id="f-headline"' + dis + '>' +
         (t.headline ? 'This is the headline — remove it' : 'Make this the headline') +
       '</button>' +
       '<span class="help">' + (t.headline
@@ -2433,11 +2837,11 @@ function openDrawer(id, focusTitle){
        the first and ignores the second. */
     '<div class="grid2">' +
       '<div class="field"><span>Can start</span>' +
-        '<button type="button" class="dpbtn' + (parseDue(t.start) ? '' : ' empty') + '" id="f-start">' +
+        '<button type="button" class="dpbtn' + (parseDue(t.start) ? '' : ' empty') + '" id="f-start"' + dis + '>' +
           esc(t.start ? dueLabel(t.start) : 'Any time') + '</button>' +
       '</div>' +
       '<div class="field"><span>Due</span>' +
-        '<button type="button" class="dpbtn' + (parseDue(t.due) ? '' : ' empty') + '" id="f-due">' +
+        '<button type="button" class="dpbtn' + (parseDue(t.due) ? '' : ' empty') + '" id="f-due"' + dis + '>' +
           esc(dueLabel(t.due)) + '</button>' +
       '</div>' +
     '</div>' +
@@ -2450,26 +2854,33 @@ function openDrawer(id, focusTitle){
       ? '<p class="datenote">Hidden from Quick wins until ' + esc(dueLabel(t.start)) + '.</p>'
       : '') +
     '<div class="field"><span>Flags</span>' +
-      '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + '> urgent</label>' +
+      '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + dis + '> urgent</label>' +
     '</div>' +
-    (subs.length ? '<div class="field"><span>Sub-steps <em class="sublabel">drag to reorder</em></span>' +
+    '<div class="field"><span>Sub-steps' +
+      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') + '</span>' +
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
         const sd = dueInfo(s.due);
-        return '<div class="sub' + (s.done ? ' checked' : '') + '" draggable="true" data-i="' + i + '">' +
+        return '<div class="sub' + (s.done ? ' checked' : '') + '"' + (ro ? '' : ' draggable="true"') + ' data-i="' + i + '">' +
           '<span class="grip" title="Drag to reorder">⠿</span>' +
-          '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + '>' +
-          '<span class="subtext">' + esc(s.clean) +
+          '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
+          '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + esc(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span></div>';
       }).join('') +
-      '</div></div>' : '') +
+      '</div>' +
+      (ro ? '' : '<button type="button" class="addsub" id="f-addsub">+ Add step</button>') +
+    '</div>' +
     '<label class="field"><span>Notes</span>' +
-      '<textarea id="f-body" spellcheck="false">' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
+      '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
       '<span class="help">Sub-steps live in the list above. Anything you type here is a note on the task.</span>' +
     '</label>' +
     suggestionSection('Message suggestions', sugg.message) +
     suggestionSection('Prompt suggestions', sugg.prompt);
 
+  // Every handler below changes the task, so none of them are wired up in a
+  // backup preview — the fields are also disabled above, but this is what
+  // actually stops a change from happening rather than just looking stopped.
+  if (!ro) {
   const touch = () => { t.dirty = true; markDirty(); refreshView(); };
 
   $('#f-title').oninput  = e => { t.title = e.target.value; touch(); };
@@ -2527,6 +2938,9 @@ function openDrawer(id, focusTitle){
     subsEl.querySelectorAll('input').forEach(cb => {
       cb.onchange = () => { toggleSub(t, +cb.dataset.line); refreshView(); openDrawer(id); };
     });
+    subsEl.querySelectorAll('.subtext').forEach(span => {
+      span.onclick = () => editSubtext(span, t, +span.dataset.line, id);
+    });
     const rows = subsEl.querySelectorAll('.sub');
     const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
     rows.forEach(row => {
@@ -2558,11 +2972,23 @@ function openDrawer(id, focusTitle){
       };
     });
   }
+  /* Adds the step, then drops straight into editing its (empty) text — an
+     "Add" click that still left a blank, unlabelled row would just be a second
+     click waiting to happen. */
+  $('#f-addsub').onclick = () => {
+    addSub(t);
+    refreshView();
+    openDrawer(id);
+    const spans = $('#f-subs').querySelectorAll('.subtext');
+    const last = spans[spans.length - 1];
+    if (last) editSubtext(last, t, +last.dataset.line, id);
+  };
   $('#f-body').onchange = e => {
     const p = bodyParts(t);
     rebuildBody(t, indent(e.target.value), p.subs, p.subsAt);
     markDirty(); refreshView();
   };
+  }
 
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
@@ -2615,6 +3041,7 @@ window.addEventListener('resize', applyDrawerWidth);
 $('#closeDrawer').onclick = closeDrawer;
 $('#scrim').onclick = closeDrawer;
 $('#del').onclick = () => {
+  if (state.locked) return;
   const loc = state.openTask && locate(state.openTask);
   if (!loc) return;
   if (!confirm('Delete "' + loc.task.title + '"? This removes it from todo.md when you save.')) return;
@@ -2641,7 +3068,9 @@ function load(text, name){
   $('#start').classList.add('hidden');
   $('#board').classList.remove('hidden');
   $('#hdr').classList.remove('hidden');
-  if (!doc.buckets.some(b => b.name === state.activeBucket)) state.activeBucket = doc.buckets[0].name;
+  if (state.activeBucket !== ALL_BUCKETS && !doc.buckets.some(b => b.name === state.activeBucket)) {
+    state.activeBucket = ALL_BUCKETS;
+  }
   markClean('');
   renderView();
   if (renamed) { markDirty(); $('#status').textContent = 'renamed “Parked” to “Backlog” — save to apply'; }
@@ -2680,7 +3109,9 @@ async function loadFile(){
    dialog in front of whatever he is doing. It shows in the status line instead,
    and the changes stay in the tab either way. */
 async function saveFile(auto, forceBackup){
-  if (!state.doc || !state.dirty) return;
+  // The one guard that actually matters: state.doc can hold an old backup while
+  // locked, and this must never let that overwrite the live todo.md.
+  if (state.locked || !state.doc || !state.dirty) return;
   const text = serializeDoc(state.doc);
   const btn = $('#save');
   btn.disabled = true;
@@ -2876,6 +3307,7 @@ function showModal(heading, sub, bodyHTML, buttons){
 }
 
 async function reload(){
+  if (state.locked) return;
   if (!state.dirty) return loadFile();
   // Same collision as an outside edit, so it gets the same modal — he can see
   // what he would be throwing away before he throws it away.
@@ -2946,7 +3378,7 @@ async function rememberStamp(){ state.diskStamp = await diskStamp(); }
    instead of waiting out another full interval. */
 let lastSaveAt = Date.now();
 async function autosaveTick(){
-  if (!autosaveOn || !state.doc || !state.dirty || modalEl) return;
+  if (state.locked || !autosaveOn || !state.doc || !state.dirty || modalEl) return;
   if (Date.now() - lastSaveAt < AUTOSAVE_MS) return;
   const el = document.activeElement;
   if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
@@ -2957,7 +3389,7 @@ async function autosaveTick(){
    the file being changed in an editor. With nothing unsaved here, reloading is
    free, so it happens quietly. With unsaved work, it asks. */
 async function watchTick(){
-  if (!state.doc || modalEl || conflictShown) return;
+  if (state.locked || !state.doc || modalEl || conflictShown) return;
   const stamp = await diskStamp();
   if (!stamp) return;                              // helper stopped; saveFile reports that
   if (!state.diskStamp) { state.diskStamp = stamp; return; }
@@ -3026,6 +3458,7 @@ function archivable(){
 function updateArchiveChip(){
   const btn = $('#archiveBtn');
   if (!btn) return;
+  if (state.locked) { btn.classList.add('hidden'); return; }
   const n = archivable().length;
   btn.classList.toggle('hidden', n === 0);
   btn.textContent = 'Archive ' + n + ' finished';
@@ -3052,6 +3485,7 @@ function archiveMarkdown(list){
 }
 
 async function archiveOldDone(){
+  if (state.locked) return;
   const list = archivable();
   if (!list.length) return;
 
@@ -3235,6 +3669,16 @@ $('#lists').onclick = handleCopy;
 $('#dbody').onclick = handleCopy;
 
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* Back/forward and hand-edited URLs come through here rather than the tab
+   clicks above, which drive the switch straight off state.view instead. */
+window.addEventListener('hashchange', () => {
+  const id = location.hash.slice(1);
+  if (viewDefs().some(d => d.id === id) && id !== state.view) {
+    state.view = id;
+    renderView();
+  }
+});
 
 loadFile();
 </script>

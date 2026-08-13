@@ -347,7 +347,6 @@ def main():
 
     url = "http://127.0.0.1:%d/%s" % (PORT, PAGE)
     print("To-do board running at %s" % url)
-    print("Backups: http://127.0.0.1:%d/kanban/backups.html" % PORT)
     print("Leave this window open while you use the board. Press Ctrl-C to stop.")
     # If this window is ever closed without stopping first, the helper keeps
     # running with nothing attached to it — no window left to press Ctrl-C in,
