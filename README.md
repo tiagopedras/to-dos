@@ -135,16 +135,24 @@ reading the list in Obsidian rather than on the board. Two plugins do the work:
 back into the file as ordinary markdown, so the result still reads correctly
 somewhere that has never heard of either plugin.
 
-`views.template.md` is the committed copy of the queries. The one that runs is
+`views.template.txt` is the committed copy of the queries. The one that runs is
 `views.md`, which git ignores, because once the queries have run it holds the real
 list. Start it with:
 
 ```bash
-cp views.template.md views.md
+cp views.template.txt views.md
 ```
 
-Then open this folder as an Obsidian vault and exclude `backups/` in Settings →
-Files and links, or every backup counts as another copy of every task.
+The template is `.txt` rather than `.md` deliberately. The Serializer writes into
+every markdown file in the vault that carries a query marker, with no regard for
+which files git tracks, so a markdown template would have had the real list
+written into it and committed. Non-markdown files are ignored, which is the guard.
+
+Then open this folder as an Obsidian vault, install Dataview and Dataview
+Serializer **in that vault** — Obsidian keeps community plugins per vault, so
+having them in another one does not count — and exclude `backups/` and `.claude/`
+in Settings → Files and links, which keeps fifty copies of every task out of the
+search box.
 
 Three things the Obsidian version does worse than the board, all listed in the
 file itself: Delegate is in deadline order rather than `rank:` order, Quick wins

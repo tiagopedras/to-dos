@@ -5,12 +5,19 @@ which is ignored by git because the answers it fills in are the real list: named
 people, probation reviews, salary conversations. Start it with:
 
 ```bash
-cp views.template.md views.md
+cp views.template.txt views.md
 ```
 
 Change a query in both, or change it here and copy it across again. That is the
 one piece of duplication in this repo, and it is here because the alternative is
 committing the list itself.
+
+**This file is `.txt` on purpose.** Dataview Serializer processes every markdown
+file in the vault that carries a query marker, and it does not care which ones
+git tracks. As `views.template.md` it would have had its own answers written into
+it — the real list, in a committed file, pushed on the next commit. The plugin
+ignores anything that is not markdown, so the extension is the guard. Do not
+rename it back.
 
 ---
 
@@ -33,9 +40,10 @@ Two things to set up once, in Obsidian:
 
 - Open this folder as the vault, or put the vault above it. Dataview only sees
   files inside the vault.
-- Exclude `backups/` in Settings → Files and links → Excluded files. Every backup
-  is a full copy of the list, and without this the views count each task a dozen
-  times over.
+- Exclude `backups/` and `.claude/` in Settings → Files and links → Excluded
+  files. Every backup is a full copy of the list, so without this the search box
+  and the graph fill up with fifty copies of every task. The queries below are
+  scoped to `todo.md` by name, so they never counted the backups either way.
 
 Serialized output is generated. Editing it by hand lasts until the next save,
 which is exactly the failure the five copied sections had before they were
