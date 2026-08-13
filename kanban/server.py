@@ -2,9 +2,12 @@
 """Tiny local server for the to-do board.
 
 This file lives in kanban/ and serves the folder above it, so kanban/index.html
-and todo.md at the project root are both reachable. It accepts PUT /todo.md so the
-board can write your changes straight back, and keeps backups in backups/.
+and data/todo.md are both reachable. It accepts PUT /data/todo.md so the board can
+write your changes straight back, and keeps backups in data/backups/.
 Listens on 127.0.0.1 only, so nothing outside this machine can reach it.
+
+The list lives in data/ and nothing else does. That folder is the whole of what
+git ignores, and it is what Obsidian opens as its vault.
 
 Run it with board.command, or directly:  python3 kanban/server.py
 """
@@ -22,8 +25,15 @@ import webbrowser
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Everything is served from the project root, one level up from this file.
 ROOT = os.path.dirname(HERE)
-BACKUP_DIR = os.path.join(ROOT, "backups")
-TARGET = "todo.md"
+# The list and everything derived from it live in one folder, and that folder is
+# the only thing git ignores. Before this, the private half of the repo was four
+# separate ignore rules — todo.md, backups/, todo-backup-*.md, views.md — and
+# anything new had to remember to add a fifth. One folder cannot be forgotten.
+# It is also what Obsidian opens as its vault, so the vault holds the list and
+# nothing else: no board, no skill, no README to index.
+DATA = "data"
+BACKUP_DIR = os.path.join(ROOT, DATA, "backups")
+TARGET = DATA + "/todo.md"
 PAGE = "kanban/index.html"
 PORT = 8765
 MAX_BYTES = 5 * 1024 * 1024
@@ -98,7 +108,7 @@ def weekly_backup_watcher(every=1800):
         try:
             name = weekly_backup()
             if name:
-                sys.stdout.write("weekly backup: backups/%s\n" % name)
+                sys.stdout.write("weekly backup: %s/backups/%s\n" % (DATA, name))
                 sys.stdout.flush()
         except OSError as err:
             sys.stdout.write("weekly backup failed: %s\n" % err)
@@ -150,7 +160,7 @@ def archive_info():
         "name": ARCHIVE,
         "bytes": st.st_size,
         "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
-        "url": "/backups/" + ARCHIVE,
+        "url": "/" + DATA + "/backups/" + ARCHIVE,
         "sections": sections,
     }
 
@@ -169,7 +179,7 @@ def backup_listing():
             "kind": "weekly" if is_weekly(name) else "session",
             "bytes": st.st_size,
             "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
-            "url": "/backups/" + name,
+            "url": "/" + DATA + "/backups/" + name,
         })
     out.sort(key=lambda b: b["modified"], reverse=True)
     return out
@@ -189,7 +199,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # missing file became an unexplainable "Failed to fetch".
         first = args[0] if args else ""
         if isinstance(first, str) and "PUT" in first:
-            sys.stdout.write("saved todo.md\n")
+            sys.stdout.write("saved %s\n" % TARGET)
             sys.stdout.flush()
 
     def _json(self, code, payload):
@@ -237,14 +247,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not text.strip():
             return self._json(400, {"error": "nothing to archive"})
         name = archive_done(text)
-        sys.stdout.write("archived finished work to backups/%s\n" % name)
+        sys.stdout.write("archived finished work to %s/backups/%s\n" % (DATA, name))
         sys.stdout.flush()
         return self._json(200, {"ok": True, "archive": name})
 
     def do_PUT(self):
         global backup_made
         if self.path.split("?")[0].lstrip("/") != TARGET:
-            return self._json(404, {"error": "only todo.md can be written"})
+            return self._json(404, {"error": "only %s can be written" % TARGET})
 
         try:
             length = int(self.headers.get("Content-Length", 0))
@@ -332,7 +342,7 @@ def main():
 
     first_weekly = weekly_backup()
     if first_weekly:
-        print("weekly backup: backups/%s" % first_weekly)
+        print("weekly backup: %s/backups/%s" % (DATA, first_weekly))
     threading.Thread(target=weekly_backup_watcher, daemon=True).start()
 
     url = "http://127.0.0.1:%d/%s" % (PORT, PAGE)

@@ -18,7 +18,7 @@ sounds like him are all in references/audit-checklist.md and need reading, not
 parsing.
 
 Usage:
-    python3 check_todo.py /path/to/todo.md [--today YYYY-MM-DD]
+    python3 check_todo.py /path/to/data/todo.md [--today YYYY-MM-DD]
 
 Exit code is 0 when clean, 1 when anything is flagged, so it can gate a commit.
 """

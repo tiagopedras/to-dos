@@ -1,26 +1,28 @@
-# The to-do list itself. Real tasks about real, named people: probation
-# reviews, salary conversations, contract dates, personal objectives. It is the
-# private half of this repo and it never leaves the machine.
-todo.md
+# The list, and everything derived from it. Real tasks about real, named people:
+# probation reviews, salary conversations, contract dates, personal objectives.
+# It is the private half of this repo and it never leaves the machine.
+#
+# One folder rather than a rule per file. It used to be four rules — todo.md,
+# backups/, todo-backup-*.md, views.md — which meant anything new had to
+# remember to add a fifth, and views.md nearly was that fifth. A folder cannot
+# be forgotten. This is also what Obsidian opens as its vault, so the vault
+# holds the list and nothing else.
+#
+# Inside it: todo.md, the board's backups and weekly snapshots, done-archive.md,
+# views.md with the Dataview output, and todo.md.tmp if a save ever crashes
+# mid-write.
+data/
 
-# Written by the board before its first save of each run. Same content as
-# todo.md, so same reason.
-backups/
-todo-backup-*.md
-
-# The Obsidian views. Dataview Serializer fills these in with the tasks the
-# queries match, so the file ends up holding the list as well. The queries
-# themselves are committed as views.template.md.
-views.md
-
-# Obsidian's own state, if the folder is ever opened as a vault.
+# Obsidian's own state, wherever a vault is opened.
 .obsidian/
 .trash/
 
-# The board writes todo.md via a temp file and swaps it in. If it ever crashes
-# mid-write, this is left behind holding the whole list.
-todo.md.tmp
-*.md.tmp
+# Notes Obsidian creates by hand rather than from the list. Daily notes and
+# canvases belong to whoever wrote them, not to this repo, and the vault sitting
+# inside a git checkout is what makes this worth stating.
+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
+Untitled*.md
+*.canvas
 
 # Anything scratch, in case a working copy of the list is ever parked here.
 *.local.md

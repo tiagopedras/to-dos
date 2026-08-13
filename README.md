@@ -3,19 +3,35 @@
 A personal task system made of two halves: a Kanban board that reads and writes a
 single markdown file, and a skill that runs a review session over that same file.
 
-The list itself is **not** in this repo. It holds real tasks about real, named
-people, so `todo.md` and its backups are ignored. What is here is the machinery.
+## Where the list lives
+
+Everything private sits in one folder, `data/`, and that folder is the whole of
+what git ignores:
+
+```
+data/todo.md              the list
+data/views.md             the Obsidian views, generated
+data/backups/             the board's snapshots, and done-archive.md
+```
+
+Nothing else in the repo holds a task, a name or a date. It used to be four
+separate ignore rules — `todo.md`, `backups/`, `todo-backup-*.md`, `views.md` —
+which meant every new derived file had to remember to add a fifth, and one nearly
+slipped through. A folder cannot be forgotten.
+
+`data/` is also what Obsidian opens as its vault, so the vault contains the list
+and nothing else: no board, no skill, no README to index.
 
 ## The board
 
 `kanban/index.html` is one self-contained page. No build step, no dependencies.
-It parses `todo.md` into buckets, states and tags, renders them as columns, and
-writes the file back when you save.
+It parses `data/todo.md` into buckets, states and tags, renders them as columns,
+and writes the file back when you save.
 
-`kanban/server.py` is a small local server so the page can read and write its
-neighbouring file — a browser will not let a page opened straight off the disk do
-that. It listens on `127.0.0.1` only and refuses to write anything except
-`todo.md`.
+`kanban/server.py` is a small local server so the page can read and write the
+file — a browser will not let a page opened straight off the disk do that. It
+listens on `127.0.0.1` only and refuses to write anything except
+`data/todo.md`.
 
 Start it by double-clicking `board.command`.
 
@@ -71,11 +87,11 @@ work.
 
 A task ticked off more than 30 days ago is history rather than a list, so the
 header offers to move it out: **Archive N finished**. It goes to
-`backups/done-archive.md`, which is append-only, never pruned, and written to by
-nothing else — so this is a move, not a delete, and the record outlives the
+`data/backups/done-archive.md`, which is append-only, never pruned, and written
+to by nothing else — so this is a move, not a delete, and the record outlives the
 backups that would otherwise be the only copy. Sub-steps and notes travel with the
 task. A fresh backup of the whole list is taken first, and the archive file is
-written *before* anything leaves `todo.md`, so a failure loses nothing.
+written *before* anything leaves `data/todo.md`, so a failure loses nothing.
 
 It is never automatic. The list shrinking on its own while the tab is open is
 indistinguishable from the board losing work.
@@ -136,11 +152,11 @@ back into the file as ordinary markdown, so the result still reads correctly
 somewhere that has never heard of either plugin.
 
 `views.template.txt` is the committed copy of the queries. The one that runs is
-`views.md`, which git ignores, because once the queries have run it holds the real
-list. Start it with:
+`data/views.md`, which git ignores along with the rest of that folder, because
+once the queries have run it holds the real list. Start it with:
 
 ```bash
-cp views.template.txt views.md
+cp views.template.txt data/views.md
 ```
 
 The template is `.txt` rather than `.md` deliberately. The Serializer writes into
@@ -148,11 +164,11 @@ every markdown file in the vault that carries a query marker, with no regard for
 which files git tracks, so a markdown template would have had the real list
 written into it and committed. Non-markdown files are ignored, which is the guard.
 
-Then open this folder as an Obsidian vault, install Dataview and Dataview
-Serializer **in that vault** — Obsidian keeps community plugins per vault, so
-having them in another one does not count — and exclude `backups/` and `.claude/`
-in Settings → Files and links, which keeps fifty copies of every task out of the
-search box.
+Then open **`data/`** as an Obsidian vault — that folder, not the repo, so the
+vault holds the list and nothing else. Install Dataview and Dataview Serializer
+**in that vault**: Obsidian keeps community plugins per vault, so having them in
+another one does not count. Exclude `backups/` in Settings → Files and links,
+which keeps fifty copies of every task out of the search box.
 
 Three things the Obsidian version does worse than the board, all listed in the
 file itself: Delegate is in deadline order rather than `rank:` order, Quick wins
@@ -173,7 +189,7 @@ more than one `headline:`, missing scores, and a queried tag written in a form
 Dataview cannot read. Run it directly:
 
 ```bash
-python3 skills/pa-todo-meeting/scripts/check_todo.py todo.md
+python3 skills/pa-todo-meeting/scripts/check_todo.py data/todo.md
 ```
 
 `references/conventions.md` is the file format. `references/audit-checklist.md`

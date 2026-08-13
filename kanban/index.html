@@ -698,6 +698,11 @@
    1. Markdown  <->  model
    ========================================================================= */
 
+/* The list lives in data/, which is the only folder git ignores and the only
+   one Obsidian opens as a vault. The name shown in the header stays todo.md:
+   the folder is a fact about where the file is kept, not part of what it is. */
+const FILE_URL = '/data/todo.md';
+
 const TASK_RE   = /^-\s+\[([ xX])\]\s?(.*)$/;
 const BUCKET_RE = /^##\s+(\d+)\.\s+(.*)$/;
 const TIER_RE   = /^###\s+(.*)$/;
@@ -2622,7 +2627,7 @@ function showErr(msg){
    files around it. */
 async function loadFile(){
   try {
-    const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+    const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) throw new Error('the server answered ' + res.status);
     load(await res.text(), 'todo.md');
     state.diskStamp = res.headers.get('Last-Modified') || null;
@@ -2644,7 +2649,7 @@ async function saveFile(auto, forceBackup){
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
-    const res = await fetch('/todo.md' + (forceBackup ? '?backup=force' : ''), {
+    const res = await fetch(FILE_URL + (forceBackup ? '?backup=force' : ''), {
       method: 'PUT',
       headers: { 'Content-Type':'text/markdown; charset=utf-8' },
       body: text
@@ -2654,8 +2659,8 @@ async function saveFile(auto, forceBackup){
     state.originalText = text;
     lastSaveAt = Date.now();
     markClean((auto ? 'auto-saved ' : 'saved ') + new Date().toLocaleTimeString() +
-      (info.backup ? ' · backup: backups/' + info.backup : '') +
-      (info.weekly ? ' · weekly: backups/' + info.weekly : '') + ' · todo.md');
+      (info.backup ? ' · backup: data/backups/' + info.backup : '') +
+      (info.weekly ? ' · weekly: data/backups/' + info.weekly : '') + ' · todo.md');
     // Our own write moved the file, so record it — otherwise the watcher would
     // read the new timestamp as somebody else's edit.
     await rememberStamp();
@@ -2839,7 +2844,7 @@ async function reload(){
   // what he would be throwing away before he throws it away.
   let diskText = null;
   try {
-    const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+    const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
     if (res.ok) diskText = await res.text();
   } catch (err) { /* handled below by the null check */ }
   offerReload(diskText, true);
@@ -2888,7 +2893,7 @@ let conflictShown = false;
 
 async function diskStamp(){
   try {
-    const res = await fetch('/todo.md', { method:'HEAD', cache:'no-store' });
+    const res = await fetch(FILE_URL, { method:'HEAD', cache:'no-store' });
     if (!res.ok) return null;
     return res.headers.get('Last-Modified') || null;
   } catch (err) { return null; }
@@ -2923,7 +2928,7 @@ async function watchTick(){
 
   if (!state.dirty) {
     try {
-      const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+      const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
       if (!res.ok) return;
       const text = await res.text();
       if (text === state.originalText) { state.diskStamp = stamp; return; }
@@ -2941,7 +2946,7 @@ async function watchTick(){
   conflictShown = true;
   let diskText = null;
   try {
-    const res = await fetch('/todo.md?t=' + Date.now(), { cache:'no-store' });
+    const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
     if (res.ok) diskText = await res.text();
   } catch (err) { /* offerReload copes with null */ }
   state.diskStamp = stamp;                         // asked once per outside change
@@ -2953,7 +2958,7 @@ async function watchTick(){
    Archiving finished work
 
    A task ticked off a month ago is history, not a list. It comes out of todo.md
-   and goes into backups/done-archive.md, which is append-only and never pruned —
+   and goes into data/backups/done-archive.md, which is append-only and never pruned —
    so this is a move, not a delete, and the record outlives the backups that
    would otherwise have been the only copy.
 
@@ -2988,7 +2993,7 @@ function updateArchiveChip(){
   btn.classList.toggle('hidden', n === 0);
   btn.textContent = 'Archive ' + n + ' finished';
   btn.title = n + ' task' + (n === 1 ? '' : 's') + ' ticked off more than ' +
-              ARCHIVE_DAYS + ' days ago. Moves them to backups/done-archive.md.';
+              ARCHIVE_DAYS + ' days ago. Moves them to data/backups/done-archive.md.';
 }
 
 /* Grouped by where they were, because "which bucket was this in" is most of what
@@ -3024,7 +3029,7 @@ async function archiveOldDone(){
 
   showModal('Archive finished work',
     'These were ticked off more than ' + ARCHIVE_DAYS + ' days ago. They move to ' +
-    '<strong>backups/done-archive.md</strong>, which is never pruned, and a fresh backup of ' +
+    '<strong>data/backups/done-archive.md</strong>, which is never pruned, and a fresh backup of ' +
     'the whole list is taken first. Sub-steps and notes go with them.',
     body,
     [{ label:'Archive ' + list.length, primary:true, run:runArchive },
@@ -3055,7 +3060,7 @@ async function archiveOldDone(){
     refreshView();
     await saveFile(false, true);
     $('#status').textContent = 'archived ' + list.length + ' finished task' +
-      (list.length === 1 ? '' : 's') + ' → backups/done-archive.md';
+      (list.length === 1 ? '' : 's') + ' → data/backups/done-archive.md';
   }
 }
 

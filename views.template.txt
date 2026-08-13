@@ -1,11 +1,11 @@
 # Views
 
-**This is the committed copy of the queries.** The one that runs is `views.md`,
-which is ignored by git because the answers it fills in are the real list: named
-people, probation reviews, salary conversations. Start it with:
+**This is the committed copy of the queries.** The one that runs is
+`data/views.md`, which is ignored by git because the answers it fills in are the
+real list: named people, probation reviews, salary conversations. Start it with:
 
 ```bash
-cp views.template.txt views.md
+cp views.template.txt data/views.md
 ```
 
 Change a query in both, or change it here and copy it across again. That is the
@@ -38,12 +38,14 @@ GitHub, or in any editor that has never heard of Dataview.
 
 Two things to set up once, in Obsidian:
 
-- Open this folder as the vault, or put the vault above it. Dataview only sees
-  files inside the vault.
-- Exclude `backups/` and `.claude/` in Settings → Files and links → Excluded
-  files. Every backup is a full copy of the list, so without this the search box
-  and the graph fill up with fifty copies of every task. The queries below are
-  scoped to `todo.md` by name, so they never counted the backups either way.
+- Open **`data/`** as the vault, not the repo above it. That folder holds the
+  list, this file and the backups, and nothing else — no board, no skill, no
+  README for Dataview to index or for search to wade through. `todo.md` then sits
+  at the vault root, which is what the queries below expect.
+- Exclude `backups/` in Settings → Files and links → Excluded files. Every backup
+  is a full copy of the list, so without this the search box and the graph fill up
+  with fifty copies of every task. The queries below are scoped to `todo.md` by
+  name, so they never read the backups either way.
 
 Serialized output is generated. Editing it by hand lasts until the next save,
 which is exactly the failure the five copied sections had before they were
