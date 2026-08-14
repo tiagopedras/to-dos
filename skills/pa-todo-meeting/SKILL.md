@@ -9,14 +9,6 @@ This skill maintains one specific file: the owner's master to-do list. He is a d
 
 The file lives at `~/Code/to-dos/data/todo.md`. It moved into `data/` on 13 Aug 2026, which is the only folder git ignores and the only one Obsidian opens as a vault. If that path is not reachable, look for `todo.md` in whatever folder is connected before asking him where it is.
 
-## The first thing every session does: name the thread
-
-Rename the conversation to `PA — <today's date>`, written the way he reads dates, so `PA — 12 Aug 2026`. Do it as the very first action of the session, before reading the file, before answering, before anything else.
-
-This applies to **every** use of this skill, not only a full check-in. A one-line "add this to my list" gets the same title as a bucket-by-bucket review. He runs this skill constantly and every thread otherwise looks identical in his history; the date is the only thing that tells one from another, so a session that skipped the rename is a session he cannot find again.
-
-Use the session-title tool the session provides — `set_session_title`, which may appear namespaced, for example `mcp__ccd_session_mgmt__set_session_title`. Set it once and do not rename it again later in the same session. If no such tool exists in this session, skip it silently: do not announce it, do not apologise for it, and do not ask him to rename the thread himself.
-
 ## Why this skill exists
 
 Each session starts with no memory of the last one. The file is the memory. That works only if every session reads the conventions before editing, because an update that quietly breaks the format costs more than the update was worth. Read `references/conventions.md` at the start of every session, before touching anything.
