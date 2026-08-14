@@ -1241,13 +1241,46 @@ function markDirty(){
   s.textContent = 'unsaved changes';
   s.classList.add('dirty');
 }
-function markClean(msg){
+/* auto: the board did this on its own — an auto-save, or a reload the watcher
+   ran because the file moved under it — so he may not have been looking when it
+   happened. Those carry a relative stamp that keeps itself current, because the
+   only question you ask of a message you did not trigger is how long it has been
+   sitting there. Messages he asked for keep the clock time: he knows when. */
+function markClean(msg, auto){
   state.dirty = false;
   $('#save').disabled = true;
   const s = $('#status');
-  s.textContent = msg;
   s.classList.remove('dirty');
+  if (auto && msg) { autoStatus(msg); return; }
+  statusAgo = null;
+  s.textContent = msg;
 }
+
+/* The stamp re-renders on a timer rather than being written once, so "just now"
+   does not still say that twenty minutes later. */
+let statusAgo = null;
+function shortAgo(at){
+  const mins = Math.floor((Date.now() - at) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  const hrs = Math.round(mins / 60);
+  return hrs === 1 ? 'an hour ago' : hrs + ' hours ago';
+}
+function autoStatus(msg){
+  statusAgo = { at: Date.now(), msg, painted: null };
+  paintStatusAgo();
+}
+function paintStatusAgo(){
+  if (!statusAgo) return;
+  const s = $('#status');
+  // Something else has written to the line since — a save, an archive, the
+  // unsaved-changes flag. That message owns the space now, so stand down rather
+  // than overwrite it on the next tick.
+  if (statusAgo.painted !== null && s.textContent !== statusAgo.painted) { statusAgo = null; return; }
+  statusAgo.painted = statusAgo.msg + ' · ' + shortAgo(statusAgo.at);
+  s.textContent = statusAgo.painted;
+}
+setInterval(paintStatusAgo, 30000);
 
 /* =========================================================================
    3. Dates & sub-steps
@@ -3126,18 +3159,22 @@ async function saveFile(auto, forceBackup){
     if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
     state.originalText = text;
     lastSaveAt = Date.now();
-    markClean((auto ? 'auto-saved ' : 'saved ') + new Date().toLocaleTimeString() +
+    // The relative stamp is the timestamp on an auto-save, so the clock time
+    // would only repeat it. A manual save keeps the clock.
+    markClean((auto ? 'auto-saved' : 'saved ' + new Date().toLocaleTimeString()) +
       (info.backup ? ' · backup: data/backups/' + info.backup : '') +
-      (info.weekly ? ' · weekly: data/backups/' + info.weekly : '') + ' · todo.md');
+      (info.weekly ? ' · weekly: data/backups/' + info.weekly : '') + ' · todo.md', auto);
     // Our own write moved the file, so record it — otherwise the watcher would
     // read the new timestamp as somebody else's edit.
     await rememberStamp();
   } catch (err) {
     markDirty();
     if (auto) {
-      const s = $('#status');
-      s.textContent = 'auto-save failed at ' + new Date().toLocaleTimeString() + ' — your changes are still here';
-      s.classList.add('dirty');
+      // markDirty has just written "unsaved changes" over the line; this replaces
+      // it, and keeps the clock as well as the stamp because a failure is worth
+      // being able to pin to a moment.
+      autoStatus('auto-save failed at ' + new Date().toLocaleTimeString() + ' — your changes are still here');
+      $('#status').classList.add('dirty');
       return;
     }
     // A failed fetch means the local helper is not answering, not a bad file.
@@ -3406,7 +3443,8 @@ async function watchTick(){
       load(text, 'todo.md');
       state.diskStamp = stamp;
       const n = changes ? changes.length : 0;
-      markClean('reloaded — the file changed on disk' + (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : ''));
+      markClean('reloaded — the file changed on disk' +
+        (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : ''), true);
     } catch (err) { /* try again on the next tick */ }
     return;
   }
