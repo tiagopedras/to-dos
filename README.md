@@ -35,6 +35,22 @@ listens on `127.0.0.1` only and refuses to write anything except
 
 Start it by double-clicking `board.command`.
 
+### The Vercel deployment is only the shell
+
+There is a copy of this repo on Vercel, and `vercel.json` exists solely so the
+root URL lands on `kanban/index.html` rather than a 404 — without it Vercel
+serves the repo root, which has no index page. That is the whole of what the
+rewrite does.
+
+What it cannot do is be the board. The page is a front end for `server.py`: it
+fetches `data/todo.md` on load, saves with a `PUT` back to the same path, and
+asks the server for `/backups.json` and `/archive`. Static hosting answers none
+of those, and `data/` is gitignored, so the deployment has no list to read and
+shows the "Could not read todo.md" screen. That is correct behaviour rather than
+a fault to fix. The list is private and the Vercel URL is public, so the fix is
+never to put the file where the deployment can reach it — use `board.command`
+locally, and treat the hosted copy as a way to show someone the interface.
+
 ### Stopping it
 
 Ctrl-C in that window, which is what the window tells you. If the window has been
