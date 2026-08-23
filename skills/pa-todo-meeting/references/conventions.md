@@ -209,6 +209,13 @@ The honest filter on top of Doing: Doing is what is live, `week` is what actuall
 
 **Untag as deliberately as you tag.** A `week` left on something that slipped turns the view into a record of intentions. This is the edit nobody makes, so make it explicitly at the end of a session.
 
+**A `week` tag has exactly two ways to expire, and both are automatic, not judgement calls:**
+
+- **Ticked clears it.** The moment a step or task is ticked off, remove `week` in the same edit. A finished item has nothing left to plan for, and leaving the tag on turns This week into a log of what already happened rather than what is coming.
+- **A passed `due:` on an open item clears it too.** If the date has slipped and the work is still open, it is now Overdue, which is a stronger and different claim on attention than "fits this week." Leave it to Overdue rather than letting it sit in both.
+
+Added 20 Aug 2026, after a session where roughly twenty ticked sub-steps from the week of 11–14 Aug were still carrying `week`, because ticking a step and untagging it had drifted into two separate edits and the second one kept not happening. The checker now flags both cases under "This week" (see `check_todo.py`), so a session that runs the checker before delivering will not hand back a file with either kind of stale tag in it. Fix what it flags rather than leaving it for next time.
+
 **Name which dates in the week cannot move**, as a note on the task itself. That reasoning used to sit in the section and had nowhere to go when it was removed.
 
 

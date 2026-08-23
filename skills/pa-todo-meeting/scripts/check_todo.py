@@ -787,6 +787,35 @@ def check_week_health(tasks, today):
     findings = []
     tagged = [e for e in all_entries(tasks) if e["week"]]
 
+    # Added 20 Aug 2026. A `week` tag expires two ways, and both are
+    # mechanical rather than judgement: ticking a step should drop it in the
+    # same edit, and a due date that has already passed should drop it too,
+    # since the item is now Overdue rather than "fits this week." Before this,
+    # roughly twenty ticked sub-steps from the week of 11-14 Aug were still
+    # carrying it, because the untag had drifted into a second edit that kept
+    # not happening. See conventions.md, This week, for the rule this enforces.
+    for entry in tagged:
+        if entry["checked"]:
+            findings.append(
+                Finding(
+                    entry["line"],
+                    "FIX",
+                    "ticked but still tagged `week`. Drop the tag in the same edit that "
+                    "ticks a step, it has nothing left to plan for.",
+                )
+            )
+        elif entry["due"] and entry["due"] < today:
+            days = (today - entry["due"]).days
+            findings.append(
+                Finding(
+                    entry["line"],
+                    "FIX",
+                    f"tagged `week` but due {entry['due'].isoformat()}, {days} day"
+                    f"{'s' if days != 1 else ''} ago. It is Overdue now, not This week. "
+                    f"Drop the tag.",
+                )
+            )
+
     m_items = [e for e in tagged if e["effort"] == "M" and not e["checked"]]
     if len(m_items) > 2:
         findings.append(
