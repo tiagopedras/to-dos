@@ -45,11 +45,20 @@ rewrite does.
 What it cannot do is be the board. The page is a front end for `server.py`: it
 fetches `data/todo.md` on load, saves with a `PUT` back to the same path, and
 asks the server for `/backups.json` and `/archive`. Static hosting answers none
-of those, and `data/` is gitignored, so the deployment has no list to read and
-shows the "Could not read todo.md" screen. That is correct behaviour rather than
-a fault to fix. The list is private and the Vercel URL is public, so the fix is
-never to put the file where the deployment can reach it — use `board.command`
-locally, and treat the hosted copy as a way to show someone the interface.
+of those, and `data/` is gitignored, so there is no list out there to read. That
+is correct rather than a fault to fix. The list is private and the Vercel URL is
+public, so the answer is never to put the real file where the deployment can
+reach it.
+
+Instead the board falls back to `kanban/demo.md` — an invented list, committed
+to the repo, with the messages and prompts written out so Quick wins and
+Delegate to Claude have something in them. It loads through the same lock the
+Backup Preview uses, which is the point: locking is what already stops anything
+reaching disk as the live list, so example tasks inherit that guarantee rather
+than needing a second set of guards to keep in step with the first. The bar
+across the top says Example data, and the button under it retries the real file,
+which is what you want when you opened the tab a moment before starting
+`board.command`.
 
 ### Stopping it
 

@@ -724,7 +724,7 @@
 
 <div class="lockframe hidden" id="lockFrame" aria-hidden="true"></div>
 <div class="lockbar hidden" id="lockBar">
-  <strong>Backup Preview</strong>
+  <strong id="lockBarKind">Backup Preview</strong>
   <span id="lockBarLabel"></span>
   <span class="spacer"></span>
   <button class="btn" id="exitLock">Return to today's list</button>
@@ -804,6 +804,11 @@
    one Obsidian opens as a vault. The name shown in the header stays todo.md:
    the folder is a fact about where the file is kept, not part of what it is. */
 const FILE_URL = '/data/todo.md';
+/* The example list, used when there is no real one to read. Absolute rather than
+   relative to this page, because a host can serve index.html at the root as
+   readily as at /kanban/, and a relative path would only find it in one of the
+   two. See loadDemo. */
+const DEMO_URL = '/kanban/demo.md';
 
 const TASK_RE   = /^-\s+\[([ xX])\]\s?(.*)$/;
 const BUCKET_RE = /^##\s+(\d+)\.\s+(.*)$/;
@@ -1060,7 +1065,11 @@ const state = {
      nothing may write to it. Every mutation path checks this before touching
      anything; see updateLockUI for what it hides. */
   locked: false,
-  lockedLabel: ''
+  lockedLabel: '',
+  /* Example data is standing in for a list that is not there. It is a kind of
+     lock rather than a separate mode, so nothing it renders can be written
+     back — see loadDemo for why that matters. */
+  demo: false
 };
 state.sort = readSort();
 /* The URL's #slug is the one thing a refresh doesn't wipe, so read it before the
@@ -2015,6 +2024,7 @@ async function loadBackupPreview(url, label){
     state.activeBucket = ALL_BUCKETS;
     state.view = 'board';
     state.locked = true;
+    state.demo = false;
     state.lockedLabel = label;
     updateLockUI();
     renderView();
@@ -2026,6 +2036,7 @@ async function loadBackupPreview(url, label){
 async function exitBackupPreview(){
   state.locked = false;
   state.lockedLabel = '';
+  state.demo = false;
   updateLockUI();
   await loadFile();
 }
@@ -2034,6 +2045,8 @@ function updateLockUI(){
   document.body.classList.toggle('locked', state.locked);
   $('#lockFrame').classList.toggle('hidden', !state.locked);
   $('#lockBar').classList.toggle('hidden', !state.locked);
+  $('#lockBarKind').textContent = state.demo ? 'Example data' : 'Backup Preview';
+  $('#exitLock').textContent = state.demo ? 'Try todo.md again' : 'Return to today\'s list';
   $('#lockBarLabel').textContent = state.locked
     ? 'Viewing ' + state.lockedLabel + ' — nothing here can be edited or saved.'
     : '';
@@ -3131,11 +3144,51 @@ async function loadFile(){
     if (!res.ok) throw new Error('the server answered ' + res.status);
     load(await res.text(), 'todo.md');
     state.diskStamp = res.headers.get('Last-Modified') || null;
+    /* A real list always wins: whatever was standing in for it stops here. */
+    state.demo = false;
+    state.locked = false;
+    state.lockedLabel = '';
+    updateLockUI();
   } catch (err) {
+    if (await loadDemo()) return;
     showErr('<strong>Could not read todo.md.</strong><br>Close this tab and start the board by ' +
             'double-clicking <strong>board.command</strong> in the to-dos folder. ' +
             'Opening this page directly from Finder will not work — browsers block a page on disk ' +
             'from reading files beside it.<br><span style="opacity:.75">(' + esc(String(err.message || err)) + ')</span>');
+  }
+}
+
+/* Stand an example list in for a missing todo.md, and say plainly that is what
+   happened. Two situations reach here: a host serving this page as static files,
+   where there is no data/ folder at all because git never had one, and the local
+   board opened before the launcher is running.
+
+   It reuses the Backup Preview lock rather than adding a mode of its own. The
+   reason is the same one: invented tasks must never be able to reach disk as the
+   live list. Locking is what already guarantees that everywhere — every write
+   path checks it — so the example data gets it for free rather than needing a
+   second set of guards that could fall out of step with the first.
+
+   Returns false rather than throwing when there is no example file either, so
+   loadFile can fall through to its real error. */
+async function loadDemo(){
+  try {
+    const res = await fetch(DEMO_URL + '?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) return false;
+    const text = await res.text();
+    if (!parseDoc(text).buckets.length) return false;
+    closeDrawer();
+    load(text, 'demo.md');
+    state.diskStamp = null;
+    state.demo = true;
+    state.locked = true;
+    state.lockedLabel = 'an example list, not yours';
+    updateLockUI();
+    markClean('');
+    renderView();
+    return true;
+  } catch (err) {
+    return false;
   }
 }
 
