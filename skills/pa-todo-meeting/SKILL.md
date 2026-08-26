@@ -107,7 +107,7 @@ Keep this to a handful of bullets. If nothing is overdue, say so in one line and
 Ask what has moved since the last session. Two useful shapes, pick by context:
 
 - **Targeted**, when he has already named something: confirm just that, apply it, and offer the wider sweep afterwards.
-- **Bucket by bucket**, when he says "let's review" or the file is more than a week stale: walk People, Design oversight, Design System, Strategic in that order. One bucket per message, so he can answer without holding four contexts at once.
+- **Bucket by bucket**, when he says "let's review" or the file is more than a week stale: walk the buckets in the order the file has them, currently People, Design oversight, Design System, Strategic. One bucket per message, so he can answer without holding four contexts at once.
 
 Do not ask about every task. Ask about the states that matter: what is in Doing, and anything with a date inside the next fortnight.
 

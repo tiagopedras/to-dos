@@ -145,6 +145,32 @@ are stamped with the day they are first seen, because there is no way to recover
 when they were actually finished — so nothing is ever archived before it has sat
 for a full 30 days under a date the board can vouch for.
 
+### Renaming and reordering the buckets
+
+A bucket is a `## N. Name` line in `data/todo.md` and nothing else. There is no
+id, and no record anywhere of which tasks belong to it beyond the fact that they
+sit underneath it — so the pencil beside the tabs, which opens all of them in one
+sheet, is a small feature rather than a migration. Renaming one rewrites that single heading and
+leaves every task under it alone. Moving one up or down rewrites the numbers on
+the headings it passed, because the number in the heading is the position. The
+colour follows the position too, which is why a bucket that moves changes colour,
+along with the ones it moved past. There are six colours; a seventh bucket starts
+them again.
+
+Deleting is the part that needed a rule. A bucket with nothing in it simply goes.
+A bucket with tasks in it can only go once they have somewhere to land, so the
+sheet asks which bucket they move to and says how many are moving; each task keeps
+its column, its text and its tags. That is the move the drawer's Bucket field
+already makes on one task, done for all of them at once. Deleting the last bucket
+is not offered, because the board cannot draw a list with no headings in it and
+refuses to read one.
+
+It sits beside the tabs rather than in the Data menu because that strip is where
+the buckets already are, and it is an icon rather than a labelled button because
+renaming a bucket is a once-a-quarter job. It hides in a backup preview and on the
+demo list along with everything else that writes, and nothing reaches the file
+until you save.
+
 ### How the board prioritises
 
 Two tiers, at two different moments.

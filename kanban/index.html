@@ -11,7 +11,7 @@
     --line:#e3e6ea; --line-soft:#eef0f3; --accent:#2f6feb; --accent-ink:#fff;
     --red:#c8322f; --red-bg:#fdecec; --amber:#9a6100; --amber-bg:#fff4e0;
     --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
-    --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f;
+    --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f; --b5:#b1306b; --b6:#0f7d93;
     --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
   }
   @media (prefers-color-scheme: dark){
@@ -20,7 +20,7 @@
       --line:#2b3038; --line-soft:#23272e; --chip:#262b33;
       --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
       --green:#6fd398; --green-bg:#16301f;
-      --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f;
+      --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
     }
   }
@@ -99,6 +99,40 @@
   .tab.on .n{background:var(--chip); color:var(--ink-soft)}
   /* No colour dot: All is not one of the buckets, it is all of them. */
   .taball{font-weight:640}
+  .btn.mini{padding:3px 8px; font-size:12px; font-weight:560}
+  /* Editing the buckets sits beside the strip rather than inside it: the strip is
+     a filter, and a pencil in among the tabs reads as one more thing to filter by.
+     Icon only, and faint until it is pointed at, because renaming a bucket is a
+     once-a-quarter job and a labelled button that size shouts about it all year. */
+  .iconbtn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; padding:0; border:1px solid transparent; border-radius:7px;
+    background:transparent; color:var(--ink-faint);
+  }
+  .iconbtn svg{width:17px; height:17px; display:block; fill:currentColor}
+  .iconbtn:hover{color:var(--ink); background:var(--panel); border-color:var(--line)}
+  .iconbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* ---------- bucket editor ---------- */
+  .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-soft)}
+  .bkrow:last-child{border-bottom:0}
+  .bknum{flex:0 0 auto; width:14px; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+  .bkdot{flex:0 0 auto; width:8px; height:8px; border-radius:50%; background:var(--bc)}
+  .bkrow input[type="text"]{
+    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    border-radius:7px; padding:5px 8px; font-size:13px;
+  }
+  .bkn{
+    flex:0 0 auto; min-width:22px; text-align:center; font-size:11px; font-weight:650;
+    color:var(--ink-faint); background:var(--chip); border-radius:5px; padding:2px 6px;
+  }
+  .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
+  .bkadd input{
+    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    border-radius:7px; padding:6px 9px; font-size:13px;
+  }
+  /* Always in the layout, so an error appearing does not shove the buttons down. */
+  .bkerr{margin:11px 0 0; min-height:1.3em; font-size:12.5px; color:var(--red)}
   input[type="search"]{
     border:1px solid var(--line); background:var(--panel); border-radius:7px;
     padding:5px 9px; width:200px;
@@ -766,6 +800,10 @@
 
   <div class="filters">
     <span class="tabs" id="bucketFilters"></span>
+    <button class="iconbtn" id="editBuckets" aria-label="Edit buckets"
+            title="Rename, reorder, add or remove the buckets">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    </button>
     <span class="allbuckets hidden" id="allBuckets">All buckets</span>
     <button class="scorechip hidden" id="scoreChip"></button>
     <span class="spacer"></span>
@@ -1096,7 +1134,11 @@ state.sort = readSort();
   if (viewDefs().some(d => d.id === id)) state.view = id;
 })();
 
-const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--accent)'];
+/* Six, and the fifth used to be the accent blue — which is the first bucket's
+   colour, so a fifth bucket came out looking like the first. Nothing could add
+   one before, so it never showed. Past six they repeat, which is honest: at that
+   point the list is not colour-coded any more whatever we do. */
+const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)'];
 const DONE_COL = 'Done';
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
    needs a name no heading in the file could ever produce. */
@@ -1476,6 +1518,214 @@ function renderTabs(){
   wrap.querySelectorAll('.tab').forEach(el => {
     el.onclick = () => { state.activeBucket = el.dataset.bucket; renderTabs(); renderBoard(); };
   });
+  $('#editBuckets').onclick = openBucketEditor;
+}
+
+/* =========================================================================
+   3b. The buckets themselves
+   A bucket is a `## N. Name` line in the file and nothing else — no id, no
+   record anywhere of which tasks belong to it beyond the fact that they sit
+   under it. So renaming one is a rewrite of that single line, and reordering
+   is a rewrite of the numbers on all of them. Nothing about a task changes
+   either way, which is why this can be a small feature rather than a migration.
+   ========================================================================= */
+
+/* The number in the heading *is* the position, so anything that moves, adds or
+   removes a bucket has to restate it. Dropping `raw` is what lets serializeDoc
+   rebuild the line from num and name instead of handing back the one it read. */
+function renumberBuckets(){
+  state.doc.buckets.forEach((b, i) => {
+    const num = String(i + 1);
+    if (b.num !== num) { b.num = num; b.raw = null; }
+  });
+}
+function bucketTaskCount(b){ return b.tiers.reduce((m, t) => m + t.tasks.length, 0); }
+/* Returns the bucket already holding the name, so the complaint can quote what
+   is actually in the file rather than the capitalisation just typed at it. */
+function bucketNameTaken(name, except){
+  const k = name.toLowerCase();
+  return state.doc.buckets.find(b => b !== except && b.name.toLowerCase() === k) || null;
+}
+/* One name, tidied the same way wherever it arrives from. A heading cannot carry
+   a line break, and two spaces in the middle of a bucket name are a typo rather
+   than a decision. */
+function cleanBucketName(name){ return String(name).replace(/\s+/g, ' ').trim(); }
+
+/* Each of these returns an error to show, or '' when it went through. The board
+   is redrawn here rather than by the caller, because a rename changes the tab
+   strip and the label on every card in that bucket. */
+function renameBucket(b, name){
+  const clean = cleanBucketName(name);
+  if (!clean) return 'A bucket needs a name.';
+  if (clean === b.name) return '';
+  const clash = bucketNameTaken(clean, b);
+  if (clash) return 'There is already a bucket called \u201c' + clash.name + '\u201d.';
+  const was = b.name;
+  b.name = clean;
+  b.raw = null;
+  // activeBucket is held by name, so the tab he is looking at has to follow it.
+  if (state.activeBucket === was) state.activeBucket = clean;
+  markDirty(); refreshView();
+  return '';
+}
+
+function addBucket(name){
+  const clean = cleanBucketName(name);
+  if (!clean) return 'A bucket needs a name.';
+  const clash = bucketNameTaken(clean, null);
+  if (clash) return 'There is already a bucket called \u201c' + clash.name + '\u201d.';
+  /* Born with the same columns as its siblings, all empty. A bucket with no
+     `###` headings parses and draws perfectly well — ensureTier writes one the
+     first card it gets — but the file is also read in Obsidian and by the
+     checker, and there a bucket shaped unlike the rest reads as half-written.
+     The closing rule matches what the other buckets end with, so the heading
+     lands below the last one's rule and above whatever follows the buckets. */
+  const tiers = allTiers().map(n => ({ name: n, raw: null, lead: [''], tasks: [], tail: [] }));
+  // The blank line the closing rule sits under belongs to the last column, which
+  // is where the parser puts it when it reads one of the buckets already there.
+  if (tiers.length) tiers[tiers.length - 1].tail = [''];
+  state.doc.buckets.push({ num: String(state.doc.buckets.length + 1), name: clean, raw: null,
+                           intro: [''], tiers, tail: ['---', ''] });
+  renumberBuckets();
+  markDirty(); refreshView();
+  return '';
+}
+
+/* Deleting a bucket must never delete work, so one with tasks in it can only go
+   once they have somewhere to land. Each task keeps its column and its own text
+   verbatim: this is the move the drawer's Bucket field already makes, done for
+   every task in the bucket at once. */
+function deleteBucket(b, dest){
+  const list = state.doc.buckets;
+  // The board cannot draw a list with no buckets, and load() refuses to read one.
+  if (list.length < 2) return;
+  const n = bucketTaskCount(b);
+  if (n && !dest) return;
+  if (n) b.tiers.forEach(tier => tier.tasks.forEach(t => ensureTier(dest, tier.name).tasks.push(t)));
+  list.splice(list.indexOf(b), 1);
+  renumberBuckets();
+  if (state.activeBucket === b.name) state.activeBucket = dest ? dest.name : ALL_BUCKETS;
+  markDirty(); refreshView();
+}
+
+/* Two different questions, so two different sheets. Empty, deleting a bucket
+   costs a heading. With tasks in it, the only safe delete is a move, so it asks
+   where they go and says how many are going there. */
+function confirmDeleteBucket(b, back){
+  const n = bucketTaskCount(b);
+  const others = state.doc.buckets.filter(x => x !== b);
+  if (!n) {
+    showModal('Delete \u201c' + b.name + '\u201d?',
+      'Nothing is in it. The heading goes, the buckets below it renumber, and none of it ' +
+      'reaches the file until you save.', '',
+      [{ label: 'Keep it', run: back },
+       { label: 'Delete it', danger: true, run: () => { deleteBucket(b, null); back(); } }]);
+    return;
+  }
+  let dest = others[0];
+  showModal('Delete \u201c' + b.name + '\u201d?',
+    'It still holds ' + n + ' task' + (n === 1 ? '' : 's') + ', finished ones included. They move ' +
+    'rather than go \u2014 each one keeps its column, its text and its tags, and lands in the ' +
+    'bucket you pick here.',
+    '<label class="field"><span>Move its tasks to</span><select id="bkDest">' +
+      others.map((x, i) => '<option value="' + i + '">' + esc(x.name) + '</option>').join('') +
+    '</select></label>',
+    [{ label: 'Keep it', run: back },
+     { label: 'Move ' + n + ' and delete', danger: true, run: () => { deleteBucket(b, dest); back(); } }]);
+  /* Read as it changes rather than when the button is pressed: showModal takes
+     the sheet down before it runs the choice, so by then the select is gone. */
+  const sel = modalEl.querySelector('#bkDest');
+  sel.onchange = () => { dest = others[+sel.value]; };
+}
+
+/* The editor is one sheet holding every bucket, because the questions it answers
+   are comparative — is this the right name next to the other three, is this the
+   right order. A per-bucket menu on each tab could not show that. */
+function openBucketEditor(){
+  if (state.locked || !state.doc) return;
+  /* An open task drawer behind this is stale the moment a bucket is renamed —
+     its Bucket field lists the old name — and it is the wrong altitude anyway. */
+  closeDrawer();
+
+  const setErr = msg => { const el = modalEl && modalEl.querySelector('.bkerr'); if (el) el.textContent = msg; };
+
+  const draw = () => {
+    const list = state.doc.buckets;
+    const rows = list.map((b, i) => {
+      const n = bucketTaskCount(b);
+      return '<div class="bkrow">' +
+        '<span class="bknum">' + (i + 1) + '</span>' +
+        '<i class="bkdot" style="background:' + BUCKET_COLOR[i % BUCKET_COLOR.length] + '"></i>' +
+        '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
+        '<span class="bkn" title="tasks in it, finished ones included">' + n + '</span>' +
+        '<button class="btn mini" data-up="' + i + '" title="Move up" aria-label="Move up"' +
+          (i === 0 ? ' disabled' : '') + '>\u2191</button>' +
+        '<button class="btn mini" data-down="' + i + '" title="Move down" aria-label="Move down"' +
+          (i === list.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
+        '<button class="btn mini danger" data-del="' + i + '"' +
+          (list.length < 2 ? ' disabled title="A list needs at least one bucket"' : '') +
+          '>Delete</button>' +
+      '</div>';
+    }).join('');
+
+    showModal('Buckets',
+      'The headings your list is organised under. A rename rewrites that one heading in ' +
+      esc(state.fileName) + ' and leaves every task under it alone. The number and the colour ' +
+      'follow the order, so moving a bucket renumbers the ones it passes. Nothing reaches the ' +
+      'file until you save.',
+      '<div class="bklist">' + rows + '</div>' +
+      '<div class="bkadd">' +
+        '<input type="text" id="bkNew" placeholder="New bucket name" aria-label="New bucket name">' +
+        '<button class="btn" id="bkAdd">Add bucket</button>' +
+      '</div>' +
+      '<p class="bkerr" role="status"></p>',
+      [{ label: 'Done', primary: true }]);
+    wire();
+  };
+
+  const wire = () => {
+    const list = state.doc.buckets;
+    modalEl.querySelectorAll('input[data-name]').forEach(inp => {
+      const b = list[+inp.dataset.name];
+      /* A rejected name is not redrawn away: he keeps what he typed, with the
+         reason under it, because the fix is usually one character. */
+      const apply = () => {
+        const msg = renameBucket(b, inp.value);
+        if (msg) { setErr(msg); }
+        else { setErr(''); inp.value = b.name; }
+      };
+      inp.onchange = apply;
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } };
+    });
+    modalEl.querySelectorAll('[data-up]').forEach(el => {
+      el.onclick = () => { moveBucket(list[+el.dataset.up], -1); draw(); };
+    });
+    modalEl.querySelectorAll('[data-down]').forEach(el => {
+      el.onclick = () => { moveBucket(list[+el.dataset.down], 1); draw(); };
+    });
+    modalEl.querySelectorAll('[data-del]').forEach(el => {
+      el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
+    });
+    const add = () => {
+      const inp = modalEl.querySelector('#bkNew');
+      const msg = addBucket(inp.value);
+      if (msg) setErr(msg); else draw();
+    };
+    modalEl.querySelector('#bkAdd').onclick = add;
+    modalEl.querySelector('#bkNew').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+  };
+
+  draw();
+}
+
+function moveBucket(b, dir){
+  const list = state.doc.buckets;
+  const i = list.indexOf(b), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  list.splice(i, 1);
+  list.splice(j, 0, b);
+  renumberBuckets();
+  markDirty(); refreshView();
 }
 
 /* opts.static drops the drag and focus attributes. The matrix hover preview is
@@ -2391,6 +2641,7 @@ function renderView(){
 
   if (isBoard) { renderBoard(); return; }
   $('#bucketFilters').classList.add('hidden');
+  $('#editBuckets').classList.add('hidden');
   $('#allBuckets').classList.add('hidden');
   $('#scoreChip').classList.add('hidden');
   $('#headline').classList.add('hidden');
@@ -2483,6 +2734,9 @@ function renderBoard(){
   const shown = shownBuckets();
   const many = shown.length > 1;
   $('#bucketFilters').classList.toggle('hidden', across);
+  // Follows the strip it belongs to, and goes with it in a preview or the demo,
+  // where the file behind it is not one that can be written to.
+  $('#editBuckets').classList.toggle('hidden', across || state.locked);
   $('#allBuckets').classList.toggle('hidden', !across);
 
   const columns = boardColumns();

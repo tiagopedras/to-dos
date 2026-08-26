@@ -11,7 +11,7 @@ Four, in this order, matching how his role actually splits:
 3. **Design System** — a temporary remit, so scope creep here is a signal worth naming. Sub-organised into five streams: ways of working, audits, improvements, documentation, enablement. The stream is named in the task's first note line.
 4. **Strategic** — planning, defining ways of working, strategy decks, testing new ways of working with AI
 
-Do not add a fifth bucket without asking. The four map to how he is measured, and a fifth usually means a task is miscategorised.
+Do not add a fifth bucket without asking. The four map to how he is measured, and a fifth usually means a task is miscategorised. He can rename, reorder, add and remove buckets himself on the board, so read the headings out of the file rather than assuming these four are what you will find.
 
 ## States
 
@@ -184,7 +184,7 @@ An item that is not live yet, waiting on something merging or being defined, kee
 
 ## Section order
 
-The file is the title, the `Last updated` line, the **How this works** legend, **Where the other views went**, then the four buckets in order: People, Design oversight, Design System, Strategic. Sections are separated by `---` on its own line.
+The file is the title, the `Last updated` line, the **How this works** legend, **Where the other views went**, then the buckets in the order the file has them, currently People, Design oversight, Design System, Strategic. Sections are separated by `---` on its own line.
 
 ## Ordering
 
