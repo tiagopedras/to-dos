@@ -33,7 +33,13 @@ file — a browser will not let a page opened straight off the disk do that. It
 listens on `127.0.0.1` only and refuses to write anything except
 `data/todo.md`.
 
-Start it by double-clicking `board.command`.
+Start it by double-clicking `run.command`.
+
+There is also a Dock launcher, **To-Do Board.app**, which does nothing but hand
+off to `run.command` — the board still opens in a Terminal window, because that
+window is where Ctrl-C lives. The bundle itself is gitignored: it is three small
+files and an icon rebuilt from `kanban/icon.svg`, so keeping the recipe is worth
+more than keeping the build.
 
 ### The Vercel deployment is only the shell
 
@@ -58,13 +64,13 @@ reaching disk as the live list, so example tasks inherit that guarantee rather
 than needing a second set of guards to keep in step with the first. The bar
 across the top says Example data, and the button under it retries the real file,
 which is what you want when you opened the tab a moment before starting
-`board.command`.
+`run.command`.
 
 ### Stopping it
 
 Ctrl-C in that window, which is what the window tells you. If the window has been
 closed without stopping it first, the helper carries on with nothing attached to
-it — and because it still holds the port, launching `board.command` again only
+it — and because it still holds the port, launching `run.command` again only
 opens a tab against that stale copy, which is how a board ends up missing features
 that are sitting right there in the file. Stop it by port:
 
@@ -258,6 +264,17 @@ date re-guessed by hand.
 ```
 
 Tags work on sub-steps as readily as on tasks, and usually belong there.
+
+The columns on the board are exactly the `###` headings in the file, so a new
+state is a heading rather than a code change. The board reads them in reverse
+file order and adds a **Done** column on the end that no heading produces. Left
+to right that is Backlog, To do, Doing, Waiting review, Done.
+
+**Waiting review** holds work that is finished as far as you are concerned and is
+now sitting with somebody else for sign-off. Nothing is owed on it until it comes
+back, which is a different thing from Doing (live) and from Backlog (real work,
+unscheduled). It appears first in each bucket in the file and last before Done on
+the board, because the two orders are mirrors of each other.
 
 ### Two tag syntaxes
 

@@ -32,3 +32,6 @@ scratch/
 .DS_Store
 __pycache__/
 *.py[cod]
+
+# Dock launcher, rebuilt from kanban/icon.svg rather than committed.
+To-Do Board.app/

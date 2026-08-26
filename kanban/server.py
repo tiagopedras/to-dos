@@ -9,7 +9,7 @@ Listens on 127.0.0.1 only, so nothing outside this machine can reach it.
 The list lives in data/ and nothing else does. That folder is the whole of what
 git ignores, and it is what Obsidian opens as its vault.
 
-Run it with board.command, or directly:  python3 kanban/server.py
+Run it with run.command, or directly:  python3 kanban/server.py
 """
 
 import datetime
@@ -334,7 +334,7 @@ def main():
             print("")
             print("    lsof -ti tcp:%d | xargs kill" % PORT)
             print("")
-            print("then start board.command again.")
+            print("then start run.command again.")
             print("")
             webbrowser.open("http://127.0.0.1:%d/%s" % (PORT, PAGE))
             return 0
