@@ -22,6 +22,18 @@ slipped through. A folder cannot be forgotten.
 `data/` is also what Obsidian opens as its vault, so the vault contains the list
 and nothing else: no board, no skill, no README to index.
 
+### Projects
+
+Some work carries more context than a task line can hold: a plan, a ticket history, source
+documents, a decision and the reason behind it. That goes in `data/projects/<name>/`, one
+folder per project, with a `CLAUDE.md` inside holding the background and the sources next to
+it. The task in `todo.md` stays short and points at the folder.
+
+`data/` rather than the repo root, for the same reason everything else private sits there:
+a project folder holds real names and real dates, and a folder cannot be forgotten by the
+ignore rules the way a new file can. It also means the projects show up in the Obsidian
+vault next to the list they belong to.
+
 ## The board
 
 `kanban/index.html` is one self-contained page. No build step, no dependencies.
