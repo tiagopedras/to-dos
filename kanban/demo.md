@@ -16,6 +16,8 @@ written, and steps handed to Claude carry the prompt.
 
 ## 1. People
 
+### Waiting review
+
 ### Doing
 
 - [ ] **Run Alex Rivera's probation review** [impact:: high] [effort:: L] [due:: 2026-09-11] [ai:: partial] `headline:2026-08-17`
@@ -53,6 +55,8 @@ written, and steps handed to Claude carry the prompt.
 
 ## 2. Design oversight
 
+### Waiting review
+
 ### Doing
 
 - [ ] **Unblock the checkout redesign** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: none] `#checkout`
@@ -75,6 +79,11 @@ written, and steps handed to Claude carry the prompt.
 ---
 
 ## 3. Design System
+
+### Waiting review
+
+- [ ] **Send the Q3 design system review pack to Anu** [impact:: high] [effort:: S] [ai:: none]
+  - Went over on the 21st. Nothing to do until it comes back with comments.
 
 ### Doing
 
@@ -100,6 +109,8 @@ written, and steps handed to Claude carry the prompt.
 ---
 
 ## 4. Strategic
+
+### Waiting review
 
 ### Doing
 

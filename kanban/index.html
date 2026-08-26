@@ -1105,6 +1105,7 @@ const ALL_BUCKETS = '__all__';
    show no hint, so renaming a section in todo.md never breaks the board. */
 const TIER_HINT = {
   'Backlog': 'no time pressure yet',
+  'Waiting review': 'done, waiting on someone else',
   'Later':   'no time pressure',
   'To do':   'two to four weeks out',
   'Next':    'after that',
@@ -1731,9 +1732,15 @@ function weekSection(items){
 /* A quick win has to be something he can act on right now. Anything still
    waiting on an unfinished blocker is not a win, it is a reminder that he cannot
    start — so it is left out. The count of what was held back is shown, because
-   a section that quietly shrinks looks like a section with nothing in it. */
+   a section that quietly shrinks looks like a section with nothing in it.
+
+   Anything tagged ai:full is left out too. Delegate to Claude already lists
+   every one of them, ranked, and the two columns sit side by side on Overview —
+   the same card in both reads as two jobs when it is one. Quick wins is what is
+   left for him to do himself. */
 function quickSection(items){
-  const open = items.filter(i => !i.done);
+  // ai:full belongs to Delegate to Claude, not here.
+  const open = items.filter(i => !i.done && i.ai !== 'full');
   // Two separate reasons something is not a quick win yet: it waits on another
   // task, or its start date has not arrived. Neither is about the deadline —
   // an overdue task is the most actionable thing on the list, not the least.
@@ -1745,7 +1752,6 @@ function quickSection(items){
   const take = arr => arr.filter(i => { const k = i.id + '|' + i.title; if (seen.has(k)) return false; seen.add(k); return true; });
 
   const messages = take(live.filter(i => i.message)).sort(byDue);
-  const free     = take(live.filter(i => isS(i) && i.ai === 'full'));
   const decide   = take(live.filter(i => isS(i) && i.ai === 'partial'));
   const talk     = take(live.filter(i => isS(i) && i.ai === 'none'));
 
@@ -1757,7 +1763,6 @@ function quickSection(items){
     : '';
 
   const out =
-    refGroup('Costs nothing, hand it over', free.map(i => refCard(i, { prompt:true }))) +
     refGroup('Costs one message, already written', messages.map(i => refCard(i, { message:true }))) +
     refGroup('Costs one decision', decide.map(i => refCard(i))) +
     refGroup('Costs one conversation', talk.map(i => refCard(i)));
@@ -2327,7 +2332,7 @@ function renderSections(viewId){
     const secs = [
       refSection('Big rocks', 'High impact, L effort. Needs protected time.', bigRocksSection(items)),
       refSection('This week', 'Everything tagged `week`, soonest first.', weekSection(items)),
-      refSection('Quick wins', 'Everything `effort:S`, plus any step whose message is already written.', quickSection(items)),
+      refSection('Quick wins', 'Yours to do: `effort:S` and written messages. Anything `ai:full` sits in Delegate instead.', quickSection(items)),
       refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order.', delegateSection(items))
     ];
     if (ctx) {

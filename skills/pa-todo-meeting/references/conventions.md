@@ -15,8 +15,9 @@ Do not add a fifth bucket without asking. The four map to how he is measured, an
 
 ## States
 
-Inside each bucket, three states. These replaced Now / Next / Later / Parked on 10 Aug 2026 at his request. If a file still uses the old four, rename the headings rather than adding new ones alongside.
+Inside each bucket, four states. Doing / To do / Backlog replaced Now / Next / Later / Parked on 10 Aug 2026 at his request; if a file still uses the old four, rename the headings rather than adding new ones alongside. Waiting review was added on 26 Aug 2026.
 
+- **Waiting review** — finished as far as he is concerned, sitting with somebody else for sign-off. On the board it is the column to the right of Doing, so in the file it is the first heading in the bucket.
 - **Doing** — the current focus window, roughly the next two weeks
 - **To do** — two to four weeks out
 - **Backlog** — real work, no time pressure yet. Also where anything deliberately not being done goes, with a revisit date in the note.
@@ -24,6 +25,8 @@ Inside each bucket, three states. These replaced Now / Next / Later / Parked on 
 Backlog absorbed the old Parked state, so it holds two different things: real work nobody has scheduled yet, and work deliberately deferred. A deferred item needs a revisit date in its note, otherwise the two become indistinguishable and the deferred one is never looked at again.
 
 **New tasks do not go into Doing.** That state is his own statement that something is live, so it is only ever set from what he says: he has started it, is working on it, is mid-way through it. A task arriving on the list goes to To do if prioritisation puts it next up, or Backlog if it does not, whatever its score or date. Adding to Doing on his behalf makes the state a wish list rather than a record of what is in flight.
+
+**Nothing goes into Waiting review on his behalf either.** Like Doing, it is a statement of fact about where the work sits, and only he knows whether the pack actually went. Move a task there when he says he has sent it, handed it over or is waiting on a reply; move it back to Doing when the review comes back with work in it, and tick it when it comes back clear. A task sitting in Waiting review with no note saying who has it is worth asking about. Waiting on a person is the state most likely to be forgotten.
 
 A state can be empty. Leave the empty headings in place, they make the shape scannable and they stop a bucket looking abandoned.
 
