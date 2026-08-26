@@ -168,6 +168,18 @@ Everything else is worked out from tags at render time, never stored twice:
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
 
+### Handing a prompt over
+
+A card that carries a written prompt gets **Open in Claude** under the Copy
+button. It is an ordinary link to `claude.ai/new?q=`, with the prompt
+URL-encoded onto the end, so a click opens a new chat with the text already
+sitting in the box — unsent. Unsent is the whole point: most of these prompts
+still have a `[path]` to fill in, and one that fired on click would send the
+placeholder.
+
+Only prompts get the link. A suggested message is written for a person, so Copy
+is the only thing it needs.
+
 ### The same views in Obsidian
 
 Quick wins, Big rocks and Delegate to Claude also exist as Dataview queries, for
@@ -241,7 +253,7 @@ date re-guessed by hand.
 - [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial]
   - [ ] A sub-step [due:: 2026-08-19] [ai:: full]
     - Suggested message: "..."   <- ready to send
-    - Prompt: "..."              <- ready to paste
+    - Prompt: "..."              <- ready to hand to Claude
   - [ ] A gated step `start:2026-09-01` `blocked-by:some-slug`
 ```
 

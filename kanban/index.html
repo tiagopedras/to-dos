@@ -415,6 +415,17 @@
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
   .copy:hover{color:var(--ink); border-color:var(--ink-faint)}
+  /* Copy and Open in Claude stack, so a long prompt keeps its full width. */
+  .msgacts{flex:none; display:flex; flex-direction:column; gap:6px; align-items:stretch}
+  /* Split lists right-align a lone Copy button; stacked, the two want to be
+     the same width instead, so that rule is undone in here. */
+  .lists.split .msgacts .copy, .msgacts .copy{margin-left:0}
+  .toclaude{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+    text-decoration:none; text-align:center; white-space:nowrap;
+  }
+  .toclaude:hover{color:var(--ink); border-color:var(--ink-faint)}
   .copy.done{color:var(--green); border-color:color-mix(in srgb, var(--green) 45%, transparent)}
   .copy.warn{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
   .listcard strong{font-weight:640; color:var(--ink)}
@@ -1680,7 +1691,7 @@ function refCard(it, opts){
      written by hand and lags behind the tag. Say so on the card, otherwise a
      task with nothing to paste looks the same as one that is ready to go. */
   if (opts.prompt) {
-    body += it.prompt ? messageHTML(it.prompt)
+    body += it.prompt ? messageHTML(it.prompt, { claude:true })
                       : '<p class="reflead draft">Needs a prompt before this can be handed over</p>';
   }
 
@@ -1807,10 +1818,28 @@ function mdInline(s){
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])_([^_]+)_/g, '$1<em>$2</em>');
 }
-/* A ready-to-send message, with a button that copies just the message text. */
-function messageHTML(text){
+/* A prompt is written to be handed to Claude, so the board can do the handing
+   rather than leaving it as a copy-and-paste. claude.ai/new?q= opens a fresh
+   chat with the text already sitting in the box, unsent — which is the point,
+   because most of these prompts still have a [path] to fill in before they go.
+   Only prompts get this. A suggested message is for a person, not for Claude. */
+function claudeHref(text){
+  return 'https://claude.ai/new?q=' + encodeURIComponent(text);
+}
+function claudeLink(text){
+  return '<a class="toclaude" href="' + claudeHref(text) + '" target="_blank" rel="noopener"' +
+         ' title="Opens a new Claude chat with this prompt in the box, unsent">Open in Claude</a>';
+}
+
+/* A ready-to-send message, with a button that copies just the message text.
+   opts.claude adds the hand-over link beside it. */
+function messageHTML(text, opts){
+  opts = opts || {};
   return '<div class="msg"><div class="msgtext">' + mdInline(text) + '</div>' +
-         '<button class="copy" data-copy="' + esc(text) + '">Copy</button></div>';
+         '<div class="msgacts">' +
+           '<button class="copy" data-copy="' + esc(text) + '">Copy</button>' +
+           (opts.claude ? claudeLink(text) : '') +
+         '</div></div>';
 }
 /* ---- Context: standing facts, not tasks ----
    Who is away, whose contract runs out when, how names are spelt. It is the one
@@ -2802,7 +2831,8 @@ function suggestions(t){
   parts.steps.forEach(s => take(s.notes, s.clean));
   return out;
 }
-function suggestionSection(label, list){
+function suggestionSection(label, list, opts){
+  opts = opts || {};
   if (!list.length) return '';
   return '<div class="field sugg"><span>' + esc(label) +
     (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</span>' +
@@ -2813,7 +2843,10 @@ function suggestionSection(label, list){
           (s.draft ? '<em class="suggwhere draft">draft — read it before sending</em>' : '') +
           mdInline(s.text) +
         '</div>' +
-        '<button type="button" class="copy" data-copy="' + esc(s.text) + '">Copy</button>' +
+        '<div class="msgacts">' +
+          '<button type="button" class="copy" data-copy="' + esc(s.text) + '">Copy</button>' +
+          (opts.claude ? claudeLink(s.text) : '') +
+        '</div>' +
       '</div>').join('') +
     '</div>';
 }
@@ -2950,7 +2983,7 @@ function openDrawer(id, focusTitle){
       '<span class="help">Sub-steps live in the list above. Anything you type here is a note on the task.</span>' +
     '</label>' +
     suggestionSection('Message suggestions', sugg.message) +
-    suggestionSection('Prompt suggestions', sugg.prompt);
+    suggestionSection('Prompt suggestions', sugg.prompt, { claude:true });
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
