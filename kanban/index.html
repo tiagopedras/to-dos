@@ -431,6 +431,82 @@
     .backupsview .when, .backupsview .ago, .backupsview .size{min-width:0}
   }
 
+  /* ---------- reports view ----------
+     Scoped under .reportsview for the same reason the backups view is scoped:
+     .row, .name and .tag already mean something else on a task card. A report
+     is a picture of the file at one moment, so nothing in here is clickable
+     except the task titles, which open the drawer like anywhere else. */
+  /* The report's own name, not a section eyebrow: on this view the h2 is the
+     heading you read, so it carries weight instead of shrinking away. */
+  .reportsview h2{
+    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
+  }
+  .reportsview h2:first-of-type{margin-top:6px}
+  .reportsview .window{font-size:12.5px; color:var(--ink-faint); margin:0 0 14px}
+  /* The total is the answer to the question; the buckets underneath say where
+     it came from. Big enough to read from across the desk. */
+  .reportsview .total{
+    display:flex; align-items:baseline; gap:10px; background:var(--bg);
+    border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px;
+  }
+  .reportsview .totaln{font-size:30px; font-weight:680; line-height:1; color:var(--ink)}
+  .reportsview .totall{font-size:13px; color:var(--ink-soft)}
+  /* One bucket is a group, not a row: the count and the list behind it are the
+     same fact, so the rule goes under the pair. With the rule under the row
+     instead, an opened list sat below its own divider and read as the next
+     bucket's. */
+  .reportsview .bkgroup{border-bottom:1px solid var(--line-soft)}
+  .reportsview .bkgroup:last-of-type{border-bottom:0}
+  .reportsview .row{display:flex; align-items:center; gap:12px; padding:9px 2px}
+  .reportsview .bkname{
+    display:flex; align-items:center; gap:8px; min-width:13em; flex:none;
+    font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .reportsview .bkname i{width:9px; height:9px; border-radius:50%; background:var(--bc); flex:none}
+  /* The bar is the comparison. It is scaled to the biggest bucket rather than to
+     the total, so a quiet month still reads as a shape instead of four slivers. */
+  .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--chip); border-radius:5px; overflow:hidden}
+  .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:5px}
+  .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--ink)}
+  .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--ink-faint)}
+  .reportsview .zero .n, .reportsview .zero .bkname{color:var(--ink-faint)}
+  /* Each bucket can be opened to see which tasks made the number. Closed by
+     default: the count is the report, the list is the evidence behind it. */
+  /* Indented under the bucket name it belongs to, so the pairing survives a
+     glance down the column. */
+  .reportsview details{margin:0 0 4px 21px}
+  .reportsview summary{
+    font-size:12.5px; color:var(--ink-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
+  }
+  .reportsview summary::-webkit-details-marker{display:none}
+  .reportsview summary::before{content:'▸ '; color:var(--ink-faint)}
+  .reportsview details[open] summary::before{content:'▾ '}
+  .reportsview summary:hover{color:var(--ink-soft)}
+  .reportsview .done{margin:2px 0 12px; padding:0; list-style:none}
+  .reportsview .done li{
+    display:flex; gap:10px; align-items:baseline; padding:5px 10px; margin-bottom:4px;
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    border-left:3px solid var(--bc,var(--line));
+  }
+  .reportsview .done .dt{
+    flex:none; min-width:6.5em; font-size:11.5px; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .reportsview .done .tt{
+    flex:1; min-width:0; font-size:13px; line-height:1.4; color:var(--ink);
+    background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
+  }
+  .reportsview .done .tt:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
+  .reportsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  @media (max-width:640px){
+    .reportsview .row{flex-wrap:wrap}
+    .reportsview .bkname{min-width:0; flex:1 0 100%}
+    .reportsview details{margin-left:0}
+    .reportsview .done li{flex-wrap:wrap}
+  }
+
   /* ---------- drawer, read-only ----------
      Disabled controls already grey themselves out; this just makes the footer
      say so instead of offering Delete on something there is nothing to delete
@@ -2163,12 +2239,146 @@ function viewDefs(){
     { id:'overview', label:'Overview' },
     { id:'board',    label:'Board' },
     { id:'matrix',   label:'Matrix' },
+    { id:'reports',  label:'Reports' },
     { id:'backups',  label:'Backups' }
   ];
 }
 
 /* =========================================================================
-   4b2. Backups — every copy of todo.md the board has kept, read from the same
+   4b2. Reports — what the file says about work that is already finished.
+
+   Every other view answers "what should I do next". This one answers "what got
+   done", which is the question that comes up in a one-to-one or a quarterly
+   review and has never had an answer here that did not mean counting by hand.
+
+   Read straight from state.doc, the same as every other view: nothing is
+   fetched, nothing is stored, and a report of a backup preview describes that
+   backup rather than the live file. Adding a second report means writing one
+   more report*Report() that returns HTML and listing it in reportDefs().
+   ========================================================================= */
+
+/* The window is deliberately the same 30 days that archiving leaves alone, so
+   the report can never be quietly wrong about its own period: anything old
+   enough to fall out of this count is also old enough to have left todo.md. */
+/* A function rather than a const: ARCHIVE_DAYS is declared further down the
+   file, and a const reading it up here would be evaluated before it exists. */
+function reportDays(){ return ARCHIVE_DAYS; }
+
+function reportDefs(){
+  return [completedByCategoryReport];
+}
+
+/* "27 Aug" — the year is noise inside a 30 day window. */
+function reportDay(iso){
+  const d = parseDue(iso);
+  return d ? d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) : iso;
+}
+
+/* Every ticked, dated task inside the window, kept with the bucket it was in so
+   the breakdown does not need a second walk of the document. Sorted newest
+   first, because a list of finished work is read from the top. */
+function completedRecently(){
+  const out = [];
+  if (!state.doc) return out;
+  state.doc.buckets.forEach((b, bi) => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (!t.done || !t.doneOn) return;
+    const age = daysSince(t.doneOn);
+    if (age == null || age < 0 || age > reportDays()) return;
+    out.push({ bucket:b, bi, tier, task:t, age });
+  })));
+  return out.sort((x, y) => x.age - y.age);
+}
+
+/* Ticked but undated. These are real finished work that the count cannot claim,
+   because without a date there is no way to say which month it belongs to — so
+   they are reported as a gap rather than folded in or ignored. */
+function undatedDoneCount(){
+  let n = 0;
+  if (!state.doc) return n;
+  state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (t.done && !t.doneOn) n++;
+  })));
+  return n;
+}
+
+function completedByCategoryReport(){
+  const list = completedRecently();
+  const from = new Date(today() - reportDays() * 86400000);
+  const window = 'Ticked between <strong>' + esc(reportDay(ymd(from))) + '</strong> and ' +
+    '<strong>' + esc(reportDay(ymd(today()))) + '</strong>, counted from the `done:` date on each task.';
+
+  // Every bucket appears, including the empty ones. A bucket with nothing in it
+  // is a finding, and dropping it would hide that.
+  const rows = state.doc.buckets.map((b, i) => ({
+    name: b.name,
+    color: BUCKET_COLOR[i % BUCKET_COLOR.length],
+    items: list.filter(it => it.bucket === b)
+  }));
+  const total = list.length;
+  const most = rows.reduce((m, r) => Math.max(m, r.items.length), 0);
+
+  const rowHTML = r => {
+    const n = r.items.length;
+    const pct = total ? Math.round(n / total * 100) : 0;
+    const width = most ? (n / most * 100) : 0;
+    const tasks = r.items.map(it =>
+      '<li style="--bc:' + r.color + '">' +
+        '<span class="dt">' + esc(reportDay(it.task.doneOn)) + '</span>' +
+        '<button class="tt" data-open="' + it.task.id + '" title="Open this task">' +
+          esc(it.task.title) + '</button>' +
+        '<span class="where">' + esc(it.tier.name) + '</span>' +
+      '</li>').join('');
+    return '<div class="bkgroup">' +
+        '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
+          '<span class="bkname"><i></i>' + esc(r.name) + '</span>' +
+          '<span class="bar"><span style="width:' + width.toFixed(1) + '%"></span></span>' +
+          '<span class="n">' + n + '</span>' +
+          '<span class="pct">' + (total ? pct + '%' : '—') + '</span>' +
+        '</div>' +
+        (n ? '<details><summary>Show the ' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
+             '<ul class="done">' + tasks + '</ul></details>' : '') +
+      '</div>';
+  };
+
+  const undated = undatedDoneCount();
+  const notes = [
+    'Only tasks carrying a `done:` date are counted. The board writes that date when ' +
+    'a task is ticked, so anything ticked before that was added is invisible here.',
+    'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md, ' +
+    'which is why this report stops at ' + reportDays() + ' days — past that the file is no ' +
+    'longer the whole story.'
+  ];
+  if (undated) notes.unshift('<strong>' + undated + ' ticked task' + (undated === 1 ? ' has' : 's have') +
+    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' not in the count above.');
+
+  return '<h2>Completed in the last ' + reportDays() + ' days</h2>' +
+    '<p class="window">' + window + '</p>' +
+    '<div class="total"><span class="totaln">' + total + '</span>' +
+      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
+      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
+      '</span></div>' +
+    (total ? rows.map(rowHTML).join('')
+           : '<div class="empty">Nothing has been ticked off with a date in the last ' +
+             reportDays() + ' days.</div>') +
+    notes.map(n => '<p class="note">' + n + '</p>').join('');
+}
+
+function renderReportsView(){
+  if (!state.doc) {
+    $('#lists').innerHTML = '<div class="listcard reportsview"><h3>Reports</h3>' +
+      '<div class="empty">No file loaded yet.</div></div>';
+    return;
+  }
+  $('#lists').innerHTML = '<div class="listcard reportsview"><h3>Reports</h3>' +
+    '<p class="help listlead">Counted from todo.md as it stands right now' +
+    (state.locked ? ', which is the backup you are previewing rather than the live file' : '') +
+    '. Nothing here changes the file.</p>' +
+    reportDefs().map(fn => fn()).join('') +
+  '</div>';
+}
+
+/* =========================================================================
+   4b3. Backups — every copy of todo.md the board has kept, read from the same
    /backups.json the old standalone backups.html used. Fetched fresh each time
    the tab is opened, since a backup can land at any moment.
    ========================================================================= */
@@ -2283,7 +2493,7 @@ async function renderBackupsView(){
 }
 
 /* =========================================================================
-   4b3. Backup Preview — loading one of the files above straight into the
+   4b4. Backup Preview — loading one of the files above straight into the
    board, so it can be looked through the same way as today's list, without
    any risk of it landing back on disk as the live todo.md.
 
@@ -2648,6 +2858,7 @@ function renderView(){
   // Its chip is board-only, so leaving it on here would filter a view with no
   // visible control to explain why half the tasks are missing.
   state.unscoredOnly = false;
+  if (def.id === 'reports') { renderReportsView(); return; }
   if (def.id === 'backups') { renderBackupsView(); return; }
   renderSections(def.id);
 }
@@ -2657,6 +2868,7 @@ function renderView(){
    alone does nothing when a list view is up. */
 function refreshView(){
   if (state.view === 'board') renderBoard();
+  else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
   updateArchiveChip();

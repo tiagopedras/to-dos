@@ -212,6 +212,31 @@ Everything else is worked out from tags at render time, never stored twice:
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
 
+### Reports
+
+Every other view answers what to do next. The **Reports** tab answers what got
+done, which is what a one-to-one or an end-of-quarter write-up actually asks for
+and which nothing here could tell you without counting ticks by hand.
+
+The first report is **Completed in the last 30 days**, broken down by bucket.
+It counts the `done:` date the board writes when a task is ticked, so it only
+sees work finished since that date started being recorded; anything ticked before
+then is invisible to it, and the report says so underneath rather than quietly
+under-reporting. Each bucket gets its count, its share of the total and a bar
+scaled to the busiest bucket, so a quiet month still reads as a shape instead of
+four slivers. Buckets with nothing in them stay on the list, because an empty
+bucket is a finding.
+
+Thirty days is not an arbitrary window. Finished work older than that can be
+archived out of `todo.md` into `done-archive.md`, so past thirty days the file
+stops being the whole story and a longer count taken from it would be wrong
+without knowing it. Opening a bucket shows the tasks behind the number, each one
+clickable into the drawer like anywhere else. Reading a backup preview reports on
+that backup rather than the live file, and nothing on this tab writes anything.
+
+A second report means one more function that returns HTML, listed in
+`reportDefs()`. The tab is built to hold more than one.
+
 ### Handing a prompt over
 
 A card that carries a written prompt gets **Open in Claude** under the Copy
