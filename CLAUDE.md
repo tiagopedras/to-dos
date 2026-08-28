@@ -2,6 +2,10 @@
 
 Read [README.md](README.md) first. Everything in `data/` is private and gitignored.
 
+[IMPROVEMENTS.md](IMPROVEMENTS.md) is the standing list of what is wrong with the
+board and what should be built next. Read it before diagnosing anything here, and
+update it when something lands or something new turns up.
+
 ## Writing a report
 
 When Tiago asks for a report on what has been done, write it to `data/reports/`
