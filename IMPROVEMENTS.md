@@ -40,6 +40,44 @@ So the counted report stops at 30 days and a quarterly one cannot be built at al
 Teaching the server to parse the archive alongside `todo.md` would unlock every
 window longer than a month, which is the window most reviews actually use.
 
+## Chats on a task
+
+**The whole feature sits on `claude-from-the-card` and has not been merged.** A
+task can carry a list of Claude Code conversations, each running against the
+local CLI and answering in a modal, with a `claude://resume` link that hands one
+to Claude Desktop with its history intact. It branched before the Reports work
+landed, so merging it conflicts in one place, `kanban/server.py`, where both
+sides added endpoints to the same handler. `kanban/index.html` merges cleanly
+despite both sides editing it. That branch also carries the in-flight Projects
+panel and Jira ticket work, because the chat code sits inside `suggestions()`,
+`openDrawer()` and `messageHTML()` and calls into both — the three could not be
+separated into their own commits.
+
+**A chat started and never saved leaves an entry nothing points at.** The link
+between a task and its conversations is a `chat:` tag on the task line, minted
+the first time a chat is started there. Minting marks the list dirty like any
+other edit, so until it is saved the tag exists only in the tab — and a reload
+before then leaves the sessions recorded in `data/sessions.json` under a key no
+task carries. Nothing is lost, since the transcript is Claude Code's own file
+and still opens in the desktop app, but the board can no longer reach it, and
+the `×` that would clear it is on a row that is never drawn. Either the key
+should be written and saved in one step, or the board should offer a way to see
+and clear keys nothing claims.
+
+**Work mode has never been exercised through the interface.** `Do it` runs with
+permissions bypassed and only appears when `data/claude.json` says `"work":
+true`, which no config here does, so the button has never rendered. The path
+underneath it is known to work — a run driven straight at the endpoint wrote its
+file — but the button, its warning colour and what the modal does while a run is
+editing files are all unproven.
+
+**Two chats running at once is the point of the list and has not been tried.**
+The helper caps concurrent runs at two and a row shows `running` while its chat
+works, both correct by construction and neither observed. The interesting case
+is a second chat started while the first is still going, since the modal shows
+one conversation at a time and the run it is not showing has to survive being
+looked away from.
+
 ## Rough edges
 
 **A finished task keeps sitting in its old tier.** Ticking something does not move
