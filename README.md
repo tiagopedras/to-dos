@@ -237,6 +237,45 @@ that backup rather than the live file, and nothing on this tab writes anything.
 A second report means one more function that returns HTML, listed in
 `reportDefs()`. The tab is built to hold more than one.
 
+The column beside it, **Written reports**, holds the other kind. Counting can only
+ever say how many. Saying what moved and what it means is a judgement, so those
+have to be written, and they are written by asking Claude for one. They live as
+Markdown files in `data/reports/`, listed by the server at `/reports.json` and
+opened in place on the tab. Files rather than sections inside `todo.md`, because a
+report is finished the day it is written and the list is not, so keeping them
+together would mean editing history every time a task changes. In `data/` rather
+than anywhere else, because a report about this list names people, dates and
+internal decisions, which is the same reason `todo.md` never leaves that folder.
+
+Each file opens with frontmatter carrying `title`, `date`, `covers`, `topic` and a
+one-line `summary`. The list reads only that, so the tab can show a contents page
+without fetching every report. The body is pulled in when one is opened.
+
+#### Rules for writing a report
+
+These are the rules Claude follows when asked to generate one. They are here
+rather than in a skill so that they are read alongside everything else about the
+board.
+
+**Never list individual to-dos.** A report is not a filtered copy of the list. If
+the reader wants the tasks, the board is right there. A report that enumerates
+what was ticked has done no work.
+
+**Give insight instead.** Say what has actually moved forward, in which areas, and
+what that means for where things stand now. Where something has not moved, say
+so plainly and say what it is waiting on. A report that only carries wins is not a
+report.
+
+**Prose by default, bullets when being specific earns it.** When a report needs to
+name particular things, components, numbers, decisions, open questions, a short
+bullet list is clearer than a sentence carrying six commas. Everywhere else, write
+in prose.
+
+**Tiago's voice, and keep it short.** The `tiago-writing-voice` skill is the
+reference: contractions, British English, short sentences and short paragraphs, no
+em dashes, concrete numbers rather than vague claims. Simple and short beats
+thorough. A report nobody finishes reading is worth nothing.
+
 ### Handing a prompt over
 
 A card that carries a written prompt gets **Open in Claude** under the Copy
