@@ -276,6 +276,10 @@ reference: contractions, British English, short sentences and short paragraphs, 
 em dashes, concrete numbers rather than vague claims. Simple and short beats
 thorough. A report nobody finishes reading is worth nothing.
 
+**Under 400 words unless there is a reason to go longer.** Three or four sections
+is usually the shape: what moved, what has not, and what the pattern across the
+two is. If a section needs a paragraph to say one thing, it needs one sentence.
+
 ### Handing a prompt over
 
 A card that carries a written prompt gets **Open in Claude** under the Copy
