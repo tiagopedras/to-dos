@@ -212,6 +212,74 @@ Everything else is worked out from tags at render time, never stored twice:
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
 
+### Reports
+
+Every other view answers what to do next. The **Reports** tab answers what got
+done, which is what a one-to-one or an end-of-quarter write-up actually asks for
+and which nothing here could tell you without counting ticks by hand.
+
+The first report is **Completed in the last 30 days**, broken down by bucket.
+It counts the `done:` date the board writes when a task is ticked, so it only
+sees work finished since that date started being recorded; anything ticked before
+then is invisible to it, and the report says so underneath rather than quietly
+under-reporting. Each bucket gets its count, its share of the total and a bar
+scaled to the busiest bucket, so a quiet month still reads as a shape instead of
+four slivers. Buckets with nothing in them stay on the list, because an empty
+bucket is a finding.
+
+Thirty days is not an arbitrary window. Finished work older than that can be
+archived out of `todo.md` into `done-archive.md`, so past thirty days the file
+stops being the whole story and a longer count taken from it would be wrong
+without knowing it. Opening a bucket shows the tasks behind the number, each one
+clickable into the drawer like anywhere else. Reading a backup preview reports on
+that backup rather than the live file, and nothing on this tab writes anything.
+
+A second report means one more function that returns HTML, listed in
+`reportDefs()`. The tab is built to hold more than one.
+
+The column beside it, **Written reports**, holds the other kind. Counting can only
+ever say how many. Saying what moved and what it means is a judgement, so those
+have to be written, and they are written by asking Claude for one. They live as
+Markdown files in `data/reports/`, listed by the server at `/reports.json` and
+opened in place on the tab. Files rather than sections inside `todo.md`, because a
+report is finished the day it is written and the list is not, so keeping them
+together would mean editing history every time a task changes. In `data/` rather
+than anywhere else, because a report about this list names people, dates and
+internal decisions, which is the same reason `todo.md` never leaves that folder.
+
+Each file opens with frontmatter carrying `title`, `date`, `covers`, `topic` and a
+one-line `summary`. The list reads only that, so the tab can show a contents page
+without fetching every report. The body is pulled in when one is opened.
+
+#### Rules for writing a report
+
+These are the rules Claude follows when asked to generate one. They are here
+rather than in a skill so that they are read alongside everything else about the
+board.
+
+**Never list individual to-dos.** A report is not a filtered copy of the list. If
+the reader wants the tasks, the board is right there. A report that enumerates
+what was ticked has done no work.
+
+**Give insight instead.** Say what has actually moved forward, in which areas, and
+what that means for where things stand now. Where something has not moved, say
+so plainly and say what it is waiting on. A report that only carries wins is not a
+report.
+
+**Prose by default, bullets when being specific earns it.** When a report needs to
+name particular things, components, numbers, decisions, open questions, a short
+bullet list is clearer than a sentence carrying six commas. Everywhere else, write
+in prose.
+
+**Tiago's voice, and keep it short.** The `tiago-writing-voice` skill is the
+reference: contractions, British English, short sentences and short paragraphs, no
+em dashes, concrete numbers rather than vague claims. Simple and short beats
+thorough. A report nobody finishes reading is worth nothing.
+
+**Under 400 words unless there is a reason to go longer.** Three or four sections
+is usually the shape: what moved, what has not, and what the pattern across the
+two is. If a section needs a paragraph to say one thing, it needs one sentence.
+
 ### Handing a prompt over
 
 A card that carries a written prompt gets **Open in Claude** under the Copy
