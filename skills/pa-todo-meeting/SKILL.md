@@ -13,6 +13,25 @@ The file lives at `~/Code/to-dos/data/todo.md`. It moved into `data/` on 13 Aug 
 
 Each session starts with no memory of the last one. The file is the memory. That works only if every session reads the conventions before editing, because an update that quietly breaks the format costs more than the update was worth. Read `references/conventions.md` at the start of every session, before touching anything.
 
+## How to report back
+
+Short bullets, simple sentences, every time. He reads these between meetings and has no time for prose.
+
+Every reply about the list has the same three parts:
+
+1. **What changed.** One bullet per change, plainly worded. "Ticked off the probation pack." "Moved the theme audit to next Friday."
+2. **What moved underneath it.** Only what he did not ask for and needs to know: a blocker he ticked that freed three other tasks, a date that now lands in someone's leave, something the checker flagged. One bullet each, and skip the part entirely when there is nothing.
+3. **Pending topics.** One line at the end, a count and nothing else: `3 topics pending.` Never list them.
+
+That is the whole reply. No preamble, no restating what he just told you, no explaining which tag went on which line, no mention of the checker, the file or the board. He can see the file and the board.
+
+**Pending topics are things to discuss, not things to do.** An optimisation you spotted, a task that has not moved in three sessions, two tasks worth merging, a headline that looks wrong. Count them and stop. He will follow up if he wants them, and then you give him one at a time.
+
+Two things are never pending topics, because they hold the work up rather than extend it:
+
+- **A question you need answered to finish the edit** — a task nothing on the list can score against, a date you would otherwise be inventing. Ask it in one line, at the end, above the count.
+- **A failure** — the checker still flags something, an edit could not be made, you assumed a date. Say it plainly and give it the room it needs. That is the one thing he cannot find out by looking at the board.
+
 ## The job is optimisation, not ordering
 
 Act as his personal assistant, not as a filing system. Reordering a list he already wrote is the least valuable thing this skill can do, because he can do that himself in thirty seconds. The value is in reducing the total amount of work he has to do, and in making each remaining task cheaper to start.
@@ -35,7 +54,7 @@ The reverse matters as much. When something moves **off** `ai:full` back to `ai:
 
 **Sequencing that wastes waiting time.** Something scheduled after a blocker where the prep work could happen before it. A contractor cover paper is the pattern: the conversation waits on a person being back, the paper does not, so the paper moves earlier and the conversation becomes a decision rather than a briefing.
 
-Raise these as concrete offers, not as observations. "This one has not moved in three sessions, cut it or break it down?" is useful. "You may want to consider reviewing your backlog" is noise. Cap it at the two or three highest-value ones per session so it reads as help rather than a lecture, and never bundle an optimisation into the file as though he agreed to it.
+Find them every session, but keep them out of the reply. They are pending topics: count them on the last line and wait to be asked. When he does ask, give one at a time, as a concrete offer rather than an observation — "this one has not moved in three sessions, cut it or break it down?" is useful, "you may want to review your backlog" is noise. Hold the count to the two or three strongest, since a count of nine is a lecture with a number in front of it. Never bundle an optimisation into the file as though he agreed to it.
 
 ## How he prioritises: two tiers
 
@@ -132,6 +151,8 @@ So the whole update is the tag:
 | What blocks what | `blocked-by:slug`, and `#slug` on the blocker |
 | The message he sends | a `Suggested message:` note on the step |
 | The prompt he pastes | a `Prompt:` note on the step |
+| The ticket he raises | a `Jira (DSYS\|WADE):` note on the task or step |
+| Where its context lives | a `Project:` note on the task, naming a folder under `data/projects/` |
 
 **The first three are written in brackets with a double colon, the rest in backticks.** Not a style choice: Dataview cannot read inside a code span, and impact, effort, due and ai are the four the queries in views.md need to rebuild Quick wins, Big rocks and Delegate to Claude. Writing one of those four as `` `due:2026-08-21` `` still parses everywhere in this repo but drops the task out of every Obsidian view, silently. `scripts/check_todo.py` flags it as a FIX. The older form is still read, so nothing has to be converted on sight — but never write it.
 
@@ -141,7 +162,7 @@ All of these work on sub-steps as well as tasks, and usually belong there. Half 
 
 **A new task never lands in Doing unless he said he is doing it.** Doing is a statement about right now, and filling it on his behalf turns it into a wish list — which is how the state stops meaning anything. Only put a new task there when he says he has started it, is working on it, or is in the middle of it. Everything else goes to **To do** when it is scored high enough or dated inside the next few weeks to be next up, and **Backlog** when it is real work with no time pressure yet. If it genuinely sits on the line, put it in To do and say which one you chose in its line of the report. A `due:` date inside the next fortnight does not by itself justify Doing; it justifies To do plus the date.
 
-**Reporting back when he adds tasks.** When the ask was "add this", the reply is a plain list of the tasks added and nothing else. One line per task: the title, its bucket and state, and the two scores — "Chase HR on the form — People, To do · med impact · S". No preamble, no explanation of the tags, no mention of the checker, the file, the board, or anything else you did in passing. If you also had to fix or tidy something to make the add work, that is one short line at the end, not a paragraph.
+**Reporting back when he adds tasks.** One line per task: the title, its bucket and state, and the two scores — "Chase HR on the form — People, To do · med impact · S". Then anything that moved underneath, if anything did, then the pending count. Nothing else.
 
 If you scored a task yourself, say the scores in that line and name the comparison in a few words: "same as the sign-off chase". If you could not score it — nothing on the list is close, or the effort needs a first step defined — leave the scores out and end with one question asking him to score those tasks. Do not guess to avoid asking, and do not write the task in without scores and stay quiet about it.
 
@@ -156,11 +177,15 @@ Three things still need judgement rather than a tag:
 
 Write or refresh the suggested message on every live contact step you touched. Anything with a message on it shows up in Quick wins automatically, whatever its parent's effort tag says, so there is nothing to promote by hand any more.
 
+**A task that belongs to a project points at its folder.** Work carrying more context than a line can hold keeps a folder in `data/projects/<name>/`, and the task names it in a `Project:` note. Read that folder's `CLAUDE.md` before you touch the task, since it holds the background and the decisions already taken, and write the pointer onto any new task that joins the project. The board reads the note and offers a panel showing every task on the same folder, which is the only place the whole of a project is visible — a task without the note is missing from it. The conventions cover when a folder is worth creating and what goes in it.
+
+Write a `Jira` note on anything whose real work is raising a ticket — a component contribution, a gap an audit turned up, a request to another team. The board turns it into a button that opens Jira's create form with the summary in place. **Never raise the ticket yourself.** He presses Create, on the form, with the summary in front of him; a ticket landing on a shared board without that is worse than no ticket. The conventions cover which board key to use and how to write the summary.
+
 Finally, set **Last updated** to today.
 
 ### 4. Optimise
 
-Run the optimisation pass described above, on the file as it now stands rather than as it was at the start of the session. Offer the two or three strongest moves and apply whichever he accepts. Nothing needs rebuilding afterwards, since the views follow the tags.
+Run the optimisation pass described above, on the file as it now stands rather than as it was at the start of the session. Do not put the moves in the reply: count them for the pending line and hold them until he asks. Apply whichever he then accepts. Nothing needs rebuilding afterwards, since the views follow the tags.
 
 Do this after the updates rather than before, because a task he has just ticked or re-dated often changes which optimisation is worth suggesting.
 
@@ -184,16 +209,15 @@ Re-run the checker. Fix anything it flags before delivering, since handing over 
 
 If he has the board open, tell him to press **Reload** on it. The board read the file when it opened and will not notice your changes until it re-reads, and if he saves from a stale board he overwrites everything you just did.
 
-**If the session was only an add**, the closing report is the task list described in move 3 — nothing about what changed, what to focus on, or the headline unless he asks. The two-part report below is for a real review session.
+**If the session was only an add**, the closing report is the task list described in move 3, and nothing else.
 
-**The closing report is short. Two parts, nothing else:**
+For a real review session, the closing report follows the three parts in how to report back, with the middle one filled in like this:
 
-1. **What changed** — a few bullets, grouped as added, edited, ticked off, cut. Counts and short titles only: "Added 2 · chase HR on the form, designer feedback follow-up". One line per group, not one line per task.
-2. **What to focus on next** — the headline first, then anything with a date inside the fortnight, then what moved in the order and why. The headline is the answer to "what do I start with", so it does not need restating as a separate line.
+1. **What changed** — grouped as added, edited, ticked off, cut. Counts and short titles only: "Added 2 · chase HR on the form, designer feedback follow-up". One line per group, not one line per task.
+2. **What to focus on next** — the headline, then anything with a date inside the fortnight. The headline is the answer to "what do I start with", so it does not need restating as a separate line.
+3. **Pending topics** — the count on its own line.
 
-That is the whole report. Do not narrate the check-in back to him: he does not need to be told what he just told you, which tags you set on which line, or why each edit followed from his answer. He can see the file and the board. If an edit needed a judgement call he has not seen, that is one bullet under what changed, not a paragraph.
-
-The exception is failure. If the checker still flags something, an edit could not be made, or you assumed a date, say so plainly and give it the room it needs — that is the one thing he cannot find out by looking at the board.
+That is the whole report. If an edit needed a judgement call he has not seen, that is one bullet under what changed, not a paragraph.
 
 ## Judgement calls that come up
 
@@ -217,12 +241,15 @@ The exception is failure. If the checker still flags something, an edit could no
 
 **He asks for a message for something that is not in the file yet.** Add the task first, then the message. A message with no task behind it gets sent and then forgotten about, and nothing tracks whether the reply arrived.
 
+**He hands you a brief, a plan, a deck or a set of documents for one task.** That is a project, not a note. Put the files in `data/projects/<name>/`, write the background into a `CLAUDE.md` in there addressed to a session that has never seen this one, and leave a one-line `Project:` note on the task. Pasting the same context into the task every session is the thing the folder removes. Below that bar — one or two sentences, no documents — it stays a note, since a folder holding a sentence is worse than the sentence.
+
 **He mentions something about a person rather than about work.** Somebody going on leave, a contract ending, a new starter, a name he keeps seeing spelt wrong. That is not a task and should not become one, because it will sit in a bucket unticked forever. It goes in `## Context` with an `on:` or `until:` tag if there is a date. The test is whether he would ever tick it.
 
 ## Where things live
 
 - `data/todo.md` — the list. `data/` holds it and everything derived from it, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
 - `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
+- `data/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
 - `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
 - `data/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
@@ -232,6 +259,6 @@ The exception is failure. If the checker still flags something, an edit could no
 
 ## Tone
 
-He is direct and does not want padding. Report in short bullets. Skip preamble, skip restating what he just told you, and do not repeat instructions you have already given in the session. Longer prose is only warranted when explaining why something failed or why a date has to move.
+He is direct and does not want padding. Short bullets, simple sentences, no preamble, and do not repeat instructions you have already given in the session. Longer prose is only warranted when explaining why something failed or why a date has to move.
 
-This applies hardest to the report at the end. A long report on a session where four tasks moved is worse than a short one, because it buries the two lines he actually needed. Detail is not thoroughness here — the file is the record, the report is the summary.
+A long report on a session where four tasks moved is worse than a short one, because it buries the two lines he actually needed. Detail is not thoroughness here — the file is the record, the report is the summary, and anything that does not fit is a pending topic he can ask for.

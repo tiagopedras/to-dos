@@ -90,6 +90,34 @@ It is not the top of the impact-against-effort sort. It is chosen, usually becau
 
 Do not invent another tag to avoid writing a note. The test is whether one of the views needs it. If no view reads it, it is a note.
 
+## Projects
+
+Added 26 Aug 2026. Some work carries more context than a task line can hold: a plan, a ticket history, source documents, a decision and the reason it went the way it did. That goes in `data/projects/<name>/`, one folder per project, with a `CLAUDE.md` inside holding the background and the source files beside it. Under `data/` rather than at the repo root, because a project folder is full of real names and real dates, and a folder cannot be forgotten by the ignore rules the way a new file can. It also puts the context in the Obsidian vault beside the list it belongs to.
+
+The task in todo.md stays short and points at the folder, as an ordinary note on the task, first in its notes and above the stream line:
+
+```
+- [ ] **AOP2027: redefine the design initiative and deliver it** [impact:: high] [effort:: L] [due:: 2026-09-02] [ai:: partial]
+  - Project: `data/projects/AOP2027`. Background in its `CLAUDE.md`, the raw material for the rescope in `redefinition-brief.md`, the AOP deck and the 1:1 in `sources/`.
+```
+
+**Write `Project:` and then the path in a code span.** The board reads the folder name straight out of that note, shows it as a chip on the card, and clicking the chip opens a panel listing every task pointing at the same folder. There is no `project:` tag: the note came first, it is what the file already had, and a tag saying the same thing would only give the two a chance to disagree. Everything after the path stays prose, and is worth writing — it is what tells the next session which file in there to open.
+
+The rest of the note says what is in the folder. Name the files, because a folder listing is not a description and the next session has to open all of them to find out which one matters.
+
+A project is not a bucket and not a state. Its tasks stay where they belong: the presentation is Design System work, the deck review that feeds it is People work, and the list is right to keep them apart. The panel is what puts them back together, which is why the pointer has to be on every one of them and not just the biggest.
+
+Rules that keep it honest:
+
+- **One folder per project, named as a slug.** Lowercase and hyphens, or the shape the project already has a name in, as `AOP2027` does. It becomes the chip on the card, so it has to read at a glance.
+- **Every task on the project carries the pointer.** A task without it is invisible to the panel, which is the one place the whole of the project is visible.
+- **The folder holds the context, todo.md holds the tasks.** Do not write a task list into the project's `CLAUDE.md`, and do not copy the background into the task. Two copies of the same fact is the failure this whole file exists to avoid.
+- **Do not create a folder to hold one sentence.** A project earns a folder when the context does not fit on the task and would otherwise be re-explained every session. Below that, it is a note.
+- **Read the folder's `CLAUDE.md` before touching its tasks.** That is why it is there. A session that re-plans a project without reading its background produces a plan the last session already rejected.
+- **The board never reads those files.** It reads the pointer and nothing else, so the folder can hold anything, in any format, without the board having an opinion about it.
+
+Everything private lives under `data/`, and a project folder is no exception. Nothing in there goes in a commit, a report or a message.
+
 ## Prompts
 
 Every `ai:full` task or sub-step carries a prompt, on the task, indented one level deeper, in the same shape as a suggested message:
@@ -132,6 +160,41 @@ Rules for the message itself. **His own rules under `### How I want messages and
 - **Sensitive messages stay drafts.** Anything touching probation outcomes, performance, salary or someone's contract gets a message he is expected to edit, and the note should say so. Do not write those as if they are ready to fire.
 
 Rewrite the message when the surrounding facts change. A chase message that still refers to a date that has passed is worse than no message, because he will send it without rereading.
+
+## Jira tickets
+
+Work that leaves the list as a ticket on somebody's board carries a `Jira` note, in the same shape as a prompt. The board turns it into a **Raise in DSYS** button that opens Jira's create form with the summary already filled in, and raises nothing until he presses Create there.
+
+```
+- [ ] **Raise the button variant gap on the contributions board** [impact:: med] [effort:: S] [ai:: none]
+  - Jira (DSYS): "Button: three variants in Figma with no Storybook equivalent"
+```
+
+The body goes on the line under it, and the button carries that too:
+
+```
+  - [ ] Create the docs contribution on error patterns
+    - Jira (DSYS): "Documentation contribution: error patterns"
+    - Description: "Document the error patterns in the design system: inline field errors, ..."
+```
+
+Write `Description:`. The first of these were written as `Description to paste:`, from when the board only carried the summary and the body really did have to be pasted by hand; that phrasing still parses so nothing has to be converted on sight, but it is no longer true and should not be written again.
+
+A ticket with no description is a ticket somebody has to come back and ask about, so write one unless the summary genuinely says everything. End it with what done looks like — that is the part the board's readers cannot infer.
+
+The brackets name the board. Two are configured: **DSYS** for DS Contributions, the designers' board, and **WADE** for Web Analytics Design Experiments. Leave the brackets off — `- Jira: "..."` — and the board offers every configured board, which is the honest answer when it is not yet decided where the ticket belongs. Do not guess a board to avoid the plain form.
+
+Write one whenever a task or a step means raising a ticket: contributing a component, reporting a gap found in an audit, asking another team for work, recording a decision that needs a ticket to be actioned. The test is the same as the one for a suggested message — the thing that stalls it is writing the summary, not raising it.
+
+**Never raise the ticket, only write the note.** The whole point of the button is that he presses Create with his own eyes on the form. A ticket appearing on a shared board without him having seen it is worse than a ticket not raised: he cannot tell what he is answering for, and the team cannot tell whether a human meant it.
+
+Rules for the summary:
+
+- **One line each, no quotes inside them.** Both go in the URL. Keep the two together under a thousand characters or so; they are a starting point on the form, not the finished ticket.
+- **Write it for the board's readers, not for the list.** The people reading it have not seen his to-do list, so `Button: three variants in Figma with no Storybook equivalent` beats `Fix the button thing we discussed`.
+- **Lead with the component or the area** where the board is organised that way, as DS Contributions is.
+- **Leave `[fill in]` rather than inventing a detail.** The same rule as prompts: a summary that reads as complete and is wrong is worse than one with a visible gap.
+- **Rewrite it when the task changes**, and delete it when the ticket has actually been raised. A note left behind reads as a ticket still to raise, and he raises it twice.
 
 ## The five views
 

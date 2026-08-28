@@ -192,6 +192,46 @@
     border-color:color-mix(in srgb, var(--accent) 45%, transparent);
     background:color-mix(in srgb, var(--accent) 8%, var(--bg)); color:var(--accent); font-weight:600;
   }
+  /* The same control as .hlset, sized for the panel's header rather than its
+     body. It sits beside Close because it is a decision about the task as a
+     whole, like closing it, and not one more field to scroll past. */
+  .hlpin{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:7px;
+    padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap;
+  }
+  .hlpin:hover{border-color:var(--ink-faint); color:var(--ink)}
+  .hlpin.on{
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    background:color-mix(in srgb, var(--accent) 10%, var(--bg)); color:var(--accent);
+  }
+
+  /* ---------- projects ----------
+     A project is a folder, not a task, so it gets a chip rather than a card. */
+  .tag.proj{
+    background:transparent; border:1px solid var(--line); color:var(--ink-soft);
+    font-weight:550; cursor:pointer;
+  }
+  .tag.proj:hover{border-color:var(--accent); color:var(--accent)}
+  .tag.proj::before{content:'▣ '; opacity:.6}
+  .projbtn{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px;
+    padding:7px 9px; width:100%; text-align:left; font-size:13px; font-weight:600;
+  }
+  .projbtn:hover{border-color:var(--accent); color:var(--accent)}
+  .projpath{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    color:var(--ink-soft); background:var(--bg); border:1px solid var(--line);
+    border-radius:7px; padding:7px 9px; overflow-wrap:anywhere;
+  }
+  .projlist{display:flex; flex-direction:column; gap:6px}
+  .projrow{
+    border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:8px 10px;
+    text-align:left; width:100%; display:flex; flex-direction:column; gap:4px; color:var(--ink);
+  }
+  .projrow:hover{border-color:var(--accent)}
+  .projrow .pt{font-size:13px; font-weight:600; line-height:1.35}
+  .projrow.done .pt{color:var(--ink-faint); text-decoration:line-through}
+  .projrow .pw{font-size:11px; color:var(--ink-faint); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
 
   /* ---------- intake: what still needs scoring ---------- */
   .scorechip{
@@ -311,6 +351,13 @@
      on hover so the column is still a record you can check. */
   .col.donecol .card{opacity:.38}
   .col.donecol .card:hover{opacity:1}
+  /* Work waiting on someone else is finished but not filed away, so it sits
+     halfway between a live card and a done one — dimmed enough to read as
+     off your plate, present enough to keep chasing. */
+  .col.waitcol{background:transparent}
+  .col.waitcol h2{color:var(--ink-soft)}
+  .col.waitcol .card{opacity:.69}
+  .col.waitcol .card:hover{opacity:1}
   .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
   .col h2{
     margin:0; padding:11px 13px 9px; font-size:12.5px; font-weight:680; letter-spacing:.02em; text-transform:uppercase;
@@ -436,6 +483,10 @@
      say so instead of offering Delete on something there is nothing to delete
      from. */
   #drawer.readonly #del{display:none}
+  #drawer.readonly #dheadHl{display:none}
+  /* The panel showing a project is a reading view over other people's rows:
+     nothing in it belongs to a task, so neither control in the frame applies. */
+  #drawer.projectview #del{display:none}
   #drawer.readonly #dfootHelp{color:var(--amber)}
   .msglead{margin:0 0 4px 14px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .msg{
@@ -460,6 +511,163 @@
     text-decoration:none; text-align:center; white-space:nowrap;
   }
   .toclaude:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .tojira{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+    text-decoration:none; text-align:center; white-space:nowrap;
+  }
+  .tojira:hover{color:var(--ink); border-color:var(--ink-faint)}
+
+  /* ---------- Claude, on a task ----------
+     Modelled on the claude.ai composer and thread, because that is the shape
+     this conversation already has in his head. The parts worth copying were
+     the asymmetry (a bubble for you, plain prose for the reply), one slot for
+     the primary action, and a status line whose words are the progress. The
+     part worth not copying was hiding the trace behind a hover. */
+  .askclaude{
+    flex:none; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; white-space:nowrap;
+  }
+  .askclaude:hover{filter:brightness(1.07)}
+
+  /* The list of conversations on a task. */
+  .chats .chatrow{display:flex; align-items:stretch; gap:6px; margin:0 0 6px 14px}
+  .chatopen{
+    flex:1; min-width:0; text-align:left; display:flex; flex-direction:column; gap:2px;
+    border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:7px 10px;
+  }
+  .chatopen:hover{border-color:var(--ink-faint)}
+  .chatrowtitle{
+    font-size:13px; font-weight:600; color:var(--ink);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .chatrowmeta{font-size:11.5px; color:var(--ink-faint)}
+  .chatlive{font-style:normal; color:var(--accent); font-weight:600}
+  .chatwork{font-style:normal; color:var(--amber)}
+  .chaticon{
+    flex:none; display:flex; align-items:center; padding:0 9px; border-radius:8px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    font-size:11.5px; font-weight:600; text-decoration:none;
+  }
+  .chaticon:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .chatforget{font-size:15px; line-height:1}
+  .chatnone{margin:0 0 8px 14px; font-size:12.5px; color:var(--ink-faint)}
+
+  /* ---- the modal ---- */
+  .chatwrap{position:fixed; inset:0; z-index:80; display:none}
+  .chatwrap.on{display:block}
+  .chatscrim{position:absolute; inset:0; background:rgba(6,8,12,.45); opacity:0; animation:chatfade .18s ease forwards}
+  .chatbox{
+    position:absolute; left:50%; top:50%; width:min(760px, calc(100vw - 48px));
+    height:min(720px, calc(100vh - 64px)); display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    box-shadow:0 24px 60px rgba(6,8,12,.28); overflow:hidden;
+    transform:translate(-50%,-50%) scale(.965); opacity:0;
+    animation:chatin .22s cubic-bezier(.2,.8,.3,1) forwards;
+  }
+  @keyframes chatfade{to{opacity:1}}
+  @keyframes chatin{to{transform:translate(-50%,-50%) scale(1); opacity:1}}
+  @media (prefers-reduced-motion: reduce){
+    .chatscrim, .chatbox{animation-duration:.01ms}
+  }
+  .chathead{
+    display:flex; align-items:center; gap:8px; padding:12px 14px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .chatnames{flex:1; min-width:0}
+  .chatnames strong{display:block; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .chatfor{
+    display:block; font-size:11.5px; color:var(--ink-faint);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .chatstatus{
+    display:flex; align-items:center; gap:8px; padding:8px 16px;
+    font-size:12px; color:var(--ink-faint); border-bottom:1px solid var(--line-soft);
+  }
+  .chatstatus.live{color:var(--ink-soft)}
+  .chatdoing{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .chatstatus .askclock{font-style:normal; color:var(--ink-faint)}
+  /* The mark turns while it works. It is the only moving thing on the screen,
+     and it carries no information the line beside it does not — which is the
+     point: the words are the status, this is only a sign of life. */
+  .chatstar{
+    flex:none; width:11px; height:11px; border-radius:50%;
+    background:conic-gradient(from 0deg, var(--accent), transparent 65%, var(--accent));
+    animation:chatspin 1.5s linear infinite;
+  }
+  @keyframes chatspin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .chatstar{animation:none} }
+  .chatbody{flex:1; min-height:0; overflow-y:auto; padding:16px}
+  .chatfoot{
+    display:flex; align-items:flex-end; gap:8px; padding:12px 14px;
+    border-top:1px solid var(--line-soft);
+  }
+  #chatInput{
+    flex:1; min-width:0; height:38px; max-height:160px; resize:none; overflow-y:auto;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink);
+    border-radius:10px; padding:9px 12px; font-size:13px; font-family:inherit; line-height:1.45;
+  }
+  #chatInput:focus{outline:none; border-color:var(--ink-faint)}
+  .chatfoot .btn{flex:none}
+  a.btn{text-decoration:none; display:inline-flex; align-items:center}
+  /* The spine and its ticks want to read as a timeline rather than as an
+     indented list, so the dot sits on the line rather than beside it. */
+  .asttimeline{margin-left:4px}
+  .asttick{background:var(--ink-faint)}
+
+  /* ---- one turn ---- */
+  .askturn{margin:0 0 22px}
+  .askturn:last-child{margin-bottom:4px}
+  .askmine{display:flex; justify-content:flex-end; margin-bottom:14px}
+  .askbubble{
+    max-width:82%; background:var(--chip); border-radius:14px; padding:9px 13px;
+    font-size:13px; line-height:1.55; color:var(--ink);
+  }
+  .askreply{font-size:13.5px; line-height:1.65; color:var(--ink)}
+  .askreply p{margin:0 0 10px}
+  .askreply p:last-child{margin-bottom:0}
+  .askreply p.askh{font-weight:640}
+  .askreply ul{margin:0 0 10px; padding-left:18px}
+  .askreply li{margin:3px 0}
+  .askreply pre{
+    margin:0 0 10px; padding:9px 11px; background:var(--bg); border:1px solid var(--line);
+    border-radius:8px; overflow-x:auto; font-size:12px;
+  }
+  .askacts{margin-top:10px}
+  .askerr{margin:8px 0 0; font-size:12.5px; color:var(--red)}
+  .askerr em{
+    display:block; margin-top:4px; font-style:normal; font-size:11.5px;
+    color:var(--ink-faint); white-space:pre-wrap;
+  }
+
+  /* ---- what it did ---- */
+  .asktrace{margin:0 0 12px}
+  .asktracehead{
+    display:flex; align-items:center; gap:6px; padding:2px 0;
+    background:none; border:0; color:var(--ink-faint); font-size:12px; font-weight:500;
+  }
+  .asktracehead:hover{color:var(--ink-soft)}
+  .asttwist{display:inline-block; width:10px; color:var(--ink-faint)}
+  .asttimeline{
+    list-style:none; margin:6px 0 0; padding:0 0 0 5px;
+    border-left:1px solid var(--line); 
+  }
+  .asttimeline li{
+    position:relative; margin:0; padding:3px 0 3px 14px;
+    font-size:12px; color:var(--ink-soft);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .asttick{
+    position:absolute; left:-3px; top:10px; width:5px; height:5px; border-radius:50%;
+    background:var(--line); outline:2px solid var(--panel);
+  }
+  /* A ticket to raise is work leaving the list, not work being done on it, so
+     the stripe is the one visible difference from a message or a prompt. */
+  .msg.jira{border-left-color:var(--ink-faint)}
+  .tag.jira{color:var(--ink-soft); border-color:var(--ink-faint)}
+  /* The ticket body, under its summary. Quieter than the summary because the
+     summary is the thing to check and this is the thing to skim. */
+  .jirabody{display:block; margin-top:6px; font-size:12.5px; line-height:1.5; color:var(--ink-faint); font-style:normal}
   .copy.done{color:var(--green); border-color:color-mix(in srgb, var(--green) 45%, transparent)}
   .copy.warn{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
   .listcard strong{font-weight:640; color:var(--ink)}
@@ -618,6 +826,10 @@
   aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
   .field{display:flex; flex-direction:column; gap:5px}
   .field > span{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
+  /* The label above a field is a name and reads fine in caps. The help under it
+     is a sentence, and was inheriting the same rule by being the same element —
+     which is why .sublabel already had to undo it by hand. Undone once here. */
+  .field > span.help{font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0}
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }
@@ -838,6 +1050,7 @@
   <div class="dhead">
     <strong id="drawerTitle">Edit task</strong>
     <span class="spacer"></span>
+    <button class="hlpin hidden" id="dheadHl" type="button">Make headline</button>
     <button class="btn ghost" id="closeDrawer">Close</button>
   </div>
   <div class="dbody" id="dbody"></div>
@@ -847,6 +1060,32 @@
     <span class="help" id="dfootHelp">Changes apply straight away</span>
   </div>
 </aside>
+
+<!-- One conversation, over the top of everything. It sits outside the drawer on
+     purpose: a chat outlives the panel that started it, so closing the task
+     must not close the conversation, and a run carries on while you go and look
+     at something else. -->
+<div class="chatwrap" id="chatwrap" aria-hidden="true">
+  <div class="chatscrim" id="chatscrim"></div>
+  <section class="chatbox" id="chatbox" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
+    <header class="chathead">
+      <div class="chatnames">
+        <strong id="chatTitle">Chat</strong>
+        <span class="chatfor" id="chatFor"></span>
+      </div>
+      <a class="btn ghost" id="chatDesktop" href="#" target="_blank" rel="noopener"
+         title="Imports this session into Claude Desktop and carries it on there">Claude Desktop</a>
+      <button class="btn ghost" id="chatClose" type="button">Close</button>
+    </header>
+    <div class="chatstatus" id="chatStatus"></div>
+    <div class="chatbody" id="chatBody"></div>
+    <form class="chatfoot" id="chatFoot" autocomplete="off">
+      <textarea id="chatInput" rows="1" placeholder="Ask Claude about this task…" spellcheck="false"></textarea>
+      <button class="btn primary" id="chatSend" type="submit">Send</button>
+      <button class="btn ghost hidden" id="chatStop" type="button">Stop</button>
+    </form>
+  </section>
+</div>
 
 <script>
 'use strict';
@@ -864,6 +1103,11 @@ const FILE_URL = '/data/todo.md';
    readily as at /kanban/, and a relative path would only find it in one of the
    two. See loadDemo. */
 const DEMO_URL = '/kanban/demo.md';
+/* Which Jira boards the Raise a ticket buttons offer. It lives in data/ with
+   everything else private: it names a company Jira and an account id, and this
+   repo is public. Missing is the normal case for anyone but him — the buttons
+   simply do not appear. See loadJira. */
+const JIRA_URL = '/data/jira.json';
 
 const TASK_RE   = /^-\s+\[([ xX])\]\s?(.*)$/;
 const BUCKET_RE = /^##\s+(\d+)\.\s+(.*)$/;
@@ -919,7 +1163,7 @@ function parseTask(rawLines){
   let rest = m[2];
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
-  let blockedBy = [], rank = null, slug = '', headline = '';
+  let blockedBy = [], rank = null, slug = '', headline = '', chat = '';
   /* Either syntax lands here, so a tag means the same thing whichever form it
      arrived in. `whole` is what goes into `extra`, which keeps an unrecognised
      tag exactly as it was written. */
@@ -931,6 +1175,12 @@ function parseTask(rawLines){
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
     else if (key === 'headline') headline = v.trim();
+    /* Which conversations belong to this task. Six characters that mean nothing
+       on their own — data/sessions.json is what turns them into a list. It sits
+       on the task rather than in that file because a task gets renamed, moved
+       between buckets and reordered, and a key written on the line survives all
+       three where a key made out of the title survives none of them. */
+    else if (key === 'chat') chat = v.trim().toLowerCase();
     else extra.push(whole);
     return ' ';
   };
@@ -958,7 +1208,7 @@ function parseTask(rawLines){
        old finished work needs to know. Written when a task is ticked. */
     doneOn: tags.done || '',
     ai: tags.ai || '',
-    urgent, week, slug, blockedBy, rank, headline, extra,
+    urgent, week, slug, blockedBy, rank, headline, chat, extra,
     body: rawLines.slice(1),
     raw: first,
     dirty: false
@@ -988,6 +1238,7 @@ function serializeTask(t){
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
     if (t.headline) tags.push('`headline:' + t.headline + '`');
+    if (t.chat)   tags.push('`chat:' + t.chat + '`');
     if (t.extra && t.extra.length) tags.push.apply(tags, t.extra);
     first = '- ' + box + ' ' + [name].concat(tags).join(' ');
   }
@@ -1102,9 +1353,33 @@ function serializeDoc(doc){
 
 const state = {
   doc: null,
+  /* The Jira boards read from data/jira.json, or null when there is no such
+     file. Null is a normal state, not an error: no file, no buttons. */
+  jira: null,
+  /* What the helper says about the Claude Code CLI behind it, or null when
+     there is none. Same rule as jira: null means the buttons do not appear. */
+  claude: null,
+  /* Every run started this session, keyed by the prompt it came from — so the
+     same prompt asked from Delegate to Claude and from the task panel is one
+     conversation seen in two places. It lives here rather than in the DOM
+     because the panel is rebuilt from scratch on every field change, and an
+     answer that vanished when you ticked a sub-step would be worse than no
+     answer. Nothing here is written to the file or survives a reload. */
+  runs: {},
+  /* Which conversations sit under each `chat:` key, read from the helper. The
+     transcripts are not in here — they are the files Claude Code writes, and
+     the modal reads those back when it needs them. */
+  chats: {},
+  /* The one conversation the modal is showing, or null. */
+  chat: null,
   originalText: '',
   fileName: 'todo.md',
   dirty: false,
+  /* True when the only thing standing between this tab and the file is a tidy-up
+     the board did to itself on load — dating finished tasks, renaming Parked.
+     Nothing of his is at stake, so the watcher treats it as clean and reloads
+     rather than asking. The tidy-up runs again on the way back in. */
+  migratedOnly: false,
   activeBucket: null,
   query: '',
   aiFilter: '',
@@ -1112,6 +1387,9 @@ const state = {
   sort: {},           /* column name -> 'priority'; absent means his own order */
   view: 'overview',   /* the view the file opens on */
   openTask: null,
+  /* The same panel, showing a project folder instead of a task. Only ever one
+     of the two is set. */
+  openProject: null,
   /* Last-Modified of todo.md as this tab last agreed with it. Used to notice
      edits made outside the board. */
   diskStamp: null,
@@ -1140,6 +1418,9 @@ state.sort = readSort();
    point the list is not colour-coded any more whatever we do. */
 const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)'];
 const DONE_COL = 'Done';
+/* Not a special column the way Done is — just a tier the board tints, so a
+   renamed section simply stops matching and goes back to looking normal. */
+const WAIT_COL = 'Waiting review';
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
    needs a name no heading in the file could ever produce. */
 const ALL_BUCKETS = '__all__';
@@ -1306,6 +1587,7 @@ function setDone(t, on){
 function markDirty(){
   if (state.locked) return;
   state.dirty = true;
+  state.migratedOnly = false;
   $('#save').disabled = false;
   const s = $('#status');
   s.textContent = 'unsaved changes';
@@ -1411,6 +1693,41 @@ function subSteps(t){
 }
 function noteLines(t){
   return t.body.filter(l => l.trim() !== '' && !SUB_RE.test(l)).length;
+}
+
+/* ---- Projects ----
+   Work carrying more context than a line can hold keeps a folder under
+   `data/projects/<name>/`, with a CLAUDE.md inside holding the background and
+   the source documents beside it. The task stays short and names the folder in
+   an ordinary note on it:
+
+     - Project: `data/projects/AOP2027`. Background in its CLAUDE.md, the raw
+       material for the rescope in redefinition-brief.md.
+
+   The board reads that note rather than asking for a tag of its own. The
+   pointer was already written this way in the file before the board knew about
+   projects, and a second syntax for the same fact would only give the two a
+   chance to disagree. Only the name is taken; the rest of the sentence stays a
+   note, where a person put it. */
+const PROJECT_RE = /(?:^|[\s`(\[])data\/projects\/([A-Za-z0-9][A-Za-z0-9._-]*)/;
+function taskProject(t){
+  for (let i = 0; i < t.body.length; i++) {
+    const m = PROJECT_RE.exec(t.body[i]);
+    if (m) return m[1];
+  }
+  return '';
+}
+/* Every task pointing at one folder, in board order, Done included — a project
+   is the whole of the work, and half of it being finished is the answer to
+   "where is this up to" rather than something to hide. */
+function projectTasks(name){
+  const out = [];
+  state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (taskProject(t) === name) {
+      out.push({ task: t, bucket: b.name, tier: t.done ? DONE_COL : tier.name });
+    }
+  })));
+  return out;
 }
 
 /* Notes and sub-steps are edited separately, so split them apart — remembering
@@ -1739,6 +2056,12 @@ function cardHTML(t, color, bucketLabel, opts){
   const notes = noteLines(t);
 
   let meta = '';
+  /* First, because it says which piece of work this belongs to, and that frames
+     everything after it. Clicking it opens the project rather than the card —
+     see the capture-phase handler on [data-project]. */
+  const proj = taskProject(t);
+  if (proj) meta += '<span class="tag proj" data-project="' + esc(proj) + '" title="' +
+    esc('Everything on ' + proj) + '">' + esc(proj) + '</span>';
   // Says it once, on the card, rather than leaving a gap that reads as "low".
   if (unscored(t) && !t.done) meta += '<span class="tag needsscore">needs scoring</span>';
   if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '">' + esc(t.impact) + ' impact</span>';
@@ -1748,6 +2071,13 @@ function cardHTML(t, color, bucketLabel, opts){
   if (si) meta += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
   if (di) meta += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (t.ai) meta += '<span class="tag ai ai-' + esc(t.ai) + '">ai: ' + esc(t.ai) + '</span>';
+  /* A ticket waiting to be raised is a fact about the task worth seeing in the
+     column, but the button belongs where there is room for it — the task panel
+     and the reference cards. So the card gets the marker and not the link. */
+  const tickets = jiraNotes(t);
+  if (tickets.length && !t.done) {
+    tickets.forEach(n => { meta += '<span class="tag jira">' + esc(n.key ? n.key + ' ticket' : 'ticket') + '</span>'; });
+  }
 
   let prog = '';
   if (subs.length) {
@@ -1830,6 +2160,16 @@ function leadIndent(l){ return l.length - l.replace(/^\s+/, '').length; }
    used to be free prose mid-sentence, which nothing could read reliably. */
 const MSG_NOTE    = /^\s*-\s+Suggested message(\s*\(draft\))?\s*:/i;
 const PROMPT_NOTE = /^\s*-\s+Prompt\s*:/i;
+/* A ticket that needs raising. The board key in brackets says which one, the
+   same shape as (draft) on a message: - Jira (DSYS): "Summary line". Leave the
+   brackets off and every configured board is offered, which is the honest
+   answer when it is not yet decided where the ticket belongs. */
+const JIRA_NOTE   = /^\s*-\s+Jira(\s*\(([^)]*)\))?\s*:/i;
+/* The ticket body, on the line under the Jira note it belongs to. "Description
+   to paste" is what the first of these were written as, back when the board only
+   carried the summary and the body really did have to be pasted. It still reads
+   correctly, so it still parses — but `Description:` is the one to write now. */
+const DESC_NOTE   = /^\s*-\s+Description(\s+to\s+paste)?\s*:/i;
 function quoted(line){
   const q = [];
   for (let i = 0; i < line.length; i++) if (/["“”]/.test(line[i])) q.push(i);
@@ -1837,12 +2177,38 @@ function quoted(line){
   return line.slice(line.indexOf(':') + 1).trim();
 }
 function noteMeta(lines){
-  const meta = { message: '', draft: false, prompt: '' };
+  const meta = { message: '', draft: false, prompt: '', jira: null };
   lines.forEach(l => {
     if (MSG_NOTE.test(l))    { meta.message = quoted(l); meta.draft = /\(draft\)/i.test(l); }
     else if (PROMPT_NOTE.test(l)) { meta.prompt = quoted(l); }
   });
+  /* Read in a second pass: a description sits on the line after the note it
+     belongs to, so this cannot be decided one line at a time. */
+  const tickets = readJiraRun(lines, '');
+  if (tickets.length) meta.jira = tickets[0];
   return meta;
+}
+
+/* One Jira note as a board key and a summary. The key is whatever sat in the
+   brackets, upper-cased so `dsys` and `DSYS` are the same board; an empty key
+   means every board is offered. */
+function readJira(line){
+  const m = JIRA_NOTE.exec(line);
+  const key = (m && m[2] ? m[2] : '').trim().toUpperCase();
+  return { key, summary: quoted(line), description: '' };
+}
+
+/* Jira notes out of one run of note lines, each taking the description written
+   under it. Order is what pairs them: a description belongs to the last Jira
+   note seen, so a step carrying two tickets keeps two separate bodies rather
+   than both of them collapsing onto the first. */
+function readJiraRun(lines, where){
+  const out = [];
+  lines.forEach(l => {
+    if (JIRA_NOTE.test(l)) out.push(Object.assign(readJira(l), { where }));
+    else if (DESC_NOTE.test(l) && out.length) out[out.length - 1].description = quoted(l);
+  });
+  return out;
 }
 
 /* Every task and sub-step as one flat list. The reference sections all filter
@@ -1861,7 +2227,7 @@ function allItems(){
         due: t.due, start: t.start, ai: t.ai, impact: t.impact, effort: t.effort,
         urgent: t.urgent, week: t.week, rank: t.rank,
         slug: t.slug, blockedBy: t.blockedBy || [],
-        message: own.message, draft: own.draft, prompt: own.prompt
+        message: own.message, draft: own.draft, prompt: own.prompt, jira: own.jira
       });
       parts.steps.forEach(s => {
         const meta = noteMeta(s.notes);
@@ -1876,7 +2242,7 @@ function allItems(){
           ai: s.ai || t.ai, impact: '', effort: '',
           urgent: false, week: s.week, rank: s.rank,
           slug: s.slug, blockedBy: s.blockedBy,
-          message: meta.message, draft: meta.draft, prompt: meta.prompt
+          message: meta.message, draft: meta.draft, prompt: meta.prompt, jira: meta.jira
         });
       });
     }));
@@ -1942,9 +2308,12 @@ function refCard(it, opts){
      written by hand and lags behind the tag. Say so on the card, otherwise a
      task with nothing to paste looks the same as one that is ready to go. */
   if (opts.prompt) {
-    body += it.prompt ? messageHTML(it.prompt, { claude:true })
+    body += it.prompt ? messageHTML(it.prompt, { claude:true, task:it.id })
                       : '<p class="reflead draft">Needs a prompt before this can be handed over</p>';
   }
+  /* A ticket to raise is worth acting on from wherever the card is showing, so
+     unlike a message or a prompt this needs no opts flag to turn it on. */
+  if (it.jira) body += jiraHTML(it.jira);
 
   return '<article class="ref' + (it.done ? ' done' : '') + '" style="--bc:' + it.color + '">' +
     '<div class="refhead">' +
@@ -2086,6 +2455,705 @@ function claudeLink(text){
          ' title="Opens a new Claude chat with this prompt in the box, unsent">Open in Claude</a>';
 }
 
+/* ---- Chats on a task ----
+   Open in Claude hands the text to a tab that has never seen this machine, so a
+   prompt saying "read the notes in data/projects/AOP2027" is asking the one end
+   that cannot do it. Claude Code is already installed and runs where the files
+   are, so the board runs the prompt down at the helper and shows the answer.
+
+   A task has a list of chats rather than one, because the work on a task is not
+   one conversation. Reading the 360 responses, drafting the message that comes
+   out of it and checking last quarter's wording are three, and keeping them
+   apart is the point — each stays short enough to be worth resuming.
+
+   Three things hold this together and none of them is a copy of another:
+
+     `chat:xxxxxx` on the task    which task a conversation belongs to
+     data/sessions.json           which sessions sit under that key
+     ~/.claude/projects/…jsonl    what was actually said, written by Claude Code
+
+   The last one is the reason nothing here stores a transcript. That file is
+   what the CLI resumes from and what Claude Desktop imports, so a conversation
+   carried on anywhere else comes back complete rather than as a stale copy.
+
+   Ask reads and cannot write: Bash, Edit, Write, NotebookEdit and Task are not
+   in the run at all. Do it can write, and exists only when data/claude.json
+   turns it on. */
+
+const CLAUDE_URL = '/claude.json';
+const CHATS_URL  = '/claude/sessions.json';
+
+/* Imports the session into Claude Desktop and carries it on there — the same
+   conversation, the same history, in the app rather than on a card. Found by
+   reading what the app registers: `?session=` on the /code routes only accepts
+   the desktop's own local_ ids, but /resume takes a CLI session id and adopts
+   it. */
+function desktopHref(sessionId){
+  return 'claude://resume?session=' + encodeURIComponent(sessionId);
+}
+
+function claudeOn(){ return !!(state.claude && state.claude.available) && !state.locked; }
+
+/* Six characters of base36. It means nothing on its own, which is the idea:
+   the file says which task, data/sessions.json says which conversations. */
+function newChatKey(){
+  let key = '';
+  do {
+    key = Math.random().toString(36).slice(2, 8);
+  } while (key.length < 6 || state.chats[key]);
+  return key;
+}
+
+/* The task's key, writing one onto the line if this is the first chat on it.
+   That marks the list dirty, which is right — a task that has conversations
+   under it is a task whose line has changed. */
+function chatKeyFor(t, make){
+  if (t.chat) return t.chat;
+  if (!make) return '';
+  t.chat = newChatKey();
+  t.dirty = true;
+  markDirty();
+  return t.chat;
+}
+
+function sessionsFor(key){
+  const rows = (key && state.chats[key]) || [];
+  return rows.slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
+}
+
+/* Every run started this session, keyed by a local id. A run outlives the modal
+   it was started from, so this is not keyed on what is open. */
+let runCounter = 0;
+function runFor(sessionId){
+  if (!sessionId) return null;
+  const found = Object.keys(state.runs).map(k => state.runs[k])
+    .filter(r => r.session === sessionId);
+  return found.length ? found[found.length - 1] : null;
+}
+function liveRuns(){
+  return Object.keys(state.runs).map(k => state.runs[k]).filter(r => r.running);
+}
+
+/* ---- The list on the task ---- */
+
+function whenLabel(iso){
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const days = Math.floor((today() - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return days + ' days ago';
+  return dueLabel(ymd(d));
+}
+
+function chatSection(t){
+  if (!claudeOn()) return '';
+  const key = t.chat;
+  const rows = sessionsFor(key);
+  const list = rows.map(s => {
+    const run = runFor(s.id);
+    const busy = run && run.running;
+    return '<div class="chatrow' + (busy ? ' busy' : '') + '" data-session="' + esc(s.id) + '">' +
+      '<button type="button" class="chatopen" data-session="' + esc(s.id) + '"' +
+        ' data-chat="' + esc(key) + '" data-task="' + esc(t.id) + '">' +
+        '<span class="chatrowtitle">' + esc(s.title || 'Untitled chat') + '</span>' +
+        '<span class="chatrowmeta">' +
+          (busy ? '<em class="chatlive">running</em>' : esc(whenLabel(s.updated))) +
+          (s.mode === 'work' ? ' · <em class="chatwork">can write</em>' : '') +
+        '</span>' +
+      '</button>' +
+      '<a class="chaticon" href="' + desktopHref(s.id) + '"' +
+        ' title="Open this conversation in Claude Desktop">Desktop</a>' +
+      '<button type="button" class="chaticon chatforget" data-session="' + esc(s.id) + '"' +
+        ' data-chat="' + esc(key) + '" title="Take it off this task. The transcript itself is left alone.">×</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="field chats"><span>Chats' +
+    (rows.length ? ' <em class="sublabel">' + rows.length + '</em>' : '') + '</span>' +
+    (list || '<p class="chatnone">No conversations on this task yet.</p>') +
+    '<button type="button" class="addsub" id="f-newchat" data-task="' + esc(t.id) + '">+ New chat</button>' +
+    '<span class="help">Each one runs in <code>' + esc(state.claude.home) +
+      '</code> and reads only. They are kept apart on purpose — one conversation per question ' +
+      'stays short enough to be worth coming back to.</span>' +
+    '</div>';
+}
+
+/* ---- The modal ---- */
+
+function chatOpen(){ return !!state.chat; }
+
+function openChat(taskId, chatKey, sessionId, seed){
+  state.chat = { task: taskId, chat: chatKey, session: sessionId || '', seed: seed || '',
+                 turns: null, loading: false, run: runFor(sessionId) };
+  const wrap = $('#chatwrap');
+  wrap.classList.add('on');
+  wrap.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('chatting');
+  renderChat();
+  // A past conversation has to be read back off disk before it can be shown.
+  if (sessionId && !runFor(sessionId)) loadTranscript(sessionId);
+  setTimeout(() => { const box = $('#chatInput'); if (box) box.focus(); }, 60);
+}
+
+function closeChat(){
+  state.chat = null;
+  const wrap = $('#chatwrap');
+  wrap.classList.remove('on');
+  wrap.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('chatting');
+  // A run left going carries on; the list shows it as running.
+  if (state.openTask) openDrawer(state.openTask);
+}
+
+async function loadTranscript(sessionId){
+  const c = state.chat;
+  if (!c) return;
+  c.loading = true;
+  renderChat();
+  const row = sessionsFor(c.chat).find(s => s.id === sessionId);
+  const q = '?session=' + encodeURIComponent(sessionId) +
+            '&cwd=' + encodeURIComponent((row && row.cwd) || '');
+  try {
+    const res = await fetch('/claude/transcript.json' + q, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!state.chat || state.chat.session !== sessionId) return;
+    state.chat.turns = data.toobig ? [] : data.turns.map(t => ({
+      ask: t.ask, reply: t.reply, error: '', cost: 0,
+      tools: (t.tools || []).map(x => toolLabel(x.name, x.input, (row && row.cwd) || ''))
+    }));
+    state.chat.toobig = !!data.toobig;
+  } catch (err) {
+    if (state.chat) state.chat.loadErr =
+      'That conversation is not on disk any more — Claude Code keeps the transcripts, ' +
+      'and this one has been cleared.';
+  }
+  if (state.chat) { state.chat.loading = false; renderChat(); }
+}
+
+/* What the modal is showing: a live run if there is one, otherwise whatever was
+   read back off disk. Never both, so there is only ever one thing to trust. */
+/* The run this modal is showing. A conversation started here holds its run
+   directly, because a new one has no session id until the CLI's first line
+   arrives — and looking it up by a session it does not have yet left the modal
+   claiming to be idle while it was already working. */
+function chatRun(){
+  const c = state.chat;
+  if (!c) return null;
+  if (c.run) return c.run;
+  return runFor(c.session);
+}
+
+function chatTurns(){
+  const c = state.chat;
+  if (!c) return [];
+  const run = chatRun();
+  if (run) return run.turns;
+  return c.turns || [];
+}
+
+function renderChat(){
+  const c = state.chat;
+  if (!c) return;
+  const run = chatRun();
+  const row = sessionsFor(c.chat).find(s => s.id === c.session);
+  const loc = locate(c.task);
+
+  $('#chatTitle').textContent = (row && row.title) || (run && run.title) || 'New chat';
+  $('#chatFor').textContent = loc ? loc.task.title : '';
+
+  const desktop = $('#chatDesktop');
+  if (c.session) { desktop.href = desktopHref(c.session); desktop.classList.remove('hidden'); }
+  else desktop.classList.add('hidden');
+
+  const status = $('#chatStatus');
+  if (run && run.running) {
+    // No spinner and no bar. The line says what it is doing and rewrites
+    // itself as that changes, which is why it reads as activity rather than
+    // as a wait — the content is the progress.
+    status.className = 'chatstatus live';
+    status.innerHTML = '<span class="chatstar"></span>' +
+      '<span class="chatdoing">' + esc(runDoing(run)) + '</span>' +
+      '<em class="askclock">' + Math.round((Date.now() - run.started) / 1000) + 's</em>';
+  } else if (run) {
+    status.className = 'chatstatus';
+    status.textContent = (run.mode === 'work' ? 'Claude, working in ' : 'Claude, reading in ') +
+      (run.home || '') + ' · ' + runDoneLabel(run);
+  } else if (c.loading) {
+    status.className = 'chatstatus';
+    status.textContent = 'Reading the transcript…';
+  } else if (c.session) {
+    status.className = 'chatstatus';
+    status.textContent = 'Earlier conversation · ' + ((row && whenLabel(row.updated)) || '');
+  } else {
+    status.className = 'chatstatus';
+    status.textContent = 'New conversation in ' + (state.claude ? state.claude.home : '') + ' · reads only';
+  }
+
+  const body = $('#chatBody');
+  const turns = chatTurns();
+  if (c.loadErr && !turns.length) {
+    body.innerHTML = '<p class="askerr">' + esc(c.loadErr) + '</p>';
+  } else if (c.toobig) {
+    body.innerHTML = '<p class="chatnone">That transcript is too large to replay here. ' +
+      'Claude Desktop will open it in full.</p>';
+  } else if (!turns.length) {
+    body.innerHTML = c.loading ? '<p class="chatnone">…</p>'
+      : '<p class="chatnone">Nothing said yet. What it can see is everything under <code>' +
+        esc(state.claude ? state.claude.home : '') + '</code>.</p>';
+  } else {
+    body.innerHTML = turns.map((t, i) => turnHTML(t, i)).join('');
+  }
+  const stick = run && run.running;
+  if (stick) body.scrollTop = body.scrollHeight;
+
+  // Send and Stop share one slot, so the primary action is never competing
+  // with another for the same glance. Stopping is where sending was.
+  const busy = !!(run && run.running);
+  $('#chatStop').classList.toggle('hidden', !busy);
+  $('#chatSend').classList.toggle('hidden', busy);
+  $('#chatInput').disabled = busy;
+  if (c.seed && !turns.length) { $('#chatInput').value = c.seed; c.seed = ''; autoGrow($('#chatInput')); }
+}
+
+function autoGrow(el){
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(160, Math.max(38, el.scrollHeight)) + 'px';
+}
+
+/* ---- Rendering one turn ---- */
+
+const TOOL_FIELD = {
+  Read:'file_path', Edit:'file_path', Write:'file_path', Glob:'pattern', Grep:'pattern',
+  Bash:'command', WebFetch:'url', WebSearch:'query', Skill:'skill', Task:'description'
+};
+function toolLabel(name, input, cwd){
+  input = input || {};
+  let what = TOOL_FIELD[name] && input[TOOL_FIELD[name]] ? String(input[TOOL_FIELD[name]]) : '';
+  if (!what) {
+    const first = Object.keys(input).map(k => input[k]).find(v => typeof v === 'string');
+    what = first || '';
+  }
+  if (cwd && what.indexOf(cwd + '/') === 0) what = what.slice(cwd.length + 1);
+  what = what.replace(/\s+/g, ' ').trim();
+  if (what.length > 70) what = what.slice(0, 69) + '…';
+  return what ? name + ' ' + what : name;
+}
+
+/* Enough markdown for a reply — paragraphs, bullets, headings, fenced code.
+   The inline half is mdInline, which the rest of the board already uses. */
+function mdBlock(text){
+  const lines = String(text).replace(/\r/g, '').split('\n');
+  const out = [];
+  let para = [], list = null, code = null;
+  const flushPara = () => {
+    if (para.length) { out.push('<p>' + para.map(mdInline).join('<br>') + '</p>'); para = []; }
+  };
+  const flushList = () => {
+    if (list) { out.push('<ul>' + list.map(i => '<li>' + mdInline(i) + '</li>').join('') + '</ul>'); list = null; }
+  };
+  const flush = () => { flushPara(); flushList(); };
+  lines.forEach(raw => {
+    const l = raw.replace(/\s+$/, '');
+    if (/^\s*```/.test(l)) {
+      if (code === null) { flush(); code = []; }
+      else { out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>'); code = null; }
+      return;
+    }
+    if (code !== null) { code.push(raw); return; }
+    if (!l.trim()) { flush(); return; }
+    const bullet = /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/.exec(l);
+    if (bullet) { flushPara(); (list = list || []).push(bullet[1]); return; }
+    const head = /^\s*#{1,6}\s+(.*)$/.exec(l);
+    if (head) { flush(); out.push('<p class="askh">' + mdInline(head[1]) + '</p>'); return; }
+    flushList();
+    para.push(l.trim());
+  });
+  if (code !== null) out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>');
+  flush();
+  return out.join('');
+}
+
+/* What to call what it is doing now, in words rather than in tool names.
+   Rewritten in place as the run moves, which is the whole of the progress
+   indicator. */
+const DOING = {
+  starting: 'Starting up',
+  thinking: 'Thinking it through',
+  writing:  'Writing the answer',
+  Read:     'Reading a file',
+  Glob:     'Looking for files',
+  Grep:     'Searching the text',
+  Bash:     'Running a command',
+  Edit:     'Editing a file',
+  Write:    'Writing a file',
+  Skill:    'Loading a skill',
+  Task:     'Handing part of it to a subagent',
+  WebFetch: 'Fetching a page',
+  WebSearch:'Searching the web',
+  done:     'Finished'
+};
+function runDoing(run){
+  return DOING[run.status] || (run.status ? 'Using ' + run.status : 'Working');
+}
+
+/* What to call a conversation, taken from the first thing said in it. The
+   whole message is not a name: one sentence, cut at a word, no trailing
+   punctuation. */
+function chatTitle(ask){
+  let t = String(ask).replace(/\s+/g, ' ').trim();
+  const stop = /[.?!]\s/.exec(t);
+  if (stop && stop.index > 12) t = t.slice(0, stop.index + 1);
+  if (t.length > 54) t = t.slice(0, 54).replace(/\s+\S*$/, '') + '…';
+  return t.replace(/[.,;:\s]+$/, '');
+}
+
+function runCost(n){ return n < 0.01 ? 'under 1¢' : '$' + n.toFixed(2); }
+
+function runDoneLabel(run){
+  const secs = Math.max(1, Math.round((run.ms || (Date.now() - run.started)) / 1000));
+  const bits = [run.status === 'done' ? 'done' : 'stopped', secs + 's'];
+  if (run.cost) bits.push(runCost(run.cost));
+  return bits.join(' · ');
+}
+
+/* Who said what is carried by the shape, not by a label: yours is a filled
+   bubble pushed right, the reply is unbubbled prose running the full width.
+   No avatars, no "you:" prefix — the asymmetry does the whole job, and it keeps
+   the reply reading as a document rather than as a chat log. */
+function turnHTML(turn, i){
+  const trace = traceHTML(turn, i);
+  const reply = turn.reply
+    ? '<div class="askreply">' + mdBlock(turn.reply) +
+      // Your own message gets no action bar and the reply does, which is the
+      // way round it should be: the reply is the thing worth copying.
+      '<div class="askacts"><button type="button" class="copy" data-copy="' +
+      esc(turn.reply) + '">Copy</button></div>' +
+      '</div>' : '';
+  const err = turn.error
+    ? '<p class="askerr">' + esc(turn.error) +
+      (turn.detail ? '<em>' + esc(turn.detail) + '</em>' : '') + '</p>' : '';
+  return '<div class="askturn">' +
+    '<div class="askmine"><div class="askbubble">' + mdInline(turn.ask) + '</div></div>' +
+    trace + reply + err + '</div>';
+}
+
+/* What it did, in order. One grey summary line that opens into a timeline.
+   The chevron is drawn whether or not the cursor is on it: a trace that only
+   admits to being a control once you hover it is the most interesting part of
+   an answer hidden behind the least likely gesture. */
+function traceHTML(turn, i){
+  const tools = turn.tools || [];
+  if (!tools.length) return '';
+  const open = !!turn.traceOpen;
+  const kinds = [];
+  tools.forEach(t => {
+    const verb = String(t).split(' ')[0];
+    if (kinds.indexOf(verb) < 0) kinds.push(verb);
+  });
+  const summary = tools.length + (tools.length === 1 ? ' step · ' : ' steps · ') +
+    kinds.slice(0, 4).join(', ') + (kinds.length > 4 ? '…' : '');
+  return '<div class="asktrace' + (open ? ' open' : '') + '">' +
+    '<button type="button" class="asktracehead" data-turn="' + i + '">' +
+      '<span class="asttwist">' + (open ? '⌄' : '›') + '</span>' + esc(summary) +
+    '</button>' +
+    (open ? '<ol class="asttimeline">' +
+      tools.map(t => '<li><span class="asttick"></span>' + esc(t) + '</li>').join('') +
+      '</ol>' : '') +
+    '</div>';
+}
+
+/* ---- Running one ---- */
+
+let runTicker = null;
+function startTicker(){
+  if (runTicker) return;
+  runTicker = setInterval(() => {
+    const live = liveRuns();
+    if (!live.length) { clearInterval(runTicker); runTicker = null; return; }
+    const run = chatRun();
+    if (run && run.running) {
+      const el = $('#chatStatus').querySelector('.askclock');
+      if (el) el.textContent = Math.round((Date.now() - run.started) / 1000) + 's';
+    }
+  }, 1000);
+}
+
+function handleRunEvent(run, turn, line){
+  let d;
+  try { d = JSON.parse(line); } catch (err) { return; }
+  if (d.type === 'board_start') {
+    run.cwd = d.cwd || ''; run.home = d.home || ''; run.status = 'thinking';
+    return;
+  }
+  if (d.type === 'board_error') {
+    turn.error = d.text || 'the run failed';
+    if (d.detail) turn.detail = d.detail;
+    return;
+  }
+  if (d.type === 'system' && d.subtype === 'init') {
+    // The first thing the CLI says, and the moment this becomes a session with
+    // a name on the task rather than something in flight.
+    if (d.session_id && d.session_id !== run.session) {
+      run.session = d.session_id;
+      if (state.chat && state.chat.task === run.task && !state.chat.session) state.chat.session = d.session_id;
+      loadChats();
+    }
+    return;
+  }
+  if (d.type === 'assistant' && d.message) {
+    (d.message.content || []).forEach(b => {
+      if (b.type === 'text' && b.text) {
+        // Blocks of one message arrive as separate events sharing an id, and an
+        // id can come round again. Keyed on both so nothing is doubled.
+        const seenKey = (d.message.id || '') + '|' + b.text;
+        if (run.seen[seenKey]) return;
+        run.seen[seenKey] = 1;
+        turn.reply += (turn.reply ? '\n\n' : '') + b.text;
+        run.status = 'writing';
+      } else if (b.type === 'thinking') {
+        run.status = 'thinking';
+      } else if (b.type === 'tool_use') {
+        turn.tools.push(toolLabel(b.name, b.input, run.cwd));
+        run.status = b.name;
+      }
+    });
+    return;
+  }
+  if (d.type === 'result') {
+    // The last word on what the answer was — the streamed blocks were the
+    // running commentary, this is the text Claude finished with.
+    if (typeof d.result === 'string' && d.result.trim()) turn.reply = d.result;
+    if (d.session_id) run.session = d.session_id;
+    if (typeof d.total_cost_usd === 'number') { turn.cost = d.total_cost_usd; run.cost += d.total_cost_usd; }
+    if (d.is_error && !turn.error) turn.error = 'ended in an error (' + (d.subtype || 'unknown') + ')';
+    run.ms = d.duration_ms || (Date.now() - run.started);
+    run.status = 'done';
+  }
+}
+
+function finishRun(run){
+  run.running = false;
+  run.ctrl = null;
+  if (run.status !== 'done') run.status = 'stopped';
+  renderChat();
+  loadChats();
+  if (state.openTask) openDrawer(state.openTask);
+}
+
+async function startRun(opts){
+  const run = state.runs['n' + (++runCounter)] = {
+    task: opts.task, chat: opts.chat, session: opts.session || '',
+    title: opts.title || opts.ask, mode: opts.mode || 'ask',
+    running: true, status: 'starting', cwd: '', home: state.claude ? state.claude.home : '',
+    turns: (opts.turns || []).slice(), started: Date.now(), ms: 0, cost: 0,
+    seen: {}, ctrl: new AbortController()
+  };
+  const turn = { ask: opts.ask, reply: '', tools: [], error: '', detail: '', cost: 0 };
+  run.turns.push(turn);
+  if (state.chat && state.chat.task === run.task) state.chat.run = run;
+  renderChat();
+  startTicker();
+
+  let res;
+  try {
+    res = await fetch('/claude', {
+      method: 'POST',
+      // The header is the point, not the content type: a form cannot set one,
+      // so a page on another origin cannot reach the helper without a preflight
+      // the helper does not answer.
+      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+      body: JSON.stringify({
+        prompt: opts.ask, mode: run.mode, session: run.session,
+        chat: run.chat, title: run.title
+      }),
+      signal: run.ctrl.signal
+    });
+  } catch (err) {
+    turn.error = run.ctrl && run.ctrl.signal.aborted
+      ? 'Stopped.' : 'Could not reach the board helper — is run.command still running?';
+    return finishRun(run);
+  }
+  if (!res.ok) {
+    let msg = 'The helper refused it (HTTP ' + res.status + ')';
+    try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (err) { /* not JSON */ }
+    turn.error = msg;
+    return finishRun(run);
+  }
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += dec.decode(chunk.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line) handleRunEvent(run, turn, line);
+      }
+      renderChat();
+    }
+  } catch (err) {
+    if (run.ctrl && run.ctrl.signal.aborted) { if (!turn.reply) turn.error = 'Stopped.'; }
+    else turn.error = 'The answer stopped coming: ' + (err.message || err);
+  }
+  finishRun(run);
+}
+
+/* Send from the modal: carries the open conversation on, or starts it. */
+function chatSend(){
+  const c = state.chat;
+  if (!c) return;
+  const box = $('#chatInput');
+  const ask = box.value.trim();
+  if (!ask) { box.focus(); return; }
+  const run = chatRun();
+  if (run && run.running) return;
+  box.value = '';
+  autoGrow(box);
+  startRun({
+    task: c.task, chat: c.chat, session: c.session, ask,
+    // A brand new chat takes its name from the first thing asked in it. A
+    // resumed one keeps the name it already has.
+    title: (sessionsFor(c.chat).find(s => s.id === c.session) || {}).title || chatTitle(ask),
+    mode: c.mode || 'ask',
+    // Carrying on a conversation read back off disk: the turns already shown
+    // stay on screen rather than the modal appearing to start empty.
+    turns: run ? run.turns : (c.turns || [])
+  });
+}
+
+async function loadChats(){
+  try {
+    const res = await fetch(CHATS_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    state.chats = (data && data.chats) || {};
+    if (state.chat) renderChat();
+    if (state.openTask && !chatOpen()) openDrawer(state.openTask);
+  } catch (err) { /* no helper, no list */ }
+}
+
+async function forgetSession(chatKey, sessionId){
+  try {
+    await fetch('/claude/forget', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+      body: JSON.stringify({ chat: chatKey, session: sessionId })
+    });
+  } catch (err) { /* nothing to do about it */ }
+  loadChats();
+}
+
+/* ---- Getting into a chat ---- */
+
+/* A prompt written on the task starts its own conversation, seeded with the
+   prompt but not sent — most of them still have a [path] to fill in, and one
+   that fired on click would send the placeholder. */
+function askFromPrompt(taskId, text){
+  const loc = locate(taskId);
+  if (!loc) return;
+  const key = chatKeyFor(loc.task, true);
+  refreshView();
+  openChat(taskId, key, '', text);
+}
+
+function newChat(taskId){
+  const loc = locate(taskId);
+  if (!loc) return;
+  const key = chatKeyFor(loc.task, true);
+  refreshView();
+  openChat(taskId, key, '', '');
+}
+
+function handleAsk(e){
+  const twist = e.target.closest('.asktracehead');
+  if (twist) {
+    const turns = chatTurns();
+    const turn = turns[+twist.dataset.turn];
+    if (turn) { turn.traceOpen = !turn.traceOpen; renderChat(); }
+    return;
+  }
+  const ask = e.target.closest('.askclaude');
+  if (ask) { askFromPrompt(ask.dataset.task, ask.dataset.ask || ''); return; }
+  const open = e.target.closest('.chatopen');
+  if (open) { openChat(open.dataset.task, open.dataset.chat, open.dataset.session, ''); return; }
+  const forget = e.target.closest('.chatforget');
+  if (forget) { forgetSession(forget.dataset.chat, forget.dataset.session); return; }
+  const fresh = e.target.closest('#f-newchat');
+  if (fresh) newChat(fresh.dataset.task);
+}
+
+/* The prompt's own row. Ask starts a conversation on the task; the link is
+   still there for the times the web app is what you wanted. */
+function claudeActions(text, taskId){
+  if (!claudeOn() || !taskId) return claudeLink(text);
+  return '<button type="button" class="askclaude" data-task="' + esc(taskId) + '"' +
+    ' data-ask="' + esc(text) + '"' +
+    ' title="Starts a chat on this task with the prompt ready to send, running in ' +
+    esc(state.claude.home) + '">Ask Claude</button>' + claudeLink(text);
+}
+
+/* Every Jira note on a task, its sub-steps included. The card marker and the
+   panel section both need this, and a task's tickets can sit at either depth. */
+function jiraNotes(t){
+  const parts = splitBody(t);
+  const out = readJiraRun(parts.notes, '');
+  parts.steps.forEach(s => out.push.apply(out, readJiraRun(s.notes, s.clean)));
+  return out;
+}
+
+/* ---- Raising a Jira ticket ----
+   Same idea as the Claude link, and the same limit: the URL fills the create
+   form in, it does not create anything. CreateIssueDetails!init.jspa opens the
+   dialog with the fields already set and waits for Create to be pressed, which
+   is the only version of this worth having — a link that raised a ticket on
+   somebody's board from a click would be a link nobody could safely put on a
+   card.
+
+   Jira wants numeric ids rather than keys, so pid and issuetype come out of
+   data/jira.json rather than being written on the task. reporter is per board
+   on purpose: DSYS refuses to create without one, and WADE refuses to let it be
+   set at all, so one setting could not serve both. */
+function jiraBoards(key){
+  const cfg = state.jira;
+  if (!cfg || !cfg.boards || !cfg.boards.length) return [];
+  if (!key) return cfg.boards;
+  return cfg.boards.filter(b => String(b.key || '').toUpperCase() === key);
+}
+function jiraHref(board, note){
+  const cfg = state.jira;
+  const q = ['pid=' + encodeURIComponent(board.pid),
+             'issuetype=' + encodeURIComponent(board.issuetype)];
+  if (board.setReporter && cfg.reporter) q.push('reporter=' + encodeURIComponent(cfg.reporter));
+  q.push('summary=' + encodeURIComponent(note.summary));
+  if (note.description) q.push('description=' + encodeURIComponent(note.description));
+  return String(cfg.site).replace(/\/+$/, '') + '/secure/CreateIssueDetails!init.jspa?' + q.join('&');
+}
+/* The buttons for one Jira note. A note naming a board nothing is configured
+   for still renders, saying so — a note that quietly showed nothing would look
+   the same as no note at all, and the summary is worth reading either way. */
+function jiraHTML(note){
+  const boards = jiraBoards(note.key);
+  const acts = boards.length
+    ? boards.map(b =>
+        '<a class="tojira" href="' + jiraHref(b, note) + '" target="_blank" rel="noopener"' +
+        ' title="Opens the Jira create form on ' + esc(b.name || b.key) + ', filled in and unsubmitted">' +
+        'Raise in ' + esc(b.key) + '</a>').join('')
+    : '<span class="reflead draft">' +
+      (state.jira ? 'No board configured as ' + esc(note.key) : 'No Jira boards configured') +
+      '</span>';
+  return '<div class="msg jira"><div class="msgtext">' + mdInline(note.summary) +
+         (note.description ? '<em class="jirabody">' + mdInline(note.description) + '</em>' : '') +
+         '</div><div class="msgacts">' + acts + '</div></div>';
+}
+
 /* A ready-to-send message, with a button that copies just the message text.
    opts.claude adds the hand-over link beside it. */
 function messageHTML(text, opts){
@@ -2093,7 +3161,7 @@ function messageHTML(text, opts){
   return '<div class="msg"><div class="msgtext">' + mdInline(text) + '</div>' +
          '<div class="msgacts">' +
            '<button class="copy" data-copy="' + esc(text) + '">Copy</button>' +
-           (opts.claude ? claudeLink(text) : '') +
+           (opts.claude ? claudeActions(text, opts.task) : '') +
          '</div></div>';
 }
 /* ---- Context: standing facts, not tasks ----
@@ -2775,6 +3843,7 @@ function renderBoard(){
       (mode === 'priority' ? 'by priority' : '⇅') + '</button>';
 
     return '<section class="col' + (isDone ? ' donecol' : '') +
+        (name === WAIT_COL ? ' waitcol' : '') +
         (mode === 'priority' ? ' sorted' : '') + '" data-tier="' + esc(name) + '">' +
       '<h2>' + esc(name) + (TIER_HINT[name] ? ' <span class="hint">' + esc(TIER_HINT[name]) + '</span>' : '') +
       sortBtn + '<span class="count">' + n + '</span></h2>' +
@@ -3081,13 +4150,14 @@ function wireDatePicker(t, touch, field){
    the same line, shown properly. */
 function suggestions(t){
   const parts = splitBody(t);
-  const out = { message: [], prompt: [] };
+  const out = { message: [], prompt: [], jira: [] };
   const take = (lines, where) => lines.forEach(l => {
     if (MSG_NOTE.test(l))         out.message.push({ text: quoted(l), draft: /\(draft\)/i.test(l), where });
     else if (PROMPT_NOTE.test(l)) out.prompt.push({ text: quoted(l), draft: false, where });
   });
   take(parts.notes, '');
   parts.steps.forEach(s => take(s.notes, s.clean));
+  out.jira = jiraNotes(t);
   return out;
 }
 function suggestionSection(label, list, opts){
@@ -3104,9 +4174,38 @@ function suggestionSection(label, list, opts){
         '</div>' +
         '<div class="msgacts">' +
           '<button type="button" class="copy" data-copy="' + esc(s.text) + '">Copy</button>' +
-          (opts.claude ? claudeLink(s.text) : '') +
+          (opts.claude ? claudeActions(s.text, opts.task) : '') +
         '</div>' +
       '</div>').join('') +
+    '</div>';
+}
+
+/* Tickets waiting to be raised. Its own section rather than a third kind of
+   suggestion, because the button is a link out to Jira rather than a copy, and
+   because which board it goes to is part of what the row has to say. */
+function jiraSection(list){
+  if (!list.length) return '';
+  return '<div class="field sugg"><span>Jira tickets' +
+    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</span>' +
+    list.map(n => {
+      const boards = jiraBoards(n.key);
+      const acts = boards.length
+        ? boards.map(b =>
+            '<a class="tojira" href="' + jiraHref(b, n) + '" target="_blank" rel="noopener"' +
+            ' title="Opens the Jira create form on ' + esc(b.name || b.key) + ', filled in and unsubmitted">' +
+            'Raise in ' + esc(b.key) + '</a>').join('')
+        : '<span class="suggwhere draft">' +
+          (state.jira ? 'no board configured as ' + esc(n.key) : 'no data/jira.json') + '</span>';
+      return '<div class="msg jira">' +
+        '<div class="msgtext">' +
+          (n.where ? '<em class="suggwhere">for: ' + esc(n.where) + '</em>' : '') +
+          mdInline(n.summary) +
+          (n.description ? '<em class="jirabody">' + mdInline(n.description) + '</em>' : '') +
+        '</div>' +
+        '<div class="msgacts">' + acts + '</div>' +
+      '</div>';
+    }).join('') +
+    '<span class="help">The link fills in the summary and the description. Nothing is raised until you press Create in Jira.</span>' +
     '</div>';
 }
 
@@ -3161,10 +4260,27 @@ function openDrawer(id, focusTitle){
   const nowIn = t.done ? DONE_COL : loc.tier.name;
   const subs = subSteps(t);
   const sugg = suggestions(t);
+  const proj = taskProject(t);
   const dis = ro ? ' disabled' : '';
 
+  state.openProject = null;
+  $('#drawer').classList.remove('projectview');
   $('#drawer').classList.toggle('readonly', ro);
   $('#drawerTitle').textContent = ro ? 'View task (read-only)' : 'Edit task';
+
+  /* The headline is the one thing on the whole list, so the control for it sits
+     in the panel's frame rather than in the run of fields — a decision about
+     the task, next to the other one, instead of the eighth thing to scroll
+     past. The explanation it used to carry underneath moves to the tooltip:
+     it is worth reading once, not on every task. */
+  const hlBtn = $('#dheadHl');
+  hlBtn.classList.remove('hidden');
+  hlBtn.classList.toggle('on', !!t.headline);
+  hlBtn.textContent = t.headline ? 'The one thing' : 'Make headline';
+  hlBtn.title = t.headline
+    ? 'Set ' + dueLabel(t.headline) + '. It stays the headline until you solve it. Click to remove it.'
+    : 'The task that makes the others easier or unnecessary. Only one at a time.';
+  hlBtn.disabled = ro;
   $('#dfootHelp').textContent = ro
     ? 'Read-only — from a backup, nothing here can be changed.'
     : 'Changes apply straight away';
@@ -3190,15 +4306,15 @@ function openDrawer(id, focusTitle){
     '<label class="field"><span>Who does it (ai:)</span><select id="f-ai"' + dis + '>' +
       ['','full','partial','none'].map(v => '<option value="' + v + '"' + (v === t.ai ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
     '</select></label>' +
-    '<div class="field"><span>The one thing</span>' +
-      '<button type="button" class="hlset' + (t.headline ? ' on' : '') + '" id="f-headline"' + dis + '>' +
-        (t.headline ? 'This is the headline — remove it' : 'Make this the headline') +
-      '</button>' +
-      '<span class="help">' + (t.headline
-        ? 'Set ' + esc(dueLabel(t.headline)) + '. It stays the headline until you solve it.'
-        : 'The task that makes the others easier or unnecessary. Only one at a time.') +
-      '</span>' +
-    '</div>' +
+    /* Read out of the notes below, and shown here as the thing it is. The note
+       itself stays where it was written — this is a way in, not a second copy. */
+    (proj
+      ? '<div class="field"><span>Project</span>' +
+          '<button type="button" class="projbtn" data-project="' + esc(proj) + '">' + esc(proj) + '</button>' +
+          '<span class="help">Its background and sources are in <code>data/projects/' + esc(proj) +
+          '/</code>. Click to see everything on it.</span>' +
+        '</div>'
+      : '') +
     /* Two dates, because one was doing two jobs. "Can start" is when the work
        becomes possible; "Due" is when it has to be finished. Quick wins reads
        the first and ignores the second. */
@@ -3241,8 +4357,10 @@ function openDrawer(id, focusTitle){
       '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
       '<span class="help">Sub-steps live in the list above. Anything you type here is a note on the task.</span>' +
     '</label>' +
+    chatSection(t) +
     suggestionSection('Message suggestions', sugg.message) +
-    suggestionSection('Prompt suggestions', sugg.prompt, { claude:true });
+    suggestionSection('Prompt suggestions', sugg.prompt, { claude:true, task:t.id }) +
+    jiraSection(sugg.jira);
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
@@ -3269,7 +4387,7 @@ function openDrawer(id, focusTitle){
     touch();
   };
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };
-  $('#f-headline').onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
+  hlBtn.onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
   wireDatePicker(t, touch, 'start');
   wireDatePicker(t, touch, 'due');
 
@@ -3364,8 +4482,68 @@ function openDrawer(id, focusTitle){
 
 function closeDrawer(){
   state.openTask = null;
+  state.openProject = null;
   $('#drawer').classList.remove('open');
+  $('#drawer').classList.remove('projectview');
   $('#scrim').classList.remove('open');
+}
+
+/* ---- The panel, showing a project instead of a task ----
+   A project is spread across buckets by design: the presentation is Design
+   System work, the deck review is People work, and the list is right to keep
+   them apart. That makes "what is left on this" a question the columns cannot
+   answer, which is what this is for. It reads, and nothing more — every row is
+   a way back into the task that owns it. */
+function openProjectDrawer(name){
+  const rows = projectTasks(name);
+  state.openTask = null;
+  state.openProject = name;
+
+  $('#drawer').classList.add('projectview');
+  $('#drawer').classList.toggle('readonly', state.locked);
+  $('#drawerTitle').textContent = name;
+  $('#dheadHl').classList.add('hidden');
+
+  const open = rows.filter(r => !r.task.done);
+  const done = rows.filter(r => r.task.done);
+  const count = rows.length === 1 ? '1 task' : rows.length + ' tasks';
+  const split = done.length
+    ? count + ', ' + done.length + ' finished'
+    : count;
+
+  const row = r => {
+    const di = dueInfo(r.task.due);
+    return '<button type="button" class="projrow' + (r.task.done ? ' done' : '') +
+        '" data-open="' + r.task.id + '">' +
+      '<span class="pt">' + esc(r.task.title) + '</span>' +
+      '<span class="pw">' + esc(r.bucket + ' · ' + r.tier) +
+        (di ? '<em class="tag due ' + di.cls + '">' + esc(di.label) + '</em>' : '') +
+        (r.task.headline ? '<em class="tag">the one thing</em>' : '') +
+      '</span>' +
+    '</button>';
+  };
+
+  $('#dbody').innerHTML =
+    '<div class="field"><span>Folder</span>' +
+      '<div class="projpath">data/projects/' + esc(name) + '/</div>' +
+      '<span class="help">The background is in that folder\'s <code>CLAUDE.md</code>, with the ' +
+      'source documents beside it. The board does not read those files — this is where they are.</span>' +
+    '</div>' +
+    '<div class="field"><span>On this project</span>' +
+      (rows.length
+        ? '<div class="projlist">' + open.map(row).join('') + done.map(row).join('') + '</div>' +
+          '<span class="help">' + esc(split) + '. Click one to open it.</span>'
+        : '<span class="help">Nothing on the list points at this folder yet. A task joins it by ' +
+          'naming the folder in a note: <code>Project: data/projects/' + esc(name) + '</code>.</span>') +
+    '</div>';
+
+  $('#dbody').querySelectorAll('.projrow').forEach(el => {
+    el.onclick = () => openDrawer(el.dataset.open);
+  });
+
+  $('#dfootHelp').textContent = 'A project is a folder, not a task — nothing here can be edited.';
+  $('#drawer').classList.add('open');
+  $('#scrim').classList.add('open');
 }
 
 /* Drag the panel's left edge to make it wider; the width is remembered. */
@@ -3407,6 +4585,18 @@ window.addEventListener('resize', applyDrawerWidth);
 
 $('#closeDrawer').onclick = closeDrawer;
 $('#scrim').onclick = closeDrawer;
+
+/* Project chips are drawn inside cards, and a card opens its task on click.
+   Capture phase, on the document, so the chip answers first and the card behind
+   it never hears about it — one handler covering the board, the lists and the
+   panel's own Project button, none of which need to know this exists. */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('[data-project]');
+  if (!chip) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openProjectDrawer(chip.dataset.project);
+}, true);
 $('#del').onclick = () => {
   if (state.locked) return;
   const loc = state.openTask && locate(state.openTask);
@@ -3439,6 +4629,7 @@ function load(text, name){
     state.activeBucket = ALL_BUCKETS;
   }
   markClean('');
+  state.migratedOnly = false;
   renderView();
   if (renamed) { markDirty(); $('#status').textContent = 'renamed “Parked” to “Backlog” — save to apply'; }
   if (stamped) {
@@ -3446,6 +4637,8 @@ function load(text, name){
     $('#status').textContent = 'dated ' + stamped + ' finished task' + (stamped === 1 ? '' : 's') +
       ' as done today — save to apply';
   }
+  // Set last: markDirty clears it, and both migrations go through markDirty.
+  state.migratedOnly = !!(renamed || stamped);
 }
 
 function showErr(msg){
@@ -3472,9 +4665,32 @@ async function loadFile(){
   } catch (err) {
     if (await loadDemo()) return;
     showErr('<strong>Could not read todo.md.</strong><br>Close this tab and start the board by ' +
-            'double-clicking <strong>board.command</strong> in the to-dos folder. ' +
+            'double-clicking <strong>run.command</strong> in the to-dos folder. ' +
             'Opening this page directly from Finder will not work — browsers block a page on disk ' +
             'from reading files beside it.<br><span style="opacity:.75">(' + esc(String(err.message || err)) + ')</span>');
+  }
+}
+
+/* Read the Jira boards, if there are any. Absent is the ordinary case: the file
+   is gitignored, so a fresh clone has none and the buttons simply do not show.
+   It falls back to a committed example the same way the list falls back to
+   demo.md, so the public deployment can still show what the feature looks like
+   without a real site or account id being committed to a public repo.
+
+   Never throws and never blocks the list: a board that cannot read this file is
+   a board with no Jira buttons, which is a smaller problem than a board that
+   will not open. */
+async function loadJira(){
+  for (const url of [JIRA_URL, '/kanban/jira.demo.json']) {
+    try {
+      const res = await fetch(url + '?t=' + Date.now(), { cache:'no-store' });
+      if (!res.ok) continue;
+      const cfg = await res.json();
+      if (!cfg || !cfg.site || !Array.isArray(cfg.boards) || !cfg.boards.length) continue;
+      state.jira = cfg;
+      if (state.doc) renderView();
+      return;
+    } catch (err) { /* malformed or missing: no buttons, no complaint */ }
   }
 }
 
@@ -3717,9 +4933,13 @@ function showModal(heading, sub, bodyHTML, buttons){
   if (first) first.focus();
 }
 
+/* Changes of his own, as against the board's own tidy-up on load. Only the
+   first kind is worth stopping for. */
+function hasOwnChanges(){ return state.dirty && !state.migratedOnly; }
+
 async function reload(){
   if (state.locked) return;
-  if (!state.dirty) return loadFile();
+  if (!hasOwnChanges()) return loadFile();
   // Same collision as an outside edit, so it gets the same modal — he can see
   // what he would be throwing away before he throws it away.
   let diskText = null;
@@ -3797,8 +5017,9 @@ async function autosaveTick(){
 }
 
 /* Picks up edits made outside the board — Claude working through the list, or
-   the file being changed in an editor. With nothing unsaved here, reloading is
-   free, so it happens quietly. With unsaved work, it asks. */
+   the file being changed in an editor. With nothing of his unsaved here,
+   reloading is free, so it happens quietly and says so afterwards rather than
+   asking first. Only his own unsaved work turns it into a question. */
 async function watchTick(){
   if (state.locked || !state.doc || modalEl || conflictShown) return;
   const stamp = await diskStamp();
@@ -3806,7 +5027,7 @@ async function watchTick(){
   if (!state.diskStamp) { state.diskStamp = stamp; return; }
   if (stamp === state.diskStamp) return;
 
-  if (!state.dirty) {
+  if (!hasOwnChanges()) {
     try {
       const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
       if (!res.ok) return;
@@ -3817,8 +5038,11 @@ async function watchTick(){
       load(text, 'todo.md');
       state.diskStamp = stamp;
       const n = changes ? changes.length : 0;
-      markClean('reloaded — the file changed on disk' +
-        (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : ''), true);
+      const note = 'reloaded — the file changed on disk' +
+        (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : '');
+      // The fresh parse may have re-run the load-time tidy-up, which is a real
+      // pending save. Say what happened without clearing it.
+      if (state.migratedOnly) autoStatus(note); else markClean(note, true);
     } catch (err) { /* try again on the next tick */ }
     return;
   }
@@ -4077,8 +5301,35 @@ async function handleCopy(e){
   clearTimeout(btn._t);
   btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done','warn'); }, copied ? 1500 : 4000);
 }
-$('#lists').onclick = handleCopy;
-$('#dbody').onclick = handleCopy;
+/* Copy and the chat controls live inside the same containers, so one listener
+   each rather than two. The modal is a third: its own turns carry Copy buttons
+   and its own trace carries the twist. */
+function handleMsgClick(e){ handleAsk(e); handleCopy(e); }
+$('#lists').onclick = handleMsgClick;
+$('#dbody').onclick = handleMsgClick;
+$('#chatBody').onclick = handleMsgClick;
+
+/* ---- The modal's own controls ---- */
+$('#chatClose').onclick = closeChat;
+$('#chatscrim').onclick = closeChat;
+$('#chatFoot').onsubmit = e => { e.preventDefault(); chatSend(); };
+$('#chatStop').onclick = () => {
+  const run = chatRun();
+  if (run && run.ctrl) run.ctrl.abort();
+};
+/* The box grows line by line instead of scrolling inside itself, so a long
+   question stays visible while it is being written. */
+$('#chatInput').addEventListener('input', e => autoGrow(e.target));
+/* Enter sends, shift-Enter is a new line — the same bargain the composer it is
+   modelled on makes. */
+$('#chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
+});
+/* Escape closes the chat before it closes the task behind it. */
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && chatOpen()) { e.stopPropagation(); closeChat(); }
+}, true);
+
 
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -4092,7 +5343,26 @@ window.addEventListener('hashchange', () => {
   }
 });
 
+/* Is there a Claude Code CLI behind the helper, and what is it allowed to do.
+   Everything about this can fail and none of it matters: a 404 on a static host,
+   a helper too old to know the endpoint, a machine with no CLI installed. All
+   three land in the same place — state.claude stays null and the prompts keep
+   the link they always had. */
+async function loadClaudeStatus(){
+  try {
+    const res = await fetch(CLAUDE_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (!cfg || !cfg.available) return;
+    state.claude = cfg;
+    if (state.doc) renderView();
+    loadChats();
+  } catch (err) { /* no endpoint, no buttons, no complaint */ }
+}
+
 loadFile();
+loadJira();
+loadClaudeStatus();
 </script>
 </body>
 </html>

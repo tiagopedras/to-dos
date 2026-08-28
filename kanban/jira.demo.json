@@ -1,0 +1,20 @@
+{
+  "site": "https://example.atlassian.net",
+  "reporter": "000000:00000000-0000-0000-0000-000000000000",
+  "boards": [
+    {
+      "key": "DSYS",
+      "name": "Design System Contributions",
+      "pid": "10001",
+      "issuetype": "10002",
+      "setReporter": true
+    },
+    {
+      "key": "WEB",
+      "name": "Web",
+      "pid": "10005",
+      "issuetype": "10002",
+      "setReporter": false
+    }
+  ]
+}

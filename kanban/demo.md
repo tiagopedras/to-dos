@@ -8,9 +8,10 @@ This is example data. It is not anybody's real list — every name, project and
 date below is invented, and it exists so the board has something to render when
 the real `data/todo.md` is not there. Nothing here can be edited or saved.
 
-Four buckets, three states inside each. Tasks carry an impact, an effort and a
+Four buckets, four states inside each. Tasks carry an impact, an effort and a
 delegation tag. Steps that mean contacting somebody carry the message already
-written, and steps handed to Claude carry the prompt.
+written, steps handed to Claude carry the prompt, and anything that needs a ticket
+carries the Jira line.
 
 ---
 
@@ -60,6 +61,7 @@ written, and steps handed to Claude carry the prompt.
 ### Doing
 
 - [ ] **Unblock the checkout redesign** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: none] `#checkout`
+  - Project: `data/projects/checkout-redesign`. Both directions, and why each one was drawn, are in that folder.
   - Jordan has two competing directions and no way to choose between them.
   - [ ] Sit with Jordan and pick a direction [due:: 2026-08-21] [ai:: none]
   - [ ] Share the decision with the Web team [ai:: partial] `blocked-by:checkout`
@@ -88,6 +90,7 @@ written, and steps handed to Claude carry the prompt.
 ### Doing
 
 - [ ] **Close the Figma against code gap on buttons** [impact:: high] [effort:: M] [due:: 2026-09-04] [ai:: partial]
+  - Project: `data/projects/button-parity`. The audit so far and the decisions taken are in that folder's `CLAUDE.md`.
   - Stream: audits.
   - [ ] Pull a fresh snapshot [due:: 2026-08-27] [ai:: full] `rank:2`
     - Prompt: "Run the ds-snapshot skill from the ds-snapshots folder to capture today's library, then tell me which button variants exist in Figma and not in Storybook. Do not compare against an old snapshot, take a new one first."
@@ -95,8 +98,14 @@ written, and steps handed to Claude carry the prompt.
 
 ### To do
 
+- [ ] **Raise the button variant gap on the contributions board** [impact:: med] [effort:: S] [ai:: none]
+  - Project: `data/projects/button-parity`.
+  - Jira (DSYS): "Button: three variants in Figma with no Storybook equivalent"
+  - Description: "Three variants in the Figma button have no Storybook equivalent: quiet, destructive and icon-only. Done when each one is either built or written off with a reason on this ticket."
+
 - [ ] **Document the form components** [impact:: med] [effort:: L] [ai:: full] `rank:4`
   - Stream: documentation.
+  - Jira: "Write usage docs for text input, select and checkbox"
   - Prompt: "Write usage documentation for the text input, select and checkbox components into ds-docs/component-docs/, following the GOV.UK Design System structure. Use only GOV.UK, the ARIA Authoring Practices Guide and WCAG 2.2 as sources, and leave a gap marked [fill in] rather than inventing product specific guidance."
 
 - [ ] **Run a token clean-up pass** [impact:: low] [effort:: M] [ai:: partial]
@@ -138,6 +147,15 @@ Standing facts, not tasks.
 - Priya Shah, senior designer, leads the Web squad
 - Sam Okafor, product designer, shared with the Growth team
 - Jordan Lee, junior designer, on the checkout redesign
+
+### Projects
+
+Anything carrying more context than a task can hold gets a folder in `data/projects/<name>/`,
+with a `CLAUDE.md` inside holding the background and the source documents beside it. The task
+here stays short and points at the folder rather than repeating it.
+
+- **button-parity** — closing the gap between the buttons in Figma and the ones in code.
+- **checkout-redesign** — the single page checkout flow, Jordan's work.
 
 ### Around me
 

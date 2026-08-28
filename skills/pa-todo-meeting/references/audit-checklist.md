@@ -44,6 +44,34 @@ The script's output is the starting point, not the whole audit. A file can pass 
 
 **Untag as well as tag.** A `week` left on something that slipped turns the view into a record of intentions rather than a plan for the next five days.
 
+## Jira tickets
+
+The script does not look at these at all. Every one of them is a read.
+
+**Check the ticket has not already been raised.** A `Jira` note is a ticket still to raise. Left on a task after the ticket exists, it reads as work outstanding and gets raised twice. Ask when a task looks like it has moved on.
+
+**Check the board key against what the task is actually about.** DSYS is DS Contributions, the designers' board. WADE is Web Analytics Design Experiments. A component gap filed on WADE reaches nobody who can act on it.
+
+**Read the summary as somebody on that board.** They have not seen the list, the meeting or the task title. If it only makes sense next to the task it sits under, rewrite it.
+
+**Check there is a description.** The button carries the summary and the description both. A ticket arriving with a title and an empty body is one somebody has to come back and ask about, and the asking lands on him.
+
+**Never raise the ticket to tidy the note away.** The note is the whole deliverable here. Pressing Create is his.
+
+## Projects
+
+The script does not know projects exist. All of this is a read.
+
+**Check every task on a project carries the pointer.** The panel on the board is built from the `Project:` notes and nothing else, so one task missing the note is one task missing from the only view of the whole project. The usual cause is a task added later, by a session that did not know the folder was there.
+
+**Check the pointer names a folder that exists.** A path to a folder nobody created reads as context waiting to be opened, and the next session goes looking for it.
+
+**Check the note still describes what is in the folder.** It names the files, and files get added and superseded. A note pointing at a brief that has since been replaced sends the next session to the wrong document, which is worse than sending it to none.
+
+**Check the folder has not started holding tasks.** A project's `CLAUDE.md` is background. The moment it grows a list of what to do next, there are two lists, and the one nobody looks at is the one that goes stale and then gets believed.
+
+**Check the project is still a project.** When the work is done, or has shrunk back to something a task line holds, the folder is history rather than context. Say so and ask, rather than leaving a pointer to a folder nobody opens.
+
 ## Suggested messages
 
 The script only checks that a message exists. Whether it is usable is a read.
