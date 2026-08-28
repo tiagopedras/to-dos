@@ -1,9 +1,9 @@
 ---
-name: pa-todo-meeting
-description: Run a review-and-update session over the owner's master to-do list at Code/to-dos/data/todo.md, the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
+name: pa-checkin
+description: Run a review-and-update session over the owner's master to-do list at Code/to-dos/data/todo.md, the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
 ---
 
-# PA to-do meeting
+# PA check-in
 
 This skill maintains one specific file: the owner's master to-do list. He is a design manager with people management, design oversight, design system and strategic work running in parallel. The list exists because that mix does not fit in one head, and the file's value is that it holds the reasoning, not just the titles.
 
@@ -72,7 +72,7 @@ When he solves it, say so plainly, then run the pick again from step 1 above.
 
 ## The session shape
 
-A to-do meeting has six moves. Do not skip straight to editing, because most of the value is in the status read at the start, the optimisation pass, and the headline check, which are the three things he cannot easily do himself.
+A check-in has six moves. Do not skip straight to editing, because most of the value is in the status read at the start, the optimisation pass, and the headline check, which are the three things he cannot easily do himself.
 
 On a quiet morning where nothing has changed, moves 1 and 5 are the whole session: read the status, confirm the headline still holds, done. Do not manufacture work to fill the other four.
 
@@ -80,12 +80,18 @@ On a quiet morning where nothing has changed, moves 1 and 5 are the whole sessio
 
 **Name the session first**, as described in the first thing every session does, above.
 
-**Check the board is not holding unsaved changes first.** The board keeps his edits in the browser until he presses Save, and it writes the whole file when he does. If he has it open with unsaved work and you edit the file underneath him, whichever of you saves last wins and the other's work is gone silently. If there is any chance it is open, ask him to Save or Reload before you start. This is the one way to lose real work in this setup.
+**Pull today's meeting actions before you read the file, once a day.** The recorder holds actions from his calls that are not on the list yet, and a status read taken over a list that is missing them is a status read of the wrong list. Look at the `Meeting actions last pulled` line in the header of todo.md. If that date is not today's, run the `pa-retrieve-tasks` skill and let it finish before carrying on with the read below. Its default window runs from the start of the previous business day up to now, which is what this trigger wants, so do not narrow it to today. That is what carries a Monday over the weekend, and a call late on Friday afternoon is exactly the one he has not seen yet. Run it a second time in the same day only when he asks for it, after a call that has just ended for example.
+
+That line is written by this skill and by `pa-retrieve-tasks`, never by him, and it is not the same thing as `Last updated`. Set it to today's date once the pull has actually run, whether or not it found anything, because a pull that found nothing has still answered the question for today. If the line is not there at all, treat it as never pulled, pull, and write it back directly under `Last updated`.
+
+`pa-retrieve-tasks` reviews what it finds with him one by one, so on a day with actions waiting this becomes the opening part of the meeting rather than a background step. That is the right order: settle what is on the list before reading the list back to him. On a day with nothing waiting it should cost one line, or nothing at all.
+
+**Do not ask whether the board is open.** Start reading and editing straight away. He knows the board is there and asking every session costs a turn to be told yes or no. What the risk actually needs is the **Reload** line in move 6, which is already there: the board holds his edits in the browser until he presses Save and writes the whole file when he does, so a save from a stale board overwrites your work. Telling him to Reload afterwards closes that off. If he says mid-session that he has unsaved work on the board, stop and let him Save first.
 
 Read todo.md, including the `## Context` section at the bottom, which holds who is who, who is on leave and whose contract runs out when. It also holds `### How I want messages and prompts written`, his own rules for that, and those override the conventions file wherever the two disagree. He can edit that section on the board and cannot see the conventions file, so his copy is always the current one. Then run the checker:
 
 ```bash
-python3 ~/Code/to-dos/skills/pa-todo-meeting/scripts/check_todo.py ~/Code/to-dos/data/todo.md
+python3 ~/Code/to-dos/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/todo.md
 ```
 
 Then open with a short status. **Lead with the headline in one line**, since that is the answer to "what am I doing today". Then what is time-critical, because that is what he is scanning for next:
@@ -182,7 +188,7 @@ Re-run the checker. Fix anything it flags before delivering, since handing over 
 
 **The file is edited in place, on his disk.** Use `Edit` and it is already saved; there is nothing to upload, attach or commit. Earlier versions of this skill described a `SendUserFile` and `device_commit_files` handover, which belonged to a setup where the file arrived as an attachment. That does not apply here and following it wastes a turn on a tool that will not do anything useful.
 
-If he has the board open, tell him to press **Reload** on it. The board read the file when it opened and will not notice your changes until it re-reads, and if he saves from a stale board he overwrites everything you just did.
+Always end by telling him to press **Reload** on the board, without asking whether it is open. The board read the file when it opened and will not notice your changes until it re-reads, and if he saves from a stale board he overwrites everything you just did.
 
 **If the session was only an add**, the closing report is the task list described in move 3 — nothing about what changed, what to focus on, or the headline unless he asks. The two-part report below is for a real review session.
 

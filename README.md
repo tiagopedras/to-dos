@@ -261,10 +261,14 @@ board.
 the reader wants the tasks, the board is right there. A report that enumerates
 what was ticked has done no work.
 
-**Give insight instead.** Say what has actually moved forward, in which areas, and
-what that means for where things stand now. Where something has not moved, say
-so plainly and say what it is waiting on. A report that only carries wins is not a
-report.
+**Outcomes, not activity.** Say what actually changed for the team or the system,
+and what is now possible that was not possible before. The tasks are the evidence
+behind that, not the subject of it. "Four of six components documented" and "the
+Loom script is written, the recording isn't" are still activity, just described at
+a higher altitude than a checklist. "Docs now cover four of the six most-used
+components, so contributors stop asking in Slack for the fifth" is the same fact
+read for what it changed. Where something has not moved, say so plainly and say
+what it is waiting on. A report that only carries wins is not a report.
 
 **Prose by default, bullets when being specific earns it.** When a report needs to
 name particular things, components, numbers, decisions, open questions, a short
@@ -328,9 +332,9 @@ read inside. The board remains the authority.
 
 ## The skill
 
-`skills/pa-todo-meeting/` is a Claude skill that runs the review session: read
+`skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
-verify. It is packaged as `skills/pa-todo-meeting.skill` for installing.
+verify. It is packaged as `skills/dist/pa-checkin.skill` for installing.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -338,7 +342,7 @@ more than one `headline:`, missing scores, and a queried tag written in a form
 Dataview cannot read. Run it directly:
 
 ```bash
-python3 skills/pa-todo-meeting/scripts/check_todo.py data/todo.md
+python3 skills/pa-checkin/scripts/check_todo.py data/todo.md
 ```
 
 `references/conventions.md` is the file format. `references/audit-checklist.md`
@@ -362,7 +366,7 @@ date re-guessed by hand.
 ```
 ## 1. People                      <- bucket
 ### Doing                         <- state
-- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial]
+- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial] [to:: Ana]
   - [ ] A sub-step [due:: 2026-08-19] [ai:: full]
     - Suggested message: "..."   <- ready to send
     - Prompt: "..."              <- ready to hand to Claude
@@ -376,6 +380,21 @@ state is a heading rather than a code change. The board reads them in reverse
 file order and adds a **Done** column on the end that no heading produces. Left
 to right that is Backlog, To do, Doing, Waiting review, Done.
 
+**Blocked** sits between Doing and Waiting review, but it is not a standing
+heading like the other four — it has no place in the file until a task is
+actually moved there from the drawer's Column field, and the board drops the
+column again once nothing is left in it. Use it for a task that cannot move
+until something outside it changes, as distinct from `blocked-by:`, which
+points at another task on the list rather than an external hold-up.
+
+`[to:: ]` is who the task has been handed to. It is a person's name, and it is
+optional: most of the list is work you are doing yourself, and a task without it
+shows nothing. It is deliberately separate from `[ai:: ]`, which says whether
+Claude is doing the work. The two answer different questions, and a task can
+easily be delegated to somebody and still be drafted by Claude first. When it is
+set, the name appears on the card as an arrowed chip in the accent colour, so
+scanning a column tells you what is with somebody else without opening anything.
+
 **Waiting review** holds work that is finished as far as you are concerned and is
 now sitting with somebody else for sign-off. Nothing is owed on it until it comes
 back, which is a different thing from Doing (live) and from Backlog (real work,
@@ -384,8 +403,8 @@ the board, because the two orders are mirrors of each other.
 
 ### Two tag syntaxes
 
-`impact`, `effort`, `due` and `ai` are written as Dataview inline fields, in
-brackets with a double colon. Everything else is a backtick code span.
+`impact`, `effort`, `due`, `ai` and `to` are written as Dataview inline fields,
+in brackets with a double colon. Everything else is a backtick code span.
 
 The split is not cosmetic. Dataview cannot read inside a code span, so those four
 had to come out of one for the Obsidian views to work, and the rest stayed in one

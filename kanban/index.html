@@ -258,6 +258,11 @@
   .mdot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .mdot.urgent{box-shadow:0 0 0 2px var(--red-bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
   .mdot.hl{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
+  /* Waiting on a review, or on another task. Faded the same way a done card is
+     faded on the board, and restored on hover, so it still reads as present
+     without competing with the work he can actually pick up. */
+  .mdot.muted{opacity:.3}
+  .mdot.muted:hover{opacity:1}
   /* The real card, floating beside the dot. Fixed so the scrolling column it
      lives in cannot clip it, and inert so it cannot intercept the click. */
   .mpreview{
@@ -278,6 +283,7 @@
   .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
   .mkeyhl i{background:transparent; box-shadow:0 0 0 2px var(--accent)}
   .mkeyurg i{background:var(--ink-faint); box-shadow:0 0 0 1.5px var(--bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
+  .mkeymuted i{background:var(--ink-faint); opacity:.3}
   .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-soft) !important}
   .mread strong{font-weight:700; color:var(--ink)}
   /* Tasks with a score missing cannot be placed, so they sit under the grid
@@ -289,6 +295,10 @@
   .mtrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
   .mtrayhead strong{font-size:12.5px; font-weight:700; color:var(--amber)}
   .mtrayhead span{font-size:11.5px; color:var(--ink-soft)}
+  /* The backlog tray is not a prompt to do anything, so it drops the amber and
+     sits quietly under the grid. */
+  .mtray.mhold{border-color:var(--line); background:transparent}
+  .mtray.mhold .mtrayhead strong{color:var(--ink-soft)}
   @media (max-width:720px){
     .mgrid{grid-template-columns:auto repeat(3, minmax(84px, 1fr))}
     .madvice{font-size:10px}
@@ -366,7 +376,7 @@
      than the two splitting the window evenly. */
   .lists.mview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:minmax(620px,1fr) 400px; min-width:1034px;
+    grid-template-columns:minmax(620px,1fr) 560px; min-width:1194px;
   }
   .lists.mview .listcard{margin:0}
   /* In a column this narrow, a Copy button sitting beside the text leaves it
@@ -436,13 +446,22 @@
      .row, .name and .tag already mean something else on a task card. A report
      is a picture of the file at one moment, so nothing in here is clickable
      except the task titles, which open the drawer like anywhere else. */
+  /* Sits above the counted report rather than inside it, since it governs
+     every report in reportDefs(), not just the one built today. */
+  .repwindow{
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:0 0 8px;
+  }
+  .repwindow select{
+    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
+  }
+  /* The range the dropdown resolves to, stated once beside it rather than
+     repeated as its own heading further down. */
+  .repwindow .repdates{color:var(--ink-faint)}
   /* The report's own name, not a section eyebrow: on this view the h2 is the
      heading you read, so it carries weight instead of shrinking away. */
   .reportsview h2{
     font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
   }
-  .reportsview h2:first-of-type{margin-top:6px}
-  .reportsview .window{font-size:12.5px; color:var(--ink-faint); margin:0 0 14px}
   /* The total is the answer to the question; the buckets underneath say where
      it came from. Big enough to read from across the desk. */
   .reportsview .total{
@@ -497,8 +516,27 @@
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
   .reportsview .done .tt:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  /* Archived work has nothing left in todo.md to open, so it stays plain text. */
+  .reportsview .done .tt.archived{color:var(--ink-soft); cursor:default}
+  .reportsview .done .tt.archived:hover{color:var(--ink-soft); text-decoration:none}
   .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
   .reportsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  /* Eight columns, heights in px rather than % — the track has a fixed
+     height, so a flex-percentage bar would need the track's height read back
+     out of layout instead of just being told what it is. */
+  .trend{display:flex; align-items:stretch; gap:6px; margin:8px 0 4px}
+  .trendcol{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px}
+  .trendn{font-size:11px; font-weight:660; color:var(--ink-soft)}
+  .trendtrack{width:100%; height:90px; display:flex; align-items:flex-end; justify-content:center}
+  /* The stack itself: one column, chunks in bucket order top to bottom, sized
+     to that bucket's share of the week — the breakdown is the bar, not
+     something that appears on top of it. */
+  .trendbar{width:55%; min-width:6px; display:flex; flex-direction:column; border-radius:3px 3px 0 0; overflow:hidden}
+  .trendseg{width:100%}
+  /* Current week is still filling up, so its label is marked rather than the
+     bar itself recoloured — the fill is bucket colour now, not a status. */
+  .trendcol.current .trendwk{color:var(--accent); font-weight:660}
+  .trendwk{font-size:10px; color:var(--ink-faint); white-space:nowrap}
   .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
 
@@ -523,7 +561,6 @@
     padding:11px 13px; margin:0 0 8px;
   }
   .repitem:last-child{margin-bottom:0}
-  .repitem.open{background:var(--panel); border-color:var(--ink-faint)}
   .rephead{
     display:flex; align-items:baseline; gap:10px; width:100%;
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
@@ -540,10 +577,8 @@
   /* The standfirst is the whole point of the closed state: it should say what the
      report found, so opening it is a choice rather than the only way to know. */
   .repsum{margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--ink-soft)}
-  .repdoc{
-    margin:12px 0 0; padding:12px 0 0; border-top:1px solid var(--line);
-  }
-  .repdoc.hidden{display:none}
+  /* Reused inside the modal's .mid — see openReportModal — so the typography
+     is what's shared here, not any box styling of its own. */
   .repdoc h4{
     margin:16px 0 6px !important; font-size:13.5px !important; font-weight:660 !important;
     color:var(--ink) !important;
@@ -638,6 +673,8 @@
   }
   .reflink:hover{color:var(--ink); border-color:var(--ink-faint); background:var(--bg)}
   .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
+  /* Why a low-scoring card is sitting near the top of the chain. */
+  .refholds{font-style:normal; color:var(--amber)}
   .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
   .ref .msg{margin:8px 0 0 21px}
   .ref .msglead, .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--ink-faint)}
@@ -668,6 +705,37 @@
   }
   .refchip:hover{color:var(--ink); border-color:var(--ink-faint)}
   .refchip.missing{color:var(--red); border-color:color-mix(in srgb, var(--red) 45%, transparent); cursor:default}
+  /* Dependency chain: the blocker(s) sit beside the card waiting on them.
+     Each blocker gets its own arrow into the target, so a task with several
+     blockers still reads as several distinct dependencies rather than one
+     lump. The target gets a dashed border, in the idle state, not just on
+     hover — it isn't ready to be delivered yet. */
+  .chainitem{margin:0 0 18px}
+  .chainitem:last-child{margin-bottom:0}
+  .chainrow{display:flex; align-items:center; gap:8px}
+  .chainfrom{display:flex; flex-direction:column; gap:10px; flex:1; min-width:0}
+  .chaindep{display:flex; align-items:center; gap:8px}
+  .chainarrow{flex:none; font-size:16px; color:var(--ink-faint); line-height:1}
+  .chaincard{
+    display:block; width:100%; text-align:left; background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; border-left:3px solid var(--bc,var(--line));
+    padding:7px 10px; cursor:pointer; min-width:0;
+  }
+  .chaincard:hover{border-color:var(--ink-faint)}
+  .chaincard.dep{flex:1; min-width:0}
+  .chaincard.target{
+    flex:1; min-width:0; border-style:dashed; border-color:var(--ink-faint);
+    border-left-style:solid; border-left-color:var(--bc,var(--line)); border-left-width:3px;
+  }
+  .chaincard.done .chaintitle{text-decoration:line-through}
+  .chaincard.missing{
+    cursor:default; border-style:dashed; border-left-color:var(--red);
+    background:var(--red-bg);
+  }
+  .chaintitle{display:block; font-size:12.5px; font-weight:570; line-height:1.35; color:var(--ink); overflow-wrap:anywhere}
+  .chaincard.missing .chaintitle{color:var(--red)}
+  .chainwhere{margin:2px 0 0; font-size:11px; color:var(--ink-faint)}
+  .chainholds{margin:6px 0 0; font-size:11.5px; color:var(--amber)}
   .empty{font-size:13px; color:var(--ink-faint)}
   /* Context entries are facts, not work: no tick box, no link, nothing to open. */
   .ref.ctx{border-left-color:var(--line); padding:8px 11px}
@@ -680,6 +748,20 @@
   .ctxtext, .msgtext, .reftitle, .refchip, .refwaits, .listcard p, .listcard li{overflow-wrap:anywhere}
   .ctxtext strong{color:var(--ink); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
+  /* One panel per `###` group in Context, closed by default — a dozen
+     sections is most of the column's length, and reading one shouldn't cost
+     scrolling past the other eleven. */
+  .ctxgroup{margin:0 0 2px; border-bottom:1px solid var(--line-soft)}
+  .ctxgroup:last-of-type{border-bottom:0}
+  .ctxgroup summary{
+    display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none;
+    padding:9px 2px; font-size:12.5px; font-weight:660; color:var(--ink-soft);
+  }
+  .ctxgroup summary::-webkit-details-marker{display:none}
+  .ctxgroup summary::before{content:'▸'; color:var(--ink-faint); font-size:10px}
+  .ctxgroup[open] summary::before{content:'▾'}
+  .ctxgroup summary:hover{color:var(--ink)}
+  .ctxgroup[open]{padding-bottom:8px}
   #lists.hidden{display:none}
   .allbuckets{
     font-size:12.5px; font-weight:620; color:var(--ink-soft);
@@ -715,6 +797,9 @@
   .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
   .title{font-size:13.5px; font-weight:570; line-height:1.35; letter-spacing:-.005em}
   .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
+  /* Urgent and due read as "look at this now", so they sit apart from the rest
+     of the meta row, pinned to the right rather than wrapping in with it. */
+  .meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
   .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
   .tag.impact-high{color:var(--ink)}
   .tag.due{background:var(--chip)}
@@ -728,7 +813,14 @@
   .tag.urgent{background:var(--red-bg); color:var(--red)}
   .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
   .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
-  .tag.ai-partial{color:var(--ink-soft)}
+  .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
+  /* Delegated to a person. Its own colour, because "someone else has this" is a
+     different fact from every other chip on the card, all of which describe the
+     work rather than who holds it. */
+  .tag.who{
+    background:color-mix(in srgb, var(--accent) 12%, transparent);
+    color:var(--accent); font-weight:650;
+  }
   .mini{font-style:normal; font-size:11px; font-weight:600; color:var(--ink-faint); background:var(--chip); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
   .mini.over{background:var(--red-bg); color:var(--red)}
   .mini.soon{background:var(--amber-bg); color:var(--amber)}
@@ -849,13 +941,6 @@
   .start .drops.over{border-color:var(--accent); color:var(--accent)}
   .err{background:var(--red-bg); color:var(--red); padding:9px 11px; border-radius:8px; font-size:12.5px; margin-top:12px}
 
-  /* ---------- auto-save toggle ---------- */
-  .autotoggle{
-    display:inline-flex; align-items:center; gap:6px; font-size:12.5px;
-    color:var(--ink-soft); white-space:nowrap; cursor:pointer;
-  }
-  .autotoggle input{margin:0; accent-color:var(--accent)}
-
   /* ---------- conflict modal ----------
      The one place the board interrupts. It only appears when the file on disk
      and the unsaved work in the tab have both moved, because that is the only
@@ -871,6 +956,9 @@
     box-shadow:0 12px 40px rgba(16,20,28,.28); width:min(560px,100%);
     max-height:min(78vh,660px); display:flex; flex-direction:column; overflow:hidden;
   }
+  /* A written report is a document and wants a document's width — the default
+     560px is sized for a confirmation, not 600 words read down a gutter. */
+  .sheet.wide{width:min(760px,100%); max-height:min(84vh,760px)}
   .sheet h2{font-size:15px; font-weight:660; margin:0; letter-spacing:-.01em}
   .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--line-soft)}
   .sheet .msub{font-size:13px; color:var(--ink-soft); margin:7px 0 0; line-height:1.5}
@@ -920,16 +1008,11 @@
   <span class="tabs" id="viewToggle"></span>
   <span class="spacer"></span>
   <span class="status" id="status">read only</span>
-  <label class="autotoggle" id="autoWrap" for="autosave"
-         title="Saves on its own every 5 minutes, but only when something has changed.">
-    <input type="checkbox" id="autosave"> Auto-save
-  </label>
   <button class="btn hidden" id="archiveBtn"></button>
   <span class="menugroup" id="dataMenu">
     <span class="menulabel">Data</span>
-    <button class="btn" id="reload" title="Re-read the file from disk">Reload</button>
+    <button class="btn" id="undo" disabled title="Undo the last change (⌘Z)">Undo</button>
     <button class="btn" id="download">Download copy</button>
-    <button class="btn primary" id="save" disabled>Save to file</button>
   </span>
 
   <div class="filters">
@@ -978,7 +1061,7 @@
   <div class="dfoot">
     <button class="btn danger" id="del">Delete task</button>
     <span class="spacer"></span>
-    <span class="help" id="dfootHelp">Changes apply straight away</span>
+    <span class="help" id="dfootHelp">Changes save automatically</span>
   </div>
 </aside>
 
@@ -1061,7 +1144,7 @@ function parseTask(rawLines){
     const k = bk != null ? bk : sk, v = bk != null ? bv : sv;
     const key = k.toLowerCase();
     if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai' ||
-        key === 'start' || key === 'done') tags[key] = v.trim();
+        key === 'start' || key === 'done' || key === 'to') tags[key] = v.trim();
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
     else if (key === 'headline') headline = v.trim();
@@ -1092,6 +1175,11 @@ function parseTask(rawLines){
        old finished work needs to know. Written when a task is ticked. */
     doneOn: tags.done || '',
     ai: tags.ai || '',
+    /* Who this has been handed to. A person, not Claude — `ai:` already says
+       whether the machine is doing it, and the two answer different questions:
+       one task can be delegated to someone and still be drafted by Claude.
+       Optional, and blank on almost everything, so nothing shows when it is. */
+    to: tags.to || '',
     urgent, week, slug, blockedBy, rank, headline, extra,
     body: rawLines.slice(1),
     raw: first,
@@ -1119,6 +1207,7 @@ function serializeTask(t){
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
     if (t.ai)     tags.push('[ai:: ' + t.ai + ']');
+    if (t.to && t.to.trim()) tags.push('[to:: ' + t.to.trim() + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
     if (t.headline) tags.push('`headline:' + t.headline + '`');
@@ -1249,7 +1338,7 @@ const state = {
   /* Last-Modified of todo.md as this tab last agreed with it. Used to notice
      edits made outside the board. */
   diskStamp: null,
-  drawerWidth: +(localStorage.getItem('todo-board-drawer') || 400),
+  drawerWidth: (+localStorage.getItem('todo-board-drawer')) || 400,
   /* Backup Preview: state.doc holds an old backup instead of the live file, and
      nothing may write to it. Every mutation path checks this before touching
      anything; see updateLockUI for what it hides. */
@@ -1274,6 +1363,11 @@ state.sort = readSort();
    point the list is not colour-coded any more whatever we do. */
 const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)'];
 const DONE_COL = 'Done';
+/* Sits between Doing and Waiting review. Unlike the other columns it has no
+   standing heading in every bucket — it is only ever created the first time a
+   task is moved into it (see ensureTier), and the board hides it again once
+   nothing is left there (see the filter in renderBoard). */
+const BLOCKED_TIER = 'Blocked';
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
    needs a name no heading in the file could ever produce. */
 const ALL_BUCKETS = '__all__';
@@ -1287,7 +1381,8 @@ const TIER_HINT = {
   'Next':    'after that',
   'Doing':   'current focus, next two weeks',
   'Now':     'current focus',
-  'Done':    'ticked off'
+  'Done':    'ticked off',
+  'Blocked': "can't move until something changes"
 };
 
 /* The file lists tiers Now → Backlog. The board shows them the other way
@@ -1303,6 +1398,7 @@ function boardColumns(){ return allTiers().slice().reverse().concat([DONE_COL]);
    ========================================================================= */
 
 const IMPACT_N = { high:3, med:2, low:1 };
+const IMPACT_EMOJI = { high:'🔥', med:'🌤️', low:'🍃' };
 const EFFORT_N = { S:1, M:2, L:3 };
 function unscored(t){ return !IMPACT_N[t.impact] || !EFFORT_N[t.effort]; }
 /* Higher comes first. Deliberately impact ÷ effort rather than impact − effort:
@@ -1397,7 +1493,17 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 function allTiers(){
   const names = [];
   (state.doc ? state.doc.buckets : []).forEach(b => b.tiers.forEach(t => { if (names.indexOf(t.name) < 0) names.push(t.name); }));
-  return names.length ? names : ['Now','Next','Later','Parked'];
+  if (!names.length) return ['Now','Next','Later','Parked'];
+  // Blocked always sits right after Waiting review. Once a bucket actually
+  // has the heading, the scan above finds it wherever that bucket happens to
+  // put it in the merged list — meaningless, and it throws the board order
+  // off (reversed, the end of this list is the far left of the board) — so
+  // pull it back out and reinsert it in its fixed spot every time.
+  const at = names.indexOf(BLOCKED_TIER);
+  if (at > -1) names.splice(at, 1);
+  const after = names.indexOf('Waiting review');
+  names.splice(after < 0 ? names.length : after + 1, 0, BLOCKED_TIER);
+  return names;
 }
 /* A bucket may not have every column heading yet (e.g. an empty "Now").
    Create it in the right place the first time a card lands there. */
@@ -1439,11 +1545,80 @@ function setDone(t, on){
 
 function markDirty(){
   if (state.locked) return;
+  noteUndo();
+  applyDirty();
+}
+function applyDirty(msg){
   state.dirty = true;
-  $('#save').disabled = false;
   const s = $('#status');
-  s.textContent = 'unsaved changes';
+  s.textContent = msg || 'unsaved changes';
   s.classList.add('dirty');
+}
+
+/* =========================================================================
+   2d. Undo — five steps back, no more
+   state.doc is mutated in place everywhere, so the only way to go back is to
+   keep whole-document text snapshots and reparse one on request. Five is
+   plenty for "I didn't mean that" and cheap to keep — this is Markdown for a
+   personal list, not a novel.
+
+   A snapshot is taken the moment a burst of changes starts, not on every
+   markDirty() call: typing a title fires markDirty() once per keystroke, and
+   one undo step per letter would make the button useless. Instead the text as
+   it stood before the burst (undoBaseline) is pushed the first time markDirty
+   fires, and a short pause with no further changes closes the burst and moves
+   the baseline forward. Two checkboxes ticked half a second apart land in the
+   same step — an acceptable coarseness for what this button is for. */
+const UNDO_LIMIT = 5;
+const UNDO_GAP_MS = 600;
+let undoStack = [];
+let undoBaseline = '';
+let undoTimer = null;
+
+/* Called once per load — a fresh document starts with nothing to undo back
+   past, and reparsed text carries fresh task ids anyway (see uid()), so an
+   older snapshot would not line up with anything on screen. */
+function resetUndo(){
+  undoStack = [];
+  undoBaseline = state.doc ? serializeDoc(state.doc) : '';
+  clearTimeout(undoTimer);
+  undoTimer = null;
+  updateUndoButton();
+}
+function noteUndo(){
+  if (!state.doc) return;
+  if (undoTimer === null) {
+    undoStack.push(undoBaseline);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    updateUndoButton();
+  }
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    undoTimer = null;
+    undoBaseline = serializeDoc(state.doc);   // burst settled; this is the next step's floor
+  }, UNDO_GAP_MS);
+}
+function updateUndoButton(){
+  const b = $('#undo');
+  b.disabled = !undoStack.length;
+  b.title = undoStack.length
+    ? 'Undo the last change (⌘Z) — ' + undoStack.length + ' step' + (undoStack.length === 1 ? '' : 's') + ' back'
+    : 'Nothing to undo';
+}
+/* Reparsing rather than reversing a diff — simplest, and it's exactly what
+   Reload from disk already does. Fresh ids mean the drawer can't stay open on
+   whatever was showing, same as any other reparse. */
+function undo(){
+  if (state.locked || !undoStack.length) return;
+  clearTimeout(undoTimer);
+  undoTimer = null;
+  const text = undoStack.pop();
+  closeDrawer();
+  state.doc = parseDoc(text);
+  undoBaseline = text;
+  applyDirty('undone');
+  refreshView();
+  updateUndoButton();
 }
 /* auto: the board did this on its own — an auto-save, or a reload the watcher
    ran because the file moved under it — so he may not have been looking when it
@@ -1452,7 +1627,6 @@ function markDirty(){
    sitting there. Messages he asked for keep the clock time: he knows when. */
 function markClean(msg, auto){
   state.dirty = false;
-  $('#save').disabled = true;
   const s = $('#status');
   s.classList.remove('dirty');
   if (auto && msg) { autoStatus(msg); return; }
@@ -1538,6 +1712,7 @@ function subSteps(t){
     out.push({
       line: i, indent: m[1], done: m[2].toLowerCase() === 'x', text: m[3],
       due: readField(m[3], 'due'),
+      doneOn: readField(m[3], 'done'),
       clean: stripTags(m[3]).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim()
     });
   });
@@ -1571,12 +1746,19 @@ function moveSub(t, from, to){
   rebuildBody(t, p.notes, p.subs, p.subsAt);
   markDirty();
 }
+/* setDone's treatment, applied to one sub-step: ticking writes a `done:` date
+   on the line, unticking clears it, so a sub-step is dated the same way a
+   task is rather than leaving the box as the only record of when it moved. */
 function toggleSub(t, lineIdx){
   if (state.locked) return;
   const m = SUB_RE.exec(t.body[lineIdx]);
   if (!m) return;
-  const box = m[2].toLowerCase() === 'x' ? '[ ]' : '[x]';
-  t.body[lineIdx] = m[1] + '- ' + box + ' ' + m[3];
+  const toDone = m[2].toLowerCase() !== 'x';
+  const box = toDone ? '[x]' : '[ ]';
+  let text = m[3].replace(/\[done::\s*[^\]]*\]|`done:[^`]*`/i, '')
+                  .replace(/\s{2,}/g, ' ').trim();
+  if (toDone) text = (text ? text + ' ' : '') + '[done:: ' + ymd(today()) + ']';
+  t.body[lineIdx] = m[1] + '- ' + box + ' ' + text;
   markDirty();
 }
 /* Replaces the text of one sub-step in place, keeping its indent and tick state.
@@ -1875,13 +2057,19 @@ function cardHTML(t, color, bucketLabel, opts){
   let meta = '';
   // Says it once, on the card, rather than leaving a gap that reads as "low".
   if (unscored(t) && !t.done) meta += '<span class="tag needsscore">needs scoring</span>';
-  if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '">' + esc(t.impact) + ' impact</span>';
+  if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '" title="' + esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
   if (t.effort) meta += '<span class="tag">' + esc(t.effort) + '</span>';
-  if (t.urgent) meta += '<span class="tag urgent">urgent</span>';
   const si = startInfo(t.start);
   if (si) meta += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
-  if (di) meta += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
-  if (t.ai) meta += '<span class="tag ai ai-' + esc(t.ai) + '">ai: ' + esc(t.ai) + '</span>';
+  if (t.ai && t.ai !== 'none') meta += '<span class="tag ai ai-' + esc(t.ai) + '" title="' + esc(t.ai) + ' AI help">ai</span>';
+  if (t.to && t.to.trim()) meta += '<span class="tag who" title="Delegated to ' +
+    esc(t.to.trim()) + '">\u2192 ' + esc(t.to.trim()) + '</span>';
+  // Urgent and due are the "look at this now" signals, so they get their own
+  // corner rather than sitting in the wrap with everything else.
+  let metaWhen = '';
+  if (t.urgent) metaWhen += '<span class="tag urgent">urgent</span>';
+  if (di) metaWhen += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
+  if (metaWhen) meta += '<span class="meta-when">' + metaWhen + '</span>';
 
   let prog = '';
   if (subs.length) {
@@ -1896,7 +2084,7 @@ function cardHTML(t, color, bucketLabel, opts){
     (opts.static ? '' : ' tabindex="0" role="button"' + (opts.noDrag ? '' : ' draggable="true"')) +
     ' data-id="' + t.id + '" style="--bc:' + color + '">' +
     (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +
-    '<div class="title">' + esc(t.title) + '</div>' +
+    '<div class="title">' + mdInline(t.title) + '</div>' +
     (meta ? '<div class="meta">' + meta + '</div>' : '') +
     prog +
   '</article>';
@@ -2052,9 +2240,9 @@ function refTags(it){
   const di = dueInfo(it.due);
   if (di) out += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
   if (it.urgent) out += '<span class="tag urgent">urgent</span>';
-  if (it.impact) out += '<span class="tag impact-' + esc(it.impact) + '">' + esc(it.impact) + ' impact</span>';
+  if (it.impact) out += '<span class="tag impact-' + esc(it.impact) + '" title="' + esc(it.impact) + ' impact">' + (IMPACT_EMOJI[it.impact] || esc(it.impact)) + '</span>';
   if (it.effort) out += '<span class="tag">' + esc(it.effort) + '</span>';
-  if (it.ai) out += '<span class="tag ai ai-' + esc(it.ai) + '">ai: ' + esc(it.ai) + '</span>';
+  if (it.ai && it.ai !== 'none') out += '<span class="tag ai ai-' + esc(it.ai) + '" title="' + esc(it.ai) + ' AI help">ai</span>';
   return out;
 }
 
@@ -2085,7 +2273,7 @@ function refCard(it, opts){
       '<button class="refbox" data-tick="' + it.id + '"' + target +
         ' role="checkbox" aria-checked="' + it.done + '"' +
         ' title="' + (it.done ? 'Mark as not done' : 'Mark as done') + '">' + (it.done ? '✓' : '') + '</button>' +
-      '<button class="reftitle" data-open="' + it.id + '" title="Open this task">' + esc(it.title) + '</button>' +
+      '<button class="reftitle" data-open="' + it.id + '" title="Open this task">' + mdInline(it.title) + '</button>' +
       (opts.unweek
         ? '<button class="refdrop" data-unweek="' + it.id + '"' + target + ' title="Take this out of the week">Not this week</button>'
         : '') +
@@ -2121,27 +2309,39 @@ function weekSection(items){
    Anything tagged ai:full is left out too. Delegate to Claude already lists
    every one of them, ranked, and the two columns sit side by side on Overview —
    the same card in both reads as two jobs when it is one. Quick wins is what is
-   left for him to do himself. */
+   left for him to do himself.
+
+   Backlog is left out entirely, the same call the matrix makes with HELD_TIER —
+   it has been parked on purpose, so however small it is, it is not a real
+   priority and not something to surface here.
+
+   What is left is ordered by byPriority, the dependency chain's own
+   assessment: a two-minute message that happens to unblock a big rock outranks
+   one that unblocks nothing, the same way the chain ranks a blocked card by
+   what is riding on it rather than its own score alone. */
 function quickSection(items){
-  // ai:full belongs to Delegate to Claude, not here.
-  const open = items.filter(i => !i.done && i.ai !== 'full');
+  // ai:full belongs to Delegate to Claude, and Backlog is not a real priority —
+  // neither belongs here.
+  const open = items.filter(i => !i.done && i.ai !== 'full' && i.tier !== HELD_TIER);
   // Two separate reasons something is not a quick win yet: it waits on another
   // task, or its start date has not arrived. Neither is about the deadline —
   // an overdue task is the most actionable thing on the list, not the least.
-  const live = open.filter(i => actionable(items, i) && !notYet(i.start));
+  const live = byPriority(items, open.filter(i => actionable(items, i) && !notYet(i.start))).order;
   const heldByDep = open.filter(i => !actionable(items, i)).length;
   const heldByDate = open.filter(i => actionable(items, i) && notYet(i.start)).length;
+  const heldByBacklog = items.filter(i => !i.done && i.ai !== 'full' && i.tier === HELD_TIER).length;
   const isS = i => i.sub === null && i.effort === 'S';
   const seen = new Set();
   const take = arr => arr.filter(i => { const k = i.id + '|' + i.title; if (seen.has(k)) return false; seen.add(k); return true; });
 
-  const messages = take(live.filter(i => i.message)).sort(byDue);
+  const messages = take(live.filter(i => i.message));
   const decide   = take(live.filter(i => isS(i) && i.ai === 'partial'));
   const talk     = take(live.filter(i => isS(i) && i.ai === 'none'));
 
   const reasons = [];
   if (heldByDep)  reasons.push('<strong>' + heldByDep + '</strong> waiting on another task');
   if (heldByDate) reasons.push('<strong>' + heldByDate + '</strong> not startable yet');
+  if (heldByBacklog) reasons.push('<strong>' + heldByBacklog + '</strong> parked in ' + esc(HELD_TIER));
   const note = reasons.length
     ? '<p class="refheld">Left out: ' + reasons.join(' · ') + '.</p>'
     : '';
@@ -2161,23 +2361,104 @@ function bigRocksSection(items){
                       : '<p class="empty">No high impact, L effort tasks.</p>';
 }
 
+/* An item's own impact. Sub-steps are never scored, so one takes the score of
+   the task it sits in — that is the work it is part of. */
+function itemImpact(it){
+  return IMPACT_N[it.impact || (it.sub ? it.task.impact : '')] || 0;
+}
+
+/* What is riding on a blocked card: its own impact, or the impact of anything
+   still waiting on it, whichever is higher. A small task holding up a big one
+   is worth unpicking for the big one's sake, and that carries down a chain, so
+   this follows the whole tail rather than one step of it. `seen` is copied at
+   each step, which keeps it to the current path and stops a circular
+   blocked-by from looping forever. */
+function chainWeight(waiters, it, seen){
+  seen = seen ? new Set(seen) : new Set();
+  let best = itemImpact(it);
+  if (!it.slug || seen.has(it.slug)) return best;
+  seen.add(it.slug);
+  (waiters.get(it.slug) || []).forEach(o => {
+    best = Math.max(best, chainWeight(waiters, o, seen));
+  });
+  return best;
+}
+
+/* Slug → everything still waiting on it, across every open item. Built once
+   and shared: both the chain and quick wins ask the same question — "what
+   does finishing this actually unblock" — and re-deriving the answer per
+   caller would be the same walk of the list twice. */
+function waitersMap(items){
+  const waiters = new Map();
+  items.forEach(o => {
+    if (o.done) return;
+    unresolvedBlockers(items, o).forEach(sl => {
+      if (!waiters.has(sl)) waiters.set(sl, []);
+      waiters.get(sl).push(o);
+    });
+  });
+  return waiters;
+}
+
+/* Heaviest first — the same assessment the dependency chain uses, reused
+   wherever "what's actually worth doing first" is the question. Ties go to
+   whichever frees the most tasks, then to the nearest date. Weight is looked
+   up from a precomputed map rather than called fresh per comparison, since a
+   sort calls its comparator O(n log n) times and chainWeight walks the whole
+   downstream chain on every call. Returns the order and the weights it was
+   computed from, since a caller sometimes needs to explain a card's position,
+   not just show it. */
+function byPriority(items, list){
+  const waiters = waitersMap(items);
+  const weight = new Map(list.map(i => [i, chainWeight(waiters, i, null)]));
+  const order = list.slice().sort((a, b) => {
+    const wd = weight.get(b) - weight.get(a);
+    if (wd) return wd;
+    const fd = (waiters.get(b.slug) || []).length - (waiters.get(a.slug) || []).length;
+    if (fd) return fd;
+    return byDue(a, b);
+  });
+  return { order, weight };
+}
+
 function chainSection(items){
   const blocked = items.filter(i => i.blockedBy.length && !i.done);
   if (!blocked.length) return '<p class="empty">Nothing carries a <code>blocked-by:</code> tag.</p>';
-  return blocked.map(i => {
-    const on = i.blockedBy.map(slug => {
+
+  const { order, weight } = byPriority(items, blocked);
+
+  return order.map(i => {
+    const deps = i.blockedBy.map(slug => {
       const src = itemBySlug(items, slug);
-      return src
-        ? '<button class="refchip" data-open="' + src.id + '">' + esc(src.title) + (src.done ? ' ✓' : '') + '</button>'
-        : '<span class="refchip missing" title="No task carries this slug">#' + esc(slug) + ' missing</span>';
+      const card = src ? chainCard(src, { dep:true }) : chainMissing(slug);
+      return '<div class="chaindep">' + card + '<span class="chainarrow" aria-hidden="true">→</span></div>';
     }).join('');
-    return '<article class="ref" style="--bc:' + i.color + '">' +
-      '<div class="refhead"><span class="reftitle">' + esc(i.title) + '</span>' +
-      '<button class="reflink" data-open="' + i.id + '">Open</button></div>' +
-      '<div class="refwhere">' + esc(i.bucket) + '</div>' +
-      '<div class="refwaits">waits on' + on + '</div>' +
-    '</article>';
+    return '<div class="chainitem">' +
+      '<div class="chainrow">' +
+        '<div class="chainfrom">' + deps + '</div>' +
+        chainCard(i, { target:true }) +
+      '</div>' +
+      (weight.get(i) > itemImpact(i)
+        ? '<div class="chainholds">Holds up higher impact work</div>' : '') +
+    '</div>';
   }).join('');
+}
+
+/* One mini ticket in the chain — a blocker (dashed, dep:true) or the card
+   waiting on it (target:true). Both open the full task on click. */
+function chainCard(it, opts){
+  opts = opts || {};
+  const cls = 'chaincard' + (opts.dep ? ' dep' : '') + (opts.target ? ' target' : '') + (it.done ? ' done' : '');
+  return '<div class="' + cls + '" style="--bc:' + it.color + '" data-open="' + it.id + '" title="Open this task">' +
+    '<span class="chaintitle">' + mdInline(it.title) + (it.done ? ' ✓' : '') + '</span>' +
+    '<div class="chainwhere">' + esc(it.bucket) + '</div>' +
+  '</div>';
+}
+
+function chainMissing(slug){
+  return '<div class="chaincard dep missing" title="No task carries this slug">' +
+    '<span class="chaintitle">#' + esc(slug) + ' missing</span>' +
+  '</div>';
 }
 
 /* Only ai:full work belongs here, and the ai: tag is the gate rather than the
@@ -2255,9 +2536,15 @@ function contextSection(){
   if (!lines.length) return '';
 
   let html = '', group = '', items = [];
+  // Grouped facts collapse behind their heading — a dozen `###` sections is
+  // most of the column's length, and only one is usually the one being read.
+  // Anything before the first heading has no title to collapse behind, so it
+  // stays open, plain, the way it always has.
   const flush = () => {
     if (!items.length) return;
-    html += (group ? '<h4 class="refgroup">' + esc(group) + '</h4>' : '') + items.join('');
+    html += group
+      ? '<details class="ctxgroup"><summary>' + esc(group) + '</summary>' + items.join('') + '</details>'
+      : items.join('');
     items = [];
   };
 
@@ -2315,15 +2602,60 @@ function viewDefs(){
    more report*Report() that returns HTML and listing it in reportDefs().
    ========================================================================= */
 
-/* The window is deliberately the same 30 days that archiving leaves alone, so
-   the report can never be quietly wrong about its own period: anything old
-   enough to fall out of this count is also old enough to have left todo.md. */
-/* A function rather than a const: ARCHIVE_DAYS is declared further down the
-   file, and a const reading it up here would be evaluated before it exists. */
-function reportDays(){ return ARCHIVE_DAYS; }
+/* Fixed choices rather than a free "since" date — this counts recent output,
+   and each option answers "how am I doing lately" at a different grain. The
+   30-day default is the one archiving also leaves alone (see the note in
+   completedByCategoryReport), so it can never be quietly wrong about its own
+   period. Past that, completedRecently() reads the archive to fill in the
+   older end, which is what makes 60 and 90 trustworthy rather than a guess —
+   90 is a quarter, close enough for the question a quarterly review actually
+   asks. "This week" is the calendar week — Monday to today, not a rolling
+   seven days — because that is the question Monday standup answers. */
+const REPORT_WINDOWS = [
+  { id:'week', label:'This week' },
+  { id:'7',    label:'Past 7 days',  days:7 },
+  { id:'15',   label:'Past 15 days', days:15 },
+  { id:'30',   label:'Past 30 days', days:30 },
+  { id:'60',   label:'Past 60 days', days:60 },
+  { id:'90',   label:'Past 90 days', days:90 }
+];
+const REPORT_WINDOW_KEY = 'todo-board-report-window';
+function readReportWindow(){
+  try {
+    const saved = localStorage.getItem(REPORT_WINDOW_KEY);
+    return REPORT_WINDOWS.some(w => w.id === saved) ? saved : '30';
+  } catch (e) { return '30'; }
+}
+let reportWindow = readReportWindow();
+/* Returns whether it actually changed, so the caller knows whether a
+   re-render is worth doing. */
+function setReportWindow(id){
+  if (reportWindow === id || !REPORT_WINDOWS.some(w => w.id === id)) return false;
+  reportWindow = id;
+  try { localStorage.setItem(REPORT_WINDOW_KEY, id); } catch (e) {}
+  return true;
+}
+function reportWindowStart(){
+  if (reportWindow === 'week') {
+    const dow = (today().getDay() + 6) % 7;   // Monday = 0
+    return new Date(today() - dow * 86400000);
+  }
+  const def = REPORT_WINDOWS.find(w => w.id === reportWindow);
+  return new Date(today() - (def ? def.days : 30) * 86400000);
+}
+/* A function rather than a const, for two reasons: it depends on the picker
+   above, and ARCHIVE_DAYS is declared further down the file, so a const
+   reading either one up here would be evaluated before they exist. */
+function reportDays(){ return Math.round((today() - reportWindowStart()) / 86400000); }
+/* "This week" reads oddly re-said as "the last 3 days" on a Wednesday, so the
+   two kinds of window get their own phrasing everywhere the count is put into
+   a sentence. */
+function reportWindowPhrase(){
+  return reportWindow === 'week' ? 'this week' : 'in the last ' + reportDays() + ' days';
+}
 
 function reportDefs(){
-  return [completedByCategoryReport];
+  return [completedByCategoryReport, weeklyTrendReport];
 }
 
 /* "27 Aug" — the year is noise inside a 30 day window. */
@@ -2332,18 +2664,85 @@ function reportDay(iso){
   return d ? d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) : iso;
 }
 
-/* Every ticked, dated task inside the window, kept with the bucket it was in so
-   the breakdown does not need a second walk of the document. Sorted newest
-   first, because a list of finished work is read from the top. */
+/* ---- Reading past the archive point ----
+
+   Finished work older than ARCHIVE_DAYS can be lifted out of todo.md into
+   data/backups/done-archive.md (see "Archiving finished work" further down).
+   A window longer than that used to just say so and stop — the older end of
+   the count was whatever hadn't been archived yet, which is not a count at
+   all. The archive is the same task-line grammar as todo.md, grouped under
+   "### Bucket · Tier" headings instead of nested columns, so it is parsed
+   with the same parseTask() rather than a second parser.
+
+   Fetched once and cached: the file only grows when Archive is actually used,
+   which is rare enough that a stale cache is not a real risk, and the archive
+   invalidates its own cache when that happens (see runArchive). */
+let archiveEntries = null;             // null until the first fetch resolves
+let archiveEntriesPromise = null;
+let archiveEntriesError = false;
+
+function parseArchiveEntries(text){
+  const out = [];
+  let bucketName = '', tierName = '';
+  text.replace(/\r\n?/g, '\n').split('\n').forEach(line => {
+    const h3 = /^###\s+(.*)$/.exec(line);
+    if (h3) {
+      const parts = h3[1].split(' · ');
+      bucketName = (parts[0] || '').trim();
+      tierName = (parts[1] || '').trim();
+      return;
+    }
+    if (!TASK_RE.test(line)) return;
+    const t = parseTask([line]);
+    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn });
+  });
+  return out;
+}
+
+function invalidateArchiveEntries(){
+  archiveEntries = null;
+  archiveEntriesPromise = null;
+  archiveEntriesError = false;
+}
+
+/* Returns the cached list once loaded, otherwise kicks off the one fetch and
+   returns null. onReady is called when that fetch settles, so the caller can
+   re-render — the same lazy pattern renderWrittenReports uses for report
+   bodies. */
+function archiveEntriesSync(onReady){
+  if (archiveEntries) return archiveEntries;
+  if (!archiveEntriesPromise) {
+    archiveEntriesPromise = fetch('/data/backups/done-archive.md?t=' + Date.now(), { cache:'no-store' })
+      .then(res => res.ok ? res.text() : Promise.reject(res.status))
+      .then(text => { archiveEntries = parseArchiveEntries(text); })
+      .catch(() => { archiveEntries = []; archiveEntriesError = true; })
+      .then(onReady);
+  }
+  return null;
+}
+
+/* Every ticked, dated task inside the window, kept with the bucket and tier it
+   was in so the breakdown does not need a second walk of the document. Once
+   the window reaches past ARCHIVE_DAYS, archived work is merged in too — see
+   above — so "sorted newest first" still means the whole period, not just
+   whatever is still sitting in todo.md. */
 function completedRecently(){
   const out = [];
-  if (!state.doc) return out;
-  state.doc.buckets.forEach((b, bi) => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+  const days = reportDays();
+  if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
     if (!t.done || !t.doneOn) return;
     const age = daysSince(t.doneOn);
-    if (age == null || age < 0 || age > reportDays()) return;
-    out.push({ bucket:b, bi, tier, task:t, age });
+    if (age == null || age < 0 || age > days) return;
+    out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, age });
   })));
+  if (days > ARCHIVE_DAYS) {
+    const entries = archiveEntriesSync(() => renderCountedReports());
+    (entries || []).forEach(e => {
+      const age = daysSince(e.doneOn);
+      if (age == null || age < 0 || age > days) return;
+      out.push({ bucketName:e.bucketName, tierName:e.tierName, title:e.title, doneOn:e.doneOn, taskId:null, age });
+    });
+  }
   return out.sort((x, y) => x.age - y.age);
 }
 
@@ -2361,16 +2760,15 @@ function undatedDoneCount(){
 
 function completedByCategoryReport(){
   const list = completedRecently();
-  const from = new Date(today() - reportDays() * 86400000);
-  const window = 'Ticked between <strong>' + esc(reportDay(ymd(from))) + '</strong> and ' +
-    '<strong>' + esc(reportDay(ymd(today()))) + '</strong>, counted from the `done:` date on each task.';
 
   // Every bucket appears, including the empty ones. A bucket with nothing in it
-  // is a finding, and dropping it would hide that.
+  // is a finding, and dropping it would hide that. Matched by name rather than
+  // by object identity so an archived entry, which has no live bucket to point
+  // at, groups the same way a task still in todo.md does.
   const rows = state.doc.buckets.map((b, i) => ({
     name: b.name,
     color: BUCKET_COLOR[i % BUCKET_COLOR.length],
-    items: list.filter(it => it.bucket === b)
+    items: list.filter(it => it.bucketName === b.name)
   }));
   const total = list.length;
   const most = rows.reduce((m, r) => Math.max(m, r.items.length), 0);
@@ -2379,12 +2777,15 @@ function completedByCategoryReport(){
     const n = r.items.length;
     const pct = total ? Math.round(n / total * 100) : 0;
     const width = most ? (n / most * 100) : 0;
+    // An archived task has no live id to open the drawer with, so it renders
+    // as plain text instead of a button.
     const tasks = r.items.map(it =>
       '<li style="--bc:' + r.color + '">' +
-        '<span class="dt">' + esc(reportDay(it.task.doneOn)) + '</span>' +
-        '<button class="tt" data-open="' + it.task.id + '" title="Open this task">' +
-          esc(it.task.title) + '</button>' +
-        '<span class="where">' + esc(it.tier.name) + '</span>' +
+        '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
+        (it.taskId
+          ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
+          : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
+        '<span class="where">' + esc(it.tierName) + '</span>' +
       '</li>').join('');
     return '<div class="bkgroup">' +
         '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
@@ -2399,26 +2800,165 @@ function completedByCategoryReport(){
   };
 
   const undated = undatedDoneCount();
+  // Below 30 days this window sits inside the one archiving leaves alone, so the
+  // count is a complete picture by construction. Past it, completeness depends
+  // on the archive fetch above: still loading, failed, or in and merged.
+  let archiveNote;
+  if (reportDays() <= ARCHIVE_DAYS) {
+    archiveNote = 'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md. This window ' +
+      'stays inside that, so the count above is the whole story for the period.';
+  } else if (archiveEntriesError) {
+    archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to the ' +
+      'archive, and that file could not be read — so the older end of this count may be incomplete.';
+  } else if (archiveEntries === null) {
+    archiveNote = 'Reading the archive for finished work older than ' + ARCHIVE_DAYS + ' days…';
+  } else {
+    archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to ' +
+      '`data/backups/done-archive.md` — counted in here too, so the total above still covers the whole period.';
+  }
   const notes = [
     'Only tasks carrying a `done:` date are counted. The board writes that date when ' +
     'a task is ticked, so anything ticked before that was added is invisible here.',
-    'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md, ' +
-    'which is why this report stops at ' + reportDays() + ' days — past that the file is no ' +
-    'longer the whole story.'
+    archiveNote
   ];
   if (undated) notes.unshift('<strong>' + undated + ' ticked task' + (undated === 1 ? ' has' : 's have') +
     ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' not in the count above.');
 
-  return '<h2>Completed in the last ' + reportDays() + ' days</h2>' +
-    '<p class="window">' + window + '</p>' +
-    '<div class="total"><span class="totaln">' + total + '</span>' +
+  return '<div class="total"><span class="totaln">' + total + '</span>' +
       '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
       state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
       '</span></div>' +
     (total ? rows.map(rowHTML).join('')
-           : '<div class="empty">Nothing has been ticked off with a date in the last ' +
-             reportDays() + ' days.</div>') +
+           : '<div class="empty">Nothing has been ticked off with a date ' +
+             reportWindowPhrase() + '.</div>') +
     notes.map(n => '<p class="note">' + n + '</p>').join('');
+}
+
+/* ---- Weekly pace ----
+
+   A count for one window says how much moved. It says nothing about whether
+   that is more or less than usual, and reconstructing that by memory or by
+   digging out old reports is exactly the kind of arithmetic this view exists
+   to do instead. Eight trailing complete weeks, Monday to Sunday.
+
+   Deliberately its own window rather than tied to the picker above: that one
+   answers "how much lately" at whatever grain is asked for, this answers "is
+   the pace climbing or flat", and letting one silently resize the other would
+   make both harder to read. Reaches past ARCHIVE_DAYS by construction, so it
+   reads the archive the same way completedRecently() does. */
+const TREND_WEEKS = 8;
+
+function weekBuckets(n){
+  const dow = (today().getDay() + 6) % 7;              // Monday = 0
+  const thisMonday = new Date(today() - dow * 86400000);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--){
+    const start = new Date(thisMonday.getTime() - i * 7 * 86400000);
+    out.push({ start, end: new Date(start.getTime() + 6 * 86400000) });
+  }
+  return out;
+}
+
+/* Every ticked, dated task's finish date across the trend's own lookback,
+   live and archived alike, kept with the bucket it was in — a bar says how
+   many, hovering it says which. */
+function trendEntries(){
+  const from = weekBuckets(TREND_WEEKS)[0].start;
+  const out = [];
+  if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
+    if (!t.done || !t.doneOn) return;
+    const d = parseDue(t.doneOn);
+    if (d && d >= from) out.push({ date: d, bucketName: b.name });
+  })));
+  if (Math.round((today() - from) / 86400000) > ARCHIVE_DAYS) {
+    const entries = archiveEntriesSync(() => renderCountedReports());
+    (entries || []).forEach(e => {
+      const d = parseDue(e.doneOn);
+      if (d && d >= from) out.push({ date: d, bucketName: e.bucketName });
+    });
+  }
+  return out;
+}
+
+function weeklyTrendReport(){
+  const weeks = weekBuckets(TREND_WEEKS);
+  const entries = trendEntries();
+  // Bucket order and colour match the board's own, so a bucket reads the same
+  // colour here as everywhere else. An archived bucket that no longer exists
+  // still needs somewhere to go, so anything unmatched is appended, greyed.
+  const bucketOrder = state.doc ? state.doc.buckets.map(b => b.name) : [];
+  const colorOf = name => {
+    const i = bucketOrder.indexOf(name);
+    return i > -1 ? BUCKET_COLOR[i % BUCKET_COLOR.length] : 'var(--ink-faint)';
+  };
+
+  const weekData = weeks.map(w => {
+    const inWeek = entries.filter(e => e.date >= w.start && e.date <= w.end);
+    const counts = new Map();
+    inWeek.forEach(e => counts.set(e.bucketName, (counts.get(e.bucketName) || 0) + 1));
+    const order = bucketOrder.filter(n => counts.has(n))
+      .concat([...counts.keys()].filter(n => !bucketOrder.includes(n)));
+    return {
+      start: w.start, end: w.end, total: inWeek.length,
+      breakdown: order.map(n => ({ name: n, n: counts.get(n), color: colorOf(n) }))
+    };
+  });
+
+  const counts = weekData.map(w => w.total);
+  const most = Math.max(1, ...counts);
+  const barMax = 90;                                    // px, the track's own height below
+
+  /* The breakdown is the bar, not a tooltip on it: each week's stack is sliced
+     into one chunk per bucket, each chunk's own height its share of the bar's
+     total height. A week with nothing finished gets a thin neutral sliver
+     rather than a stack with nothing in it. */
+  const bars = weekData.map((w, i) => {
+    const h = w.total ? Math.max(4, Math.round(w.total / most * barMax)) : 2;
+    let chunks;
+    if (!w.total) {
+      chunks = '<span class="trendseg" style="height:' + h + 'px; background:var(--ink-faint)"></span>';
+    } else {
+      let used = 0;
+      chunks = w.breakdown.map((b, bi) => {
+        // Rounding each share independently can miss the total by a pixel or
+        // two either way — the last chunk absorbs the difference so the stack
+        // always sums to exactly h, not h±rounding.
+        const seg = bi === w.breakdown.length - 1 ? h - used : Math.round(b.n / w.total * h);
+        used += seg;
+        return '<span class="trendseg" style="height:' + Math.max(1, seg) + 'px; background:' + b.color + '" ' +
+          'title="' + esc(b.name) + ': ' + b.n + '"></span>';
+      }).join('');
+    }
+    return '<div class="trendcol' + (i === weekData.length - 1 ? ' current' : '') + '">' +
+        '<span class="trendn">' + w.total + '</span>' +
+        '<div class="trendtrack"><div class="trendbar">' + chunks + '</div></div>' +
+        '<span class="trendwk">' + esc(reportDay(ymd(w.start))) + '</span>' +
+      '</div>';
+  }).join('');
+
+  // Split the run in half and compare the two halves' averages, rather than
+  // just the last week against the first — one quiet Friday should not read
+  // as a slowdown.
+  const half = Math.ceil(weeks.length / 2);
+  const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
+  const earlierN = weeks.length - half;
+  const earlierAvg = earlierN ? counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN : recentAvg;
+  let pace;
+  if (recentAvg === 0 && earlierAvg === 0) {
+    pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
+  } else if (recentAvg > earlierAvg * 1.15) {
+    pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
+  } else if (recentAvg < earlierAvg * 0.85) {
+    pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
+  } else {
+    pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
+  }
+
+  return '<h2>Weekly pace</h2>' +
+    '<p class="window">Tasks finished per week, Monday to Sunday, over the last ' +
+      weeks.length + ' weeks, each bar split by bucket.</p>' +
+    '<div class="trend">' + bars + '</div>' +
+    '<p class="note">' + esc(pace) + '</p>';
 }
 
 /* ---- Written reports ----
@@ -2469,6 +3009,9 @@ function mdBlocks(text){
   return out.join('');
 }
 
+/* The closed state is the list's whole job: title, date and standfirst are
+   enough to say what a report found without opening it. Opening it is a
+   separate choice — see openReportModal. */
 function reportItemHTML(r){
   const when = [r.covers ? 'Covers ' + esc(r.covers) : '', r.topic ? esc(r.topic) : '']
     .filter(Boolean).join(' · ');
@@ -2479,29 +3022,40 @@ function reportItemHTML(r){
     '</button>' +
     (when ? '<div class="repmeta">' + when + '</div>' : '') +
     (r.summary ? '<div class="repsum">' + mdInline(r.summary) + '</div>' : '') +
-    '<div class="repdoc hidden"></div>' +
   '</article>';
 }
 
-/* Lazy: the list shows a title and a standfirst, and the report itself is only
-   fetched when it is opened. A folder of these should not cost a round trip
-   each every time the tab is looked at. */
-async function toggleReport(url, item){
-  const doc = item.querySelector('.repdoc');
-  const open = !doc.classList.contains('hidden');
-  item.classList.toggle('open', !open);
-  if (open) { doc.classList.add('hidden'); return; }
-  doc.classList.remove('hidden');
-  if (reportBodies[url]) { doc.innerHTML = reportBodies[url]; return; }
-  doc.innerHTML = '<p class="empty">Loading…</p>';
+/* A written report is a document, and a document wants a document's width —
+   not 600 words read down this column's narrow gutter. Opens in showModal's
+   wide variant instead of expanding inside its own card.
+
+   Lazy and cached: the body is only fetched the first time a report is
+   opened, and never again after that, since a written report never changes
+   once it exists. */
+function openReportModal(r){
+  const when = [r.covers ? 'Covers ' + esc(r.covers) : '', r.topic ? esc(r.topic) : '']
+    .filter(Boolean).join(' · ');
+  const sub = [r.date ? esc(r.date) : '', when].filter(Boolean).join(' · ');
+  showModal(r.title, sub,
+    '<div class="repdoc">' + (reportBodies[r.url] || '<p class="empty">Loading…</p>') + '</div>',
+    [{ label:'Close', primary:true }], { wide:true });
+  if (!reportBodies[r.url]) loadReportBody(r.url);
+}
+
+async function loadReportBody(url){
+  let html;
   try {
     const res = await fetch(url + '?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) throw new Error(res.status);
-    reportBodies[url] = mdBlocks(await res.text());
-    doc.innerHTML = reportBodies[url];
+    html = mdBlocks(await res.text());
+    reportBodies[url] = html;
   } catch (err) {
-    doc.innerHTML = '<div class="err">Could not read that report. ' + esc(String(err.message || err)) + '</div>';
+    html = '<div class="err">Could not read that report. ' + esc(String(err.message || err)) + '</div>';
   }
+  // The modal may have been closed, or moved on to a different report, while
+  // this was in flight — write back only if it is still the one showing.
+  const mid = modalEl && modalEl.querySelector('.mid .repdoc');
+  if (mid) mid.innerHTML = html;
 }
 
 async function renderWrittenReports(){
@@ -2522,7 +3076,8 @@ async function renderWrittenReports(){
     }
     out.innerHTML = list.map(reportItemHTML).join('');
     out.querySelectorAll('[data-report-open]').forEach(btn => {
-      btn.onclick = () => toggleReport(btn.dataset.reportOpen, btn.closest('.repitem'));
+      const r = list.find(x => x.url === btn.dataset.reportOpen);
+      btn.onclick = () => openReportModal(r);
     });
   } catch (err) {
     out.innerHTML = '<div class="err">Could not read the report list. ' +
@@ -2541,10 +3096,10 @@ function renderReportsView(){
   $('#lists').innerHTML =
     '<div class="lists rview">' +
       '<div class="listcard reportsview"><h3>Counted from the list</h3>' +
-        '<p class="help listlead">Arithmetic on todo.md as it stands right now' +
-        (state.locked ? ', which is the backup you are previewing rather than the live file' : '') +
-        '. Nothing here changes the file.</p>' +
-        reportDefs().map(fn => fn()).join('') +
+        '<label class="repwindow">Show ' + reportWindowSelectHTML() +
+          '<span class="repdates" id="repDates">' + esc(reportDay(ymd(reportWindowStart()))) + '–' +
+          esc(reportDay(ymd(today()))) + '</span></label>' +
+        '<div id="countedOut"></div>' +
       '</div>' +
       '<div class="listcard reportsview written"><h3>Written reports</h3>' +
         '<p class="help listlead">What moved and what it means, rather than what was ticked. ' +
@@ -2552,7 +3107,29 @@ function renderReportsView(){
         '<div id="writtenOut">Loading…</div>' +
       '</div>' +
     '</div>';
+  renderCountedReports();
+  $('#reportWindow').onchange = e => {
+    if (setReportWindow(e.target.value)) {
+      renderCountedReports();
+      $('#repDates').textContent = reportDay(ymd(reportWindowStart())) + '–' + reportDay(ymd(today()));
+    }
+  };
   renderWrittenReports();
+}
+
+function reportWindowSelectHTML(){
+  return '<select id="reportWindow" title="How far back to count">' +
+    REPORT_WINDOWS.map(w => '<option value="' + w.id + '"' + (w.id === reportWindow ? ' selected' : '') + '>' +
+      esc(w.label) + '</option>').join('') +
+  '</select>';
+}
+// Its own render path rather than folded into renderReportsView, so changing
+// the window redraws only the counted card — not the written one beside it,
+// which would otherwise re-fetch /reports.json for no reason.
+function renderCountedReports(){
+  const out = $('#countedOut');
+  if (!out) return;
+  out.innerHTML = reportDefs().map(fn => fn()).join('');
 }
 
 /* =========================================================================
@@ -2729,7 +3306,6 @@ function updateLockUI(){
     ? 'Viewing ' + state.lockedLabel + ' — nothing here can be edited or saved.'
     : '';
   $('#dataMenu').classList.toggle('hidden', state.locked);
-  $('#autoWrap').classList.toggle('hidden', state.locked);
   syncLockBarHeight();
 }
 
@@ -2768,6 +3344,22 @@ $('#exitLock').onclick = exitBackupPreview;
    nothing: everything is still one gesture from the real task.
    ========================================================================= */
 
+/* Two tiers say something the scores cannot. A Backlog task has been parked on
+   purpose, so however cheap and high impact it is, it is not what he should
+   start today — and left on the grid it lands in "Do these first" and argues
+   with the decision he already made. It comes off the grid entirely, into its
+   own tray, where it is still one click from the card. Quick wins uses the
+   same tier for the same reason: Backlog is not a real priority, so it is left
+   out there too, not just muted.
+
+   Waiting review is the softer case: the work is done and someone else has it.
+   It belongs on the grid, since it still costs what it costs, but the dot is
+   faded the way a done card is faded on the board. Anything blocked by an
+   unfinished task is faded for the same reason — the grid can rank it, but he
+   cannot start it. */
+const HELD_TIER  = 'Backlog';
+const MATRIX_MUTED_TIER = 'Waiting review';
+
 const MATRIX_IMPACT = ['high', 'med', 'low'];      // top row down
 const MATRIX_EFFORT = ['S', 'M', 'L'];             // left column across
 const EFFORT_HINT = { S: 'under half a day', M: 'one to three days', L: 'a week or more' };
@@ -2795,9 +3387,11 @@ function matrixDot(t, color){
   const label = [
     t.title,
     t.bucket + ' · ' + t.tierName,
+    t.blocked ? 'blocked' : '',
     di ? 'due ' + di.label + (di.note ? ', ' + di.note : '') : 'no date'
   ].filter(Boolean).join(', ');
   return '<button class="mdot' + (t.headline ? ' hl' : '') + (t.urgent ? ' urgent' : '') +
+    (t.muted ? ' muted' : '') +
     '" data-open="' + t.id + '" style="--bc:' + color + '"' +
     ' aria-label="' + esc(label) + '"></button>';
 }
@@ -2853,21 +3447,29 @@ function hideMatrixPreview(){ if (mPreviewEl) mPreviewEl.classList.remove('on');
    double-count the same piece of work. Done tasks are left out: this is a tool
    for deciding what is next, not a record of what happened. */
 function matrixTasks(){
+  const items = allItems();
   const out = [];
   state.doc.buckets.forEach((b, bi) => {
     const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
       if (t.done || !matches(t)) return;
+      const it = items.find(i => i.id === t.id && !i.sub);
+      const blocked = !!it && !actionable(items, it);
       out.push({ id: t.id, title: t.title, impact: t.impact, effort: t.effort,
                  due: t.due, ai: t.ai, urgent: t.urgent, headline: !!t.headline,
-                 bucket: b.name, tierName: tier.name, color });
+                 bucket: b.name, tierName: tier.name, color,
+                 held: tier.name === HELD_TIER,
+                 blocked,
+                 muted: tier.name === MATRIX_MUTED_TIER || blocked });
     }));
   });
   return out;
 }
 
 function matrixSection(){
-  const tasks = matrixTasks();
+  const all = matrixTasks();
+  const held = all.filter(t => t.held);
+  const tasks = all.filter(t => !t.held);
   const placed = tasks.filter(t => IMPACT_N[t.impact] && EFFORT_N[t.effort]);
   const missing = tasks.filter(t => !IMPACT_N[t.impact] || !EFFORT_N[t.effort]);
 
@@ -2877,6 +3479,7 @@ function matrixSection(){
       '<i></i>' + esc(b.name) + '</span>').join('') +
     '<span class="mkey mkeyhl"><i></i>the one thing</span>' +
     '<span class="mkey mkeyurg"><i></i>urgent</span>' +
+    '<span class="mkey mkeymuted"><i></i>waiting or blocked</span>' +
   '</div>';
 
   let grid = '<div class="mgrid">' +
@@ -2915,10 +3518,24 @@ function matrixSection(){
       '</div>'
     : '';
 
+  const holdTray = held.length
+    ? '<div class="mtray mhold"><div class="mtrayhead">' +
+        '<strong>' + held.length + ' in ' + esc(HELD_TIER) + '</strong>' +
+        '<span>Parked on purpose, so they are kept off the grid however they ' +
+        'score. Move one out of ' + esc(HELD_TIER) + ' and it takes its ' +
+        'cell.</span></div>' +
+        '<div class="mdots">' + held.map(t => matrixDot(t, t.color)).join('') + '</div>' +
+      '</div>'
+    : '';
+
   const total = placed.length;
-  const cheapWins = placed.filter(t => t.impact === 'high' && t.effort === 'S').length;
+  /* Counted on what he could pick up today. A high impact, cheap task that is
+     waiting on a review or on another task is not a place to start, so it is
+     left out of the advice even though its dot is still in the cell. */
+  const cheapWins = placed.filter(t => t.impact === 'high' && t.effort === 'S' && !t.muted).length;
   const cut = placed.filter(t => t.impact === 'low' && t.effort === 'L').length;
   const heavy = placed.filter(t => t.effort === 'L').length;
+  const waiting = placed.filter(t => t.muted).length;
   let read = '';
   if (total) {
     const bits = [];
@@ -2927,10 +3544,11 @@ function matrixSection(){
       : 'nothing is both high impact and cheap right now');
     bits.push('<strong>' + heavy + '</strong> of ' + total + ' need a week or more');
     if (cut) bits.push('<strong>' + cut + '</strong> in the cut corner');
+    if (waiting) bits.push('<strong>' + waiting + '</strong> waiting or blocked');
     read = '<p class="mread">' + bits.join(' · ') + '</p>';
   }
 
-  return legend + read + grid + tray;
+  return legend + read + grid + tray + holdTray;
 }
 
 function refSection(title, hint, html){
@@ -2984,7 +3602,7 @@ function renderSections(viewId){
     // The chain sits beside the matrix: both answer "what can I actually start",
     // one by score and one by what is still waiting on something else.
     html = refSection('Impact against effort',
-      'Every open task by its two scores. One dot per task, coloured by bucket — hover for the title, click to open it.',
+      'Every open task by its two scores, except the ones parked in Backlog. One dot per task, coloured by bucket — hover for the title, click to open it. Faded dots are waiting on a review or on another task.',
       matrixSection()) +
       refSection('Dependency chain', 'Built from every `blocked-by:` tag.', chainSection(items));
   }
@@ -3078,7 +3696,7 @@ function renderHeadline(){
   const age = set ? Math.round((today() - set) / 86400000) : null;
 
   let tags = '';
-  if (t.impact) tags += '<span class="tag impact-' + esc(t.impact) + '">' + esc(t.impact) + ' impact</span>';
+  if (t.impact) tags += '<span class="tag impact-' + esc(t.impact) + '" title="' + esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
   if (t.effort) tags += '<span class="tag">' + esc(t.effort) + '</span>';
   if (di) tags += '<span class="tag due ' + di.cls + '">' + esc(di.label) +
                   (di.note ? ' · ' + esc(di.note) : '') + '</span>';
@@ -3087,7 +3705,7 @@ function renderHeadline(){
 
   bar.innerHTML = '<span class="hllabel">The one thing</span>' +
     '<div class="hlmain">' +
-      '<div class="hltitle">' + esc(t.title) + '</div>' +
+      '<div class="hltitle">' + mdInline(t.title) + '</div>' +
       '<div class="hlmeta">' +
         '<span class="hlwhere">' + esc(hl.bucket.name) + ' · ' +
           esc(t.done ? DONE_COL : hl.tier.name) + '</span>' + tags +
@@ -3129,7 +3747,14 @@ function renderBoard(){
   $('#editBuckets').classList.toggle('hidden', across || state.locked);
   $('#allBuckets').classList.toggle('hidden', !across);
 
-  const columns = boardColumns();
+  // Blocked stays off the board entirely until something is actually sitting
+  // in it — the empty-column treatment other tiers get would be misleading
+  // here, since Blocked has no standing heading to justify a permanent slot.
+  const hasBlocked = state.doc.buckets.some(b => {
+    const tier = b.tiers.find(t => t.name === BLOCKED_TIER);
+    return tier && tier.tasks.some(t => !t.done);
+  });
+  const columns = boardColumns().filter(name => name !== BLOCKED_TIER || hasBlocked);
   board.style.setProperty('--cols', columns.length);
   board.innerHTML = columns.map(name => {
     const isDone = name === DONE_COL;
@@ -3333,7 +3958,7 @@ function dropTask(id, tierName, zone, clientY){
 function addTask(tierName){
   if (state.locked) return;
   const tier = ensureTier(activeBucket(), tierName);
-  const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', ai:'',
+  const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', ai:'', to:'',
               urgent:false, week:false, slug:'', blockedBy:[], rank:null, extra:[], body:[], raw:'', dirty:true };
   tier.tasks.push(t);
   markDirty(); refreshView(); openDrawer(t.id, true);
@@ -3505,8 +4130,9 @@ function suggestionSection(label, list, opts){
    input sits inside it, or selecting text tries to drag the row instead.
    Clearing the text and leaving removes the step, so there is no separate
    delete control to add just for this. */
-function editSubtext(span, t, lineIdx, id){
+function editSubtext(span, t, lineIdx, id, opts){
   if (state.locked) return;
+  const chain = !!(opts && opts.chain);
   const row = span.closest('.sub');
   const m = SUB_RE.exec(t.body[lineIdx]);
   if (!m) return;
@@ -3531,9 +4157,32 @@ function editSubtext(span, t, lineIdx, id){
   };
   input.onblur = () => finish(true);
   input.onkeydown = e => {
-    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      /* Typing a run of steps. Enter commits this one and opens the next, so a
+         list of five is five lines and four Enters rather than five trips to
+         the Add button. Read before finish(), which takes the input away.
+
+         An empty step ends the run instead of adding another blank one, so
+         Enter on a blank line is how you stop — the same way it works
+         everywhere else that lists are typed. */
+      const more = chain && !!input.value.trim();
+      finish(true);
+      if (more) addStepAndEdit(t, id);
+    }
     else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   };
+}
+
+/* Adds a step and puts the cursor straight in it. Shared by the Add button and
+   by Enter inside a new step, so both arrive in the same state. */
+function addStepAndEdit(t, id){
+  addSub(t);
+  refreshView();
+  openDrawer(id);
+  const spans = $('#f-subs').querySelectorAll('.subtext');
+  const last = spans[spans.length - 1];
+  if (last) editSubtext(last, t, +last.dataset.line, id, { chain: true });
 }
 
 function openDrawer(id, focusTitle){
@@ -3557,7 +4206,7 @@ function openDrawer(id, focusTitle){
   $('#drawerTitle').textContent = ro ? 'View task (read-only)' : 'Edit task';
   $('#dfootHelp').textContent = ro
     ? 'Read-only — from a backup, nothing here can be changed.'
-    : 'Changes apply straight away';
+    : 'Changes save automatically';
 
   $('#dbody').innerHTML =
     '<label class="field"><span>Task</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
@@ -3577,9 +4226,17 @@ function openDrawer(id, focusTitle){
         ['','S','M','L'].map(v => '<option value="' + v + '"' + (v === t.effort ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
       '</select></label>' +
     '</div>' +
-    '<label class="field"><span>Who does it (ai:)</span><select id="f-ai"' + dis + '>' +
-      ['','full','partial','none'].map(v => '<option value="' + v + '"' + (v === t.ai ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
-    '</select></label>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Who does it (ai:)</span><select id="f-ai"' + dis + '>' +
+        ['','full','partial','none'].map(v => '<option value="' + v + '"' + (v === t.ai ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
+      '</select></label>' +
+      /* A person, not Claude. Left blank on anything he is doing himself, which
+         is most of the list, so the card shows nothing until it is filled in. */
+      '<label class="field"><span>Delegated to</span>' +
+        '<input type="text" id="f-to" value="' + esc(t.to || '') + '" placeholder="Nobody"' + dis + '>' +
+        '<span class="help">A name. Shows on the card.</span>' +
+      '</label>' +
+    '</div>' +
     '<div class="field"><span>The one thing</span>' +
       '<button type="button" class="hlset' + (t.headline ? ' on' : '') + '" id="f-headline"' + dis + '>' +
         (t.headline ? 'This is the headline — remove it' : 'Make this the headline') +
@@ -3625,7 +4282,7 @@ function openDrawer(id, focusTitle){
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span></div>';
       }).join('') +
       '</div>' +
-      (ro ? '' : '<button type="button" class="addsub" id="f-addsub">+ Add step</button>') +
+      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add step</button>') +
     '</div>' +
     '<label class="field"><span>Notes</span>' +
       '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
@@ -3641,6 +4298,9 @@ function openDrawer(id, focusTitle){
   const touch = () => { t.dirty = true; markDirty(); refreshView(); };
 
   $('#f-title').oninput  = e => { t.title = e.target.value; touch(); };
+  // Not trimmed here, or a space between a first and last name would vanish as
+  // it is typed. serializeTask trims it on the way to the file.
+  $('#f-to').oninput     = e => { t.to = e.target.value; touch(); };
   $('#f-impact').onchange = e => { t.impact = e.target.value; touch(); };
   $('#f-effort').onchange = e => { t.effort = e.target.value; touch(); };
   $('#f-ai').onchange     = e => {
@@ -3687,7 +4347,9 @@ function openDrawer(id, focusTitle){
     const target = ensureTier(nb, loc.tier.name);
     loc.tier.tasks.splice(loc.index, 1);
     target.tasks.push(t);
-    if (!allMode()) state.activeBucket = nb.name;   // follow the task to its new bucket
+    // The filter stays put rather than following the task to its new bucket —
+    // moving a card out of the one you're looking at should look like moving
+    // it out, the same as any other edit that drops a task out of view.
     markDirty(); refreshView(); openDrawer(id);
   };
   const subsEl = $('#f-subs');
@@ -3732,14 +4394,7 @@ function openDrawer(id, focusTitle){
   /* Adds the step, then drops straight into editing its (empty) text — an
      "Add" click that still left a blank, unlabelled row would just be a second
      click waiting to happen. */
-  $('#f-addsub').onclick = () => {
-    addSub(t);
-    refreshView();
-    openDrawer(id);
-    const spans = $('#f-subs').querySelectorAll('.subtext');
-    const last = spans[spans.length - 1];
-    if (last) editSubtext(last, t, +last.dataset.line, id);
-  };
+  $('#f-addsub').onclick = () => addStepAndEdit(t, id);
   $('#f-body').onchange = e => {
     const p = bodyParts(t);
     rebuildBody(t, indent(e.target.value), p.subs, p.subsAt);
@@ -3805,9 +4460,17 @@ $('#del').onclick = () => {
   loc.tier.tasks.splice(loc.index, 1);
   closeDrawer(); markDirty(); refreshView();
 };
+$('#undo').onclick = undo;
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeDrawer();
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveFile(); }
+  // Not while a field has focus — cmd/ctrl+Z there means "undo my last few
+  // keystrokes", which the browser already does natively on that one field.
+  // Hijacking it for a whole-document undo would be a surprise, not a fix.
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    const tag = (document.activeElement || {}).tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); undo(); }
+  }
 });
 
 /* =========================================================================
@@ -3836,6 +4499,10 @@ function load(text, name){
     $('#status').textContent = 'dated ' + stamped + ' finished task' + (stamped === 1 ? '' : 's') +
       ' as done today — save to apply';
   }
+  // After, not before: the rename/stamp fixups above are auto-applied on every
+  // load, not something to undo back out of, so the freshly loaded (and fixed)
+  // document is what "nothing to undo yet" means.
+  resetUndo();
 }
 
 function showErr(msg){
@@ -3910,9 +4577,6 @@ async function saveFile(auto, forceBackup){
   // locked, and this must never let that overwrite the live todo.md.
   if (state.locked || !state.doc || !state.dirty) return;
   const text = serializeDoc(state.doc);
-  const btn = $('#save');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
   try {
     const res = await fetch(FILE_URL + (forceBackup ? '?backup=force' : ''), {
       method: 'PUT',
@@ -3947,14 +4611,13 @@ async function saveFile(auto, forceBackup){
       $('#status').textContent = 'not saved — the board helper has stopped';
       alert('Nothing was saved, because the board helper is not running.\n\n' +
             'Your changes are still here in this tab, so do not close it.\n\n' +
-            'Start board.command again (double-click it in the to-dos folder), then press Save.\n\n' +
+            'Start board.command again (double-click it in the to-dos folder). It saves on ' +
+            'its own every few seconds once it can reach the file again.\n\n' +
             'If you cannot restart it, use “Download copy” to get the changes out.');
     } else {
       alert('Could not save todo.md: ' + (err.message || err) +
             '\n\nNothing was written. Use “Download copy” if you need the changes out of the browser.');
     }
-  } finally {
-    btn.textContent = 'Save to file';
   }
 }
 
@@ -4059,7 +4722,7 @@ function changesHTML(title, changes, blank, limit){
     const shown = changes.slice(0, cap);
     body = '<ul>' + shown.map(c =>
       '<li><span class="what ' + c.what + '">' + CHANGE_LABEL[c.what] + '</span>' +
-      '<span><strong>' + esc(c.title) + '</strong>' +
+      '<span><strong>' + mdInline(c.title) + '</strong>' +
       (c.where ? ' <span class="where">' + esc(c.where) + '</span>' : '') + '</span></li>').join('') +
       '</ul>';
     if (changes.length > cap) {
@@ -4082,13 +4745,15 @@ function closeModal(){
 }
 function modalKeys(e){ if (e.key === 'Escape') closeModal(); }
 
-/* buttons: [{ label, primary, danger, run }] — the first is the safe default. */
-function showModal(heading, sub, bodyHTML, buttons){
+/* buttons: [{ label, primary, danger, run }] — the first is the safe default.
+   opts: { wide } — wide is the document-width variant a written report opens
+   in, rather than the confirmation-sized default. */
+function showModal(heading, sub, bodyHTML, buttons, opts){
   closeModal();
   modalEl = document.createElement('div');
   modalEl.className = 'mscrim';
   modalEl.innerHTML =
-    '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
+    '<div class="sheet' + (opts && opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
       '<div class="top"><h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
       '<div class="mid">' + bodyHTML + '</div>' +
       '<div class="foot">' + buttons.map((b, i) =>
@@ -4107,29 +4772,15 @@ function showModal(heading, sub, bodyHTML, buttons){
   if (first) first.focus();
 }
 
-async function reload(){
-  if (state.locked) return;
-  if (!state.dirty) return loadFile();
-  // Same collision as an outside edit, so it gets the same modal — he can see
-  // what he would be throwing away before he throws it away.
-  let diskText = null;
-  try {
-    const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
-    if (res.ok) diskText = await res.text();
-  } catch (err) { /* handled below by the null check */ }
-  offerReload(diskText, true);
-}
-
-/* The modal both Reload and the watcher end up in. diskText may be null if the
-   file could not be read, in which case discarding is not offered. */
-function offerReload(diskText, manual){
+/* The modal the outside-edit watcher lands in when there is something here it
+   would overwrite. diskText may be null if the file could not be read, in
+   which case discarding is not offered. */
+function offerReload(diskText){
   const mine = describeChanges(state.originalText, serializeDoc(state.doc));
   const theirs = diskText === null ? null : describeChanges(state.originalText, diskText);
 
-  const sub = manual
-    ? 'Re-reading the file will throw away everything you have not saved.'
-    : '<strong>todo.md changed on disk</strong> while you had unsaved changes here. ' +
-      'Nothing has been overwritten either way — pick which version wins.';
+  const sub = '<strong>todo.md changed on disk</strong> while you had unsaved changes here. ' +
+    'Nothing has been overwritten either way — pick which version wins.';
 
   const body =
     changesHTML('Your unsaved changes', mine, 'Nothing — your tab matches the file.') +
@@ -4156,9 +4807,11 @@ function offerReload(diskText, manual){
    thing writing, so a changed timestamp means a real change.
    ========================================================================= */
 
-const AUTOSAVE_MS = 5 * 60 * 1000;
+/* No toggle and no button any more — a change on a card, in the sidebar or on
+   the board, saves to disk on its own within a few seconds. That is the one
+   behaviour now, not an option someone could switch off and forget. */
+const AUTOSAVE_MS = 4 * 1000;
 const WATCH_MS = 15 * 1000;
-let autosaveOn = localStorage.getItem('todo-board-autosave') !== 'off';   // on unless turned off
 let conflictShown = false;
 
 async function diskStamp(){
@@ -4172,17 +4825,18 @@ async function rememberStamp(){ state.diskStamp = await diskStamp(); }
 
 /* Saves only when there is something to save, so an idle tab never touches the
    file and never triggers a backup for no reason. The clock runs from the last
-   save, not from page load, so a manual save also resets the five minutes.
+   save, so a manual save (⌘S) also resets the four seconds.
 
-   Checked every 30 seconds rather than on a 5-minute timer, so that a save
-   deferred for a good reason — a field in mid-edit — is retried soon after
-   instead of waiting out another full interval. */
+   Checked twice a second rather than on the save interval itself, so a change
+   made just after a tick still lands within roughly one interval rather than
+   waiting out a second one. Runs regardless of what has focus — a title or
+   notes field mid-edit already holds its new value in state.doc, so saving
+   under it is safe, and holding off until the field is blurred is exactly the
+   wait he asked to remove. */
 let lastSaveAt = Date.now();
 async function autosaveTick(){
-  if (state.locked || !autosaveOn || !state.doc || !state.dirty || modalEl) return;
+  if (state.locked || !state.doc || !state.dirty || modalEl) return;
   if (Date.now() - lastSaveAt < AUTOSAVE_MS) return;
-  const el = document.activeElement;
-  if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
   await saveFile(true);
 }
 
@@ -4222,7 +4876,7 @@ async function watchTick(){
   } catch (err) { /* offerReload copes with null */ }
   state.diskStamp = stamp;                         // asked once per outside change
   conflictShown = false;
-  offerReload(diskText, false);
+  offerReload(diskText);
 }
 
 /* =========================================================================
@@ -4294,7 +4948,7 @@ async function archiveOldDone(){
   const body =
     '<div class="changes"><h3>Moving out of todo.md (' + list.length + ')</h3><ul>' +
     list.slice(0, 40).map(it =>
-      '<li><span class="what">' + it.age + 'd</span><span><strong>' + esc(it.task.title) +
+      '<li><span class="what">' + it.age + 'd</span><span><strong>' + mdInline(it.task.title) +
       '</strong> <span class="where">' + esc(it.bucket.name + ' · ' + it.tier.name) +
       ' · ticked ' + esc(it.task.doneOn) + '</span></span></li>').join('') +
     '</ul>' + (list.length > 40 ? '<div class="none">…and ' + (list.length - 40) + ' more.</div>' : '') +
@@ -4328,6 +4982,7 @@ async function archiveOldDone(){
       const i = it.tier.tasks.indexOf(it.task);
       if (i > -1) it.tier.tasks.splice(i, 1);
     });
+    invalidateArchiveEntries();       // this batch is now in the file the reports view reads
     closeDrawer();
     markDirty();
     refreshView();
@@ -4337,23 +4992,11 @@ async function archiveOldDone(){
   }
 }
 
-setInterval(autosaveTick, 30 * 1000);              // checked often, saves at most every 5 minutes
+setInterval(autosaveTick, 2 * 1000);                // checked often, saves at most every 4 seconds
 setInterval(watchTick, WATCH_MS);
 
-$('#autosave').checked = autosaveOn;
-$('#autosave').onchange = e => {
-  autosaveOn = e.target.checked;
-  localStorage.setItem('todo-board-autosave', autosaveOn ? 'on' : 'off');
-  lastSaveAt = Date.now();                         // turning it on is not a save trigger
-  $('#status').textContent = autosaveOn
-    ? 'auto-save on — every 5 minutes when something has changed'
-    : 'auto-save off';
-};
-
 /* wiring */
-$('#save').onclick = () => saveFile();   /* not saveFile directly: the click event would read as "auto" */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
-$('#reload').onclick = reload;
 $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };

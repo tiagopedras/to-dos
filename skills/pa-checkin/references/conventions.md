@@ -184,7 +184,7 @@ An item that is not live yet, waiting on something merging or being defined, kee
 
 ## Section order
 
-The file is the title, the `Last updated` line, the **How this works** legend, **Where the other views went**, then the buckets in the order the file has them, currently People, Design oversight, Design System, Strategic. Sections are separated by `---` on its own line.
+The file is the title, the `Last updated` line, the `Meeting actions last pulled` line, the **How this works** legend, **Where the other views went**, then the buckets in the order the file has them, currently People, Design oversight, Design System, Strategic. Sections are separated by `---` on its own line.
 
 ## Ordering
 
@@ -201,6 +201,8 @@ Anything with `due:` or `urgent` jumps the queue regardless of impact and effort
 **Sign-off costs a day.** Where a document goes to someone for approval before submission, the draft and the share are separate dated steps, and the submission is the day after. A skip-level manager signs off probation rationale docs.
 
 **Reminder steps are five days after the request**, moved to the next working day if that lands on a weekend. The note should say so, otherwise the arithmetic looks wrong to anyone reading it later.
+
+**`Meeting actions last pulled` is a machine stamp, not a date he keeps.** It records the last day `pa-retrieve-tasks` was run against the recorder, so that the first check-in of any day pulls his meeting actions in before reading the list back to him and later ones in the same day do not. It is set only by a run that actually happened, it is never edited by hand, and `never` is a valid value meaning the pull has not happened yet. Do not read it as when the file was last touched, which is what `Last updated` is for.
 
 ## This week
 
