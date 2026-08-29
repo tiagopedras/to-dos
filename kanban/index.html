@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My To-Do list</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7inIU8L3RleHQ+PC9zdmc+">
+<!-- The chat modal's own styling, served live from ai_chat/interface — see ai_chat/README.md. -->
+<link rel="stylesheet" href="/ai-chat/chat.css">
 <style>
   :root{
     --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --ink-soft:#5d636e; --ink-faint:#8b919c;
@@ -530,137 +532,11 @@
   }
   .askclaude:hover{filter:brightness(1.07)}
 
-  /* The list of conversations on a task. */
-  .chats .chatrow{display:flex; align-items:stretch; gap:6px; margin:0 0 6px 14px}
-  .chatopen{
-    flex:1; min-width:0; text-align:left; display:flex; flex-direction:column; gap:2px;
-    border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:7px 10px;
-  }
-  .chatopen:hover{border-color:var(--ink-faint)}
-  .chatrowtitle{
-    font-size:13px; font-weight:600; color:var(--ink);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .chatrowmeta{font-size:11.5px; color:var(--ink-faint)}
-  .chatlive{font-style:normal; color:var(--accent); font-weight:600}
-  .chatwork{font-style:normal; color:var(--amber)}
-  .chaticon{
-    flex:none; display:flex; align-items:center; padding:0 9px; border-radius:8px;
-    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
-    font-size:11.5px; font-weight:600; text-decoration:none;
-  }
-  .chaticon:hover{color:var(--ink); border-color:var(--ink-faint)}
-  .chatforget{font-size:15px; line-height:1}
-  .chatnone{margin:0 0 8px 14px; font-size:12.5px; color:var(--ink-faint)}
+  /* The chat modal and the list of conversations on a task now live in
+     ai_chat's own chat.css, loaded via a <link> at the top of this file —
+     see ai_chat/README.md. Only the trigger button above stays here, since
+     it is drawn by this file's own claudeActions(), not by that module. */
 
-  /* ---- the modal ---- */
-  .chatwrap{position:fixed; inset:0; z-index:80; display:none}
-  .chatwrap.on{display:block}
-  .chatscrim{position:absolute; inset:0; background:rgba(6,8,12,.45); opacity:0; animation:chatfade .18s ease forwards}
-  .chatbox{
-    position:absolute; left:50%; top:50%; width:min(760px, calc(100vw - 48px));
-    height:min(720px, calc(100vh - 64px)); display:flex; flex-direction:column;
-    background:var(--panel); border:1px solid var(--line); border-radius:16px;
-    box-shadow:0 24px 60px rgba(6,8,12,.28); overflow:hidden;
-    transform:translate(-50%,-50%) scale(.965); opacity:0;
-    animation:chatin .22s cubic-bezier(.2,.8,.3,1) forwards;
-  }
-  @keyframes chatfade{to{opacity:1}}
-  @keyframes chatin{to{transform:translate(-50%,-50%) scale(1); opacity:1}}
-  @media (prefers-reduced-motion: reduce){
-    .chatscrim, .chatbox{animation-duration:.01ms}
-  }
-  .chathead{
-    display:flex; align-items:center; gap:8px; padding:12px 14px;
-    border-bottom:1px solid var(--line-soft);
-  }
-  .chatnames{flex:1; min-width:0}
-  .chatnames strong{display:block; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .chatfor{
-    display:block; font-size:11.5px; color:var(--ink-faint);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .chatstatus{
-    display:flex; align-items:center; gap:8px; padding:8px 16px;
-    font-size:12px; color:var(--ink-faint); border-bottom:1px solid var(--line-soft);
-  }
-  .chatstatus.live{color:var(--ink-soft)}
-  .chatdoing{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .chatstatus .askclock{font-style:normal; color:var(--ink-faint)}
-  /* The mark turns while it works. It is the only moving thing on the screen,
-     and it carries no information the line beside it does not — which is the
-     point: the words are the status, this is only a sign of life. */
-  .chatstar{
-    flex:none; width:11px; height:11px; border-radius:50%;
-    background:conic-gradient(from 0deg, var(--accent), transparent 65%, var(--accent));
-    animation:chatspin 1.5s linear infinite;
-  }
-  @keyframes chatspin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion: reduce){ .chatstar{animation:none} }
-  .chatbody{flex:1; min-height:0; overflow-y:auto; padding:16px}
-  .chatfoot{
-    display:flex; align-items:flex-end; gap:8px; padding:12px 14px;
-    border-top:1px solid var(--line-soft);
-  }
-  #chatInput{
-    flex:1; min-width:0; height:38px; max-height:160px; resize:none; overflow-y:auto;
-    border:1px solid var(--line); background:var(--bg); color:var(--ink);
-    border-radius:10px; padding:9px 12px; font-size:13px; font-family:inherit; line-height:1.45;
-  }
-  #chatInput:focus{outline:none; border-color:var(--ink-faint)}
-  .chatfoot .btn{flex:none}
-  a.btn{text-decoration:none; display:inline-flex; align-items:center}
-  /* The spine and its ticks want to read as a timeline rather than as an
-     indented list, so the dot sits on the line rather than beside it. */
-  .asttimeline{margin-left:4px}
-  .asttick{background:var(--ink-faint)}
-
-  /* ---- one turn ---- */
-  .askturn{margin:0 0 22px}
-  .askturn:last-child{margin-bottom:4px}
-  .askmine{display:flex; justify-content:flex-end; margin-bottom:14px}
-  .askbubble{
-    max-width:82%; background:var(--chip); border-radius:14px; padding:9px 13px;
-    font-size:13px; line-height:1.55; color:var(--ink);
-  }
-  .askreply{font-size:13.5px; line-height:1.65; color:var(--ink)}
-  .askreply p{margin:0 0 10px}
-  .askreply p:last-child{margin-bottom:0}
-  .askreply p.askh{font-weight:640}
-  .askreply ul{margin:0 0 10px; padding-left:18px}
-  .askreply li{margin:3px 0}
-  .askreply pre{
-    margin:0 0 10px; padding:9px 11px; background:var(--bg); border:1px solid var(--line);
-    border-radius:8px; overflow-x:auto; font-size:12px;
-  }
-  .askacts{margin-top:10px}
-  .askerr{margin:8px 0 0; font-size:12.5px; color:var(--red)}
-  .askerr em{
-    display:block; margin-top:4px; font-style:normal; font-size:11.5px;
-    color:var(--ink-faint); white-space:pre-wrap;
-  }
-
-  /* ---- what it did ---- */
-  .asktrace{margin:0 0 12px}
-  .asktracehead{
-    display:flex; align-items:center; gap:6px; padding:2px 0;
-    background:none; border:0; color:var(--ink-faint); font-size:12px; font-weight:500;
-  }
-  .asktracehead:hover{color:var(--ink-soft)}
-  .asttwist{display:inline-block; width:10px; color:var(--ink-faint)}
-  .asttimeline{
-    list-style:none; margin:6px 0 0; padding:0 0 0 5px;
-    border-left:1px solid var(--line); 
-  }
-  .asttimeline li{
-    position:relative; margin:0; padding:3px 0 3px 14px;
-    font-size:12px; color:var(--ink-soft);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .asttick{
-    position:absolute; left:-3px; top:10px; width:5px; height:5px; border-radius:50%;
-    background:var(--line); outline:2px solid var(--panel);
-  }
   /* A ticket to raise is work leaving the list, not work being done on it, so
      the stripe is the one visible difference from a message or a prompt. */
   .msg.jira{border-left-color:var(--ink-faint)}
@@ -1061,32 +937,15 @@
   </div>
 </aside>
 
-<!-- One conversation, over the top of everything. It sits outside the drawer on
-     purpose: a chat outlives the panel that started it, so closing the task
-     must not close the conversation, and a run carries on while you go and look
-     at something else. -->
-<div class="chatwrap" id="chatwrap" aria-hidden="true">
-  <div class="chatscrim" id="chatscrim"></div>
-  <section class="chatbox" id="chatbox" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
-    <header class="chathead">
-      <div class="chatnames">
-        <strong id="chatTitle">Chat</strong>
-        <span class="chatfor" id="chatFor"></span>
-      </div>
-      <a class="btn ghost" id="chatDesktop" href="#" target="_blank" rel="noopener"
-         title="Imports this session into Claude Desktop and carries it on there">Claude Desktop</a>
-      <button class="btn ghost" id="chatClose" type="button">Close</button>
-    </header>
-    <div class="chatstatus" id="chatStatus"></div>
-    <div class="chatbody" id="chatBody"></div>
-    <form class="chatfoot" id="chatFoot" autocomplete="off">
-      <textarea id="chatInput" rows="1" placeholder="Ask Claude about this task…" spellcheck="false"></textarea>
-      <button class="btn primary" id="chatSend" type="submit">Send</button>
-      <button class="btn ghost hidden" id="chatStop" type="button">Stop</button>
-    </form>
-  </section>
-</div>
+<!-- The chat modal itself is injected by ai_chat's chat.js the first time a
+     chat is opened — see AIChat.create() further down. It sits outside this
+     document's own DOM on purpose, same reasoning as before: a chat outlives
+     the panel that started it. -->
 
+<!-- The engine and interface live one level up, in ai_chat/, so any app can
+     load the same module. server.py serves them at /ai-chat/ straight from
+     that sibling folder — see ai_chat/README.md. -->
+<script src="/ai-chat/chat.js"></script>
 <script>
 'use strict';
 
@@ -1356,22 +1215,10 @@ const state = {
   /* The Jira boards read from data/jira.json, or null when there is no such
      file. Null is a normal state, not an error: no file, no buttons. */
   jira: null,
-  /* What the helper says about the Claude Code CLI behind it, or null when
-     there is none. Same rule as jira: null means the buttons do not appear. */
-  claude: null,
-  /* Every run started this session, keyed by the prompt it came from — so the
-     same prompt asked from Delegate to Claude and from the task panel is one
-     conversation seen in two places. It lives here rather than in the DOM
-     because the panel is rebuilt from scratch on every field change, and an
-     answer that vanished when you ticked a sub-step would be worse than no
-     answer. Nothing here is written to the file or survives a reload. */
-  runs: {},
-  /* Which conversations sit under each `chat:` key, read from the helper. The
-     transcripts are not in here — they are the files Claude Code writes, and
-     the modal reads those back when it needs them. */
-  chats: {},
-  /* The one conversation the modal is showing, or null. */
-  chat: null,
+  /* Everything about the Claude chat engine — the CLI's status, which
+     sessions sit under which task, any run in flight, the modal itself —
+     lives inside the `chat` object from ai_chat/interface/chat.js rather
+     than here. Nothing of it is written to the file or survives a reload. */
   originalText: '',
   fileName: 'todo.md',
   dirty: false,
@@ -2456,53 +2303,35 @@ function claudeLink(text){
 }
 
 /* ---- Chats on a task ----
-   Open in Claude hands the text to a tab that has never seen this machine, so a
-   prompt saying "read the notes in data/projects/AOP2027" is asking the one end
-   that cannot do it. Claude Code is already installed and runs where the files
-   are, so the board runs the prompt down at the helper and shows the answer.
+   The engine and the modal itself live in ai_chat/ now, loaded above as
+   AIChat — see ai_chat/README.md for the shape of that module and why it
+   never stores a transcript of its own.
 
-   A task has a list of chats rather than one, because the work on a task is not
-   one conversation. Reading the 360 responses, drafting the message that comes
-   out of it and checking last quarter's wording are three, and keeping them
-   apart is the point — each stays short enough to be worth resuming.
+   What stays here is this board's own business: minting and persisting the
+   `chat:` tag on a task line (that marks the list dirty, same as any other
+   edit), drawing the "Chats" field inside the drawer, and wiring this
+   board's shared click handler to the widget's API.
 
-   Three things hold this together and none of them is a copy of another:
+   A task carries a list rather than one conversation, because the work on a
+   task is not one conversation. Reading the 360 responses, drafting the
+   message that comes out of it and checking last quarter's wording are
+   three, and keeping them apart is the point — each stays short enough to
+   be worth resuming. */
 
-     `chat:xxxxxx` on the task    which task a conversation belongs to
-     data/sessions.json           which sessions sit under that key
-     ~/.claude/projects/…jsonl    what was actually said, written by Claude Code
+const chat = AIChat.create({
+  ownerLabel: taskId => { const loc = locate(taskId); return loc ? loc.task.title : ''; },
+  // A session getting filed, a run finishing, or the modal closing can all
+  // leave the drawer showing a stale "running" badge or an empty chat list —
+  // this is the one place that redraws it.
+  onSessionsChanged: () => { if (state.openTask) openDrawer(state.openTask); },
+  onChange: () => { if (state.openTask) openDrawer(state.openTask); },
+  // The status fetch on load is the first time claudeOn() can go from false
+  // to true — the Ask Claude button on every prompt only exists once this
+  // has answered, so the whole view needs a redraw, not just the drawer.
+  onStatusChanged: () => { if (state.doc) renderView(); },
+});
 
-   The last one is the reason nothing here stores a transcript. That file is
-   what the CLI resumes from and what Claude Desktop imports, so a conversation
-   carried on anywhere else comes back complete rather than as a stale copy.
-
-   Ask reads and cannot write: Bash, Edit, Write, NotebookEdit and Task are not
-   in the run at all. Do it can write, and exists only when data/claude.json
-   turns it on. */
-
-const CLAUDE_URL = '/claude.json';
-const CHATS_URL  = '/claude/sessions.json';
-
-/* Imports the session into Claude Desktop and carries it on there — the same
-   conversation, the same history, in the app rather than on a card. Found by
-   reading what the app registers: `?session=` on the /code routes only accepts
-   the desktop's own local_ ids, but /resume takes a CLI session id and adopts
-   it. */
-function desktopHref(sessionId){
-  return 'claude://resume?session=' + encodeURIComponent(sessionId);
-}
-
-function claudeOn(){ return !!(state.claude && state.claude.available) && !state.locked; }
-
-/* Six characters of base36. It means nothing on its own, which is the idea:
-   the file says which task, data/sessions.json says which conversations. */
-function newChatKey(){
-  let key = '';
-  do {
-    key = Math.random().toString(36).slice(2, 8);
-  } while (key.length < 6 || state.chats[key]);
-  return key;
-}
+function claudeOn(){ return chat.available() && !state.locked; }
 
 /* The task's key, writing one onto the line if this is the first chat on it.
    That marks the list dirty, which is right — a task that has conversations
@@ -2510,548 +2339,15 @@ function newChatKey(){
 function chatKeyFor(t, make){
   if (t.chat) return t.chat;
   if (!make) return '';
-  t.chat = newChatKey();
+  t.chat = chat.newOwnerKey();
   t.dirty = true;
   markDirty();
   return t.chat;
 }
 
-function sessionsFor(key){
-  const rows = (key && state.chats[key]) || [];
-  return rows.slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
-}
-
-/* Every run started this session, keyed by a local id. A run outlives the modal
-   it was started from, so this is not keyed on what is open. */
-let runCounter = 0;
-function runFor(sessionId){
-  if (!sessionId) return null;
-  const found = Object.keys(state.runs).map(k => state.runs[k])
-    .filter(r => r.session === sessionId);
-  return found.length ? found[found.length - 1] : null;
-}
-function liveRuns(){
-  return Object.keys(state.runs).map(k => state.runs[k]).filter(r => r.running);
-}
-
-/* ---- The list on the task ---- */
-
-function whenLabel(iso){
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  const days = Math.floor((today() - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return days + ' days ago';
-  return dueLabel(ymd(d));
-}
-
 function chatSection(t){
-  if (!claudeOn()) return '';
-  const key = t.chat;
-  const rows = sessionsFor(key);
-  const list = rows.map(s => {
-    const run = runFor(s.id);
-    const busy = run && run.running;
-    return '<div class="chatrow' + (busy ? ' busy' : '') + '" data-session="' + esc(s.id) + '">' +
-      '<button type="button" class="chatopen" data-session="' + esc(s.id) + '"' +
-        ' data-chat="' + esc(key) + '" data-task="' + esc(t.id) + '">' +
-        '<span class="chatrowtitle">' + esc(s.title || 'Untitled chat') + '</span>' +
-        '<span class="chatrowmeta">' +
-          (busy ? '<em class="chatlive">running</em>' : esc(whenLabel(s.updated))) +
-          (s.mode === 'work' ? ' · <em class="chatwork">can write</em>' : '') +
-        '</span>' +
-      '</button>' +
-      '<a class="chaticon" href="' + desktopHref(s.id) + '"' +
-        ' title="Open this conversation in Claude Desktop">Desktop</a>' +
-      '<button type="button" class="chaticon chatforget" data-session="' + esc(s.id) + '"' +
-        ' data-chat="' + esc(key) + '" title="Take it off this task. The transcript itself is left alone.">×</button>' +
-    '</div>';
-  }).join('');
-
-  return '<div class="field chats"><span>Chats' +
-    (rows.length ? ' <em class="sublabel">' + rows.length + '</em>' : '') + '</span>' +
-    (list || '<p class="chatnone">No conversations on this task yet.</p>') +
-    '<button type="button" class="addsub" id="f-newchat" data-task="' + esc(t.id) + '">+ New chat</button>' +
-    '<span class="help">Each one runs in <code>' + esc(state.claude.home) +
-      '</code> and reads only. They are kept apart on purpose — one conversation per question ' +
-      'stays short enough to be worth coming back to.</span>' +
-    '</div>';
+  return chat.renderSection({ ownerId: t.id, ownerKey: t.chat, label: 'Chats' });
 }
-
-/* ---- The modal ---- */
-
-function chatOpen(){ return !!state.chat; }
-
-function openChat(taskId, chatKey, sessionId, seed){
-  state.chat = { task: taskId, chat: chatKey, session: sessionId || '', seed: seed || '',
-                 turns: null, loading: false, run: runFor(sessionId) };
-  const wrap = $('#chatwrap');
-  wrap.classList.add('on');
-  wrap.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('chatting');
-  renderChat();
-  // A past conversation has to be read back off disk before it can be shown.
-  if (sessionId && !runFor(sessionId)) loadTranscript(sessionId);
-  setTimeout(() => { const box = $('#chatInput'); if (box) box.focus(); }, 60);
-}
-
-function closeChat(){
-  state.chat = null;
-  const wrap = $('#chatwrap');
-  wrap.classList.remove('on');
-  wrap.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('chatting');
-  // A run left going carries on; the list shows it as running.
-  if (state.openTask) openDrawer(state.openTask);
-}
-
-async function loadTranscript(sessionId){
-  const c = state.chat;
-  if (!c) return;
-  c.loading = true;
-  renderChat();
-  const row = sessionsFor(c.chat).find(s => s.id === sessionId);
-  const q = '?session=' + encodeURIComponent(sessionId) +
-            '&cwd=' + encodeURIComponent((row && row.cwd) || '');
-  try {
-    const res = await fetch('/claude/transcript.json' + q, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!state.chat || state.chat.session !== sessionId) return;
-    state.chat.turns = data.toobig ? [] : data.turns.map(t => ({
-      ask: t.ask, reply: t.reply, error: '', cost: 0,
-      tools: (t.tools || []).map(x => toolLabel(x.name, x.input, (row && row.cwd) || ''))
-    }));
-    state.chat.toobig = !!data.toobig;
-  } catch (err) {
-    if (state.chat) state.chat.loadErr =
-      'That conversation is not on disk any more — Claude Code keeps the transcripts, ' +
-      'and this one has been cleared.';
-  }
-  if (state.chat) { state.chat.loading = false; renderChat(); }
-}
-
-/* What the modal is showing: a live run if there is one, otherwise whatever was
-   read back off disk. Never both, so there is only ever one thing to trust. */
-/* The run this modal is showing. A conversation started here holds its run
-   directly, because a new one has no session id until the CLI's first line
-   arrives — and looking it up by a session it does not have yet left the modal
-   claiming to be idle while it was already working. */
-function chatRun(){
-  const c = state.chat;
-  if (!c) return null;
-  if (c.run) return c.run;
-  return runFor(c.session);
-}
-
-function chatTurns(){
-  const c = state.chat;
-  if (!c) return [];
-  const run = chatRun();
-  if (run) return run.turns;
-  return c.turns || [];
-}
-
-function renderChat(){
-  const c = state.chat;
-  if (!c) return;
-  const run = chatRun();
-  const row = sessionsFor(c.chat).find(s => s.id === c.session);
-  const loc = locate(c.task);
-
-  $('#chatTitle').textContent = (row && row.title) || (run && run.title) || 'New chat';
-  $('#chatFor').textContent = loc ? loc.task.title : '';
-
-  const desktop = $('#chatDesktop');
-  if (c.session) { desktop.href = desktopHref(c.session); desktop.classList.remove('hidden'); }
-  else desktop.classList.add('hidden');
-
-  const status = $('#chatStatus');
-  if (run && run.running) {
-    // No spinner and no bar. The line says what it is doing and rewrites
-    // itself as that changes, which is why it reads as activity rather than
-    // as a wait — the content is the progress.
-    status.className = 'chatstatus live';
-    status.innerHTML = '<span class="chatstar"></span>' +
-      '<span class="chatdoing">' + esc(runDoing(run)) + '</span>' +
-      '<em class="askclock">' + Math.round((Date.now() - run.started) / 1000) + 's</em>';
-  } else if (run) {
-    status.className = 'chatstatus';
-    status.textContent = (run.mode === 'work' ? 'Claude, working in ' : 'Claude, reading in ') +
-      (run.home || '') + ' · ' + runDoneLabel(run);
-  } else if (c.loading) {
-    status.className = 'chatstatus';
-    status.textContent = 'Reading the transcript…';
-  } else if (c.session) {
-    status.className = 'chatstatus';
-    status.textContent = 'Earlier conversation · ' + ((row && whenLabel(row.updated)) || '');
-  } else {
-    status.className = 'chatstatus';
-    status.textContent = 'New conversation in ' + (state.claude ? state.claude.home : '') + ' · reads only';
-  }
-
-  const body = $('#chatBody');
-  const turns = chatTurns();
-  if (c.loadErr && !turns.length) {
-    body.innerHTML = '<p class="askerr">' + esc(c.loadErr) + '</p>';
-  } else if (c.toobig) {
-    body.innerHTML = '<p class="chatnone">That transcript is too large to replay here. ' +
-      'Claude Desktop will open it in full.</p>';
-  } else if (!turns.length) {
-    body.innerHTML = c.loading ? '<p class="chatnone">…</p>'
-      : '<p class="chatnone">Nothing said yet. What it can see is everything under <code>' +
-        esc(state.claude ? state.claude.home : '') + '</code>.</p>';
-  } else {
-    body.innerHTML = turns.map((t, i) => turnHTML(t, i)).join('');
-  }
-  const stick = run && run.running;
-  if (stick) body.scrollTop = body.scrollHeight;
-
-  // Send and Stop share one slot, so the primary action is never competing
-  // with another for the same glance. Stopping is where sending was.
-  const busy = !!(run && run.running);
-  $('#chatStop').classList.toggle('hidden', !busy);
-  $('#chatSend').classList.toggle('hidden', busy);
-  $('#chatInput').disabled = busy;
-  if (c.seed && !turns.length) { $('#chatInput').value = c.seed; c.seed = ''; autoGrow($('#chatInput')); }
-}
-
-function autoGrow(el){
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = Math.min(160, Math.max(38, el.scrollHeight)) + 'px';
-}
-
-/* ---- Rendering one turn ---- */
-
-const TOOL_FIELD = {
-  Read:'file_path', Edit:'file_path', Write:'file_path', Glob:'pattern', Grep:'pattern',
-  Bash:'command', WebFetch:'url', WebSearch:'query', Skill:'skill', Task:'description'
-};
-function toolLabel(name, input, cwd){
-  input = input || {};
-  let what = TOOL_FIELD[name] && input[TOOL_FIELD[name]] ? String(input[TOOL_FIELD[name]]) : '';
-  if (!what) {
-    const first = Object.keys(input).map(k => input[k]).find(v => typeof v === 'string');
-    what = first || '';
-  }
-  if (cwd && what.indexOf(cwd + '/') === 0) what = what.slice(cwd.length + 1);
-  what = what.replace(/\s+/g, ' ').trim();
-  if (what.length > 70) what = what.slice(0, 69) + '…';
-  return what ? name + ' ' + what : name;
-}
-
-/* Enough markdown for a reply — paragraphs, bullets, headings, fenced code.
-   The inline half is mdInline, which the rest of the board already uses. */
-function mdBlock(text){
-  const lines = String(text).replace(/\r/g, '').split('\n');
-  const out = [];
-  let para = [], list = null, code = null;
-  const flushPara = () => {
-    if (para.length) { out.push('<p>' + para.map(mdInline).join('<br>') + '</p>'); para = []; }
-  };
-  const flushList = () => {
-    if (list) { out.push('<ul>' + list.map(i => '<li>' + mdInline(i) + '</li>').join('') + '</ul>'); list = null; }
-  };
-  const flush = () => { flushPara(); flushList(); };
-  lines.forEach(raw => {
-    const l = raw.replace(/\s+$/, '');
-    if (/^\s*```/.test(l)) {
-      if (code === null) { flush(); code = []; }
-      else { out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>'); code = null; }
-      return;
-    }
-    if (code !== null) { code.push(raw); return; }
-    if (!l.trim()) { flush(); return; }
-    const bullet = /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/.exec(l);
-    if (bullet) { flushPara(); (list = list || []).push(bullet[1]); return; }
-    const head = /^\s*#{1,6}\s+(.*)$/.exec(l);
-    if (head) { flush(); out.push('<p class="askh">' + mdInline(head[1]) + '</p>'); return; }
-    flushList();
-    para.push(l.trim());
-  });
-  if (code !== null) out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>');
-  flush();
-  return out.join('');
-}
-
-/* What to call what it is doing now, in words rather than in tool names.
-   Rewritten in place as the run moves, which is the whole of the progress
-   indicator. */
-const DOING = {
-  starting: 'Starting up',
-  thinking: 'Thinking it through',
-  writing:  'Writing the answer',
-  Read:     'Reading a file',
-  Glob:     'Looking for files',
-  Grep:     'Searching the text',
-  Bash:     'Running a command',
-  Edit:     'Editing a file',
-  Write:    'Writing a file',
-  Skill:    'Loading a skill',
-  Task:     'Handing part of it to a subagent',
-  WebFetch: 'Fetching a page',
-  WebSearch:'Searching the web',
-  done:     'Finished'
-};
-function runDoing(run){
-  return DOING[run.status] || (run.status ? 'Using ' + run.status : 'Working');
-}
-
-/* What to call a conversation, taken from the first thing said in it. The
-   whole message is not a name: one sentence, cut at a word, no trailing
-   punctuation. */
-function chatTitle(ask){
-  let t = String(ask).replace(/\s+/g, ' ').trim();
-  const stop = /[.?!]\s/.exec(t);
-  if (stop && stop.index > 12) t = t.slice(0, stop.index + 1);
-  if (t.length > 54) t = t.slice(0, 54).replace(/\s+\S*$/, '') + '…';
-  return t.replace(/[.,;:\s]+$/, '');
-}
-
-function runCost(n){ return n < 0.01 ? 'under 1¢' : '$' + n.toFixed(2); }
-
-function runDoneLabel(run){
-  const secs = Math.max(1, Math.round((run.ms || (Date.now() - run.started)) / 1000));
-  const bits = [run.status === 'done' ? 'done' : 'stopped', secs + 's'];
-  if (run.cost) bits.push(runCost(run.cost));
-  return bits.join(' · ');
-}
-
-/* Who said what is carried by the shape, not by a label: yours is a filled
-   bubble pushed right, the reply is unbubbled prose running the full width.
-   No avatars, no "you:" prefix — the asymmetry does the whole job, and it keeps
-   the reply reading as a document rather than as a chat log. */
-function turnHTML(turn, i){
-  const trace = traceHTML(turn, i);
-  const reply = turn.reply
-    ? '<div class="askreply">' + mdBlock(turn.reply) +
-      // Your own message gets no action bar and the reply does, which is the
-      // way round it should be: the reply is the thing worth copying.
-      '<div class="askacts"><button type="button" class="copy" data-copy="' +
-      esc(turn.reply) + '">Copy</button></div>' +
-      '</div>' : '';
-  const err = turn.error
-    ? '<p class="askerr">' + esc(turn.error) +
-      (turn.detail ? '<em>' + esc(turn.detail) + '</em>' : '') + '</p>' : '';
-  return '<div class="askturn">' +
-    '<div class="askmine"><div class="askbubble">' + mdInline(turn.ask) + '</div></div>' +
-    trace + reply + err + '</div>';
-}
-
-/* What it did, in order. One grey summary line that opens into a timeline.
-   The chevron is drawn whether or not the cursor is on it: a trace that only
-   admits to being a control once you hover it is the most interesting part of
-   an answer hidden behind the least likely gesture. */
-function traceHTML(turn, i){
-  const tools = turn.tools || [];
-  if (!tools.length) return '';
-  const open = !!turn.traceOpen;
-  const kinds = [];
-  tools.forEach(t => {
-    const verb = String(t).split(' ')[0];
-    if (kinds.indexOf(verb) < 0) kinds.push(verb);
-  });
-  const summary = tools.length + (tools.length === 1 ? ' step · ' : ' steps · ') +
-    kinds.slice(0, 4).join(', ') + (kinds.length > 4 ? '…' : '');
-  return '<div class="asktrace' + (open ? ' open' : '') + '">' +
-    '<button type="button" class="asktracehead" data-turn="' + i + '">' +
-      '<span class="asttwist">' + (open ? '⌄' : '›') + '</span>' + esc(summary) +
-    '</button>' +
-    (open ? '<ol class="asttimeline">' +
-      tools.map(t => '<li><span class="asttick"></span>' + esc(t) + '</li>').join('') +
-      '</ol>' : '') +
-    '</div>';
-}
-
-/* ---- Running one ---- */
-
-let runTicker = null;
-function startTicker(){
-  if (runTicker) return;
-  runTicker = setInterval(() => {
-    const live = liveRuns();
-    if (!live.length) { clearInterval(runTicker); runTicker = null; return; }
-    const run = chatRun();
-    if (run && run.running) {
-      const el = $('#chatStatus').querySelector('.askclock');
-      if (el) el.textContent = Math.round((Date.now() - run.started) / 1000) + 's';
-    }
-  }, 1000);
-}
-
-function handleRunEvent(run, turn, line){
-  let d;
-  try { d = JSON.parse(line); } catch (err) { return; }
-  if (d.type === 'board_start') {
-    run.cwd = d.cwd || ''; run.home = d.home || ''; run.status = 'thinking';
-    return;
-  }
-  if (d.type === 'board_error') {
-    turn.error = d.text || 'the run failed';
-    if (d.detail) turn.detail = d.detail;
-    return;
-  }
-  if (d.type === 'system' && d.subtype === 'init') {
-    // The first thing the CLI says, and the moment this becomes a session with
-    // a name on the task rather than something in flight.
-    if (d.session_id && d.session_id !== run.session) {
-      run.session = d.session_id;
-      if (state.chat && state.chat.task === run.task && !state.chat.session) state.chat.session = d.session_id;
-      loadChats();
-    }
-    return;
-  }
-  if (d.type === 'assistant' && d.message) {
-    (d.message.content || []).forEach(b => {
-      if (b.type === 'text' && b.text) {
-        // Blocks of one message arrive as separate events sharing an id, and an
-        // id can come round again. Keyed on both so nothing is doubled.
-        const seenKey = (d.message.id || '') + '|' + b.text;
-        if (run.seen[seenKey]) return;
-        run.seen[seenKey] = 1;
-        turn.reply += (turn.reply ? '\n\n' : '') + b.text;
-        run.status = 'writing';
-      } else if (b.type === 'thinking') {
-        run.status = 'thinking';
-      } else if (b.type === 'tool_use') {
-        turn.tools.push(toolLabel(b.name, b.input, run.cwd));
-        run.status = b.name;
-      }
-    });
-    return;
-  }
-  if (d.type === 'result') {
-    // The last word on what the answer was — the streamed blocks were the
-    // running commentary, this is the text Claude finished with.
-    if (typeof d.result === 'string' && d.result.trim()) turn.reply = d.result;
-    if (d.session_id) run.session = d.session_id;
-    if (typeof d.total_cost_usd === 'number') { turn.cost = d.total_cost_usd; run.cost += d.total_cost_usd; }
-    if (d.is_error && !turn.error) turn.error = 'ended in an error (' + (d.subtype || 'unknown') + ')';
-    run.ms = d.duration_ms || (Date.now() - run.started);
-    run.status = 'done';
-  }
-}
-
-function finishRun(run){
-  run.running = false;
-  run.ctrl = null;
-  if (run.status !== 'done') run.status = 'stopped';
-  renderChat();
-  loadChats();
-  if (state.openTask) openDrawer(state.openTask);
-}
-
-async function startRun(opts){
-  const run = state.runs['n' + (++runCounter)] = {
-    task: opts.task, chat: opts.chat, session: opts.session || '',
-    title: opts.title || opts.ask, mode: opts.mode || 'ask',
-    running: true, status: 'starting', cwd: '', home: state.claude ? state.claude.home : '',
-    turns: (opts.turns || []).slice(), started: Date.now(), ms: 0, cost: 0,
-    seen: {}, ctrl: new AbortController()
-  };
-  const turn = { ask: opts.ask, reply: '', tools: [], error: '', detail: '', cost: 0 };
-  run.turns.push(turn);
-  if (state.chat && state.chat.task === run.task) state.chat.run = run;
-  renderChat();
-  startTicker();
-
-  let res;
-  try {
-    res = await fetch('/claude', {
-      method: 'POST',
-      // The header is the point, not the content type: a form cannot set one,
-      // so a page on another origin cannot reach the helper without a preflight
-      // the helper does not answer.
-      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
-      body: JSON.stringify({
-        prompt: opts.ask, mode: run.mode, session: run.session,
-        chat: run.chat, title: run.title
-      }),
-      signal: run.ctrl.signal
-    });
-  } catch (err) {
-    turn.error = run.ctrl && run.ctrl.signal.aborted
-      ? 'Stopped.' : 'Could not reach the board helper — is run.command still running?';
-    return finishRun(run);
-  }
-  if (!res.ok) {
-    let msg = 'The helper refused it (HTTP ' + res.status + ')';
-    try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (err) { /* not JSON */ }
-    turn.error = msg;
-    return finishRun(run);
-  }
-
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  try {
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      buf += dec.decode(chunk.value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (line) handleRunEvent(run, turn, line);
-      }
-      renderChat();
-    }
-  } catch (err) {
-    if (run.ctrl && run.ctrl.signal.aborted) { if (!turn.reply) turn.error = 'Stopped.'; }
-    else turn.error = 'The answer stopped coming: ' + (err.message || err);
-  }
-  finishRun(run);
-}
-
-/* Send from the modal: carries the open conversation on, or starts it. */
-function chatSend(){
-  const c = state.chat;
-  if (!c) return;
-  const box = $('#chatInput');
-  const ask = box.value.trim();
-  if (!ask) { box.focus(); return; }
-  const run = chatRun();
-  if (run && run.running) return;
-  box.value = '';
-  autoGrow(box);
-  startRun({
-    task: c.task, chat: c.chat, session: c.session, ask,
-    // A brand new chat takes its name from the first thing asked in it. A
-    // resumed one keeps the name it already has.
-    title: (sessionsFor(c.chat).find(s => s.id === c.session) || {}).title || chatTitle(ask),
-    mode: c.mode || 'ask',
-    // Carrying on a conversation read back off disk: the turns already shown
-    // stay on screen rather than the modal appearing to start empty.
-    turns: run ? run.turns : (c.turns || [])
-  });
-}
-
-async function loadChats(){
-  try {
-    const res = await fetch(CHATS_URL + '?t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
-    state.chats = (data && data.chats) || {};
-    if (state.chat) renderChat();
-    if (state.openTask && !chatOpen()) openDrawer(state.openTask);
-  } catch (err) { /* no helper, no list */ }
-}
-
-async function forgetSession(chatKey, sessionId){
-  try {
-    await fetch('/claude/forget', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
-      body: JSON.stringify({ chat: chatKey, session: sessionId })
-    });
-  } catch (err) { /* nothing to do about it */ }
-  loadChats();
-}
-
-/* ---- Getting into a chat ---- */
 
 /* A prompt written on the task starts its own conversation, seeded with the
    prompt but not sent — most of them still have a [path] to fill in, and one
@@ -3061,7 +2357,7 @@ function askFromPrompt(taskId, text){
   if (!loc) return;
   const key = chatKeyFor(loc.task, true);
   refreshView();
-  openChat(taskId, key, '', text);
+  chat.openNew(taskId, key, text);
 }
 
 function newChat(taskId){
@@ -3069,26 +2365,22 @@ function newChat(taskId){
   if (!loc) return;
   const key = chatKeyFor(loc.task, true);
   refreshView();
-  openChat(taskId, key, '', '');
+  chat.openNew(taskId, key, '');
 }
 
+/* The list on a task and the prompt's "Ask Claude" button both land here,
+   sharing the listener the drawer and board already use for everything else. */
 function handleAsk(e){
-  const twist = e.target.closest('.asktracehead');
-  if (twist) {
-    const turns = chatTurns();
-    const turn = turns[+twist.dataset.turn];
-    if (turn) { turn.traceOpen = !turn.traceOpen; renderChat(); }
-    return;
-  }
   const ask = e.target.closest('.askclaude');
   if (ask) { askFromPrompt(ask.dataset.task, ask.dataset.ask || ''); return; }
-  const open = e.target.closest('.chatopen');
-  if (open) { openChat(open.dataset.task, open.dataset.chat, open.dataset.session, ''); return; }
-  const forget = e.target.closest('.chatforget');
-  if (forget) { forgetSession(forget.dataset.chat, forget.dataset.session); return; }
-  const fresh = e.target.closest('#f-newchat');
-  if (fresh) newChat(fresh.dataset.task);
+  const open = e.target.closest('.aic-open');
+  if (open) { chat.openSession(open.dataset.owner, open.dataset.key, open.dataset.session); return; }
+  const forget = e.target.closest('.aic-forget');
+  if (forget) { chat.forget(forget.dataset.key, forget.dataset.session); return; }
+  const fresh = e.target.closest('.aic-addsub');
+  if (fresh) newChat(fresh.dataset.owner);
 }
+
 
 /* The prompt's own row. Ask starts a conversation on the task; the link is
    still there for the times the web app is what you wanted. */
@@ -3097,7 +2389,7 @@ function claudeActions(text, taskId){
   return '<button type="button" class="askclaude" data-task="' + esc(taskId) + '"' +
     ' data-ask="' + esc(text) + '"' +
     ' title="Starts a chat on this task with the prompt ready to send, running in ' +
-    esc(state.claude.home) + '">Ask Claude</button>' + claudeLink(text);
+    esc(chat.home()) + '">Ask Claude</button>' + claudeLink(text);
 }
 
 /* Every Jira note on a task, its sub-steps included. The card marker and the
@@ -5301,35 +4593,12 @@ async function handleCopy(e){
   clearTimeout(btn._t);
   btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done','warn'); }, copied ? 1500 : 4000);
 }
-/* Copy and the chat controls live inside the same containers, so one listener
-   each rather than two. The modal is a third: its own turns carry Copy buttons
-   and its own trace carries the twist. */
+/* Copy and the chat trigger buttons live inside the same containers, so one
+   listener each rather than two. The modal itself is AIChat's own DOM, and it
+   wires its own controls — see ai_chat/interface/chat.js. */
 function handleMsgClick(e){ handleAsk(e); handleCopy(e); }
 $('#lists').onclick = handleMsgClick;
 $('#dbody').onclick = handleMsgClick;
-$('#chatBody').onclick = handleMsgClick;
-
-/* ---- The modal's own controls ---- */
-$('#chatClose').onclick = closeChat;
-$('#chatscrim').onclick = closeChat;
-$('#chatFoot').onsubmit = e => { e.preventDefault(); chatSend(); };
-$('#chatStop').onclick = () => {
-  const run = chatRun();
-  if (run && run.ctrl) run.ctrl.abort();
-};
-/* The box grows line by line instead of scrolling inside itself, so a long
-   question stays visible while it is being written. */
-$('#chatInput').addEventListener('input', e => autoGrow(e.target));
-/* Enter sends, shift-Enter is a new line — the same bargain the composer it is
-   modelled on makes. */
-$('#chatInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
-});
-/* Escape closes the chat before it closes the task behind it. */
-window.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && chatOpen()) { e.stopPropagation(); closeChat(); }
-}, true);
-
 
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -5343,26 +4612,15 @@ window.addEventListener('hashchange', () => {
   }
 });
 
-/* Is there a Claude Code CLI behind the helper, and what is it allowed to do.
-   Everything about this can fail and none of it matters: a 404 on a static host,
-   a helper too old to know the endpoint, a machine with no CLI installed. All
-   three land in the same place — state.claude stays null and the prompts keep
-   the link they always had. */
-async function loadClaudeStatus(){
-  try {
-    const res = await fetch(CLAUDE_URL + '?t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return;
-    const cfg = await res.json();
-    if (!cfg || !cfg.available) return;
-    state.claude = cfg;
-    if (state.doc) renderView();
-    loadChats();
-  } catch (err) { /* no endpoint, no buttons, no complaint */ }
-}
-
 loadFile();
 loadJira();
-loadClaudeStatus();
+// Is there a Claude Code CLI behind the helper, and what is it allowed to
+// do. Everything about this can fail and none of it matters: a 404 on a
+// static host, a helper too old to know the endpoint, a machine with no CLI
+// installed. All three land in the same place — chat.available() stays
+// false and the prompts keep the link they always had. onStatusChanged, set
+// on AIChat.create() above, redraws the view once the answer is in.
+chat.loadStatus();
 </script>
 </body>
 </html>

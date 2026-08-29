@@ -15,11 +15,9 @@ Run it with run.command, or directly:  python3 kanban/server.py
 import datetime
 import http.server
 import json
+import mimetypes
 import os
-import re
 import shutil
-import signal
-import subprocess
 import sys
 import threading
 import time
@@ -188,290 +186,53 @@ def backup_listing():
     return out
 
 
-# ---- Running Claude from a card -------------------------------------------
+# ---- Claude, on a task -----------------------------------------------------
 #
-# A prompt written on a task already had a way out of the board: Open in Claude,
-# a link to claude.ai with the text sitting in the box. That is a hand-over and
-# it ends there — the chat it opens runs in a tab that has never seen this
-# machine, so a prompt saying "read the notes in data/projects/AOP2027" is
-# asking for something the other end cannot do.
+# The engine that runs Claude Code and the index of which sessions sit under
+# which task now live one level up, in ai_chat/ — a module any local tool can
+# load, not just this one. See ai_chat/README.md for the HTTP contract this
+# wires up below, and ai_chat/engine.py for what it actually does: run the
+# CLI, stream its output, and read a transcript back from the file Claude
+# Code itself writes.
 #
-# Claude Code can. It is already installed, already signed in, and it runs where
-# the files are. So this pipes the same prompt into it and streams the answer
-# back to the card. The link stays, for when the full chat is what you wanted.
-#
-# Two modes, and the difference between them is the whole of the safety story:
-#
-#   ask    the default, and the only one that exists without a config file.
-#          Bash, Edit, Write, NotebookEdit and Task are removed from the run
-#          outright — not asked about, not present. It can read the folder and
-#          answer; it cannot change anything. That is stronger than a permission
-#          setting, because a disallowed tool never appears in Claude's tool
-#          list at all, so there is nothing to be talked into using.
-#
-#   work   the one that does the job in full, permissions bypassed. It exists
-#          only if data/claude.json says "work": true, because a button that
-#          edits files across the disk should be switched on deliberately rather
-#          than shipped on.
-#
-# Both are refused unless the request carries X-Board: 1. Any page in any tab
-# can POST to 127.0.0.1 — that is what CSRF is — but a header a form cannot set
-# forces a preflight this server does not answer, so the request never leaves
-# the other page. It costs one header and it closes the hole.
+# A prompt written on a task already had a way out of the board before any of
+# this: Open in Claude, a link to claude.ai with the text sitting in the box.
+# That is a hand-over and it ends there — the chat it opens runs in a tab that
+# has never seen this machine. AI_CHAT_DIR below is where the module that
+# fixes that lives; STATIC_PREFIX is where its own JS and CSS are served from.
 
-CLAUDE_CONFIG = os.path.join(ROOT, DATA, "claude.json")
+AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "ai_chat"))
+STATIC_PREFIX = "/ai-chat/"
 
-# Taken away from an ask run. Not a permission rule: the tools are not there.
-ASK_DENIES = ["Bash", "Edit", "Write", "NotebookEdit", "Task"]
-
-MAX_PROMPT = 20000
-MAX_RUNS = 2            # at once — two is a follow-up while the first still talks
-DEFAULT_TIMEOUT = 900   # 15 minutes, then the run is killed and says so
-
-SESSION_ID = re.compile(r"^[0-9a-fA-F-]{36}$")
-
-runs_lock = threading.Lock()
-runs_now = 0
-
-
-def claude_binary():
-    """Where the CLI is, or None. None is an ordinary state: no CLI, no button."""
-    return shutil.which("claude")
-
-
-def claude_config():
-    """data/claude.json, or the defaults. Read per request, so editing the file
-    takes effect without restarting the board.
-
-    Absent is the normal case, exactly as with data/jira.json — a fresh clone has
-    no file and gets ask mode running in the repo folder, which is the harmless
-    half of the feature.
-    """
-    raw = {}
+ai_chat = None
+if os.path.isdir(AI_CHAT_DIR):
+    sys.path.insert(0, AI_CHAT_DIR)
     try:
-        with open(CLAUDE_CONFIG, encoding="utf-8") as fh:
-            raw = json.load(fh) or {}
-    except (OSError, ValueError):
-        raw = {}
-    if not isinstance(raw, dict):
-        raw = {}
-    cwd = os.path.abspath(os.path.expanduser(str(raw.get("cwd") or ROOT)))
-    if not os.path.isdir(cwd):
-        cwd = ROOT
-    try:
-        timeout = max(30, min(3600, int(raw.get("timeout") or DEFAULT_TIMEOUT)))
-    except (TypeError, ValueError):
-        timeout = DEFAULT_TIMEOUT
-    return {
-        "cwd": cwd,
-        "work": raw.get("work") is True,
-        "model": str(raw["model"]) if raw.get("model") else None,
-        "timeout": timeout,
-    }
+        from engine import Engine          # noqa: E402  (path set just above)
+        from http_glue import ChatEndpoints  # noqa: E402
+
+        engine = Engine(
+            default_cwd=ROOT,
+            config_path=os.path.join(ROOT, DATA, "claude.json"),
+            sessions_path=os.path.join(ROOT, DATA, "sessions.json"),
+        )
+        ai_chat = ChatEndpoints(engine)
+    except ImportError:
+        # ai_chat exists but is missing a file, or is an incompatible version.
+        # Same rule as a missing folder: no engine, no buttons — not a crash.
+        ai_chat = None
 
 
-def claude_argv(prompt, mode, session, cfg, binary):
-    argv = [binary, "-p", prompt, "--output-format", "stream-json", "--verbose"]
-    if cfg["model"]:
-        argv += ["--model", cfg["model"]]
-    if session:
-        # A follow-up carries the conversation on rather than starting one that
-        # has to be told everything again.
-        argv += ["--resume", session]
-    if mode == "work":
-        argv += ["--dangerously-skip-permissions"]
-    else:
-        argv += ["--permission-mode", "dontAsk", "--disallowedTools"] + ASK_DENIES
-    return argv
-
-
-def claude_status():
-    cfg = claude_config()
-    return {
-        "available": bool(claude_binary()),
-        "work": cfg["work"],
-        "cwd": cfg["cwd"],
-        "home": os.path.basename(cfg["cwd"]) or cfg["cwd"],
-        "model": cfg["model"],
-        "timeout": cfg["timeout"],
-        "config": os.path.exists(CLAUDE_CONFIG),
-    }
-
-
-# ---- Which conversations belong to which task ------------------------------
-#
-# A task carries a `chat:` tag, and this file says which sessions sit under it.
-# That is all it says. The conversations themselves are not in here and never
-# were: Claude Code already writes every session to
-# ~/.claude/projects/<cwd>/<id>.jsonl, and that file is what the CLI resumes
-# from and what Claude Desktop imports. Copying it into data/ would have made a
-# second copy that goes stale the moment a session is carried on anywhere else.
-#
-# So this is an index of ids, and the transcripts are read back out of the files
-# Claude Code already keeps. One consequence worth knowing: clearing those files
-# clears the history the board can show, and the board says so rather than
-# drawing an empty conversation as though nothing was ever said.
-
-SESSIONS_FILE = os.path.join(ROOT, DATA, "sessions.json")
-CHAT_KEY = re.compile(r"^[a-z0-9]{4,12}$")
-MAX_TITLE = 120
-MAX_REPLAY = 20 * 1024 * 1024   # a transcript larger than this is not replayed
-MAX_TURNS = 60                  # ...and only the last of these are
-
-
-def sessions_read():
-    try:
-        with open(SESSIONS_FILE, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (OSError, ValueError):
-        data = {}
-    if not isinstance(data, dict):
-        data = {}
-    chats = data.get("chats")
-    return chats if isinstance(chats, dict) else {}
-
-
-def sessions_write(chats):
-    os.makedirs(os.path.dirname(SESSIONS_FILE), exist_ok=True)
-    tmp = SESSIONS_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as fh:
-        json.dump({"version": 1, "chats": chats}, fh, indent=2)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, SESSIONS_FILE)
-
-
-def session_record(chat, session_id, title, mode, cwd):
-    """Note that this session belongs to this task. Called once the CLI has told
-    us its id, which is the first thing it says."""
-    now = datetime.datetime.now().isoformat(timespec="seconds")
-    with runs_lock:
-        chats = sessions_read()
-        rows = chats.setdefault(chat, [])
-        for row in rows:
-            if row.get("id") == session_id:
-                row["updated"] = now
-                return
-        rows.append({
-            "id": session_id, "title": title[:MAX_TITLE],
-            "started": now, "updated": now, "mode": mode, "cwd": cwd,
-        })
-        sessions_write(chats)
-
-
-def session_touch(chat, session_id):
-    with runs_lock:
-        chats = sessions_read()
-        for row in chats.get(chat, []):
-            if row.get("id") == session_id:
-                row["updated"] = datetime.datetime.now().isoformat(timespec="seconds")
-                sessions_write(chats)
-                return
-
-
-def session_forget(chat, session_id):
-    """Drops it off this task's list. The transcript itself is Claude Code's
-    file and is left alone — this is the board forgetting a conversation, not
-    the machine losing one."""
-    with runs_lock:
-        chats = sessions_read()
-        rows = chats.get(chat, [])
-        kept = [r for r in rows if r.get("id") != session_id]
-        if len(kept) == len(rows):
-            return False
-        if kept:
-            chats[chat] = kept
-        else:
-            chats.pop(chat, None)
-        sessions_write(chats)
-        return True
-
-
-def transcript_path(session_id, cwd):
-    """Where Claude Code put the session. The folder name is the working
-    directory with every separator turned into a dash, which is what the CLI
-    does; the search is a fallback for a session whose cwd has since moved."""
-    root = os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude")
-    root = os.path.join(root, "projects")
-    if cwd:
-        slug = cwd.replace(os.sep, "-").replace(".", "-")
-        direct = os.path.join(root, slug, session_id + ".jsonl")
-        if os.path.exists(direct):
-            return direct
-    try:
-        for name in os.listdir(root):
-            guess = os.path.join(root, name, session_id + ".jsonl")
-            if os.path.exists(guess):
-                return guess
-    except OSError:
-        pass
-    return None
-
-
-def _text_blocks(content):
-    """The human's words out of one row, or '' when the row is a tool result
-    wearing a user's clothes — Claude Code files those under "user" too."""
-    if isinstance(content, str):
-        return content
-    if not isinstance(content, list):
-        return ""
-    out = []
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        if block.get("type") == "tool_result":
-            return ""
-        if block.get("type") == "text":
-            out.append(block.get("text") or "")
-    return "\n\n".join(t for t in out if t)
-
-
-def transcript_read(session_id, cwd):
-    """Replay a session as the turns the board draws. Reads the file Claude Code
-    keeps rather than any copy of our own, so a conversation carried on in the
-    terminal or in Claude Desktop comes back complete."""
-    path = transcript_path(session_id, cwd)
-    if not path:
+def ai_chat_static(rel_path):
+    """A file under ai_chat/interface/, or None. Kept to that one folder —
+    this is a static-file route for the widget's own assets, not a general
+    file server onto a sibling directory."""
+    if not AI_CHAT_DIR or ".." in rel_path.split("/"):
         return None
-    try:
-        if os.path.getsize(path) > MAX_REPLAY:
-            return {"turns": [], "toobig": True, "path": path}
-    except OSError:
+    full = os.path.join(AI_CHAT_DIR, "interface", rel_path)
+    if not os.path.isfile(full):
         return None
-
-    turns = []
-    try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line.startswith("{"):
-                    continue
-                try:
-                    row = json.loads(line)
-                except ValueError:
-                    continue
-                # Subagent traffic is a conversation Claude had with itself.
-                if row.get("isSidechain") or row.get("isMeta"):
-                    continue
-                msg = row.get("message") or {}
-                if row.get("type") == "user":
-                    said = _text_blocks(msg.get("content"))
-                    if said.strip():
-                        turns.append({"ask": said, "reply": "", "tools": [],
-                                      "at": row.get("timestamp") or ""})
-                elif row.get("type") == "assistant" and turns:
-                    turn = turns[-1]
-                    for block in (msg.get("content") or []):
-                        if not isinstance(block, dict):
-                            continue
-                        if block.get("type") == "text" and block.get("text"):
-                            turn["reply"] += ("\n\n" if turn["reply"] else "") + block["text"]
-                        elif block.get("type") == "tool_use":
-                            turn["tools"].append({"name": block.get("name") or "",
-                                                  "input": block.get("input") or {}})
-    except OSError:
-        return None
-    return {"turns": turns[-MAX_TURNS:], "toobig": False, "path": path}
+    return full
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -512,25 +273,35 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "keep": {"session": KEEP_BACKUPS, "weekly": KEEP_WEEKLY},
                 "week": week_tag(),
             })
-        # What the board asks before it draws an Ask Claude button. Static
-        # hosting answers this with a 404, which is the right answer there: no
-        # CLI on the other end, so no button.
-        if path == "/claude.json":
-            return self._json(200, claude_status())
+        # What the board asks before it draws an Ask Claude button. No
+        # ai_chat module on disk, or no CLI behind it, answers the same way
+        # as static hosting would: a 404, and the board draws no button.
+        if ai_chat and path == "/claude.json":
+            return self._json(200, ai_chat.status())
         # The whole index in one go. It is a few lines per task and the board
         # already reads whole files rather than querying them.
-        if path == "/claude/sessions.json":
-            return self._json(200, {"chats": sessions_read()})
-        if path == "/claude/transcript.json":
+        if ai_chat and path == "/claude/sessions.json":
+            return self._json(200, ai_chat.sessions())
+        if ai_chat and path == "/claude/transcript.json":
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
-            sid = (q.get("session") or [""])[0]
-            if not SESSION_ID.match(sid):
-                return self._json(400, {"error": "not a session id"})
-            got = transcript_read(sid, (q.get("cwd") or [""])[0])
-            if got is None:
-                return self._json(404, {"error": "no transcript on disk for that session"})
-            return self._json(200, got)
+            got, err = ai_chat.transcript((q.get("session") or [""])[0], (q.get("cwd") or [""])[0])
+            return self._json(404 if err else 200, err or got)
+        # The chat widget's own JS and CSS, read straight from ai_chat/ rather
+        # than copied in — see AI_CHAT_DIR above.
+        if ai_chat and path.startswith(STATIC_PREFIX):
+            full = ai_chat_static(path[len(STATIC_PREFIX):])
+            if not full:
+                return self._json(404, {"error": "not found under ai_chat/interface"})
+            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+            with open(full, "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         return super().do_GET()
 
     def _body(self):
@@ -544,21 +315,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?")[0]
-        if path == "/claude":
-            return self.run_claude()
-        if path == "/claude/forget":
-            if self.headers.get("X-Board") != "1":
+        # Both routes below are refused unless the request carries X-Board: 1.
+        # Any page in any tab can POST to 127.0.0.1 — that is what CSRF is —
+        # but a header a form cannot set forces a preflight this server does
+        # not answer, so the request never leaves the other page. See
+        # ai_chat/README.md for the rest of that story.
+        if ai_chat and path == "/claude":
+            if not ai_chat.guard_ok(self):
                 return self._json(403, {"error": "not from the board"})
             data = self._body()
             try:
                 payload = json.loads((data or b"{}").decode("utf-8"))
             except (UnicodeDecodeError, ValueError):
                 return self._json(400, {"error": "body was not valid JSON"})
-            chat = str(payload.get("chat") or "")
-            sid = str(payload.get("session") or "")
-            if not CHAT_KEY.match(chat) or not SESSION_ID.match(sid):
-                return self._json(400, {"error": "bad chat or session id"})
-            return self._json(200, {"ok": session_forget(chat, sid)})
+            err = ai_chat.stream(self, payload)
+            if err:
+                return self._json(err[0], err[1])
+            return
+        if ai_chat and path == "/claude/forget":
+            if not ai_chat.guard_ok(self):
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = ai_chat.forget(payload.get("owner"), payload.get("session"))
+            return self._json(400 if err else 200, err or got)
         if path != "/archive":
             return self._json(404, {"error": "nothing to post there"})
         data = self._body()
@@ -575,162 +358,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         sys.stdout.write("archived finished work to %s/backups/%s\n" % (DATA, name))
         sys.stdout.flush()
         return self._json(200, {"ok": True, "archive": name})
-
-    def _line(self, obj):
-        """One NDJSON line, pushed out now rather than at the end.
-
-        The response carries no Content-Length, so the browser reads it until
-        the connection closes — which is what makes an answer appear a sentence
-        at a time instead of arriving whole after two minutes of nothing.
-        """
-        self.wfile.write((json.dumps(obj) + "\n").encode())
-        self.wfile.flush()
-
-    def run_claude(self):
-        global runs_now
-
-        # See the note above ASK_DENIES. A form cannot set this header, so a
-        # page on another origin cannot reach here without a preflight, and
-        # there is no do_OPTIONS to answer one.
-        if self.headers.get("X-Board") != "1":
-            return self._json(403, {"error": "not from the board"})
-
-        binary = claude_binary()
-        if not binary:
-            return self._json(501, {"error": "the claude CLI is not on PATH"})
-
-        data = self._body()
-        if data is None:
-            return self._json(400, {"error": "bad or empty body"})
-        try:
-            payload = json.loads(data.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError):
-            return self._json(400, {"error": "body was not valid JSON"})
-
-        prompt = str(payload.get("prompt") or "").strip()
-        if not prompt:
-            return self._json(400, {"error": "no prompt"})
-        if len(prompt) > MAX_PROMPT:
-            return self._json(413, {"error": "prompt too long"})
-
-        cfg = claude_config()
-        mode = "work" if payload.get("mode") == "work" else "ask"
-        if mode == "work" and not cfg["work"]:
-            return self._json(403, {"error": 'work mode is off — set "work": true in data/claude.json'})
-
-        session = str(payload.get("session") or "")
-        session = session if SESSION_ID.match(session) else ""
-
-        # Which task this belongs to, and what to call it in that task's list.
-        # Absent is allowed: a run with no chat key is simply not filed anywhere.
-        chat = str(payload.get("chat") or "")
-        chat = chat if CHAT_KEY.match(chat) else ""
-        title = str(payload.get("title") or prompt).strip().replace("\n", " ")[:MAX_TITLE]
-
-        with runs_lock:
-            if runs_now >= MAX_RUNS:
-                return self._json(429, {"error": "two runs already going — wait for one to finish"})
-            runs_now += 1
-
-        argv = claude_argv(prompt, mode, session, cfg, binary)
-        proc = None
-        killer = None
-        errs = []
-        try:
-            try:
-                proc = subprocess.Popen(
-                    argv, cwd=cfg["cwd"],
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    text=True, bufsize=1,
-                    # Its own process group, so stopping the run stops whatever
-                    # Claude itself started rather than orphaning it.
-                    start_new_session=True,
-                )
-            except OSError as err:
-                return self._json(500, {"error": "could not start claude: %s" % err})
-
-            def stop(why):
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-                except (OSError, ProcessLookupError):
-                    pass
-                errs.append(why)
-
-            killer = threading.Timer(cfg["timeout"], stop, args=("timed out after %d minutes" % (cfg["timeout"] // 60),))
-            killer.daemon = True
-            killer.start()
-
-            # stderr on its own thread: a full pipe nobody is draining is how a
-            # subprocess ends up blocked forever with the board waiting on it.
-            tail = []
-
-            def drain():
-                for line in proc.stderr:
-                    tail.append(line.rstrip("\n"))
-                    del tail[:-20]
-            drainer = threading.Thread(target=drain, daemon=True)
-            drainer.start()
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/x-ndjson")
-            self.end_headers()
-
-            sys.stdout.write("claude (%s) in %s\n" % (mode, cfg["cwd"]))
-            sys.stdout.flush()
-
-            self._line({"type": "board_start", "mode": mode, "cwd": cfg["cwd"],
-                        "home": os.path.basename(cfg["cwd"]) or cfg["cwd"],
-                        "resumed": bool(session)})
-
-            saw_result = False
-            filed = ""
-            try:
-                for line in proc.stdout:
-                    line = line.strip()
-                    if not line.startswith("{"):
-                        continue
-                    if '"type":"result"' in line:
-                        saw_result = True
-                    # The init line carries the session id, and it is the first
-                    # thing the CLI says — so a run that is stopped or crashes
-                    # ten seconds in is still in the task's list afterwards,
-                    # with whatever was said in it readable from the transcript.
-                    if chat and not filed and '"subtype":"init"' in line:
-                        try:
-                            sid = json.loads(line).get("session_id") or ""
-                        except ValueError:
-                            sid = ""
-                        if SESSION_ID.match(sid):
-                            filed = sid
-                            session_record(chat, sid, title, mode, cfg["cwd"])
-                    self.wfile.write((line + "\n").encode())
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                # The tab was closed, or Stop was pressed. Either way nobody is
-                # reading any more, so the run has no reason to carry on.
-                stop("stopped")
-                return
-
-            if chat and filed:
-                session_touch(chat, filed)
-            code = proc.wait()
-            if killer:
-                killer.cancel()
-            if not saw_result:
-                why = errs[0] if errs else ("claude exited %d" % code)
-                self._line({"type": "board_error", "text": why,
-                            "detail": "\n".join(tail[-6:])})
-        finally:
-            if killer:
-                killer.cancel()
-            if proc and proc.poll() is None:
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except (OSError, ProcessLookupError):
-                    pass
-            with runs_lock:
-                runs_now -= 1
 
     def do_PUT(self):
         global backup_made
