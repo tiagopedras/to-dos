@@ -110,6 +110,14 @@ def backup_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "backups")
 
 
+def reports_dir(name=None):
+    # Written reports live beside the list they're about rather than in the
+    # repo, because a report names people, dates and internal decisions — the
+    # same reasons todo.md itself never leaves data/. One per dataset, same
+    # as backups.
+    return os.path.join(dataset_dir(name or current_dataset()), "reports")
+
+
 # Same four states every other data set starts with, so a brand new list's
 # columns read the same on the board as any other's from the first save —
 # not because these four are special to the board (any heading works, and
@@ -218,6 +226,76 @@ def weekly_backup_watcher(every=1800):
         except OSError as err:
             sys.stdout.write("weekly backup failed: %s\n" % err)
         time.sleep(every)
+
+
+def report_meta(path, name):
+    """Title, date and standfirst for one report, read from its frontmatter.
+
+    A report is a plain Markdown file, so the board must be able to describe one
+    without opening it. Frontmatter carries what the list needs; everything below
+    it is the report itself and is only fetched when someone opens it.
+    """
+    title, date, covers, topic, summary = "", "", "", "", ""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            first = fh.readline()
+            if first.strip() == "---":
+                for line in fh:
+                    if line.strip() == "---":
+                        break
+                    key, _, value = line.partition(":")
+                    key, value = key.strip().lower(), value.strip()
+                    if key == "title":
+                        title = value
+                    elif key == "date":
+                        date = value
+                    elif key == "covers":
+                        covers = value
+                    elif key == "topic":
+                        topic = value
+                    elif key == "summary":
+                        summary = value
+    except OSError:
+        return None
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    # A file with no frontmatter is still a report. Fall back to the name so a
+    # dropped-in Markdown file shows up rather than being silently ignored.
+    if not title:
+        title = name[:-3].replace("-", " ").strip()
+    return {
+        "name": name,
+        "title": title,
+        "date": date,
+        "covers": covers,
+        "topic": topic,
+        "summary": summary,
+        "bytes": st.st_size,
+        "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        "url": "/" + DATA + "/reports/" + name,
+    }
+
+
+def report_listing():
+    """Every written report, newest first by the date it covers up to.
+
+    Sorted on the frontmatter date rather than the file's mtime: fixing a typo in
+    a report from three weeks ago should not move it to the top of the list.
+    """
+    rdir = reports_dir()
+    if not os.path.isdir(rdir):
+        return []
+    out = []
+    for name in sorted(os.listdir(rdir)):
+        if not name.endswith(".md") or name.startswith("."):
+            continue
+        meta = report_meta(os.path.join(rdir, name), name)
+        if meta:
+            out.append(meta)
+    out.sort(key=lambda r: (r["date"] or "", r["modified"]), reverse=True)
+    return out
 
 
 ARCHIVE = "done-archive.md"
@@ -407,6 +485,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path == "/datasets.json":
             return self._json(200, {"datasets": list_datasets(), "current": current_dataset()})
+        if path == "/reports.json":
+            return self._json(200, {"reports": report_listing()})
         if path == "/backups.json":
             return self._json(200, {
                 "backups": backup_listing(),

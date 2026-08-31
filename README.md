@@ -302,6 +302,79 @@ Everything else is worked out from tags at render time, never stored twice:
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
 
+### Reports
+
+Every other view answers what to do next. The **Reports** tab answers what got
+done, which is what a one-to-one or an end-of-quarter write-up actually asks for
+and which nothing here could tell you without counting ticks by hand.
+
+The first report is **Completed in the last 30 days**, broken down by bucket.
+It counts the `done:` date the board writes when a task is ticked, so it only
+sees work finished since that date started being recorded; anything ticked before
+then is invisible to it, and the report says so underneath rather than quietly
+under-reporting. Each bucket gets its count, its share of the total and a bar
+scaled to the busiest bucket, so a quiet month still reads as a shape instead of
+four slivers. Buckets with nothing in them stay on the list, because an empty
+bucket is a finding.
+
+Thirty days is not an arbitrary window. Finished work older than that can be
+archived out of `todo.md` into `done-archive.md`, so past thirty days the file
+stops being the whole story and a longer count taken from it would be wrong
+without knowing it. Opening a bucket shows the tasks behind the number, each one
+clickable into the drawer like anywhere else. Reading a backup preview reports on
+that backup rather than the live file, and nothing on this tab writes anything.
+
+A second report means one more function that returns HTML, listed in
+`reportDefs()`. The tab is built to hold more than one.
+
+The column beside it, **Written reports**, holds the other kind. Counting can only
+ever say how many. Saying what moved and what it means is a judgement, so those
+have to be written, and they are written by asking Claude for one. They live as
+Markdown files in the current dataset's own `reports/` folder, listed by the
+server at `/reports.json` and opened in place on the tab. Files rather than
+sections inside `todo.md`, because a report is finished the day it is written and
+the list is not, so keeping them together would mean editing history every time a
+task changes. In `data/` rather than anywhere else, because a report about this
+list names people, dates and internal decisions, which is the same reason
+`todo.md` never leaves that folder.
+
+Each file opens with frontmatter carrying `title`, `date`, `covers`, `topic` and a
+one-line `summary`. The list reads only that, so the tab can show a contents page
+without fetching every report. The body is pulled in when one is opened.
+
+#### Rules for writing a report
+
+These are the rules Claude follows when asked to generate one. They are here
+rather than in a skill so that they are read alongside everything else about the
+board.
+
+**Never list individual to-dos.** A report is not a filtered copy of the list. If
+the reader wants the tasks, the board is right there. A report that enumerates
+what was ticked has done no work.
+
+**Outcomes, not activity.** Say what actually changed for the team or the system,
+and what is now possible that was not possible before. The tasks are the evidence
+behind that, not the subject of it. "Four of six components documented" and "the
+Loom script is written, the recording isn't" are still activity, just described at
+a higher altitude than a checklist. "Docs now cover four of the six most-used
+components, so contributors stop asking in Slack for the fifth" is the same fact
+read for what it changed. Where something has not moved, say so plainly and say
+what it is waiting on. A report that only carries wins is not a report.
+
+**Prose by default, bullets when being specific earns it.** When a report needs to
+name particular things, components, numbers, decisions, open questions, a short
+bullet list is clearer than a sentence carrying six commas. Everywhere else, write
+in prose.
+
+**Tiago's voice, and keep it short.** The `tiago-writing-voice` skill is the
+reference: contractions, British English, short sentences and short paragraphs, no
+em dashes, concrete numbers rather than vague claims. Simple and short beats
+thorough. A report nobody finishes reading is worth nothing.
+
+**Under 400 words unless there is a reason to go longer.** Three or four sections
+is usually the shape: what moved, what has not, and what the pattern across the
+two is. If a section needs a paragraph to say one thing, it needs one sentence.
+
 ### Handing a prompt over
 
 A card that carries a written prompt gets **Open in Claude** under the Copy
@@ -539,9 +612,9 @@ read inside. The board remains the authority.
 
 ## The skills
 
-`skills/pa-todo-meeting/` is a Claude skill that runs the review session: read
+`skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
-verify. It is packaged as `skills/pa-todo-meeting.skill` for installing.
+verify. It is packaged as `skills/dist/pa-checkin.skill` for installing.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -549,11 +622,11 @@ more than one `headline:`, missing scores, and a queried tag written in a form
 Dataview cannot read. Run it directly:
 
 ```bash
-python3 skills/pa-todo-meeting/scripts/check_todo.py data/twinkl/todo.md
+python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
-`pa-todo-meeting/references/conventions.md` is the file format.
-`pa-todo-meeting/references/audit-checklist.md` is what to check by hand that the
+`pa-checkin/references/conventions.md` is the file format.
+`pa-checkin/references/audit-checklist.md` is what to check by hand that the
 script cannot.
 
 ### Two dates, not one
@@ -574,7 +647,7 @@ date re-guessed by hand.
 ```
 ## 1. People                      <- bucket
 ### Doing                         <- state
-- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial]
+- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial] [to:: Ana]
   - [ ] A sub-step [due:: 2026-08-19] [ai:: full]
     - Suggested message: "..."   <- ready to send
     - Prompt: "..."              <- ready to hand to Claude
@@ -590,6 +663,21 @@ state is a heading rather than a code change. The board reads them in reverse
 file order and adds a **Done** column on the end that no heading produces. Left
 to right that is Backlog, To do, Doing, Waiting review, Done.
 
+**Blocked** sits between Doing and Waiting review, but it is not a standing
+heading like the other four — it has no place in the file until a task is
+actually moved there from the drawer's Column field, and the board drops the
+column again once nothing is left in it. Use it for a task that cannot move
+until something outside it changes, as distinct from `blocked-by:`, which
+points at another task on the list rather than an external hold-up.
+
+`[to:: ]` is who the task has been handed to. It is a person's name, and it is
+optional: most of the list is work you are doing yourself, and a task without it
+shows nothing. It is deliberately separate from `[ai:: ]`, which says whether
+Claude is doing the work. The two answer different questions, and a task can
+easily be delegated to somebody and still be drafted by Claude first. When it is
+set, the name appears on the card as an arrowed chip in the accent colour, so
+scanning a column tells you what is with somebody else without opening anything.
+
 **Waiting review** holds work that is finished as far as you are concerned and is
 now sitting with somebody else for sign-off. Nothing is owed on it until it comes
 back, which is a different thing from Doing (live) and from Backlog (real work,
@@ -598,8 +686,8 @@ the board, because the two orders are mirrors of each other.
 
 ### Two tag syntaxes
 
-`impact`, `effort`, `due` and `ai` are written as Dataview inline fields, in
-brackets with a double colon. Everything else is a backtick code span.
+`impact`, `effort`, `due`, `ai` and `to` are written as Dataview inline fields,
+in brackets with a double colon. Everything else is a backtick code span.
 
 The split is not cosmetic. Dataview cannot read inside a code span, so those four
 had to come out of one for the Obsidian views to work, and the rest stayed in one
