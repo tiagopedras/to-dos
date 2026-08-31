@@ -2,12 +2,20 @@
 """Tiny local server for the to-do board.
 
 This file lives in kanban/ and serves the folder above it, so kanban/index.html
-and data/todo.md are both reachable. It accepts PUT /data/todo.md so the board can
-write your changes straight back, and keeps backups in data/backups/.
-Listens on 127.0.0.1 only, so nothing outside this machine can reach it.
+and data/<dataset>/todo.md are both reachable. It accepts PUT /data/todo.md so
+the board can write your changes straight back, and keeps backups in
+data/<dataset>/backups/. Listens on 127.0.0.1 only, so nothing outside this
+machine can reach it.
 
-The list lives in data/ and nothing else does. That folder is the whole of what
-git ignores, and it is what Obsidian opens as its vault.
+Everything private lives in data/, and that folder is the whole of what git
+ignores. It is not one list any more but a folder of them — data/twinkl/,
+data/personal/, whatever the board's dropdown has been used to add — each
+shaped exactly like the others: its own todo.md, backups/, views.md, projects/,
+claude.json and jira.json. Exactly one of them is "current" at a time, tracked
+in data/.current, and every URL the board already used (/data/todo.md,
+/data/backups/…) is transparently rewritten below to point at whichever
+dataset that is — see translate_path. The board itself never learns a
+dataset's name until it asks /datasets.json for the list.
 
 Run it with run.command, or directly:  python3 kanban/server.py
 """
@@ -17,6 +25,7 @@ import http.server
 import json
 import mimetypes
 import os
+import re
 import shutil
 import sys
 import threading
@@ -33,12 +42,102 @@ ROOT = os.path.dirname(HERE)
 # It is also what Obsidian opens as its vault, so the vault holds the list and
 # nothing else: no board, no skill, no README to index.
 DATA = "data"
-BACKUP_DIR = os.path.join(ROOT, DATA, "backups")
+CURRENT_FILE = os.path.join(ROOT, DATA, ".current")
 TARGET = DATA + "/todo.md"
 PAGE = "kanban/index.html"
 PORT = 8765
 MAX_BYTES = 5 * 1024 * 1024
-backup_made = False
+# One-backup-per-run applies per dataset, not to the server as a whole — the
+# rare session that visits two lists gets one grace save on each.
+backup_made = set()
+
+
+# ---- Data sets --------------------------------------------------------------
+#
+# A dataset is nothing but a folder directly under data/ that has a todo.md in
+# it. That is the whole of the contract, so listing them is a directory scan
+# rather than a registry that could fall out of step with what is really on
+# disk. Which one is "current" is a single word in data/.current; missing,
+# blank or naming something deleted, it falls back to the first dataset found,
+# which covers a fresh clone (data/.current does not exist) the same way it
+# covers a dataset removed by hand outside the board.
+
+def list_datasets():
+    base = os.path.join(ROOT, DATA)
+    if not os.path.isdir(base):
+        return []
+    out = [name for name in os.listdir(base)
+           if not name.startswith(".")
+           and os.path.isfile(os.path.join(base, name, "todo.md"))]
+    return sorted(out)
+
+
+def current_dataset():
+    try:
+        with open(CURRENT_FILE, encoding="utf-8") as fh:
+            name = fh.read().strip()
+    except OSError:
+        name = ""
+    names = list_datasets()
+    if name in names:
+        return name
+    return names[0] if names else None
+
+
+def set_current_dataset(name):
+    os.makedirs(os.path.join(ROOT, DATA), exist_ok=True)
+    with open(CURRENT_FILE, "w", encoding="utf-8") as fh:
+        fh.write(name)
+
+
+def slugify(raw):
+    """A name typed into the dropdown, turned into a folder name safe to sit
+    under data/ and to appear in a URL untouched: lowercase, hyphens, nothing
+    that could climb out of the folder or collide with the pointer file."""
+    s = re.sub(r"[^a-z0-9]+", "-", (raw or "").strip().lower()).strip("-")
+    return s[:40]
+
+
+def dataset_dir(name):
+    return os.path.join(ROOT, DATA, name)
+
+
+def todo_path(name=None):
+    return os.path.join(dataset_dir(name or current_dataset()), "todo.md")
+
+
+def backup_dir(name=None):
+    return os.path.join(dataset_dir(name or current_dataset()), "backups")
+
+
+# Same four states every other data set starts with, so a brand new list's
+# columns read the same on the board as any other's from the first save —
+# not because these four are special to the board (any heading works, and
+# the Columns editor can rename, add to, or remove from them), but because
+# nothing is more confusing than a second list whose board looks unlike the
+# first for no reason anyone chose.
+NEW_DATASET_TEMPLATE = (
+    "# To-do\n\n"
+    "## 1. Tasks\n\n"
+    "### Waiting review\n\n"
+    "### Doing\n\n"
+    "### To do\n\n"
+    "### Backlog\n\n"
+)
+
+
+def create_dataset(name):
+    """A new dataset starts as one bucket with the standard four columns,
+    empty — the least a file needs for load() and this server's own PUT
+    check to accept it — and nothing else: no backups, no Claude or Jira
+    config, until something asks for one."""
+    path = dataset_dir(name)
+    if os.path.exists(path):
+        return False
+    os.makedirs(path)
+    with open(os.path.join(path, "todo.md"), "w", encoding="utf-8", newline="") as fh:
+        fh.write(NEW_DATASET_TEMPLATE)
+    return True
 
 
 SESSION_PREFIX = "todo-backup-"
@@ -58,9 +157,10 @@ def week_tag(when=None):
 
 
 def backup_names():
-    if not os.path.isdir(BACKUP_DIR):
+    bdir = backup_dir()
+    if not os.path.isdir(bdir):
         return []
-    return sorted(n for n in os.listdir(BACKUP_DIR)
+    return sorted(n for n in os.listdir(bdir)
                   if n.startswith(SESSION_PREFIX) and n.endswith(".md"))
 
 
@@ -72,12 +172,13 @@ def prune_backups():
     schedule — otherwise a busy fortnight of saves would quietly delete the
     only copy of how the list looked last month.
     """
+    bdir = backup_dir()
     names = backup_names()
     session = [n for n in names if not is_weekly(n)]
     weekly = [n for n in names if is_weekly(n)]
     for old in session[:-KEEP_BACKUPS] + weekly[:-KEEP_WEEKLY]:
         try:
-            os.remove(os.path.join(BACKUP_DIR, old))
+            os.remove(os.path.join(bdir, old))
         except OSError:
             pass
 
@@ -89,14 +190,15 @@ def weekly_backup():
     board running is captured as it was before that week's edits started.
     Returns the file name if one was written, otherwise None.
     """
-    path = os.path.join(ROOT, TARGET)
+    path = todo_path()
     if not os.path.exists(path):
         return None
+    bdir = backup_dir()
     name = WEEKLY_PREFIX + week_tag() + ".md"
-    dest = os.path.join(BACKUP_DIR, name)
+    dest = os.path.join(bdir, name)
     if os.path.exists(dest):
         return None
-    os.makedirs(BACKUP_DIR, exist_ok=True)
+    os.makedirs(bdir, exist_ok=True)
     shutil.copy2(path, dest)
     prune_backups()
     return name
@@ -104,12 +206,14 @@ def weekly_backup():
 
 def weekly_backup_watcher(every=1800):
     """Check for a new week while the board runs, so crossing midnight on a
-    Sunday is enough to trigger the snapshot — no save required."""
+    Sunday is enough to trigger the snapshot — no save required. Runs against
+    whichever dataset is current at the moment it fires, same as a save does."""
     while True:
         try:
+            ds = current_dataset()
             name = weekly_backup()
             if name:
-                sys.stdout.write("weekly backup: %s/backups/%s\n" % (DATA, name))
+                sys.stdout.write("weekly backup: %s/%s/backups/%s\n" % (DATA, ds, name))
                 sys.stdout.flush()
         except OSError as err:
             sys.stdout.write("weekly backup failed: %s\n" % err)
@@ -127,8 +231,9 @@ def archive_done(text):
     work archived today would quietly stop existing in twelve weeks. This file is
     never pruned and never written to by anything else — it only grows.
     """
-    os.makedirs(BACKUP_DIR, exist_ok=True)
-    path = os.path.join(BACKUP_DIR, ARCHIVE)
+    bdir = backup_dir()
+    os.makedirs(bdir, exist_ok=True)
+    path = os.path.join(bdir, ARCHIVE)
     new = not os.path.exists(path)
     with open(path, "a", encoding="utf-8", newline="") as fh:
         if new:
@@ -146,7 +251,7 @@ def archive_info():
     """The archive is not a backup and is not listed as one — it is the only file
     here that is never pruned, and it holds work that is in no current copy of
     todo.md at all."""
-    path = os.path.join(BACKUP_DIR, ARCHIVE)
+    path = os.path.join(backup_dir(), ARCHIVE)
     try:
         st = os.stat(path)
     except OSError:
@@ -169,8 +274,9 @@ def archive_info():
 def backup_listing():
     """What the backup index page reads. Newest first."""
     out = []
+    bdir = backup_dir()
     for name in backup_names():
-        full = os.path.join(BACKUP_DIR, name)
+        full = os.path.join(bdir, name)
         try:
             st = os.stat(full)
         except OSError:
@@ -204,23 +310,38 @@ def backup_listing():
 AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "ai_chat"))
 STATIC_PREFIX = "/ai-chat/"
 
-ai_chat = None
+Engine = ChatEndpoints = None
 if os.path.isdir(AI_CHAT_DIR):
     sys.path.insert(0, AI_CHAT_DIR)
     try:
         from engine import Engine          # noqa: E402  (path set just above)
         from http_glue import ChatEndpoints  # noqa: E402
-
-        engine = Engine(
-            default_cwd=ROOT,
-            config_path=os.path.join(ROOT, DATA, "claude.json"),
-            sessions_path=os.path.join(ROOT, DATA, "sessions.json"),
-        )
-        ai_chat = ChatEndpoints(engine)
     except ImportError:
         # ai_chat exists but is missing a file, or is an incompatible version.
         # Same rule as a missing folder: no engine, no buttons — not a crash.
-        ai_chat = None
+        Engine = ChatEndpoints = None
+
+# One engine per dataset, built the first time something asks for it. Each
+# dataset owns its own claude.json and sessions.json exactly as it owns its
+# own todo.md, so a chat started against one list has no business appearing
+# under another — and switching lists must not lose track of the sessions
+# recorded against the one just left.
+_ai_chat_cache = {}
+
+
+def ai_chat_for(name):
+    if not Engine or not name:
+        return None
+    inst = _ai_chat_cache.get(name)
+    if inst is None:
+        engine = Engine(
+            default_cwd=ROOT,
+            config_path=os.path.join(dataset_dir(name), "claude.json"),
+            sessions_path=os.path.join(dataset_dir(name), "sessions.json"),
+        )
+        inst = ChatEndpoints(engine)
+        _ai_chat_cache[name] = inst
+    return inst
 
 
 def ai_chat_static(rel_path):
@@ -249,7 +370,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # missing file became an unexplainable "Failed to fetch".
         first = args[0] if args else ""
         if isinstance(first, str) and "PUT" in first:
-            sys.stdout.write("saved %s\n" % TARGET)
+            sys.stdout.write("saved %s/%s/todo.md\n" % (DATA, current_dataset()))
             sys.stdout.flush()
 
     def _json(self, code, payload):
@@ -264,8 +385,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
+    def translate_path(self, path):
+        # Every file the board reads under /data/ — todo.md, views.md,
+        # backups/*, jira.json — is asked for at a path with no dataset name
+        # in it, because the board only ever knows "the current list". This is
+        # the one place that fact gets resolved: swap /data/... for
+        # /data/<current>/... before handing off to the normal file server.
+        # GET and HEAD both funnel through here (send_head calls this), so a
+        # dataset switch takes effect for every read without the board's own
+        # fetch calls changing at all.
+        p = path.split("?")[0]
+        prefix = "/" + DATA
+        if p == prefix or p.startswith(prefix + "/"):
+            ds = current_dataset()
+            if ds:
+                rest = p[len(prefix):]
+                return super().translate_path(prefix + "/" + ds + rest)
+        return super().translate_path(path)
+
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path == "/datasets.json":
+            return self._json(200, {"datasets": list_datasets(), "current": current_dataset()})
         if path == "/backups.json":
             return self._json(200, {
                 "backups": backup_listing(),
@@ -273,6 +414,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "keep": {"session": KEEP_BACKUPS, "weekly": KEEP_WEEKLY},
                 "week": week_tag(),
             })
+        ai_chat = ai_chat_for(current_dataset())
         # What the board asks before it draws an Ask Claude button. No
         # ai_chat module on disk, or no CLI behind it, answers the same way
         # as static hosting would: a 404, and the board draws no button.
@@ -315,6 +457,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?")[0]
+        if path == "/datasets":
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            name = slugify(payload.get("name"))
+            if not name:
+                return self._json(400, {"error": "that name has nothing usable in it"})
+            if name in list_datasets():
+                return self._json(409, {"error": "there is already a list called “%s”" % name})
+            create_dataset(name)
+            set_current_dataset(name)
+            return self._json(200, {"ok": True, "name": name,
+                                    "datasets": list_datasets(), "current": name})
+        if path == "/dataset/select":
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            name = str(payload.get("name") or "")
+            if name not in list_datasets():
+                return self._json(404, {"error": "no list called “%s”" % name})
+            set_current_dataset(name)
+            return self._json(200, {"ok": True, "current": name})
+        ai_chat = ai_chat_for(current_dataset())
         # Both routes below are refused unless the request carries X-Board: 1.
         # Any page in any tab can POST to 127.0.0.1 — that is what CSRF is —
         # but a header a form cannot set forces a preflight this server does
@@ -355,12 +524,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not text.strip():
             return self._json(400, {"error": "nothing to archive"})
         name = archive_done(text)
-        sys.stdout.write("archived finished work to %s/backups/%s\n" % (DATA, name))
+        sys.stdout.write("archived finished work to %s/%s/backups/%s\n" % (DATA, current_dataset(), name))
         sys.stdout.flush()
         return self._json(200, {"ok": True, "archive": name})
 
     def do_PUT(self):
-        global backup_made
         if self.path.split("?")[0].lstrip("/") != TARGET:
             return self._json(404, {"error": "only %s can be written" % TARGET})
 
@@ -381,7 +549,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if "## " not in text:
             return self._json(400, {"error": "that does not look like the to-do file, refusing to write"})
 
-        path = os.path.join(ROOT, TARGET)
+        ds = current_dataset()
+        path = todo_path(ds)
         backup_name = None
 
         # A save is also a chance to notice the week turned over.
@@ -393,15 +562,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # out of the file.
         forced = "backup=force" in self.path
         if forced:
-            backup_made = False
+            backup_made.discard(ds)
 
         # One backup per run, before the first write of this session.
-        if not backup_made and os.path.exists(path):
+        if ds not in backup_made and os.path.exists(path):
             stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
             backup_name = "todo-backup-%s.md" % stamp
-            os.makedirs(BACKUP_DIR, exist_ok=True)
-            shutil.copy2(path, os.path.join(BACKUP_DIR, backup_name))
-            backup_made = True
+            bdir = backup_dir(ds)
+            os.makedirs(bdir, exist_ok=True)
+            shutil.copy2(path, os.path.join(bdir, backup_name))
+            backup_made.add(ds)
             prune_backups()
 
         # Write to a neighbouring temp file first, then swap it in, so a crash
@@ -419,8 +589,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     os.chdir(ROOT)
-    if not os.path.exists(os.path.join(ROOT, TARGET)):
-        print("Cannot find %s in %s" % (TARGET, ROOT))
+    ds = current_dataset()
+    if not ds:
+        print("Cannot find any data set under %s/ — expected at least one folder" % DATA)
+        print("with a todo.md in it, e.g. %s/twinkl/todo.md" % DATA)
         return 1
     if not os.path.exists(os.path.join(ROOT, PAGE)):
         print("Cannot find %s in %s" % (PAGE, ROOT))
@@ -450,7 +622,7 @@ def main():
 
     first_weekly = weekly_backup()
     if first_weekly:
-        print("weekly backup: %s/backups/%s" % (DATA, first_weekly))
+        print("weekly backup: %s/%s/backups/%s" % (DATA, ds, first_weekly))
     threading.Thread(target=weekly_backup_watcher, daemon=True).start()
 
     url = "http://127.0.0.1:%d/%s" % (PORT, PAGE)

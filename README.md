@@ -5,23 +5,52 @@ single markdown file, and a skill that runs a review session over that same file
 
 ## Where the list lives
 
-Everything private sits in one folder, `data/`, and that folder is the whole of
-what git ignores:
+Everything private sits in one folder, `data/`, ignored by git. Inside it, one subfolder per data set — one list, kept completely apart from any other:
 
 ```
-data/todo.md              the list
-data/views.md             the Obsidian views, generated
-data/backups/             the board's snapshots, and done-archive.md
-data/sessions.json        which Claude chats belong to which task
+data/.current              which one below is live right now
+data/twinkl/todo.md        the list
+data/twinkl/views.md       the Obsidian views, generated
+data/twinkl/backups/       the board's snapshots, and done-archive.md
+data/twinkl/sessions.json  which Claude chats belong to which task
+data/twinkl/claude.json    that data set's own Claude config
+data/twinkl/jira.json      that data set's own Jira boards
+data/twinkl/projects/      that data set's own project folders, see below
+data/personal/todo.md      a second, unrelated list, shaped the same way
 ```
 
-Nothing else in the repo holds a task, a name or a date. It used to be four
-separate ignore rules — `todo.md`, `backups/`, `todo-backup-*.md`, `views.md` —
-which meant every new derived file had to remember to add a fifth, and one nearly
-slipped through. A folder cannot be forgotten.
+Nothing else in the repo holds a task, a name or a date. `data/` used to be one
+list flat inside it, before the dropdown existed to hold more than one — moving
+the old files into `data/twinkl/` is the whole of what that change did to disk,
+nothing in the shape of a single list changed. It used to be four separate
+ignore rules before that — `todo.md`, `backups/`, `todo-backup-*.md`,
+`views.md` — which meant every new derived file had to remember to add a fifth,
+and one nearly slipped through. A folder cannot be forgotten, and neither can a
+second one next to it.
 
-`data/` is also what Obsidian opens as its vault, so the vault contains the list
-and nothing else: no board, no skill, no README to index.
+A folder counts as a data set purely by having a `todo.md` in it — there is no
+registry to fall out of step with what is really on disk. `data/.current` names
+which one the board and `server.py` are pointed at; everything the page fetches
+— `/data/todo.md`, `/data/backups/…`, `/data/jira.json` — is the same URL
+regardless of which data set that is, rewritten on the server to the real file
+underneath. The board never learns a data set's name except to draw the
+dropdown and to ask for a different one.
+
+### Switching, and starting a new one
+
+The dropdown at the top right of the board, next to the Data buttons, lists
+every folder under `data/` that qualifies. Picking one asks the server to make
+it current, then reloads the page — a switch changes the list, its backups, its
+Claude sessions and its Jira boards all at once, and a reload is the only way to
+be sure nothing from the one just left survives into the one opening. Unsaved
+changes on the list you are leaving block the switch, same as they block a
+backup preview.
+
+**+ New list…**, at the bottom of the dropdown, prompts for a name, slugifies
+it into a folder name, and creates it with nothing in it but one empty bucket —
+the least a file needs for the board to draw it at all. Everything else — a
+Claude config, a Jira board, a first project folder — appears the same way it
+would for `twinkl`: the first time something is saved into it.
 
 ### Projects
 
@@ -61,12 +90,13 @@ can be in any shape the work needs.
 
 `kanban/index.html` is one self-contained page. No build step, no dependencies.
 It parses `data/todo.md` into buckets, states and tags, renders them as columns,
-and writes the file back when you save.
+and writes the file back when you save. That path never changes — it always
+means whichever data set is current, see above.
 
 `kanban/server.py` is a small local server so the page can read and write the
 file — a browser will not let a page opened straight off the disk do that. It
-listens on `127.0.0.1` only and refuses to write anything except
-`data/todo.md`.
+listens on `127.0.0.1` only and refuses to write anything except `data/todo.md`,
+translated on the way in to the current data set's own file.
 
 Start it by double-clicking `run.command`.
 
@@ -193,6 +223,37 @@ the buckets already are, and it is an icon rather than a labelled button because
 renaming a bucket is a once-a-quarter job. It hides in a backup preview and on the
 demo list along with everything else that writes, and nothing reaches the file
 until you save.
+
+### Renaming and reordering the columns
+
+The second pencil, beside the first, opens the same kind of sheet for the
+columns — Backlog through Doing to Done — a task moves through inside a
+bucket. A column is a `### Name` heading, and like a bucket it has no id: it is
+whichever name a heading uses, read the same everywhere that name turns up.
+
+Not every bucket carries every heading — Design System alone has a Blocked
+column, and Waiting review, Doing, To do and Backlog are elsewhere — but the
+board draws all of them on every bucket's view regardless, empty wherever that
+bucket has no tasks in one. A rename, a reorder, an add or a delete here
+reaches every bucket the same way, seeding an empty heading into whichever ones
+did not already have it. That looks like more of a file change than it is:
+nothing about what is drawn moves, since the empty column was already showing
+there before the edit, and the alternative was worse — the column order is
+read off the file by scanning bucket by bucket and remembering each name the
+first time it appears, so a column confined to one bucket cannot be reordered
+relative to the others without every bucket agreeing it exists, or nothing
+about its new position inside that one bucket would be visible to the scan at
+all.
+
+Deleting works like deleting a bucket: empty, it just goes; holding tasks
+anywhere, the sheet asks which column they move to first. The last remaining
+column cannot be deleted, for the same reason as the last bucket — the board
+cannot draw one with nothing to sort into.
+
+A brand new data set starts with the same four columns as every other one —
+Waiting review, Doing, To do, Backlog — precisely so a second list's board
+reads the same as the first from the moment it exists, rather than falling
+back to a generic default nobody chose.
 
 ### How the board prioritises
 
@@ -446,20 +507,25 @@ back into the file as ordinary markdown, so the result still reads correctly
 somewhere that has never heard of either plugin.
 
 `views.template.txt` is the committed copy of the queries. The one that runs is
-`data/views.md`, which git ignores along with the rest of that folder, because
-once the queries have run it holds the real list. Start it with:
+`data/<dataset>/views.md`, which git ignores along with the rest of that folder,
+because once the queries have run it holds the real list. Start it with:
 
 ```bash
-cp views.template.txt data/views.md
+cp views.template.txt data/twinkl/views.md
 ```
+
+— one copy per data set, since each is its own vault with its own list, and
+each needs its own generated file to hold the queries' answers.
 
 The template is `.txt` rather than `.md` deliberately. The Serializer writes into
 every markdown file in the vault that carries a query marker, with no regard for
 which files git tracks, so a markdown template would have had the real list
 written into it and committed. Non-markdown files are ignored, which is the guard.
 
-Then open **`data/`** as an Obsidian vault — that folder, not the repo, so the
-vault holds the list and nothing else. Install Dataview and Dataview Serializer
+Then open **`data/<dataset>/`** as an Obsidian vault — that folder, not `data/`
+itself and not the repo, so the vault holds one list and nothing else. Opening
+`data/` would put every data set in one vault, mixing lists that the board keeps
+deliberately apart. Install Dataview and Dataview Serializer
 **in that vault**: Obsidian keeps community plugins per vault, so having them in
 another one does not count. Exclude `backups/` in Settings → Files and links,
 which keeps fifty copies of every task out of the search box.
@@ -483,7 +549,7 @@ more than one `headline:`, missing scores, and a queried tag written in a form
 Dataview cannot read. Run it directly:
 
 ```bash
-python3 skills/pa-todo-meeting/scripts/check_todo.py data/todo.md
+python3 skills/pa-todo-meeting/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 `pa-todo-meeting/references/conventions.md` is the file format.

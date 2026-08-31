@@ -1,13 +1,13 @@
 ---
 name: pa-todo-meeting
-description: Run a review-and-update session over the owner's master to-do list at Code/to-dos/data/todo.md, the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
+description: Run a review-and-update session over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
 ---
 
 # PA to-do meeting
 
 This skill maintains one specific file: the owner's master to-do list. He is a design manager with people management, design oversight, design system and strategic work running in parallel. The list exists because that mix does not fit in one head, and the file's value is that it holds the reasoning, not just the titles.
 
-The file lives at `~/Code/to-dos/data/todo.md`. It moved into `data/` on 13 Aug 2026, which is the only folder git ignores and the only one Obsidian opens as a vault. If that path is not reachable, look for `todo.md` in whatever folder is connected before asking him where it is.
+The file lives at `~/Code/to-dos/data/<dataset>/todo.md`, where `<dataset>` is whatever `~/Code/to-dos/data/.current` names — read that file first, every session, since he can switch which list is current from the board's own dropdown and this skill must follow. As of 30 Aug 2026 that is `twinkl`, so in practice `~/Code/to-dos/data/twinkl/todo.md`, but never hardcode that: read the pointer. `data/` is the only folder git ignores and the only one Obsidian opens as a vault; everywhere below that says `data/todo.md`, `data/backups/`, `data/projects/` or `data/views.md` means that path inside the current dataset's own folder, not the bare `data/` root. If the pointer file is not reachable, look for a `todo.md` under some folder inside `data/` before asking him where it is.
 
 ## Why this skill exists
 
@@ -104,7 +104,7 @@ On a quiet morning where nothing has changed, moves 1 and 5 are the whole sessio
 Read todo.md, including the `## Context` section at the bottom, which holds who is who, who is on leave and whose contract runs out when. It also holds `### How I want messages and prompts written`, his own rules for that, and those override the conventions file wherever the two disagree. He can edit that section on the board and cannot see the conventions file, so his copy is always the current one. Then run the checker:
 
 ```bash
-python3 ~/Code/to-dos/skills/pa-todo-meeting/scripts/check_todo.py ~/Code/to-dos/data/todo.md
+python3 ~/Code/to-dos/skills/pa-todo-meeting/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
 ```
 
 Then open with a short status. **Lead with the headline in one line**, since that is the answer to "what am I doing today". Then what is time-critical, because that is what he is scanning for next:
@@ -247,13 +247,14 @@ That is the whole report. If an edit needed a judgement call he has not seen, th
 
 ## Where things live
 
-- `data/todo.md` — the list. `data/` holds it and everything derived from it, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
-- `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
-- `data/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
+- `data/.current` — which dataset is live right now, e.g. `twinkl`. Read this first; everything below is relative to `data/<that name>/`, not the bare `data/` root. The board's own dropdown is what changes it.
+- `data/<dataset>/todo.md` — the list. `data/` holds every dataset and everything derived from each, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
+- `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes the current dataset's todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
+- `data/<dataset>/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
 - `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
-- `data/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
-- `data/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
+- `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
+- `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
 
 **Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
 

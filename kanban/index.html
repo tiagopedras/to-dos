@@ -636,6 +636,7 @@
     background:var(--chip); border-radius:7px; padding:6px 11px;
   }
   select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px}
+  select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); max-width:160px}
   .legend{max-width:1180px; margin:2px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel)}
   .legend summary{cursor:pointer; padding:11px 15px; font-size:12.5px; font-weight:640; color:var(--ink-soft); list-style:none}
   .legend summary::-webkit-details-marker{display:none}
@@ -701,7 +702,7 @@
   aside .dbody{padding:14px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:14px}
   aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
   .field{display:flex; flex-direction:column; gap:5px}
-  .field > span{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
+  .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
   /* The label above a field is a name and reads fine in caps. The help under it
      is a sentence, and was inheriting the same rule by being the same element —
      which is why .sublabel already had to undo it by hand. Undone once here. */
@@ -711,6 +712,21 @@
   }
   .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  /* ---------- collapsible sections in the drawer ----------
+     A <details> standing in for the <label>/<div> a field or a suggestion
+     block would otherwise be, so Description, Chats, Message suggestions and
+     Prompt suggestions can each be put away — Chats and the suggestion lists
+     in particular can run long enough that they push everything below them
+     off screen. The label becomes the <summary>: clicking it is the whole
+     interaction, and the browser's own show/hide does the rest, so nothing
+     here has to track which section is open beyond a CSS arrow. */
+  .dsep{border:none; border-top:1px solid var(--line); margin:1px 0}
+  details.field > summary, details.sugg > summary{
+    cursor:pointer; list-style:none; display:flex; align-items:center; gap:5px;
+  }
+  details.field > summary::-webkit-details-marker, details.sugg > summary::-webkit-details-marker{display:none}
+  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size:9px; display:inline-block}
+  details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
   .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--ink-faint); opacity:.85; margin-left:6px}
   .substeps{display:flex; flex-direction:column; gap:1px}
   .sub{
@@ -885,12 +901,23 @@
     <button class="btn" id="download">Download copy</button>
     <button class="btn primary" id="save" disabled>Save to file</button>
   </span>
+  <!-- Which private folder under data/ the board is pointed at. Hidden until
+       loadDatasets() hears back from /datasets.json — an older server with no
+       such route leaves the board exactly as it was before this existed. -->
+  <span class="menugroup hidden" id="datasetMenu">
+    <span class="menulabel">List</span>
+    <select id="datasetSelect" title="Switch to-do lists"></select>
+  </span>
 
   <div class="filters">
     <span class="tabs" id="bucketFilters"></span>
     <button class="iconbtn" id="editBuckets" aria-label="Edit buckets"
             title="Rename, reorder, add or remove the buckets">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    </button>
+    <button class="iconbtn" id="editTiers" aria-label="Edit columns"
+            title="Rename, reorder, add or remove the columns (states) tasks move through">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
     </button>
     <span class="allbuckets hidden" id="allBuckets">All buckets</span>
     <button class="scorechip hidden" id="scoreChip"></button>
@@ -904,6 +931,11 @@
         <option value="partial">Part of it</option>
         <option value="none">None of it</option>
       </select>
+    </span>
+    <span id="urgentWrap">
+      <label class="toggle" for="urgentFilter" title="Tasks marked urgent, or with a deadline set">
+        <input type="checkbox" id="urgentFilter"> Urgent or due
+      </label>
     </span>
     <input type="search" id="q" placeholder="Search tasks…">
   </div>
@@ -967,6 +999,12 @@ const DEMO_URL = '/kanban/demo.md';
    repo is public. Missing is the normal case for anyone but him — the buttons
    simply do not appear. See loadJira. */
 const JIRA_URL = '/data/jira.json';
+/* Which private folders under data/ exist, and which one FILE_URL and
+   JIRA_URL above actually resolve to right now — the server rewrites
+   /data/... to /data/<current>/... on its side, so this page never needs to
+   know a dataset's name to read or save the list, only to draw the dropdown
+   and to ask for a different one. See loadDatasets. */
+const DATASETS_URL = '/datasets.json';
 
 const TASK_RE   = /^-\s+\[([ xX])\]\s?(.*)$/;
 const BUCKET_RE = /^##\s+(\d+)\.\s+(.*)$/;
@@ -1215,6 +1253,10 @@ const state = {
   /* The Jira boards read from data/jira.json, or null when there is no such
      file. Null is a normal state, not an error: no file, no buttons. */
   jira: null,
+  /* True once /datasets.json has answered at least once. An older server
+     with no such route leaves this false forever and the dropdown hidden —
+     the board works exactly as it did before data sets existed. */
+  datasets: false,
   /* Everything about the Claude chat engine — the CLI's status, which
      sessions sit under which task, any run in flight, the modal itself —
      lives inside the `chat` object from ai_chat/interface/chat.js rather
@@ -1230,6 +1272,7 @@ const state = {
   activeBucket: null,
   query: '',
   aiFilter: '',
+  urgentFilter: false,
   unscoredOnly: false,
   sort: {},           /* column name -> 'priority'; absent means his own order */
   view: 'overview',   /* the view the file opens on */
@@ -1646,6 +1689,7 @@ function matchesAi(t){
 }
 function matches(t){
   if (!matchesAi(t)) return false;
+  if (state.urgentFilter && !(t.urgent || t.due)) return false;
   // Scoring a task he has already finished is busywork, so done ones never
   // count as needing it however they are tagged.
   if (state.unscoredOnly && (t.done || !unscored(t))) return false;
@@ -1659,11 +1703,11 @@ function activeBucket(){
   return state.doc.buckets.find(b => b.name === state.activeBucket) || state.doc.buckets[0];
 }
 /* Which buckets the board draws. The AI filter cuts across every bucket, and so
-   do the All tab and the unscored queue, so any of them widens it from the
-   single active bucket. Scoring is an intake job: what needs a score in
-   Strategic matters as much as what needs one in People. */
+   do the urgent/due filter, the All tab and the unscored queue, so any of them
+   widens it from the single active bucket. Scoring is an intake job: what
+   needs a score in Strategic matters as much as what needs one in People. */
 function shownBuckets(){
-  return (state.aiFilter || allMode() || state.unscoredOnly) ? state.doc.buckets : [activeBucket()];
+  return (state.aiFilter || state.urgentFilter || allMode() || state.unscoredOnly) ? state.doc.buckets : [activeBucket()];
 }
 
 function renderTabs(){
@@ -1683,6 +1727,7 @@ function renderTabs(){
     el.onclick = () => { state.activeBucket = el.dataset.bucket; renderTabs(); renderBoard(); };
   });
   $('#editBuckets').onclick = openBucketEditor;
+  $('#editTiers').onclick = openTierEditor;
 }
 
 /* =========================================================================
@@ -1890,6 +1935,230 @@ function moveBucket(b, dir){
   list.splice(j, 0, b);
   renumberBuckets();
   markDirty(); refreshView();
+}
+
+/* =========================================================================
+   2c. Columns — the states every task moves through inside a bucket.
+
+   These are not stored as a list of their own: they are the `###` headings
+   already sitting inside the buckets, read off by allTiers()/boardColumns()
+   above, which unions them by scanning the buckets in order and remembering
+   each name the first time it turns up. That scan is why every edit below
+   ends by calling syncTierShapes() rather than touching only the buckets a
+   column happens to already be in: a column that only exists in one bucket
+   — Design System's Blocked, say — cannot be reordered relative to the
+   others just by moving it around inside that one bucket, because nothing
+   about its position there is visible to a scan that never gets past the
+   earlier buckets' own tiers first. Giving every bucket the same set closes
+   that blind spot, and costs nothing on screen: the board already draws
+   Blocked as a column on every bucket's view, empty wherever that bucket has
+   no tasks in it, whether or not that bucket's file section mentions the
+   heading at all. See syncTierShapes for the rest of this.
+   ========================================================================= */
+
+/* Left to right, the way the board actually draws them, with Done left off —
+   it is never a heading, just where a ticked task lands regardless of which
+   column it sits under. */
+function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL); }
+
+function tierTaskCount(name){
+  return state.doc.buckets.reduce((sum, b) => {
+    const t = b.tiers.find(x => x.name === name);
+    return sum + (t ? t.tasks.length : 0);
+  }, 0);
+}
+
+/* Returns the name already taken, so the complaint can quote it back rather
+   than just the one just typed. Done included: a real column called Done
+   would sit behind the synthetic one and never be reachable. */
+function tierNameTaken(name, except){
+  const k = name.toLowerCase();
+  if (k === DONE_COL.toLowerCase() && name !== except) return DONE_COL;
+  return tierOrder().find(n => n !== except && n.toLowerCase() === k) || null;
+}
+
+function cleanTierName(name){ return String(name).replace(/\s+/g, ' ').trim(); }
+
+/* Makes every bucket carry exactly this set of columns, in this order —
+   inventing an empty one wherever a bucket does not already have it. That
+   sounds bigger than it is: the board already shows every column somewhere
+   like Design System's Blocked in every bucket's view whether or not that
+   bucket's own file section mentions it (boardColumns() is global, see
+   above), so this changes nothing anyone sees on screen. What it fixes is
+   allTiers() itself — its order is read off by scanning buckets in turn and
+   remembering each name the first time it appears, which means a column
+   missing from an early bucket can never be reordered relative to the
+   others: nothing about where it sits inside the one bucket that does have
+   it is visible to that scan. Every bucket agreeing on the full set removes
+   the blind spot, so reordering, adding and deleting all do this rather than
+   only touching the buckets a column already happened to be in. */
+function syncTierShapes(order){
+  const fileOrder = order.slice().reverse();   // boardColumns() reverses allTiers()
+  state.doc.buckets.forEach(b => {
+    const byName = {};
+    b.tiers.forEach(t => { byName[t.name] = t; });
+    b.tiers = fileOrder.map(name => byName[name] || { name, raw: null, lead: [''], tasks: [], tail: [''] });
+  });
+}
+
+function renameTier(oldName, newName){
+  const clean = cleanTierName(newName);
+  if (!clean) return 'A column needs a name.';
+  if (clean === oldName) return '';
+  const clash = tierNameTaken(clean, oldName);
+  if (clash) return 'There is already a column called “' + clash + '”.';
+  state.doc.buckets.forEach(b => {
+    const t = b.tiers.find(x => x.name === oldName);
+    if (t) { t.name = clean; t.raw = null; }
+  });
+  if (oldName in state.sort) { state.sort[clean] = state.sort[oldName]; delete state.sort[oldName]; }
+  markDirty(); refreshView();
+  return '';
+}
+
+function addTier(name){
+  const clean = cleanTierName(name);
+  if (!clean) return 'A column needs a name.';
+  const clash = tierNameTaken(clean, null);
+  if (clash) return 'There is already a column called “' + clash + '”.';
+  const order = tierOrder();
+  order.push(clean);
+  syncTierShapes(order);
+  markDirty(); refreshView();
+  return '';
+}
+
+function moveTier(name, dir){
+  const order = tierOrder();
+  const i = order.indexOf(name), j = i + dir;
+  if (i < 0 || j < 0 || j >= order.length) return;
+  order.splice(i, 1);
+  order.splice(j, 0, name);
+  syncTierShapes(order);
+  markDirty(); refreshView();
+}
+
+/* A column with tasks in it can only go once they have somewhere to land —
+   the same rule deleteBucket already enforces, applied once per bucket that
+   has this column, since its tasks can be spread across every one of them.
+   The sync afterwards drops it everywhere at once, rather than leaving it
+   behind in whichever buckets happened to have no tasks in it to trigger
+   the check above. */
+function deleteTier(name, dest){
+  const order = tierOrder();
+  if (order.length < 2) return;
+  const n = tierTaskCount(name);
+  if (n && !dest) return;
+  if (n) state.doc.buckets.forEach(b => {
+    const t = b.tiers.find(x => x.name === name);
+    if (t && t.tasks.length) t.tasks.forEach(task => ensureTier(b, dest).tasks.push(task));
+  });
+  syncTierShapes(order.filter(x => x !== name));
+  delete state.sort[name];
+  markDirty(); refreshView();
+}
+
+/* Two different questions, so two different sheets — same split as deleting a
+   bucket, and for the same reason: empty, a column just goes; holding work,
+   the only safe delete is a move, so it asks where to first. */
+function confirmDeleteTier(name, back){
+  const n = tierTaskCount(name);
+  const others = tierOrder().filter(x => x !== name);
+  if (!n) {
+    showModal('Delete “' + name + '”?',
+      'Nothing is in it, in any bucket. The heading goes wherever it appears, and none of it ' +
+      'reaches the file until you save.', '',
+      [{ label: 'Keep it', run: back },
+       { label: 'Delete it', danger: true, run: () => { deleteTier(name, null); back(); } }]);
+    return;
+  }
+  let dest = others[0];
+  showModal('Delete “' + name + '”?',
+    'It still holds ' + n + ' task' + (n === 1 ? '' : 's') + ', across every bucket that has it, ' +
+    'finished ones included. They move rather than go — each one keeps its bucket, its text ' +
+    'and its tags, and lands in the column you pick here.',
+    '<label class="field"><span>Move its tasks to</span><select id="tierDest">' +
+      others.map((x, i) => '<option value="' + i + '">' + esc(x) + '</option>').join('') +
+    '</select></label>',
+    [{ label: 'Keep it', run: back },
+     { label: 'Move ' + n + ' and delete', danger: true, run: () => { deleteTier(name, dest); back(); } }]);
+  const sel = modalEl.querySelector('#tierDest');
+  sel.onchange = () => { dest = others[+sel.value]; };
+}
+
+/* One sheet holding every column, same reasoning as the bucket editor: the
+   questions are comparative — is this the right name next to the others, is
+   this the right order — and a per-column menu could not show that. */
+function openTierEditor(){
+  if (state.locked || !state.doc) return;
+  closeDrawer();
+
+  const setErr = msg => { const el = modalEl && modalEl.querySelector('.bkerr'); if (el) el.textContent = msg; };
+
+  const draw = () => {
+    const order = tierOrder();
+    const rows = order.map((name, i) => {
+      const n = tierTaskCount(name);
+      return '<div class="bkrow">' +
+        '<input type="text" data-tiername="' + i + '" value="' + esc(name) + '" aria-label="Column name">' +
+        '<span class="bkn" title="tasks in it, across every bucket, finished ones included">' + n + '</span>' +
+        '<button class="btn mini" data-tierback="' + i + '" title="Move up (left on the board)" aria-label="Move up"' +
+          (i === 0 ? ' disabled' : '') + '>↑</button>' +
+        '<button class="btn mini" data-tierfwd="' + i + '" title="Move down (right on the board)" aria-label="Move down"' +
+          (i === order.length - 1 ? ' disabled' : '') + '>↓</button>' +
+        '<button class="btn mini danger" data-tierdel="' + i + '"' +
+          (order.length < 2 ? ' disabled title="A list needs at least one column"' : '') +
+          '>Delete</button>' +
+      '</div>';
+    }).join('');
+
+    showModal('Columns',
+      'The states every task moves through inside a bucket, left to right on the board. Every bucket ' +
+      'shows every column, whether or not its own section has tasks in it, so a rename, reorder, add ' +
+      'or delete here reaches every bucket the same way. Done sits fixed at the far right and is not ' +
+      'listed here, since it is never a heading, just where a ticked task lands. Nothing reaches the ' +
+      'file until you save.',
+      '<div class="bklist">' + rows + '</div>' +
+      '<div class="bkadd">' +
+        '<input type="text" id="tierNew" placeholder="New column name" aria-label="New column name">' +
+        '<button class="btn" id="tierAdd">Add column</button>' +
+      '</div>' +
+      '<p class="bkerr" role="status"></p>',
+      [{ label: 'Done', primary: true }]);
+    wire();
+  };
+
+  const wire = () => {
+    const order = tierOrder();
+    modalEl.querySelectorAll('input[data-tiername]').forEach(inp => {
+      const i = +inp.dataset.tiername;
+      const apply = () => {
+        const msg = renameTier(order[i], inp.value);
+        if (msg) { setErr(msg); }
+        else { setErr(''); order[i] = cleanTierName(inp.value); inp.value = order[i]; }
+      };
+      inp.onchange = apply;
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } };
+    });
+    modalEl.querySelectorAll('[data-tierback]').forEach(el => {
+      el.onclick = () => { moveTier(order[+el.dataset.tierback], -1); draw(); };
+    });
+    modalEl.querySelectorAll('[data-tierfwd]').forEach(el => {
+      el.onclick = () => { moveTier(order[+el.dataset.tierfwd], 1); draw(); };
+    });
+    modalEl.querySelectorAll('[data-tierdel]').forEach(el => {
+      el.onclick = () => confirmDeleteTier(order[+el.dataset.tierdel], draw);
+    });
+    const add = () => {
+      const inp = modalEl.querySelector('#tierNew');
+      const msg = addTier(inp.value);
+      if (msg) setErr(msg); else draw();
+    };
+    modalEl.querySelector('#tierAdd').onclick = add;
+    modalEl.querySelector('#tierNew').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+  };
+
+  draw();
 }
 
 /* opts.static drops the drag and focus attributes. The matrix hover preview is
@@ -2318,8 +2587,19 @@ function claudeLink(text){
    three, and keeping them apart is the point — each stays short enough to
    be worth resuming. */
 
-const chat = AIChat.create({
+// Feature parked while ai_chat/ is being reworked elsewhere — server.py's
+// AI_CHAT_DIR does not currently resolve to a real module, so /ai-chat/chat.js
+// 404s and the real AIChat is never defined. Falling straight through to
+// AIChat.create() would throw at the top level and stop the rest of this
+// script (loadFile() included) from ever running — the board would sit on
+// the start screen forever with no error shown. This stub keeps every call
+// site working with the feature simply switched off, the same "no engine, no
+// buttons, not a crash" rule server.py already follows.
+const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   ownerLabel: taskId => { const loc = locate(taskId); return loc ? loc.task.title : ''; },
+  // Worth explaining once, on the button that starts a chat, not on every
+  // task's Chats section — see the Ask Claude / New chat tooltips.
+  readOnlyHelp: '',
   // A session getting filed, a run finishing, or the modal closing can all
   // leave the drawer showing a stale "running" badge or an empty chat list —
   // this is the one place that redraws it.
@@ -2329,7 +2609,15 @@ const chat = AIChat.create({
   // to true — the Ask Claude button on every prompt only exists once this
   // has answered, so the whole view needs a redraw, not just the drawer.
   onStatusChanged: () => { if (state.doc) renderView(); },
-});
+}) : {
+  available: () => false,
+  renderSection: () => '',
+  newOwnerKey: () => '',
+  openNew: () => {},
+  openSession: () => {},
+  forget: () => {},
+  loadStatus: () => {},
+};
 
 function claudeOn(){ return chat.available() && !state.locked; }
 
@@ -2346,7 +2634,13 @@ function chatKeyFor(t, make){
 }
 
 function chatSection(t){
-  return chat.renderSection({ ownerId: t.id, ownerKey: t.chat, label: 'Chats' });
+  const html = chat.renderSection({ ownerId: t.id, ownerKey: t.chat, label: 'Chats',
+    collapsible: true, collapsed: sectionCollapsed('chats'), collapseKey: 'chats' });
+  // A rule ahead of it marks it as its own section rather than one more
+  // field, the same as the two suggestion lists below it — but only when
+  // there is one: chat.renderSection() answers '' with no CLI behind it, and
+  // a bare rule with nothing under it would be a dead end.
+  return html ? '<hr class="dsep">' + html : '';
 }
 
 /* A prompt written on the task starts its own conversation, seeded with the
@@ -2702,6 +2996,8 @@ function updateLockUI(){
     : '';
   $('#dataMenu').classList.toggle('hidden', state.locked);
   $('#autoWrap').classList.toggle('hidden', state.locked);
+  if (state.locked) $('#datasetMenu').classList.add('hidden');
+  else if (state.datasets) $('#datasetMenu').classList.remove('hidden');
   syncLockBarHeight();
 }
 
@@ -2997,11 +3293,13 @@ function renderView(){
   $('#board').classList.toggle('hidden', !isBoard);
   $('#lists').classList.toggle('hidden', isBoard);
   $('#aiWrap').classList.toggle('hidden', !isBoard);
+  $('#urgentWrap').classList.toggle('hidden', !isBoard);
   $('#q').classList.toggle('hidden', !isBoard);
 
   if (isBoard) { renderBoard(); return; }
   $('#bucketFilters').classList.add('hidden');
   $('#editBuckets').classList.add('hidden');
+  $('#editTiers').classList.add('hidden');
   $('#allBuckets').classList.add('hidden');
   $('#scoreChip').classList.add('hidden');
   $('#headline').classList.add('hidden');
@@ -3089,14 +3387,19 @@ function renderBoard(){
   renderScoreChip();
   const board = $('#board');
   // The "who does it" filter cuts across every bucket, so it overrides the tabs.
-  // The All tab does the same thing, but the tabs stay up so it can be undone.
-  const across = !!state.aiFilter;
+  // The urgent/due filter does the same. The All tab does the same thing, but
+  // the tabs stay up so it can be undone.
+  const across = !!state.aiFilter || state.urgentFilter;
   const shown = shownBuckets();
   const many = shown.length > 1;
   $('#bucketFilters').classList.toggle('hidden', across);
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
   $('#editBuckets').classList.toggle('hidden', across || state.locked);
+  // Columns are global, so this one has no reason to hide when the AI filter
+  // narrows the view across every bucket — only a backup preview, which
+  // cannot write anything, takes it away.
+  $('#editTiers').classList.toggle('hidden', state.locked);
   $('#allBuckets').classList.toggle('hidden', !across);
 
   const columns = boardColumns();
@@ -3455,8 +3758,11 @@ function suggestions(t){
 function suggestionSection(label, list, opts){
   opts = opts || {};
   if (!list.length) return '';
-  return '<div class="field sugg"><span>' + esc(label) +
-    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</span>' +
+  const key = 'sugg:' + label;
+  return '<hr class="dsep">' +
+    '<details class="field sugg" data-collapse="' + esc(key) + '"' + (sectionCollapsed(key) ? '' : ' open') + '>' +
+    '<summary>' + esc(label) +
+    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</summary>' +
     list.map(s =>
       '<div class="msg">' +
         '<div class="msgtext">' +
@@ -3469,7 +3775,7 @@ function suggestionSection(label, list, opts){
           (opts.claude ? claudeActions(s.text, opts.task) : '') +
         '</div>' +
       '</div>').join('') +
-    '</div>';
+    '</details>';
 }
 
 /* Tickets waiting to be raised. Its own section rather than a third kind of
@@ -3578,7 +3884,12 @@ function openDrawer(id, focusTitle){
     : 'Changes apply straight away';
 
   $('#dbody').innerHTML =
-    '<label class="field"><span>Task</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
+    '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
+    '<details class="field" data-collapse="notes"' + (sectionCollapsed('notes') ? '' : ' open') + '>' +
+      '<summary>Description</summary>' +
+      '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
+      '<span class="help">Sub-steps live in the list below. Anything you type here is a note on the task.</span>' +
+    '</details>' +
     '<div class="grid2">' +
       '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
         state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
@@ -3645,10 +3956,6 @@ function openDrawer(id, focusTitle){
       '</div>' +
       (ro ? '' : '<button type="button" class="addsub" id="f-addsub">+ Add step</button>') +
     '</div>' +
-    '<label class="field"><span>Notes</span>' +
-      '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
-      '<span class="help">Sub-steps live in the list above. Anything you type here is a note on the task.</span>' +
-    '</label>' +
     chatSection(t) +
     suggestionSection('Message suggestions', sugg.message) +
     suggestionSection('Prompt suggestions', sugg.prompt, { claude:true, task:t.id }) +
@@ -3838,6 +4145,32 @@ function openProjectDrawer(name){
   $('#scrim').classList.add('open');
 }
 
+/* Which of the drawer's own sections — Description, Chats, Message
+   suggestions, Prompt suggestions — are shut, remembered the same way the
+   drawer's own width is: a preference about the drawer's shape, not about
+   one task, so closing Chats once keeps it closed on every task after.
+   Absent means open, so a fresh clone or a section invented after this
+   shipped both default to shown. */
+const SECTION_KEY = 'todo-board-collapsed';
+function sectionCollapsed(key){
+  try { return !!(JSON.parse(localStorage.getItem(SECTION_KEY) || '{}') || {})[key]; }
+  catch (e) { return false; }
+}
+function setSectionCollapsed(key, collapsed){
+  let all;
+  try { all = JSON.parse(localStorage.getItem(SECTION_KEY) || '{}') || {}; } catch (e) { all = {}; }
+  if (collapsed) all[key] = true; else delete all[key];
+  try { localStorage.setItem(SECTION_KEY, JSON.stringify(all)); } catch (e) {}
+}
+/* A <details>'s own toggle event does not bubble in every browser, but the
+   capture phase still sees it on the way down regardless of that — so one
+   listener here, rather than one wired up inside openDrawer on every redraw,
+   covers every collapsible section the drawer ever draws. */
+document.addEventListener('toggle', e => {
+  const key = e.target.dataset && e.target.dataset.collapse;
+  if (key) setSectionCollapsed(key, !e.target.open);
+}, true);
+
 /* Drag the panel's left edge to make it wider; the width is remembered. */
 function drawerMax(){
   const w = window.innerWidth || document.documentElement.clientWidth || 1280;
@@ -3985,6 +4318,86 @@ async function loadJira(){
     } catch (err) { /* malformed or missing: no buttons, no complaint */ }
   }
 }
+
+/* =========================================================================
+   Data sets — which private folder under data/ the board reads and writes.
+
+   The dropdown lists every folder the server found; picking one asks the
+   server to make it current, then reloads the page rather than trying to
+   patch state in place. A switch changes the list, its backups, its Claude
+   sessions and its Jira config all at once, so a full reload is the only way
+   to be sure nothing from the old one lingers in this tab.
+   ========================================================================= */
+async function loadDatasets(){
+  try {
+    const res = await fetch(DATASETS_URL + '?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) throw new Error('the server answered ' + res.status);
+    const data = await res.json();
+    const sel = $('#datasetSelect');
+    sel.innerHTML = '';
+    (data.datasets || []).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === data.current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    const add = document.createElement('option');
+    add.value = '__new__';
+    add.textContent = '+ New list…';
+    sel.appendChild(add);
+    state.datasets = true;
+    if (!state.locked) $('#datasetMenu').classList.remove('hidden');
+  } catch (err) {
+    // No /datasets.json — an older server, or none at all. One list, no
+    // picker, exactly as the board behaved before this existed.
+    state.datasets = false;
+    $('#datasetMenu').classList.add('hidden');
+  }
+}
+
+async function switchDataset(name){
+  try {
+    const res = await fetch('/dataset/select', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const info = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
+    location.reload();
+  } catch (err) {
+    alert('Could not switch lists.\n\n' + (err.message || err));
+    loadDatasets();
+  }
+}
+
+async function createDataset(){
+  const raw = prompt('Name the new list:');
+  if (raw === null || !raw.trim()) { loadDatasets(); return; }
+  try {
+    const res = await fetch('/datasets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: raw })
+    });
+    const info = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
+    location.reload();
+  } catch (err) {
+    alert('Could not create that list.\n\n' + (err.message || err));
+    loadDatasets();
+  }
+}
+
+$('#datasetSelect').onchange = e => {
+  const name = e.target.value;
+  if (name === '__new__') { createDataset(); return; }
+  if (state.dirty) {
+    alert('You have unsaved changes on this list.\n\nSave or discard them first, then switch lists.');
+    loadDatasets();
+    return;
+  }
+  switchDataset(name);
+};
 
 /* Stand an example list in for a missing todo.md, and say plainly that is what
    happened. Two situations reach here: a host serving this page as static files,
@@ -4484,6 +4897,7 @@ $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };
 $('#aiFilter').onchange = e => { state.aiFilter = e.target.value; closeDrawer(); renderBoard(); };
+$('#urgentFilter').onchange = e => { state.urgentFilter = e.target.checked; closeDrawer(); renderBoard(); };
 
 /* The reference cards are a working surface, not a report. Everything here
    writes to the same task the card was built from, then re-renders the view,
@@ -4614,6 +5028,7 @@ window.addEventListener('hashchange', () => {
 
 loadFile();
 loadJira();
+loadDatasets();
 // Is there a Claude Code CLI behind the helper, and what is it allowed to
 // do. Everything about this can fail and none of it matters: a 404 on a
 // static host, a helper too old to know the endpoint, a machine with no CLI

@@ -92,9 +92,9 @@ Do not invent another tag to avoid writing a note. The test is whether one of th
 
 ## Projects
 
-Added 26 Aug 2026. Some work carries more context than a task line can hold: a plan, a ticket history, source documents, a decision and the reason it went the way it did. That goes in `data/projects/<name>/`, one folder per project, with a `CLAUDE.md` inside holding the background and the source files beside it. Under `data/` rather than at the repo root, because a project folder is full of real names and real dates, and a folder cannot be forgotten by the ignore rules the way a new file can. It also puts the context in the Obsidian vault beside the list it belongs to.
+Added 26 Aug 2026. Some work carries more context than a task line can hold: a plan, a ticket history, source documents, a decision and the reason it went the way it did. That goes in `data/<dataset>/projects/<name>/`, one folder per project, with a `CLAUDE.md` inside holding the background and the source files beside it. Under `data/` rather than at the repo root, because a project folder is full of real names and real dates, and a folder cannot be forgotten by the ignore rules the way a new file can. It also puts the context in the Obsidian vault beside the list it belongs to.
 
-The task in todo.md stays short and points at the folder, as an ordinary note on the task, first in its notes and above the stream line:
+The task in todo.md stays short and points at the folder, as an ordinary note on the task, first in its notes and above the stream line. The note itself stays written as `data/projects/<name>` — short for the current dataset's own folder, the same shorthand as everywhere else in this skill:
 
 ```
 - [ ] **AOP2027: redefine the design initiative and deliver it** [impact:: high] [effort:: L] [due:: 2026-09-02] [ai:: partial]
