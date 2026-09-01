@@ -265,7 +265,11 @@ Anything with `due:` or `urgent` jumps the queue regardless of impact and effort
 
 **Reminder steps are five days after the request**, moved to the next working day if that lands on a weekend. The note should say so, otherwise the arithmetic looks wrong to anyone reading it later.
 
-**`Meeting actions last pulled` is a machine stamp, not a date he keeps.** It records the last day `pa-retrieve-tasks` was run against the recorder, so that the first check-in of any day pulls his meeting actions in before reading the list back to him and later ones in the same day do not. It is set only by a run that actually happened, it is never edited by hand, and `never` is a valid value meaning the pull has not happened yet. Do not read it as when the file was last touched, which is what `Last updated` is for.
+**`Meeting actions last pulled` is a machine stamp, not a date he keeps.** It is a full UTC timestamp, `2026-09-01T09:33:21Z`, and it does two jobs. It tells this skill whether today's pull has happened, so the first check-in of any day runs `pa-retrieve-tasks` and later ones do not. And it is the watermark that skill filters on: anything the recorder created before it has already been put in front of him and is never shown again, whether he kept it or turned it down.
+
+It became a timestamp on 1 Sep 2026, having been a plain date. A date was enough for the once-a-day trigger and is not enough for the watermark, which has to cut a window mid-morning without swallowing the rest of the day.
+
+It is set only by a run that actually happened, only by `pa-retrieve-tasks` and only after the tasks are written, it is never edited by hand, and `never` is a valid value meaning no pull has happened yet. Do not read it as when the file was last touched, which is what `Last updated` is for.
 
 ## This week
 

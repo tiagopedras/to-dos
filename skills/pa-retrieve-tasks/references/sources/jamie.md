@@ -6,19 +6,32 @@ configured.
 
 ## Connecting
 
-An MCP server at `https://mcp.meetjamie.ai/mcp`. `claude mcp list` shows it as
-**claude.ai Jamie**. If it is missing:
+An MCP server at `https://mcp.meetjamie.ai/mcp`, added locally as **jamie**. The
+tools come through with a `mcp__jamie__` prefix and their schemas are deferred, so
+fetch them before the first call:
+
+```
+ToolSearch("select:mcp__jamie__list_meetings,mcp__jamie__list_tasks,mcp__jamie__get_meeting")
+```
+
+If that returns nothing, the tools are not published to the session and no amount
+of retrying will change it. MCP servers are enumerated when a session starts, so a
+server added mid-session never appears in it. Check `claude mcp list` and start a
+fresh session in `~/Code/to-dos`, since the server is registered at local scope and
+does not exist in other directories.
+
+**`claude mcp list` saying "Connected" is not proof the tools are usable.** It went
+wrong exactly this way on 1 Sep 2026: an orphaned claude.ai connector answered the
+health check for days, advertised `hasTools: true`, and published nothing to any
+session, while the connector itself had vanished from the account's UI. Connected
+means the endpoint replied. Only a successful ToolSearch means the tools are there.
+If it needs re-adding:
 
 ```bash
 claude mcp add --transport http jamie https://mcp.meetjamie.ai/mcp
 ```
 
-The tools come through with a `mcp__claude_ai_Jamie__` prefix and their schemas are
-deferred, so fetch them before the first call:
-
-```
-ToolSearch("select:mcp__claude_ai_Jamie__list_meetings,mcp__claude_ai_Jamie__list_tasks,mcp__claude_ai_Jamie__get_meeting,mcp__claude_ai_Jamie__update_task")
-```
+then authenticate it with `/mcp` from an interactive terminal.
 
 ## Answering the contract
 
@@ -27,9 +40,13 @@ every action item in that range with its text, its `completed` flag, its assigne
 and the `meetingId` and `meetingTitle` it came from. `list_meetings` takes the same
 range and returns the calls themselves.
 
-Keep each task's own id from that response and carry it through the review. It is
-what `update_task` needs at the end, and going back for it after the fact means a
-second pull and a guess at which returned row was which.
+Each task carries a `createdAt`, which is when Jamie wrote the item up rather than
+when the meeting ran. **That is the field the watermark compares against.** The two
+come apart whenever a late call is processed the next morning, and filtering on the
+meeting time instead would drop exactly those.
+
+`startDate` and `endDate` filter on the meeting's date, not on `createdAt`, so pull
+a little wider than the watermark and filter the returned rows yourself.
 
 Call both, in the same message, since neither depends on the other. `list_meetings`
 is what lets the report name the calls that produced nothing, and that line is the
@@ -58,11 +75,6 @@ describes a meeting rather than naming it.
 **Provenance.** `meetingTitle` plus the date off `startTime`, written as a short
 note: "From the DS-Design WG on 27 Aug." Titles carry emoji, so strip them.
 
-**Closing it.** `update_task` sets the completed flag on one task by its id. Fetch
-its schema with the others before the first call and read the field names off it
-rather than assuming them — it is the one write tool this skill uses and it is
-worth being sure about. One call per task, after the list has been written.
-
 ## What this source gets wrong
 
 **It writes summaries, not instructions.** "Address the design system board task
@@ -85,6 +97,8 @@ assuming everything returned is outstanding.
 `create_tasks`, `update_tag`, `upsert_template` and the rest of the write tools.
 Creating an action item in Jamie makes it a second plan, and the list is the plan.
 
-`update_task` is the one exception, and only to tick something off. Never to edit a
-task's text, its assignee or its due date — the rewriting happens on the way into
-todo.md and Jamie keeps the wording the meeting actually produced.
+**There is no `update_task`.** It appeared in the old claude.ai connector's tool
+list and does not exist on this server, checked 1 Sep 2026. Nothing here can tick a
+Jamie action item off, which is why the skill tracks what it has seen with a
+watermark instead of closing things. Jamie's own list stays as it is and is not
+worth maintaining.

@@ -25,8 +25,8 @@ so in chat.
   from quick-win suggestions in the Overview.
 - Let the user dismiss a quick-win suggestion in the Overview, so it stops
   reappearing without having to complete or edit the task.
-- Remember which meeting actions were declined. `pa-retrieve-tasks` now closes
-  imported tasks in the recorder, but ones Tiago skips stay open there and come
-  back in the next pull, so he reviews the same rejects every day. Needs a
-  declined list somewhere in `data/` that the review checks against, alongside
-  the duplicate check it already runs over todo.md and the done archive.
+- Teach `pa-retrieve-tasks` to revisit a declined meeting action on request.
+  The watermark on the `Meeting actions last pulled` line means nothing is shown
+  twice, which is right by default, but the only way back to something turned
+  down is to name a wider window by hand and re-read everything in it. There is
+  no record of what was declined or when.

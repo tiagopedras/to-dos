@@ -42,23 +42,27 @@ them is not ready to be added.
 4. **How to recognise him** in that field, which is rarely his work email.
 5. **How to get more context** when an item's wording is too thin to act on — the meeting, the transcript, the search.
 6. **What to write in the provenance note**, so a task carries the meeting it came from.
-7. **How to mark one of its items complete**, since anything imported gets ticked off there once it is safely on the list.
+7. **What timestamp on each item says when the recorder created it**, since that is what the watermark is compared against.
 
 It should also say what the source gets wrong, because every one of them has a
 house style and knowing it in advance is what stops a bad task reaching him.
 
 ## What this skill does not do
 
-**It does not create anything in the source.** Recorders offer task-creation tools
-and this skill never calls them. Two lists that both claim to be the plan is the
-failure this whole repo is built to avoid, and the list is the one that wins.
+**It does not write to the source at all.** Recorders offer tools to create action
+items and, on some, to tick them off. This skill calls none of them. Two lists that
+both claim to be the plan is the failure this whole repo is built to avoid, and the
+list is the one that wins.
 
-It does tick things off there, though, and for the same reason. Once a task is on
-the list, the copy sitting in the recorder is not a second plan, it is a stale
-duplicate, and the way to stop it behaving like one is to close it. He does not
-work out of the recorder's interface and does not want to see a queue there that
-looks like it needs attention. Move five, closing them, is what makes the recorder
-empty out rather than accumulate.
+Closing items in the recorder was tried and dropped on 1 Sep 2026. Jamie's MCP
+server has no `update_task`, so there was nothing to call, and the wider point held
+anyway: he does not work out of the recorder's interface, so its state is not worth
+maintaining. What he needs is not a tidy recorder, it is never being shown the same
+action item twice.
+
+That is what the watermark does, and it is strictly better than closing things
+would have been. Closing only covers what he kept. The watermark covers everything
+he was shown, including what he declined, which is the larger pile.
 
 **It does not add anything without asking.** A recorder captures action items for
 everyone in the room, and its wording is a machine's summary of what was said. Most
@@ -73,10 +77,19 @@ tag syntax and the checker, and it should stay the only thing that edits todo.md
 
 ### 1. Pull
 
-Default to the start of the previous business day up to now, unless he says
-otherwise. On a Tuesday that is Monday and Tuesday. On a Monday it is Friday
-onwards, so the weekend is inside the window rather than a hole in it, and the
-same holds for the Tuesday after a bank holiday Monday.
+**Read the watermark first.** It is the `Meeting actions last pulled` line in the
+header of todo.md, a UTC timestamp, and the window runs from there to now. Move 5
+sets it. Everything before it he has already been shown and already decided about,
+kept or declined, and showing it again is the one thing this skill must not do.
+
+Filter on when the recorder created each item, not on when the meeting happened. A
+call on Friday afternoon whose actions were written up on Monday morning belongs to
+Monday's pull, and matching on the meeting time would drop it.
+
+**When the watermark says `never`,** or the line is missing, fall back to the start
+of the previous business day. On a Tuesday that is Monday and Tuesday. On a Monday
+it is Friday onwards, so the weekend is inside the window rather than a hole in it,
+and the same holds for the Tuesday after a bank holiday Monday.
 
 Business day here means what it means everywhere else in this system: weekends
 are out and UK bank holidays are out, since the team is UK-based. The England and
@@ -84,11 +97,11 @@ Wales dates for 2026 and 2027 are in
 `~/Code/to-dos/skills/pa-checkin/scripts/check_todo.py`, which is the
 authority when a date is borderline.
 
-The window is deliberately wider than one day. A call late on the previous working
-afternoon is exactly the one whose actions he has not seen, and the two failure
-modes are not equal: a task pulled twice is caught by the duplicate check below,
-while a task never pulled is simply lost. "This week" still means Monday to today,
-not the calendar week ahead.
+**When he names a window, his wins.** "This week" means Monday to today. "Go back
+to last Wednesday" means exactly that, watermark ignored, which is also how a
+decline gets revisited. Say that the watermark was overridden when it was, since
+he will otherwise see items he has already turned down and think the skill is
+broken.
 
 Say which days were covered when reporting back. "Nothing from your calls" means
 something different over one day than over a weekend, and he cannot tell which
@@ -98,7 +111,7 @@ Ask the source for two things over that window, in the same message since neithe
 depends on the other:
 
 - **The meetings themselves**, so the report can name the calls that were checked and produced nothing. That line matters more than it looks: it is the difference between "no tasks for you" and "no tasks for you, and here is the proof I looked."
-- **The action items**, with the assignee, the completion state and which meeting each came from.
+- **The action items**, with the assignee, the completion state, the creation timestamp and which meeting each came from.
 
 Follow the pagination all the way. A truncated pull that reads as complete is worse
 than no pull.
@@ -162,26 +175,31 @@ Two things to pass through to it, since they come from here and it cannot know t
 New tasks go to **To do** or **Backlog**. Never to Doing, even when he agreed in the
 meeting to start it today, because Doing is his own statement about what is live.
 
-### 5. Close
+### 5. Stamp
 
-Mark every task that just landed on the list as complete in the source, one call
-each, using whatever the source file says does that.
+Move the watermark forward, so nothing in this pull is ever shown to him again.
 
-**After the writing, never before.** If `pa-checkin` fails halfway, or he changes
-his mind while it is running, a task already closed in the recorder is gone from
-both places and nobody will ever notice it went. Write first, confirm the list has
-it, then close.
+It lives on the `Meeting actions last pulled` line in the header of todo.md, as a
+full UTC timestamp. `never` is a valid value and means no pull has happened yet.
+`pa-checkin` owns that line's format; this skill owns its value.
 
-**Only the ones he kept.** Anything he skipped stays open in the source, exactly as
-it was. He rejected it from the list, which is not the same as saying it never
-happened, and closing it would be this skill making a decision he did not.
+**Set it to the end of the window that was pulled, not to the moment the writing
+finished.** Those differ by however long the review took, and a task the recorder
+created while he was reading the review would be skipped forever if the stamp
+overshot it.
 
-**Say what was closed, and say it plainly.** One line at the end naming the count,
-and every failure individually — a close that silently did not happen is the one
-case where the recorder and the list disagree and neither of them knows it.
+**After the writing, never before.** If `pa-checkin` fails halfway, or he walks
+away mid-review, a watermark already moved has silently swallowed everything in
+that window. Write first, confirm the list has it, then stamp.
 
-Nothing else about the source item changes. Not its wording, not its assignee, not
-its due date. It keeps the shape the meeting gave it and it is simply done.
+**Stamp whatever he was shown, not what he kept.** The declines are the point. He
+has already decided about them, and asking again tomorrow is the exact noise this
+step exists to stop. If he wants a decline revisited he will say so, and the
+answer to that is to widen the window by hand for one run.
+
+**Say the new value in the closing line.** It is the one piece of state this skill
+writes, and a stamp that moved when he thought it had not is how a day of meetings
+goes missing without anybody noticing.
 
 ## Judgement calls that come up
 
