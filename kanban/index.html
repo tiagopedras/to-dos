@@ -1722,7 +1722,6 @@ function markDirty(){
 function applyDirty(msg){
   state.dirty = true;
   state.migratedOnly = false;
-  $('#save').disabled = false;
   const s = $('#status');
   s.textContent = msg || 'unsaved changes';
   s.classList.add('dirty');
@@ -4459,7 +4458,7 @@ function renderBoard(){
       '<h2>' + esc(name) + (TIER_HINT[name] ? ' <span class="hint">' + esc(TIER_HINT[name]) + '</span>' : '') +
       sortBtn + '<span class="count">' + n + '</span></h2>' +
       '<div class="drop" data-tier="' + esc(name) + '">' + (n ? cards : '<div class="empty">Nothing here</div>') + '</div>' +
-      (isDone || many || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
+      (isDone || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
     '</section>';
   }).join('');
 

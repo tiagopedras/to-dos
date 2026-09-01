@@ -23,3 +23,5 @@ so in chat.
 - Explicit dependencies between tasks/subtasks and other tasks: block marking a
   task complete while its dependency is still open, and exclude blocked tasks
   from quick-win suggestions in the Overview.
+- Let the user dismiss a quick-win suggestion in the Overview, so it stops
+  reappearing without having to complete or edit the task.
