@@ -17,7 +17,7 @@ The tools come through with a `mcp__claude_ai_Jamie__` prefix and their schemas 
 deferred, so fetch them before the first call:
 
 ```
-ToolSearch("select:mcp__claude_ai_Jamie__list_meetings,mcp__claude_ai_Jamie__list_tasks,mcp__claude_ai_Jamie__get_meeting")
+ToolSearch("select:mcp__claude_ai_Jamie__list_meetings,mcp__claude_ai_Jamie__list_tasks,mcp__claude_ai_Jamie__get_meeting,mcp__claude_ai_Jamie__update_task")
 ```
 
 ## Answering the contract
@@ -26,6 +26,10 @@ ToolSearch("select:mcp__claude_ai_Jamie__list_meetings,mcp__claude_ai_Jamie__lis
 every action item in that range with its text, its `completed` flag, its assignee
 and the `meetingId` and `meetingTitle` it came from. `list_meetings` takes the same
 range and returns the calls themselves.
+
+Keep each task's own id from that response and carry it through the review. It is
+what `update_task` needs at the end, and going back for it after the fact means a
+second pull and a guess at which returned row was which.
 
 Call both, in the same message, since neither depends on the other. `list_meetings`
 is what lets the report name the calls that produced nothing, and that line is the
@@ -54,6 +58,11 @@ describes a meeting rather than naming it.
 **Provenance.** `meetingTitle` plus the date off `startTime`, written as a short
 note: "From the DS-Design WG on 27 Aug." Titles carry emoji, so strip them.
 
+**Closing it.** `update_task` sets the completed flag on one task by its id. Fetch
+its schema with the others before the first call and read the field names off it
+rather than assuming them — it is the one write tool this skill uses and it is
+worth being sure about. One call per task, after the list has been written.
+
 ## What this source gets wrong
 
 **It writes summaries, not instructions.** "Address the design system board task
@@ -74,5 +83,8 @@ assuming everything returned is outstanding.
 ## What not to call
 
 `create_tasks`, `update_tag`, `upsert_template` and the rest of the write tools.
-This skill reads. Writing an action item back into Jamie makes it a second plan,
-and the list is the plan.
+Creating an action item in Jamie makes it a second plan, and the list is the plan.
+
+`update_task` is the one exception, and only to tick something off. Never to edit a
+task's text, its assignee or its due date — the rewriting happens on the way into
+todo.md and Jamie keeps the wording the meeting actually produced.

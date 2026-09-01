@@ -1,13 +1,14 @@
 ---
 name: pa-retrieve-tasks
-description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of the DS WG", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to write tasks back into the recorder, or to review the to-do list itself, which is pa-checkin.
+description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of the DS WG", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to create new action items in the recorder, or to review the to-do list itself, which is pa-checkin.
 ---
 
 # Meeting actions into the to-do list
 
 Something sits in his meetings and writes down who agreed to do what. This skill
-moves the ones that are his onto the list, so that the record of a decision and the
-record of the work are the same record.
+moves the ones that are his onto the list and closes them where they came from, so
+that the record of a decision and the record of the work are the same record, in
+one place.
 
 It exists because the two systems drift within a day. The recorder holds an action
 item that nobody reads again, the list holds the work he actually plans against,
@@ -32,8 +33,8 @@ can be called at all.
 
 ## What a source file has to answer
 
-Six things, and the process below assumes all six. A source that cannot answer them
-is not ready to be added.
+Seven things, and the process below assumes all seven. A source that cannot answer
+them is not ready to be added.
 
 1. **How to connect**, and how to tell whether it is connected.
 2. **How to list what it captured for a date window**, including how it paginates.
@@ -41,16 +42,23 @@ is not ready to be added.
 4. **How to recognise him** in that field, which is rarely his work email.
 5. **How to get more context** when an item's wording is too thin to act on — the meeting, the transcript, the search.
 6. **What to write in the provenance note**, so a task carries the meeting it came from.
+7. **How to mark one of its items complete**, since anything imported gets ticked off there once it is safely on the list.
 
 It should also say what the source gets wrong, because every one of them has a
 house style and knowing it in advance is what stops a bad task reaching him.
 
 ## What this skill does not do
 
-**It does not write back to the source.** Recorders offer task-creation tools and
-this skill never calls them. Two lists that both claim to be the plan is the
-failure this whole repo is built to avoid, and the list is the one that wins. The
-recorder is a source, not a second home.
+**It does not create anything in the source.** Recorders offer task-creation tools
+and this skill never calls them. Two lists that both claim to be the plan is the
+failure this whole repo is built to avoid, and the list is the one that wins.
+
+It does tick things off there, though, and for the same reason. Once a task is on
+the list, the copy sitting in the recorder is not a second plan, it is a stale
+duplicate, and the way to stop it behaving like one is to close it. He does not
+work out of the recorder's interface and does not want to see a queue there that
+looks like it needs attention. Move five, closing them, is what makes the recorder
+empty out rather than accumulate.
 
 **It does not add anything without asking.** A recorder captures action items for
 everyone in the room, and its wording is a machine's summary of what was said. Most
@@ -61,7 +69,7 @@ a better title. The review is the point of the skill; the pull is the easy half.
 hand the writing to `pa-checkin`. That skill owns the buckets, the scores, the
 tag syntax and the checker, and it should stay the only thing that edits todo.md.
 
-## The four moves
+## The five moves
 
 ### 1. Pull
 
@@ -153,6 +161,27 @@ Two things to pass through to it, since they come from here and it cannot know t
 
 New tasks go to **To do** or **Backlog**. Never to Doing, even when he agreed in the
 meeting to start it today, because Doing is his own statement about what is live.
+
+### 5. Close
+
+Mark every task that just landed on the list as complete in the source, one call
+each, using whatever the source file says does that.
+
+**After the writing, never before.** If `pa-checkin` fails halfway, or he changes
+his mind while it is running, a task already closed in the recorder is gone from
+both places and nobody will ever notice it went. Write first, confirm the list has
+it, then close.
+
+**Only the ones he kept.** Anything he skipped stays open in the source, exactly as
+it was. He rejected it from the list, which is not the same as saying it never
+happened, and closing it would be this skill making a decision he did not.
+
+**Say what was closed, and say it plainly.** One line at the end naming the count,
+and every failure individually — a close that silently did not happen is the one
+case where the recorder and the list disagree and neither of them knows it.
+
+Nothing else about the source item changes. Not its wording, not its assignee, not
+its due date. It keeps the shape the meeting gave it and it is simply done.
 
 ## Judgement calls that come up
 

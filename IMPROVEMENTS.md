@@ -25,3 +25,8 @@ so in chat.
   from quick-win suggestions in the Overview.
 - Let the user dismiss a quick-win suggestion in the Overview, so it stops
   reappearing without having to complete or edit the task.
+- Remember which meeting actions were declined. `pa-retrieve-tasks` now closes
+  imported tasks in the recorder, but ones Tiago skips stay open there and come
+  back in the next pull, so he reviews the same rejects every day. Needs a
+  declined list somewhere in `data/` that the review checks against, alongside
+  the duplicate check it already runs over todo.md and the done archive.
