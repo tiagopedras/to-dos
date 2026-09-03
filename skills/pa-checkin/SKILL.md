@@ -1,6 +1,6 @@
 ---
 name: pa-checkin
-description: Run a review-and-update session over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
+description: Run a review-and-update session over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Also use it to prepare for one of his recurring meetings, which each carry a script he wrote in the list's Context section, including phrasings like "get me ready for the Anu 1:1", "what do I need to raise on Wednesday", "write the agenda for my one-to-one", "prep my 1:1", "topics for the DS working group", or when he names a standing meeting and a day. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
 ---
 
 # PA check-in
@@ -91,9 +91,13 @@ When he solves it, say so plainly, then run the pick again from step 1 above.
 
 ## The session shape
 
-A check-in has six moves. Do not skip straight to editing, because most of the value is in the status read at the start, the optimisation pass, and the headline check, which are the three things he cannot easily do himself.
+A check-in has seven moves. Do not skip straight to editing, because most of the value is in the status read at the start, the optimisation pass, and the headline check, which are the three things he cannot easily do himself.
 
-On a quiet morning where nothing has changed, moves 1 and 5 are the whole session: read the status, confirm the headline still holds, done. Do not manufacture work to fill the other four.
+On a quiet morning where nothing has changed, moves 1 and 5 are the whole session: read the status, confirm the headline still holds, done. Do not manufacture work to fill the others.
+
+Move 3b, the recurring meeting agendas, is the one exception to that: it fires off the calendar rather than off anything having changed, so a quiet morning the day before a standing 1:1 still has an agenda to write.
+
+**When he only asks for the meeting prep** — "get me ready for the Anu 1:1", "what do I need to raise on Wednesday" — moves 1 and 3b are the whole session, and the reply is the agenda. Do not run a full review around it.
 
 ### 1. Read and report
 
@@ -120,6 +124,7 @@ Then open with a short status. **Lead with the headline in one line**, since tha
 - Anything due in the next five working days
 - Anything that has slipped since the file was last updated, inferred from the `Last updated` date against today
 - Anything in Context whose date has passed or is close, since a leave date nobody is counting is how a plan ends up depending on somebody who is not there
+- Any recurring meeting happening today or tomorrow, and whether its agenda is written. One line, and it is the one line that turns into work in move 3b
 - Anything the checker flagged
 - How many tasks still have no impact or no effort score, as a count only
 
@@ -159,6 +164,8 @@ So the whole update is the tag:
 | The prompt he pastes | a `Prompt:` note on the step |
 | The ticket he raises | a `Jira (DSYS\|WADE):` note on the task or step |
 | Where its context lives | a `Project:` note on the task, naming a folder under `data/projects/` |
+| How often it comes round | `repeat:wed`, `repeat:wed-9:15`, `repeat:15`, `repeat:wd5`, `repeat:tue2`, or any with a `~` |
+| The topics he takes into a recurring meeting | an `Agenda:` block on the task |
 
 **The first three are written in brackets with a double colon, the rest in backticks.** Not a style choice: Dataview cannot read inside a code span, and impact, effort, due and ai are the four the queries in views.md need to rebuild Quick wins, Big rocks and Delegate to Claude. Writing one of those four as `` `due:2026-08-21` `` still parses everywhere in this repo but drops the task out of every Obsidian view, silently. `scripts/check_todo.py` flags it as a FIX. The older form is still read, so nothing has to be converted on sight — but never write it.
 
@@ -183,11 +190,81 @@ Three things still need judgement rather than a tag:
 
 Write or refresh the suggested message on every live contact step you touched. Anything with a message on it shows up in Quick wins automatically, whatever its parent's effort tag says, so there is nothing to promote by hand any more.
 
+**Write the agenda for any recurring meeting that has one coming.** See the recurring meetings section below for how. Do it in the session rather than raising it as a topic: the whole point of a standing meeting is that it does not need deciding, and an agenda he has to ask for is one he prepares in the ten minutes before the call.
+
 **A task that belongs to a project points at its folder.** Work carrying more context than a line can hold keeps a folder in `data/projects/<name>/`, and the task names it in a `Project:` note. Read that folder's `CLAUDE.md` before you touch the task, since it holds the background and the decisions already taken, and write the pointer onto any new task that joins the project. The board reads the note and offers a panel showing every task on the same folder, which is the only place the whole of a project is visible — a task without the note is missing from it. The conventions cover when a folder is worth creating and what goes in it.
 
 Write a `Jira` note on anything whose real work is raising a ticket — a component contribution, a gap an audit turned up, a request to another team. The board turns it into a button that opens Jira's create form with the summary in place. **Never raise the ticket yourself.** He presses Create, on the form, with the summary in front of him; a ticket landing on a shared board without that is worse than no ticket. The conventions cover which board key to use and how to write the summary.
 
 Finally, set **Last updated** to today.
+
+### 3b. Recurring tasks, and the meetings among them
+
+Some of the list comes round on a cycle rather than being finished once: the standing 1:1s, the monthly AOP status update. Those carry `` `repeat:` `` and the board keeps their dates for them. The meetings among them also carry an agenda, and writing it is the work in this move.
+
+**How a recurring task works, so you do not fight the board over it.** One tag and one card.
+
+```
+- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
+```
+
+`repeat:wed` is every Wednesday, `repeat:wed-9:15` adds the time, `repeat:15` is the 15th of every month, `repeat:wd5` is the fifth working day of every month — for something dated by working days rather than by the calendar, which the AOP status update is — and `repeat:tue2` is the 2nd Tuesday of every month, for something pinned to a weekday rather than a day of the month, taking a time the same way: `repeat:tue2-15:00`. A `~` in front of any of them, `repeat:~fri-15:00`, says the day is the usual shape rather than a rule, for a meeting that is real but gets rebooked. `[due:: ]` is the occurrence the card is currently pointing at.
+
+The board owns that date. On load, once the date on the card has passed, it moves it to the next occurrence, unticks the card, and files the agenda that was on it as `Previous agenda (that date):`. So:
+
+- **Never hand-edit `[due:: ]` on a recurring task** to move it to the next cycle. The board has already done it or is about to, and two writers on one date is how it ends up a week out.
+- **Never delete or rewrite a `Previous agenda` note.** The board writes it and replaces it each cycle. It is there to be read, which is the point of reading it before writing the next agenda.
+- **The tick means "prepared", not "the meeting happened".** On a recurring meeting the card is the prep, so tick it once the agenda is written. It drops out of Quick wins and comes back unticked after the meeting.
+- **A meeting that moved is a date edit, not a rewrite.** When he says a 1:1 has moved, change `[due:: ]` to the new day and stop — the roll only fires on a date in the past, so a card dated forward keeps its agenda and its tick untouched. Do not rebuild the agenda, and do not touch `Previous agenda`.
+- **An agenda on an unticked card is still pending.** The board carries it forward rather than archiving it, on the grounds that an unticked card is prep that never happened. So a carried agenda holds topics that have not been raised yet: read it, keep what still matters, and say in the report that it came over from a meeting that did not happen.
+- **Sub-steps roll too**, and so do their dates. A step's tick comes off with the parent's, and any `[due:: ]` or `start:` on it moves by the days the parent moved, since those are offsets from the occurrence. So a "send the nudge two days before" step keeps meaning that. Never re-date a recurring task's steps by hand.
+- A recurring task with no `[due:: ]` gets one from the board. Do not invent one.
+- The `repeat:` tag goes on the task, never on a sub-step. The checker flags that as a FIX.
+
+**Making something recurring.** He names it. Add the tag and let the board date it. Do not convert a task to recurring on your own judgement — it changes what ticking it means, which is his call. The probation packs look recurring and are not: they follow a person's start date, not the calendar.
+
+**His script is the brief for a meeting, and it is his to write.** `## Context` in todo.md carries `### Recurring meeting prep scripts`, one line per meeting in his own words: when it happens, what it is usually about, and what to check before it. Read it every session, the same way you read `### How I want messages and prompts written`. It is on the board where he can edit it, so his copy is always the current one — if it disagrees with anything here, his wins. Never rewrite a script to match what you did; if a script is missing something you had to guess at, say so as a question rather than editing it.
+
+**What to write.** An `Agenda:` block on the task. One bullet per topic, one bullet indented under it with the context:
+
+```
+  - Agenda:
+    - AOP2027
+      - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
+    - Personal objectives
+      - Shared 26 Aug, pending validation before adding to Sage.
+```
+
+No date on the note. `[due:: ]` on the task is the meeting date, and the board reads it from there — a date here would be the same fact twice.
+
+**What the Copy button produces**, and the shape you are writing towards. It is not the markdown above verbatim:
+
+```
+Wednesday, 2 September 2026
+
+Agenda
+- AOP2027
+  - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
+```
+
+The date of the meeting in full, on its own line. A blank line. The word `Agenda` on its own line. Then the topics, both levels as bullets. The board builds that from the block and the task's date, and it also puts an HTML flavour on the clipboard so a paste into Google Docs keeps both levels as real bullets rather than as hyphens. Nothing about that is yours to write — write the block, and the format follows. It matters only because it tells you what the topics have to survive being read as: a heading and a list in somebody else's document.
+
+**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Anu 1:1 that means anything in Waiting review or due around the meeting date that touches her or her team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
+
+Rules for the writing itself:
+
+- **Both levels are bullets.** The topic is one bullet and its context is one bullet nested under it. Not a title with a paragraph, not a bullet with a sub-heading. That is the format he pastes and it is not negotiable.
+- **A few words as the title.** `AOP2027`, `Personal objectives`. It is a heading in somebody else's document, not a sentence.
+- **One context bullet, two at most.** Say what has moved, what is being asked for, and by when. If it needs a paragraph the topic is really two topics.
+- **Written neutrally, because they read the same notes.** No pronouns for the other person, no "she needs to", no "chase her on". Write it as the shared record of what the meeting covered, which is what it becomes.
+- **Nothing from the list that is not theirs.** The agenda is not a status report on his week. A task he is getting on with, and which needs nothing from them, stays off it.
+- **Say when a decision has a window.** "before the window closes in September" is the sentence that gets a decision made in the meeting rather than after it.
+- **Something that has not moved since the last meeting is not a topic**, and `Previous agenda` is how you can tell.
+- **Do not invent facts to fill a topic.** Leave `[fill in]` in the context bullet, the same rule as prompts and Jira summaries.
+- **Three to five topics.** A 1:1 is thirty minutes. More than five and the last two do not get discussed, which is worse than not raising them, because they now read as covered. The checker flags six.
+
+**Rewrite the block, do not append to it.** It holds the agenda for the date on the card and nothing else. Anything that came out of the last meeting becomes a task in the buckets, which is where actions live.
+
 
 ### 4. Optimise
 
@@ -257,7 +334,7 @@ That is the whole report. If an edit needed a judgement call he has not seen, th
 - `data/<dataset>/todo.md` — the list. `data/` holds every dataset and everything derived from each, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
 - `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes the current dataset's todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
 - `data/<dataset>/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
-- `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, capacity ceiling. Read this every session.
+- `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, meeting agendas, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
 - `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
 - `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**

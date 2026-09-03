@@ -294,7 +294,7 @@ Everything else is worked out from tags at render time, never stored twice:
 | --- | --- |
 | Matrix | `[impact:: ]` against `[effort:: ]`, as a 3×3 grid. One dot per open task, coloured by bucket. |
 | This week | `week` |
-| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any step with a written message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
+| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any step with a written message, plus every recurring meeting with an agenda written on it. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
 | Big rocks | `[impact:: high]` and `[effort:: L]` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
 | Delegate to Claude | `[ai:: full]`, ordered by `rank:` |
@@ -386,6 +386,177 @@ placeholder.
 
 Only prompts get the link. A suggested message is written for a person, so Copy
 is the only thing it needs.
+
+### Recurring tasks
+
+Some of the list comes round on a cycle rather than being finished once: the
+standing 1:1s, the monthly AOP status update. Before this every one of them was
+retyped by hand each cycle, which is how the same task ends up on the list three
+times in slightly different words.
+
+One tag, `` `repeat:` ``, and one card:
+
+| | |
+| --- | --- |
+| `repeat:wed` | every Wednesday |
+| `repeat:wed-9:15` | every Wednesday at 9:15 |
+| `repeat:15` | the 15th of every month |
+| `repeat:wd5` | the fifth working day of every month |
+| `repeat:tue2` | the 2nd Tuesday of every month |
+| `repeat:tue2-15:00` | the 2nd Tuesday of every month, at 15:00 |
+| `repeat:~fri-15:00` | weekly, usually Friday 3pm, but the day moves |
+
+`[due:: ]` is the occurrence the card is currently pointing at, so the tag says
+how often and the date says which one. A month too short for the day it names
+lands on its last day rather than skipping, since the 31st in February is still a
+date somebody meant to hit.
+
+The working-day form is there because a real obligation needed it and neither of
+the other two could hold it: the AOP status update is due by the fifth working
+day, which is 7 September, 7 October, 6 November — a different date every month
+and not a day of the month at all. Working means Monday to Friday, and the tag
+knows nothing about bank holidays. That is deliberate rather than lazy: the
+checker already flags any date that lands on one, so teaching the board the
+holiday list too would be two lists to keep in step for no extra answer.
+
+The `~` prefix says the cadence is the usual shape rather than a rule. The design
+system drop-in is why it exists: it is weekly, but which day it lands on gets
+rebooked around everything else, so four consecutive sessions ran Friday,
+Thursday, Friday, Thursday. Without `~` the checker would flag every one of those
+as a date disagreeing with its tag, which is correct for a fixed slot and pure
+noise for this one. The board still rolls to the tagged day, because that is the
+best default available — and the date stays his to correct when the session moves.
+
+### What happens when the meeting does not happen
+
+Nothing is ever lost: the roll rewrites dates and ticks, and it never deletes a
+task or a topic. But "the date passed" and "the meeting happened" are not the
+same fact, and the board only knows the first one. So the tick is what it reads
+to tell them apart, and there are three cases.
+
+**It moved, and you knew in advance.** Change the due date to the new day. The
+roll only fires on a date in the past, so a card dated forward is left completely
+alone — the agenda stays live, the tick stays where it was. One edit, and it is
+the case worth reaching for.
+
+**It did not happen, and the date slid past.** The card was never ticked, which
+means the prep was never delivered and those topics were never raised. So the
+agenda **carries forward** onto the new date rather than being filed as last
+cycle's, and the status line says so. Carrying a topic that did get discussed is
+the cheaper of the two mistakes: a line he can see and delete, rather than one he
+cannot see and has lost.
+
+**It was cancelled after you had prepared.** The card was ticked, so the roll
+files the agenda as `Previous agenda` — the board cannot tell a delivered agenda
+from a cancelled one. Which is why that block has its own Copy, dated with the
+occurrence the card points at *now* rather than the one it was written for. Odd
+written down, right in use: the only reason to copy a past agenda is that its
+meeting moved, so what is wanted is those topics under the new date.
+
+**A recurring task's sub-steps roll with it.** Its steps are the work of one
+occurrence — send the nudge, review what came back — so a step still ticked from
+last time would read as already done for a cycle it has never seen. They are
+unticked, their `done:` dates cleared, and any `[due:: ]` or `start:` on them
+moves by exactly the number of days the parent moved. That last part matters
+because a step's date is an offset rather than a fixed day: "the nudge goes out
+two days before" survives the roll, where clearing it would lose the intent and
+leaving it would point at a session that has already happened.
+
+The board owns that date. On load, once the date on the card has passed, it moves
+the date to the next occurrence, unticks the card, and files whatever agenda was
+on it as a `Previous agenda (that date):` note. It says so in the status line,
+because it changed what a card said without being asked, and it does none of it
+while a backup is being previewed — rewriting the dates in a record of a past
+state would be a lie about what was on disk that day.
+
+**The board rather than the skill, and on load rather than on a timer.** The
+board is open every day; a check-in is not, so a week without one would otherwise
+leave last week's date sitting on the card. It sits beside the two fixups that
+were already there — renaming Parked to Backlog, dating a task that was ticked
+without one — for the same reason all three are automatic: they are facts about
+the file rather than decisions about the work.
+
+**One card that rolls, not a template that spawns copies.** A card per occurrence
+would put a ticked "prepare for the 1:1" into Done every week for as long as the
+meeting exists, and the only question ever asked of last week's is what was on
+it — which is one note, not a whole card. Hence `Previous agenda`, which is one
+cycle of history and no more.
+
+The tick on a recurring task means *prepared for this one*, not *this happened*.
+That is why there is no "agenda ready" chip: the card is the prep, so ticking it
+is the status, and a chip saying the same thing a second way would be a second
+thing to keep in step. Tick it when the agenda is written, it leaves Quick wins,
+and it comes back unticked after the meeting.
+
+### The agenda for a recurring meeting
+
+A recurring meeting also carries the topics for the next one, as an `Agenda:`
+block on the task:
+
+```
+- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] `repeat:wed-9:15`
+  - Agenda:
+    - AOP2027
+      - Confirm the rescoped recommendation is agreed so the tracker can go out.
+    - Personal objectives
+      - Shared 26 Aug, pending validation before Sage.
+```
+
+That note is the one thing in the file that is a block rather than a quoted line.
+Every other note — a message, a prompt, a ticket summary — is a sentence, and a
+sentence fits on a line. An agenda is a bullet list with a second level under it,
+because that is the thing being produced: it gets pasted into somebody else's
+document, and the bullets are the format rather than a way of drawing it. So the
+note is the heading and the content is whatever sits indented beneath it, ending
+at the first line that is not.
+
+There is no date on the note. The task's `[due:: ]` is the meeting date, and
+since the board rolls that forward itself and clears the block as it goes, the
+block always holds the agenda for the meeting the card is pointing at. An earlier
+version dated the note and marked it amber when the date had gone by; rolling the
+task removed the state that marker existed to describe.
+
+#### What Copy actually puts on the clipboard
+
+Not the markdown above. This:
+
+```
+Wednesday, 2 September 2026
+
+Agenda
+- AOP2027
+  - Confirm the rescoped recommendation is agreed so the tracker can go out.
+```
+
+The meeting date in full on its own line, a blank line, the word Agenda on its
+own line, then both levels as bullets. The board builds it from the block and the
+task's date, so nothing in the file carries the title or the blank line.
+
+Two flavours go on together, `text/plain` and `text/html`. Plain text alone does
+not survive the paste: Google Docs turns a leading `- ` into a bullet only
+sometimes and loses the second level every time, so an agenda arrives as literal
+hyphens. Given the HTML flavour it reads the `<ul>` and produces real nested
+bullets. Anything that cannot read HTML — a terminal, a plain notes field — still
+gets the text, so nothing has to choose in advance which one the destination
+wants. `ClipboardItem` is what carries both; where it is missing, or where the
+browser refuses the write, the fallback copies a selection out of a
+`contenteditable` rather than a `textarea`, since that is the only way
+`execCommand` ever kept formatting.
+
+On screen the block is drawn as an actual `<ul>`, not as styled indentation, for
+the same reason: what is on screen and what lands in the document should not be
+two designs of one list.
+
+#### Where the topics come from
+
+Not the board's business. That lives in `## Context`, under `### Recurring
+meeting prep scripts`: one line per meeting in Tiago's own words, saying when it
+happens, what it is usually about, and what to check before it. `pa-checkin`
+reads that script, pulls the live status of whatever it points at, reads
+`Previous agenda` to see what was already raised, and writes the block. Keeping
+the script in Context rather than in the skill is deliberate, and the same call
+`### How I want messages and prompts written` made: he can edit it on the board,
+he cannot edit the skill, so his copy is the one that is current.
 
 ### Chats on a task
 
@@ -618,8 +789,10 @@ verify. It is packaged as `skills/dist/pa-checkin.skill` for installing.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
-more than one `headline:`, missing scores, and a queried tag written in a form
-Dataview cannot read. Run it directly:
+more than one `headline:`, missing scores, a `repeat:` the board cannot read or
+one whose date does not fall on its own cycle, an agenda topic with no context
+under it, and a queried tag written in a form Dataview cannot read. Run it
+directly:
 
 ```bash
 python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
@@ -654,6 +827,11 @@ date re-guessed by hand.
     - Jira (DSYS): "..."         <- a ticket still to raise
     - Description: "..."         <- and its body
   - [ ] A gated step `start:2026-09-01` `blocked-by:some-slug`
+
+- [ ] **A recurring task** `repeat:wed-9:15`   <- how often, board keeps the date
+  - Agenda:                     <- a block, not a line: the topics to paste
+    - A topic
+      - what needs saying about it
 ```
 
 Tags work on sub-steps as readily as on tasks, and usually belong there.

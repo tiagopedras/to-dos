@@ -45,6 +45,7 @@ Every top-level task carries impact, effort and a delegation tag. Dates only whe
 - `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
 - `urgent` — time-critical with no fixed date. Never combine with `due`, they are alternatives.
 - `done:YYYY-MM-DD` — the day it was ticked off. Written by the board, not by hand. Never add it to an open task, and never remove it from a ticked one: it is what decides when finished work is old enough to be archived out of the file.
+- `repeat:wed-9:15` — how often this task comes round: a three-letter weekday with an optional time, a day of the month, a working day of the month, the nth weekday of the month (`repeat:tue2` for the 2nd Tuesday), or any of those with a `~` in front where the day is the usual shape rather than a rule. See recurring tasks below.
 
 Sub-steps carry their own `[due:: ]` where the parent needs back-planning, and their own `[ai:: ]` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
 
@@ -161,6 +162,88 @@ Rules for the message itself. **His own rules under `### How I want messages and
 
 Rewrite the message when the surrounding facts change. A chase message that still refers to a date that has passed is worse than no message, because he will send it without rereading.
 
+## Recurring tasks
+
+Added 1 Sep 2026. Work that comes round on a cycle rather than being finished once: the standing 1:1s, the monthly AOP status update. Before this, every one of them was retyped by hand each cycle, which is how the same task ends up on the list three times in slightly different words.
+
+One tag and one card:
+
+```
+- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
+```
+
+- `repeat:wed` — every Wednesday. A three-letter day.
+- `repeat:wed-9:15` — every Wednesday at 9:15. The time is for meetings and is optional.
+- `repeat:15` — the 15th of every month. A month too short for the day lands on its last day rather than skipping.
+- `repeat:wd5` — the fifth working day of every month. For an obligation dated by working days rather than by the calendar, which the AOP status update is. Working means Monday to Friday; the tag knows nothing about bank holidays, and the checker's working-day check catches one landing on a holiday separately.
+- `repeat:tue2` — the 2nd Tuesday of every month. For a meeting that is monthly but pinned to a weekday rather than a day of the month, the way Game & Animation Production runs. Takes a time the same way the weekly form does: `repeat:tue2-15:00`. A month with no 5th occurrence of the day clamps to its last one, the same rule the working-day form uses.
+- `repeat:~fri-15:00` — the `~` prefix works on any of the forms above and says the cadence is the usual shape rather than a rule. Use it where the meeting is real but gets rebooked: the design system drop-in is weekly and has run Friday, Thursday, Friday, Thursday. The board still rolls to the tagged day, and the checker stops flagging a date that lands off it.
+
+`[due:: ]` is the occurrence the card is currently pointing at. So the tag says how often and the date says which one, and neither is derivable from the other.
+
+**The board owns that date.** On load, once the date on the card has passed, it moves the date to the next occurrence, unticks the card, and files whatever agenda was on it as a `Previous agenda (that date):` note. Which means:
+
+- **Never hand-edit `[due:: ]` on a recurring task** to advance it a cycle. The board has done it, or is about to, and two writers on one date is how it ends up a week out.
+- **Never delete or rewrite a `Previous agenda` note.** The board writes it and replaces it each cycle.
+- **The tick means "prepared for this one", not "this happened".** It comes off when the occurrence changes, and so do the ticks on every sub-step, since a step's work belongs to one occurrence.
+- **A sub-step's own `[due:: ]` or `start:` moves with the roll**, by the same number of days the parent moved, because those dates are offsets from the occurrence rather than fixed days. Write them as the real date for the current cycle and let the board carry them; do not re-date them by hand.
+- The tag goes on the task, never on a sub-step. A cycle belongs to the whole task, and the checker flags it as a FIX.
+
+**When a meeting does not happen.** The board knows the date passed; it cannot know whether the meeting did. The tick is what separates them:
+
+- **Ticked and the date passed** — the prep was delivered, so the agenda is filed as `Previous agenda (that date):`.
+- **Unticked and the date passed** — the prep never happened, so those topics were never raised. The agenda **carries forward** onto the new date instead of being archived.
+- **Known in advance** — change `[due:: ]` to the new day and nothing rolls at all, since the roll only fires on a date in the past. This is the one to reach for, and the one to tell him about when he says a meeting moved.
+- **Cancelled after he prepared** — the agenda is archived, because that case is indistinguishable from a delivered one. The `Previous agenda` block carries its own Copy, dated with the occurrence the card points at now, so recovering it is one click.
+
+One card that rolls rather than a template that spawns copies. A card per occurrence would put a ticked "prepare for the 1:1" in Done every week for as long as the meeting exists, and the only question ever asked of last week's is what was on it — which is one note, not a whole card.
+
+**Making something recurring is his call**, since it changes what ticking the task means. Do not convert one on your own judgement. The probation packs look recurring and are not: they follow a person's start date rather than the calendar.
+
+### Meeting agendas
+
+A recurring meeting also carries the topics to take into the next one, as an `Agenda:` block on the task:
+
+```
+- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
+  - Agenda:
+    - AOP2027
+      - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
+    - Personal objectives
+      - Shared 26 Aug, pending validation before adding to Sage.
+```
+
+Unlike every other note in this file this one is a block rather than a quoted line, because what he pastes into the shared meeting notes is a bullet list: one bullet for the topic, one bullet nested under it for the context. Both levels are bullets, and that is the format rather than a rendering choice. The block ends at the first line not indented past the `Agenda:` line, so an ordinary note can follow it.
+
+No date on the note. `[due:: ]` on the task is the meeting date and the board reads it from there, so a date here would be the same fact twice with two chances to disagree. Nothing has to say whether the agenda is current, either: rolling the task forward clears the block.
+
+**What the Copy button produces** is not that markdown verbatim. It is:
+
+```
+Wednesday, 2 September 2026
+
+Agenda
+- AOP2027
+  - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
+```
+
+The meeting date in full on its own line, a blank line, the word `Agenda` on its own line, then the topics. The board also puts an HTML flavour on the clipboard, so a paste into Google Docs keeps both levels as real bullets instead of literal hyphens. None of that is written by hand — write the block and the format follows. It is here because it says what the topics have to survive being read as: a heading and a list in somebody else's document.
+
+**The block is rewritten each cycle, never appended to.** It holds the agenda for the date on the card and nothing else. Whatever came out of the last meeting is a task in the buckets, which is where actions live.
+
+The brief for what goes in it is his, not this file's. `## Context` in todo.md carries `### Recurring meeting prep scripts`, one line per meeting in his own words: when it happens, what it is usually about, and what to check before it. Read it every session and follow it; where it disagrees with anything below, his copy wins.
+
+Rules for the writing:
+
+- **Both levels are bullets.** One bullet for the topic, one nested under it for the context. Not a title with a paragraph.
+- **A few words as the title.** `AOP2027`, `Personal objectives`. It is a heading in a shared document, not a sentence.
+- **One context bullet, two at most.** What has moved, what is being asked for, by when.
+- **Written neutrally, because they read the same notes.** No pronouns for the other person, no "she needs to", no "chase her on this". Write it as the shared record the notes become.
+- **Nothing that is not theirs.** The agenda is not a status report on his week. Work he is getting on with, that needs nothing from them, stays off it.
+- **Three to five topics.** A 1:1 is thirty minutes. Six means the last two read as covered without having been discussed, and the checker flags it.
+- **Something that has not moved since the last meeting is not a topic**, and `Previous agenda` is how you can tell.
+- **Leave `[fill in]` rather than inventing a detail**, the same rule as prompts and Jira summaries.
+
 ## Jira tickets
 
 Work that leaves the list as a ticket on somebody's board carries a `Jira` note, in the same shape as a prompt. The board turns it into a **Raise in DSYS** button that opens Jira's create form with the summary already filled in, and raises nothing until he presses Create there.
@@ -203,7 +286,7 @@ He works from five views: This week, Quick wins, Big rocks, Dependency chain and
 | View | Built from |
 | --- | --- |
 | This week | `week` |
-| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any live step carrying a suggested message. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
+| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any live step carrying a suggested message, plus every `repeat:` task with an agenda written on it, nearest first. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
 | Big rocks | `[impact:: high]` and `[effort:: L]` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
 | Delegate to Claude | `[ai:: full]`, ordered by `rank:` |

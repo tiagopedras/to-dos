@@ -11,7 +11,8 @@ the real `data/todo.md` is not there. Nothing here can be edited or saved.
 Four buckets, four states inside each. Tasks carry an impact, an effort and a
 delegation tag. Steps that mean contacting somebody carry the message already
 written, steps handed to Claude carry the prompt, and anything that needs a ticket
-carries the Jira line.
+carries the Jira line. A recurring task carries how often it comes round, and a
+recurring meeting carries the agenda for the next one.
 
 ---
 
@@ -31,6 +32,16 @@ carries the Jira line.
   - [ ] Write the review and send it to HR [due:: 2026-09-04] [ai:: partial]
     - Suggested message (draft): "Hey 👋 Alex's six month review pack is attached, ready for the conversation on the 11th. Shout if you need anything else from me before then."
     - Draft because it carries a probation outcome. Read it against the final pack before sending.
+
+- [ ] **Prepare for the 1:1 with Jordan** [impact:: med] [effort:: S] [due:: 2026-08-26] [ai:: partial] `repeat:wed-9:15`
+  - Recurring, so the card never closes. Ticking it means the agenda for the date on it is written; once that meeting has passed the board moves the date on and unticks it.
+  - Agenda:
+    - Team restructure
+      - Confirm which of the two designers moves first, and whether the second move waits on the roadmap or on hiring.
+    - Q3 objectives
+      - Shared last week, still waiting on validation before they go into the HR system.
+    - Design system v2
+      - The token work is done, the component migration is not. Ask for a decision on whether it ships in one release or two.
 
 - [ ] **Chase the 360 responses** [impact:: med] [effort:: S] [due:: 2026-08-25] [ai:: none] `#alex-360`
   - Three of six are in. The two on the Web team are the ones holding it up.

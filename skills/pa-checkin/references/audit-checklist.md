@@ -92,6 +92,24 @@ The script only checks that a message exists. Whether it is usable is a read.
 
 **Check the message is on the right step.** Quick wins picks up any live step carrying a message, so nothing needs promoting by hand any more. The flip side is that a message written on the wrong step silently puts the wrong thing in front of him.
 
+## Meeting agendas
+
+The checker catches a `repeat:` value it cannot read, a date that does not fall on the cycle the tag describes, a `repeat:` on a sub-step, an agenda topic with no context bullet, and more than five topics. What it cannot judge is whether the agenda is the right one.
+
+**Is the date on the card actually the next occurrence?** The board rolls this on load, so a stale date means nothing has opened the board — worth saying, since it also means the agenda he is about to copy is for a meeting that has been and gone.
+
+**Would the other person recognise these as the topics?** The test is whether they could have written the same list from their side. A topic that only makes sense from his half of the work is one he has to explain before he can discuss it, which eats the meeting.
+
+**Read it as they will read it, in the shared notes, without him in the room.** Anything that reads as an accusation, a chase or a status update on somebody else has to be rewritten. The neutral wording rule is not politeness, it is that these notes outlive the conversation.
+
+**Does each topic actually need them?** Something he is getting on with, that needs no decision, no input and no sign-off, is not a topic. It is the most common thing to find in one of these, and cutting it is what leaves room for the topics that do.
+
+**Is anything missing that the script asks for?** Read his script line by line against the agenda. The script is what he wants checked, and a topic silently absent because the tag was on a different task is the failure the script exists to prevent.
+
+**Has a decision on any topic got a window closing?** If it has, the context bullet has to say so. Otherwise the topic gets discussed and not decided, which means it comes back next week.
+
+**Did anything from the last meeting become a task?** An agenda rewritten with nothing landing in the buckets means the meeting happened and nothing was captured.
+
 ## Optimisation
 
 **Did this session actually reduce work, or only reorder it?** If nothing was cut, merged, retagged, batched, made recurring or handed over, the optimisation pass did not happen. Reordering alone is the failure mode this skill exists to avoid.
