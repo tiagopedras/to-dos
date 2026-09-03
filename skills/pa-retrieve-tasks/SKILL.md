@@ -5,6 +5,8 @@ description: Pull the action items captured from the owner's meetings by whateve
 
 # Meeting actions into the to-do list
 
+**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+
 Something sits in his meetings and writes down who agreed to do what. This skill
 moves the ones that are his onto the list and closes them where they came from, so
 that the record of a decision and the record of the work are the same record, in
@@ -287,6 +289,6 @@ in front of him twice with different wording.
 
 ## Tone
 
-Same as `pa-checkin`, because he reads both between meetings. Short bullets,
-plain sentences, no preamble, no restating what he asked for. The review message is
-the one place a numbered list is right, since he is answering it with numbers.
+See `~/Code/to-dos/PA.md`.
+
+The review message is the one place a numbered list is right, since he is answering it with numbers.

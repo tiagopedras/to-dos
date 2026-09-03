@@ -800,7 +800,11 @@ directly:
 python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
-`pa-checkin/references/conventions.md` is the file format.
+Two reference files at the root of this repo sit behind all four skills, and
+neither is packaged inside one of them. `PA.md` is standing behaviour: who the
+list belongs to, where it lives, how he prioritises, the rules that hold whatever
+skill is running, and the tone. `CONVENTIONS.md` is the file format. Every skill
+reads both before it does anything, which is why none of them restate either.
 `pa-checkin/references/audit-checklist.md` is what to check by hand that the
 script cannot.
 

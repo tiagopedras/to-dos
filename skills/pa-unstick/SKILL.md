@@ -5,6 +5,8 @@ description: Walk through everything sitting in Doing, Waiting review or Blocked
 
 # Unsticking Doing, Waiting review and Blocked
 
+**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+
 Three states on the list are not really about the work, they are a claim about
 where it sits: **Doing** says it is live, **Waiting review** says it is finished
 and sitting with somebody else, **Blocked** says it cannot move until something
@@ -21,8 +23,7 @@ time and ask.
 ## What counts
 
 Top-level tasks only, in the three states named above, read from the live board
-rather than assumed. A sub-step has no column of its own — it is inside whatever
-its parent is — so nudging a stuck sub-step means asking about the parent.
+rather than assumed.
 
 **Blocked** is a real heading some buckets carry and others do not — see the file
 conventions. It is not the same thing as a `blocked-by:` tag, which points at
@@ -133,6 +134,6 @@ several tasks is exactly where one of them turns out to be the exception.
 
 ## Tone
 
-Same as `pa-checkin`: short, plain, no preamble. The count in move 1 is a
-sentence, not a table. The question for each task is one line — this is a
-conversation to move through quickly, not a form.
+See `~/Code/to-dos/PA.md`.
+
+The count in move 1 is a sentence, not a table, and the question for each task is one line. This is a conversation to move through quickly, not a form.

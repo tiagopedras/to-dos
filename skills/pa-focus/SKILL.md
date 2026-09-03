@@ -5,6 +5,8 @@ description: Question whether too much is sitting in To do and Doing on the owne
 
 # Focus: trimming Doing and To do
 
+**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+
 Doing and To do are not neutral holding areas. Doing is his own claim that
 something is live, roughly the next two weeks. To do is the claim that
 something is genuinely two to four weeks out — next up, not just intended.
@@ -21,8 +23,7 @@ and ask whether the column still tells the truth.
 ## What counts
 
 Top-level tasks only, in To do and Doing, read from the live board rather than
-assumed. A sub-step has no column of its own — it is inside whatever its
-parent is — so a stalled-looking sub-step means asking about the parent.
+assumed.
 
 ## The three moves
 
@@ -94,7 +95,7 @@ looks realistic — not a lecture, a single observation he can take or leave.
 "Doing's down to 3, that tracks" is as valid a close as "To do's still got 11
 in it across four buckets, worth another pass next week." Do not attach a
 number or a rule to it — capacity ceilings and `week` tagging are
-`pa-checkin`'s territory (see its `references/conventions.md`, "This week"),
+`pa-checkin`'s territory (see `~/Code/to-dos/CONVENTIONS.md`, "This week"),
 not this skill's to invent.
 
 ## Judgement calls that come up
@@ -121,6 +122,6 @@ the exception.
 
 ## Tone
 
-Same as `pa-checkin` and `pa-unstick`: short, plain, no preamble. The count in
-move 1 is a sentence, not a table. The question for each task is one line —
-this is a conversation to move through quickly, not a form.
+See `~/Code/to-dos/PA.md`.
+
+The count in move 1 is a sentence, not a table, and the question for each task is one line. This is a conversation to move through quickly, not a form.

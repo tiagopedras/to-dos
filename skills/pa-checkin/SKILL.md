@@ -5,13 +5,9 @@ description: Run a review-and-update session over the owner's master to-do list,
 
 # PA check-in
 
-This skill maintains one specific file: the owner's master to-do list. He is a design manager with people management, design oversight, design system and strategic work running in parallel. The list exists because that mix does not fit in one head, and the file's value is that it holds the reasoning, not just the titles.
+This skill runs the review-and-update session over the owner's master to-do list.
 
-The file lives at `~/Code/to-dos/data/<dataset>/todo.md`, where `<dataset>` is whatever `~/Code/to-dos/data/.current` names — read that file first, every session, since he can switch which list is current from the board's own dropdown and this skill must follow. As of 30 Aug 2026 that is `twinkl`, so in practice `~/Code/to-dos/data/twinkl/todo.md`, but never hardcode that: read the pointer. `data/` is the only folder git ignores and the only one Obsidian opens as a vault; everywhere below that says `data/todo.md`, `data/backups/`, `data/projects/` or `data/views.md` means that path inside the current dataset's own folder, not the bare `data/` root. If the pointer file is not reachable, look for a `todo.md` under some folder inside `data/` before asking him where it is.
-
-## Why this skill exists
-
-Each session starts with no memory of the last one. The file is the memory. That works only if every session reads the conventions before editing, because an update that quietly breaks the format costs more than the update was worth. Read `references/conventions.md` at the start of every session, before touching anything.
+**Read `~/Code/to-dos/PA.md` first, every session, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Everything below assumes both have been read, and does not repeat them.
 
 ## How to report back
 
@@ -55,39 +51,6 @@ The reverse matters as much. When something moves **off** `ai:full` back to `ai:
 **Sequencing that wastes waiting time.** Something scheduled after a blocker where the prep work could happen before it. A contractor cover paper is the pattern: the conversation waits on a person being back, the paper does not, so the paper moves earlier and the conversation becomes a decision rather than a briefing.
 
 Find them every session, but keep them out of the reply. They are pending topics: count them on the last line and wait to be asked. When he does ask, give one at a time, as a concrete offer rather than an observation — "this one has not moved in three sessions, cut it or break it down?" is useful, "you may want to review your backlog" is noise. Hold the count to the two or three strongest, since a count of nine is a lecture with a number in front of it. Never bundle an optimisation into the file as though he agreed to it.
-
-## How he prioritises: two tiers
-
-Two rules, at two different moments. Keep them separate. Tier one decides what is worth doing. Tier two decides what to do first.
-
-### Tier one — impact against effort, at intake
-
-Every task gets two scores when it lands. `[impact:: high|med|low]` is how much it matters. `[effort:: S|M|L]` is how heavy the lift is. Nothing enters the list without both.
-
-**Suggest both scores rather than asking.** When the task looks like one already on the list, score it the same and name the comparison: "Scored this high/S, same as the sign-off chase note — one message, unblocks someone." When two similar tasks disagree, say so and pick one. Only ask him when nothing on the list is close, or when the two obvious comparisons point different ways.
-
-Never leave a score blank to avoid asking. A blank reads as low on the board and the task quietly sinks. The board counts what is missing and shows a **needs scoring** marker, so a gap is visible rather than silent.
-
-The takeaway is **high impact, lighter lift first**. The board sorts on impact divided by effort, so a med/S beats a high/L. Say this out loud when it changes an order he expected, because it is the counter-intuitive half of the rule.
-
-Two things this rule does not decide, so do not let it:
-
-- **It does not kill big work.** A high/L scores low and still has to happen. A conference deck and the component documentation are both high/L. Left to the score they never start. They get picked up by tier two, or broken into smaller steps, never dropped for scoring badly.
-- **It does not rank people work.** Probation reviews, feedback, salary conversations have real dates and real consequences for somebody else. They are driven by their deadline, not their score. A date beats a score every time.
-
-### Tier two — the one thing, every morning
-
-One task at a time carries `headline:<the date it was set>`. It is the task that **makes the others easier or unnecessary**. That is a different question from which scores highest, and the answer is often a task with an unremarkable score that three other things wait on.
-
-Pick it from evidence, not instinct:
-
-1. Count what waits on each candidate through the `blocked-by:` tags. The task freeing the most others is the first candidate.
-2. Ask what would become unnecessary, not just unblocked. A settled format kills the "agree a format" step in four other tasks. That is worth more than an unblock.
-3. Prefer something he can finish this week. A headline he cannot land is a headline that blocks itself.
-
-**The morning run is a check, not a re-pick.** Report the headline in one line, then ask one question: does it still hold? Re-pick only when it is solved, or when it turns out to be blocked. Do not re-open the choice because something newer looks shinier — a headline that changes every morning was never a headline.
-
-When he solves it, say so plainly, then run the pick again from step 1 above.
 
 ## The session shape
 
@@ -334,15 +297,10 @@ That is the whole report. If an edit needed a judgement call he has not seen, th
 - `data/<dataset>/todo.md` — the list. `data/` holds every dataset and everything derived from each, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
 - `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes the current dataset's todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
 - `data/<dataset>/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
-- `references/conventions.md` — the file format: buckets, states, tags, date rules, suggested messages, meeting agendas, capacity ceiling. Read this every session.
+- `~/Code/to-dos/PA.md` — standing behaviour: who he is, where the list lives, the two tiers of prioritisation, the standing rules and the tone. Read every session, before the conventions.
+- `~/Code/to-dos/CONVENTIONS.md` — the file format: buckets, states, tags, date rules, suggested messages, meeting agendas, capacity ceiling. Read this every session.
 - `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
 - `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
 - `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
 
 **Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
-
-## Tone
-
-He is direct and does not want padding. Short bullets, simple sentences, no preamble, and do not repeat instructions you have already given in the session. Longer prose is only warranted when explaining why something failed or why a date has to move.
-
-A long report on a session where four tasks moved is worse than a short one, because it buries the two lines he actually needed. Detail is not thoroughness here — the file is the record, the report is the summary, and anything that does not fit is a pending topic he can ask for.
