@@ -103,6 +103,23 @@ RANK = re.compile(r"`rank:(\d+)`")
 HEADLINE = re.compile(r"`headline:([^`]*)`")
 START = re.compile(r"`start:([^`]*)`")
 PROMPT_NOTE = re.compile(r"^\s*-\s+Prompt:", re.IGNORECASE)
+# How often a task comes round: `repeat:wed`, `repeat:wed-9:15`, `repeat:15`,
+# `repeat:tue2` (the 2nd Tuesday of every month).
+# The cycle rather than a date, because `[due:: ]` already carries the occurrence
+# the card is currently pointing at, and the board moves that on itself.
+REPEAT = re.compile(r"`repeat:([^`]*)`")
+REPEAT_VAL = re.compile(
+    r"^(~?)(?:(mon|tue|wed|thu|fri|sat|sun)([1-5])?(?:[-\s]+(\d{1,2}:\d{2}))?"
+    r"|wd(\d{1,2})|(\d{1,2}))$",
+    re.I,
+)
+# The agenda for a recurring meeting: a note whose content is the indented block
+# under it rather than a quoted string, so it cannot be read one line at a time.
+# No date on it — the task's `[due:: ]` is the date the topics are for.
+AGENDA_NOTE = re.compile(r"^(\s*)-\s+Agenda\s*:", re.IGNORECASE)
+# Last cycle's, written by the board's roll rather than by hand.
+PREV_AGENDA_NOTE = re.compile(r"^(\s*)-\s+Previous agenda(\s*\(([^)]*)\))?\s*:", re.IGNORECASE)
+REPEAT_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 class Finding:
@@ -278,6 +295,319 @@ def check_suggested_messages(lines):
     return findings
 
 
+def ordinal(n):
+    suffix = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def nth_workday(y, mo, nth):
+    """The nth Monday-to-Friday day of a month, clamped to its last working day.
+
+    Nothing about bank holidays: the working-day check already flags a date that
+    lands on one, and a second holiday list here would be one to keep in step."""
+    import calendar
+
+    seen, fallback = 0, 1
+    for day in range(1, calendar.monthrange(y, mo)[1] + 1):
+        if dt.date(y, mo, day).weekday() >= 5:
+            continue
+        fallback = day
+        seen += 1
+        if seen == nth:
+            return dt.date(y, mo, day)
+    return dt.date(y, mo, fallback)
+
+
+def nth_weekday(y, mo, dow, nth):
+    """The nth occurrence of a weekday in a month, clamped to its last if short.
+
+    Same shape as nth_workday, for a meeting pinned to a weekday rather than to
+    every working day — the 2nd Tuesday of the month rather than the 2nd
+    working day."""
+    import calendar
+
+    seen, fallback = 0, 1
+    for day in range(1, calendar.monthrange(y, mo)[1] + 1):
+        if dt.date(y, mo, day).weekday() != dow:
+            continue
+        fallback = day
+        seen += 1
+        if seen == nth:
+            return dt.date(y, mo, day)
+    return dt.date(y, mo, fallback)
+
+
+def next_occurrence(rep, today):
+    """The first occurrence on or after today. Today counts: on the morning of a
+    meeting the agenda is still wanted, so the day of it is not yet the next one.
+
+    A monthly day a short month does not have lands on that month's last day
+    rather than skipping the month, which is the one answer certainly wrong."""
+    if rep["kind"] == "weekly":
+        return today + dt.timedelta(days=(rep["dow"] - today.weekday()) % 7)
+    import calendar
+
+    y, mo = today.year, today.month
+    if rep["kind"] == "workday":
+        hit = nth_workday(y, mo, rep["nth"])
+        if hit < today:
+            hit = nth_workday(y + 1 if mo == 12 else y, 1 if mo == 12 else mo + 1, rep["nth"])
+        return hit
+    if rep["kind"] == "monthly-dow":
+        hit = nth_weekday(y, mo, rep["dow"], rep["nth"])
+        if hit < today:
+            hit = nth_weekday(
+                y + 1 if mo == 12 else y, 1 if mo == 12 else mo + 1, rep["dow"], rep["nth"]
+            )
+        return hit
+    if today.day > min(rep["dom"], calendar.monthrange(y, mo)[1]):
+        mo += 1
+        if mo == 13:
+            y, mo = y + 1, 1
+    return dt.date(y, mo, min(rep["dom"], calendar.monthrange(y, mo)[1]))
+
+
+def read_repeat(val):
+    m = REPEAT_VAL.match(val.strip())
+    if not m:
+        return None
+    loose = m.group(1) == "~"
+    if m.group(5):
+        nth = int(m.group(5))
+        if not 1 <= nth <= 23:
+            return None
+        return {
+            "kind": "workday",
+            "nth": nth,
+            "loose": loose,
+            "label": f"the {ordinal(nth)} working day of each month",
+        }
+    if m.group(6):
+        dom = int(m.group(6))
+        if not 1 <= dom <= 31:
+            return None
+        return {
+            "kind": "monthly",
+            "dom": dom,
+            "loose": loose,
+            "label": f"the {dom}th of each month",
+        }
+    dow = REPEAT_DAYS.index(m.group(2).lower())
+    time = m.group(4) or ""
+    if m.group(3):
+        nth = int(m.group(3))
+        return {
+            "kind": "monthly-dow",
+            "dow": dow,
+            "nth": nth,
+            "loose": loose,
+            "label": f"monthly, the {ordinal(nth)} {m.group(2).capitalize()}"
+            + (" " + time if time else ""),
+        }
+    return {
+        "kind": "weekly",
+        "dow": dow,
+        "loose": loose,
+        "label": ("weekly, usually " if loose else "every ")
+        + m.group(2).capitalize()
+        + (" " + time if time else ""),
+    }
+
+
+def agenda_under(lines, task_line, indent, head_re=AGENDA_NOTE):
+    """One block-shaped note under a task: its topics and their context.
+
+    Read as a block rather than as a line, unlike every other note. What he
+    pastes into the shared meeting notes is a bullet list, so the note is a
+    heading and the content is what sits indented beneath it. The block ends at
+    the first line not indented past the heading, which is what lets an ordinary
+    note follow an agenda on the same task.
+    """
+    j = task_line
+    head = None
+    head_indent = 0
+    while j < len(lines):
+        line = lines[j]
+        if line.startswith("#"):
+            break
+        if line.strip():
+            depth = leading_spaces(line)
+            if depth <= indent:
+                break
+            m = head_re.match(line)
+            if m and depth == indent + 2:
+                head = m
+                head_indent = depth
+                j += 1
+                break
+        j += 1
+    if head is None:
+        return None
+
+    block = []
+    while j < len(lines):
+        line = lines[j]
+        if line.startswith("#"):
+            break
+        if line.strip():
+            if leading_spaces(line) <= head_indent:
+                break
+            block.append(line)
+        j += 1
+    if not block:
+        return {"topics": []}
+
+    top = min(leading_spaces(l) for l in block)
+    topics = []
+    for line in block:
+        text = re.sub(r"^\s*-\s+", "", line).rstrip()
+        if leading_spaces(line) == top:
+            topics.append({"title": text, "context": []})
+        elif topics:
+            topics[-1]["context"].append(text)
+    return {"topics": topics}
+
+
+def check_recurring(lines, today):
+    """Recurring tasks, and the agendas the meetings among them carry.
+
+    The board owns the dates here: it rolls a recurring task onto its next
+    occurrence on load, so a wrong `[due:: ]` is a bug rather than something to
+    nag about, and it is worth saying out loud when one appears. What the board
+    cannot judge is the agenda's content, which is where the rest of this looks.
+    """
+    findings = []
+    for i, line in enumerate(lines, start=1):
+        m = TASK_LINE.match(line)
+        if not m:
+            continue
+        indent, checked, body = m.group(1), m.group(2) == "x", m.group(3)
+        tag = REPEAT.search(body)
+        if not tag:
+            continue
+        title_m = BOLD_TITLE.search(body)
+        label = title_m.group(1) if title_m else body.split("`")[0].strip()
+
+        if indent:
+            findings.append(
+                Finding(
+                    i,
+                    "FIX",
+                    f'"{label}" carries `repeat:` on a sub-step. A cycle belongs to '
+                    f"the whole task: put it on the parent line.",
+                )
+            )
+            continue
+
+        rep = read_repeat(tag.group(1))
+        if not rep:
+            findings.append(
+                Finding(
+                    i,
+                    "FIX",
+                    f'"{label}" has `repeat:{tag.group(1)}`, which the board cannot '
+                    f"read. Write a three-letter day, optionally with a time "
+                    f"(`repeat:wed-9:15`), a day of the month (`repeat:15`), a "
+                    f"working day of the month (`repeat:wd5`), or the nth weekday of "
+                    f"the month (`repeat:tue2` for the 2nd Tuesday). Prefix it with "
+                    f"`~` when the day is the usual shape rather than a rule.",
+                )
+            )
+            continue
+
+        due_m = DUE_LOOSE.search(body)
+        if not due_m:
+            findings.append(
+                Finding(
+                    i,
+                    "CHECK",
+                    f'"{label}" repeats {rep["label"]} but has no `[due:: ]`. The '
+                    f"board fills it in with "
+                    f"{next_occurrence(rep, today).isoformat()} next time it loads.",
+                )
+            )
+            continue
+
+        due = parse_date(field_value(due_m))
+        nxt = next_occurrence(rep, today)
+        if due < today:
+            findings.append(
+                Finding(
+                    i,
+                    "CHECK",
+                    f'"{label}" is dated {due.isoformat()}, which has passed. The '
+                    f"board rolls it to {nxt.isoformat()} next time it loads — if it "
+                    f"has not, nothing has opened the board since.",
+                )
+            )
+        elif not rep["loose"] and not same_cycle(rep, due):
+            findings.append(
+                Finding(
+                    i,
+                    "FIX",
+                    f'"{label}" repeats {rep["label"]} but is dated '
+                    f"{due.isoformat()}, a {due.strftime('%A')}. The next one on that "
+                    f"cycle is {nxt.isoformat()}. One of the two is wrong, and the tag "
+                    f"is the one the board trusts.",
+                )
+            )
+
+        agenda = agenda_under(lines, i, len(indent))
+        if agenda is None:
+            # Not every recurring task is a meeting. Only say something when the
+            # date is close enough that an empty agenda is a real gap.
+            if not checked and (due - today).days <= 2 and (due - today).days >= 0:
+                findings.append(
+                    Finding(
+                        i,
+                        "CHECK",
+                        f'"{label}" is on {due.isoformat()} and carries no `Agenda:` '
+                        f"block. Write one, or tick it if this one needs no prep.",
+                    )
+                )
+            continue
+
+        if not agenda["topics"]:
+            findings.append(
+                Finding(i, "FIX", f'"{label}" has an `Agenda:` note with nothing under it.')
+            )
+        for t in agenda["topics"]:
+            if not t["context"]:
+                findings.append(
+                    Finding(
+                        i,
+                        "CHECK",
+                        f'"{label}": the agenda topic "{t["title"]}" has no context '
+                        f"bullet under it. A title on its own tells the other reader "
+                        f"nothing, and both levels are meant to be bullets.",
+                    )
+                )
+        if len(agenda["topics"]) > 5:
+            findings.append(
+                Finding(
+                    i,
+                    "CHECK",
+                    f'"{label}" has {len(agenda["topics"])} agenda topics. Past five '
+                    f"the last ones read as covered without having been discussed.",
+                )
+            )
+    return findings
+
+
+def same_cycle(rep, date):
+    """Whether a date actually falls on the cycle the tag describes."""
+    if rep["kind"] == "weekly":
+        return date.weekday() == rep["dow"]
+    if rep["kind"] == "workday":
+        return date == nth_workday(date.year, date.month, rep["nth"])
+    if rep["kind"] == "monthly-dow":
+        return date == nth_weekday(date.year, date.month, rep["dow"], rep["nth"])
+    import calendar
+
+    last = calendar.monthrange(date.year, date.month)[1]
+    return date.day == min(rep["dom"], last)
+
+
 def flatten(s):
     """Whitespace-insensitive form, so a wrapped copy still matches its source."""
     return re.sub(r"\s+", " ", s).strip().strip('"').strip()
@@ -406,6 +736,11 @@ def check_overdue(tasks, today):
     for task in tasks:
         for entry in [task] + task["subs"]:
             if entry["checked"] or not entry["due"]:
+                continue
+            # Waiting review means the work is done as far as he is concerned
+            # and it is sitting with someone else — the due date belongs to
+            # them now, so it is not an actionable overdue item for him.
+            if entry["tier"] == "Waiting review":
                 continue
             if entry["due"] < today:
                 days = (today - entry["due"]).days
@@ -879,6 +1214,7 @@ def main():
         ("Tag hygiene", check_tag_hygiene(lines, tasks)),
         ("Field syntax", check_field_syntax(lines)),
         ("Suggested messages", check_suggested_messages(lines)),
+        ("Recurring tasks", check_recurring(lines, today)),
         ("Freshness", check_stale(lines, today)),
     ]
 
