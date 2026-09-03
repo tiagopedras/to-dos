@@ -325,6 +325,33 @@ def archive_done(text):
     return ARCHIVE
 
 
+AGENDA_ARCHIVE = "agenda-history.md"
+
+
+def archive_agenda(text):
+    """Append one recurring meeting's previous agenda, cut by the roll.
+
+    A card keeps one cycle of history — that is what writing the next agenda
+    needs — but the one being replaced is a record of a meeting that actually
+    happened, not scratch state. Same shape as archive_done: append-only,
+    never pruned, written to by nothing else.
+    """
+    bdir = backup_dir()
+    os.makedirs(bdir, exist_ok=True)
+    path = os.path.join(bdir, AGENDA_ARCHIVE)
+    new = not os.path.exists(path)
+    with open(path, "a", encoding="utf-8", newline="") as fh:
+        if new:
+            fh.write("# Agenda history\n\n"
+                     "Previous agendas, filed here by the roll the moment a newer one\n"
+                     "replaces them on the card. Newest section last. Nothing here is ever\n"
+                     "deleted.\n")
+        fh.write("\n" + text.rstrip("\n") + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return AGENDA_ARCHIVE
+
+
 def archive_info():
     """The archive is not a backup and is not listed as one — it is the only file
     here that is never pruned, and it holds work that is in no current copy of
@@ -591,6 +618,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = ai_chat.forget(payload.get("owner"), payload.get("session"))
             return self._json(400 if err else 200, err or got)
+        if path == "/agenda-history":
+            data = self._body()
+            if data is None:
+                return self._json(400, {"error": "bad or empty body"})
+            try:
+                payload = json.loads(data.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            text = payload.get("text") or ""
+            if not text.strip():
+                return self._json(400, {"error": "nothing to file"})
+            name = archive_agenda(text)
+            sys.stdout.write("filed a previous agenda to %s/%s/backups/%s\n" % (DATA, current_dataset(), name))
+            sys.stdout.flush()
+            return self._json(200, {"ok": True, "archive": name})
         if path != "/archive":
             return self._json(404, {"error": "nothing to post there"})
         data = self._body()

@@ -64,6 +64,13 @@ That is what the watermark does, and it is strictly better than closing things
 would have been. Closing only covers what he kept. The watermark covers everything
 he was shown, including what he declined, which is the larger pile.
 
+The watermark says a decline happened, not what it was. Getting back to one meant
+naming a wider window by hand and re-reading everything in it, declines and all, to
+find the one line he actually wanted. `data/<dataset>/meeting-declines.md` fixes
+that: every declined item is logged there as it happens, so a specific decline can
+be found and revisited on its own without re-pulling anything. See **Log the
+declines** under Move 4, and **Revisiting a decline** under Judgement calls.
+
 **It does not add anything without asking.** A recorder captures action items for
 everyone in the room, and its wording is a machine's summary of what was said. Most
 of what comes back is not his, and some of what is his is already on the list under
@@ -175,6 +182,31 @@ Two things to pass through to it, since they come from here and it cannot know t
 New tasks go to **To do** or **Backlog**. Never to Doing, even when he agreed in the
 meeting to start it today, because Doing is his own statement about what is live.
 
+**Log the declines.** For every candidate from Move 3 he did not pick, append one
+line to `data/<dataset>/meeting-declines.md` (create it, with the heading below, if
+it does not exist yet):
+
+```
+# Declined meeting actions
+
+Every item this skill has shown him and he chose not to add — recorded so one can
+be found and revisited by name later, without re-pulling and re-showing everything
+else from the same window. Nothing here is ever deleted: a decline that is later
+added gets a second line saying so: the first line stays as the record that it was
+once turned down.
+
+## 2026-09-03 pull
+
+- **Send the Q3 board deck to Anu for review.** From the DS-Design WG on 27 Aug 2026.
+```
+
+One `## <date> pull` section per pull, the rewritten task text bolded exactly as it
+was shown to him, then the provenance line, same wording as what would have gone on
+the task had he kept it. That is what a later search matches against. Skip the
+already-marked-done pile from Move 2 — those were never a decline, they were already
+finished — but do log the third pile's borderline case (someone who reports to him)
+when he says no to raising it, since that is a real decline too.
+
 ### 5. Stamp
 
 Move the watermark forward, so nothing in this pull is ever shown to him again.
@@ -190,18 +222,40 @@ overshot it.
 
 **After the writing, never before.** If `pa-checkin` fails halfway, or he walks
 away mid-review, a watermark already moved has silently swallowed everything in
-that window. Write first, confirm the list has it, then stamp.
+that window. Write the tasks, log the declines, confirm both landed, then stamp.
 
 **Stamp whatever he was shown, not what he kept.** The declines are the point. He
 has already decided about them, and asking again tomorrow is the exact noise this
-step exists to stop. If he wants a decline revisited he will say so, and the
-answer to that is to widen the window by hand for one run.
+step exists to stop. The decline log is what makes that safe to do without also
+losing the ability to go back to one on request — see **Revisiting a decline**
+below.
 
 **Say the new value in the closing line.** It is the one piece of state this skill
 writes, and a stamp that moved when he thought it had not is how a day of meetings
 goes missing without anybody noticing.
 
 ## Judgement calls that come up
+
+**He asks to revisit a decline.** "Actually let's add that thing about X I skipped",
+naming a meeting, a subject or roughly what it said. Grep
+`data/<dataset>/meeting-declines.md` for it rather than re-pulling from the source —
+the text is already sitting there with its provenance, and re-pulling would mean
+widening the watermark and re-showing everything else from that window as well,
+declines he meant to leave declined included.
+
+Found, run it through Filter and the duplicate check again before offering it —
+time has passed, and it may have been added a different way since, or somebody else
+may have picked it up. If he confirms, hand it to `pa-checkin` exactly as Move 4
+does, carrying the same provenance line, then append a second line under the
+original entry in the decline log: `  → added 2026-09-10`, dated the day this
+happened, so the log still shows it was once turned down and shows what changed. If
+he still doesn't want it, leave the entry as it is — one look was the whole point of
+asking.
+
+Not found by name, ask which meeting or roughly when, since the log is grepped by
+what the item says and a vague description will not match on the first try. Still
+nothing, it may be old enough that only a wider pull of the source itself will find
+it — that is the fallback this replaces, not a case it removes.
 
 **The recorder split one thing into three tasks.** Meetings circle a subject, so the
 same commitment gets captured three times in different words. Propose it as one

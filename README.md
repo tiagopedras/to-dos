@@ -15,6 +15,8 @@ data/twinkl/backups/       the board's snapshots, and done-archive.md
 data/twinkl/sessions.json  which Claude chats belong to which task
 data/twinkl/claude.json    that data set's own Claude config
 data/twinkl/jira.json      that data set's own Jira boards
+data/twinkl/meeting-declines.md  meeting actions pa-retrieve-tasks showed and he
+                                  turned down, kept so one can be found again
 data/twinkl/projects/      that data set's own project folders, see below
 data/personal/todo.md      a second, unrelated list, shaped the same way
 ```

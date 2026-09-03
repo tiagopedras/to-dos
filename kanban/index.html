@@ -80,6 +80,7 @@
   .btn.primary:disabled{opacity:.45; cursor:default}
   .btn.ghost{border-color:transparent; color:var(--ink-soft)}
   .btn.danger{color:var(--red); border-color:var(--line)}
+  .btn.on{background:var(--chip); border-color:var(--line); font-weight:640}
   .menugroup{display:inline-flex; align-items:center; gap:9px}
   .menulabel{
     font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em;
@@ -351,6 +352,163 @@
     .madvice{font-size:10px}
     .mhead .mhint{display:none}
   }
+
+  /* ---------- timeline ---------- */
+  /* One column, full width — a Gantt reads better wide than split in half the
+     way Matrix and its dependency chain sit side by side. */
+  .lists.tview{columns:auto; max-width:none; display:block}
+  .lists.tview .listcard{margin:0}
+  /* Its own scrolling pane, both axes, rather than leaving the vertical
+     growth to the page. `main` already scrolls horizontally for the board
+     (main{overflow-x:auto}), which makes main a scroll container by the
+     letter of the overflow spec whether or not it ever actually scrolls —
+     and a sticky child's "top" is measured against the nearest such
+     ancestor, not the viewport. main never scrolls in practice (the page
+     does, main just grows), so anything sticky inside it would render at a
+     fixed offset from main's own top forever, not track the page at all.
+     Bounding this pane's height and giving it the scroll instead sidesteps
+     that: .tlscroll is then unambiguously the real, moving scroller, so its
+     own sticky header and sticky label column behave exactly as normal. */
+  .tlscroll{
+    overflow:auto; border:1px solid var(--line); border-radius:10px;
+    max-height:calc(100vh - var(--header-h,68px) - 210px); min-height:240px;
+  }
+  .tlbody{position:relative; min-width:max-content}
+  .tlrow{display:flex; align-items:stretch; border-bottom:1px solid var(--line-soft)}
+  .tlrow:last-child{border-bottom:0}
+  /* Sticky rather than a second scroll container kept in sync by hand — the
+     label stays put while the dates scroll underneath it, for free. */
+  .tllabel{
+    flex:none; width:var(--tllabelw,200px); padding:0 10px 0 6px; font-size:12.5px; color:var(--ink);
+    position:sticky; left:0; z-index:2; background:var(--panel);
+    border-right:1px solid var(--line-soft);
+    display:flex; align-items:center; gap:2px; min-width:0;
+  }
+  .tllabel:hover{background:var(--chip)}
+  .tllabeltext{
+    cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    padding:8px 0;
+  }
+  .tltrack{position:relative; flex:none; min-height:34px}
+  .tlrow.tlsub .tllabel{padding-left:26px}
+  .tlrow.tlsub .tllabeltext{font-size:11.5px; color:var(--ink-soft)}
+  .tlrow.tlsub .tltrack{min-height:24px}
+  .tlrow.blocked .tllabeltext{opacity:.55}
+  .tlrow.blocked .tlbar, .tlrow.blocked .tlmilestone{opacity:.55}
+  /* A task with no steps gets an empty spacer instead of a chevron, so its
+     title still lines up with the ones that do have one. */
+  .tlchevron{
+    flex:none; width:16px; height:16px; padding:0; border:0; background:transparent;
+    color:var(--ink-faint); font-size:13px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:transform .12s;
+  }
+  .tlchevron:hover{color:var(--ink)}
+  .tlchevron.open{transform:rotate(90deg)}
+  .tlchevron.ph{cursor:default}
+
+  /* One <details> per bucket, so collapsing it is free — the browser hides
+     the rows rather than this having to omit them from the render and redraw
+     to bring them back. */
+  .tllanegroup{display:block}
+  .tllanegroup > summary{list-style:none; cursor:pointer}
+  .tllanegroup > summary::-webkit-details-marker{display:none}
+  .tlrow.tllane .tllabel{
+    font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em;
+    color:var(--ink-soft); background:var(--chip); padding-left:8px; gap:6px;
+  }
+  .tlrow.tllane .tltrack{background:var(--chip)}
+  .lanehead::before{content:'▾'; font-size:10px; color:var(--ink-faint)}
+  .tllanegroup:not([open]) .lanehead::before{content:'▸'}
+  .tllabel.lanehead .dot{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
+  .lanecount{font-weight:600; color:var(--ink-faint); text-transform:none; letter-spacing:0}
+
+  .tlrow.tlheader{position:sticky; top:0; z-index:3}
+  .tlrow.tlheader .tllabel{background:var(--panel); position:relative}
+  .tlrow.tlheader .tltrack{min-height:40px}
+  .tlmonth{
+    position:absolute; top:8px; font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-faint); white-space:nowrap;
+  }
+  .tlweeknum{
+    position:absolute; top:23px; font-size:9px; font-weight:600; color:var(--ink-faint); white-space:nowrap;
+  }
+  /* Sits inside the header's own sticky label cell rather than spanning the
+     whole table, so it tracks the frozen column through a horizontal scroll
+     without its own offset math — see wireTlResize. Same hit-target/hover
+     pattern as the drawer's own #dgrip, mirrored to the right edge. */
+  .tlresize{position:absolute; right:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
+  .tlresize::after{content:""; position:absolute; right:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
+  .tlresize:hover::after, .tlresize.active::after{background:var(--accent)}
+  /* Both of these span every lane at once, so they sit outside any one row —
+     a sibling of .tlbody's rows rather than inside one, positioned against
+     the same relatively-positioned ancestor. Real week boundaries, not a
+     cosmetic repeat, which is why they're drawn from tlWeeks rather than a
+     CSS background pattern. */
+  .tlweekline{
+    position:absolute; top:0; bottom:0; width:1px; background:var(--line-soft); pointer-events:none;
+  }
+  .tltoday{
+    position:absolute; top:0; bottom:0; width:1px;
+    background:color-mix(in srgb, var(--accent) 55%, transparent); z-index:1; pointer-events:none;
+  }
+  .tltoday::after{
+    content:"today"; position:absolute; top:2px; left:3px; font-size:9.5px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--accent); white-space:nowrap;
+  }
+
+  .tlbar{
+    position:absolute; top:8px; height:16px; border-radius:5px; background:var(--bc);
+    cursor:grab; opacity:.9;
+  }
+  .tlbar:hover{opacity:1}
+  .tlbar:active{cursor:grabbing}
+  /* Grab strips at each end, for changing just one date. Invisible until
+     hovered, same restraint the drawer's own drag handles use elsewhere —
+     the affordance is there to find, not to shout about. */
+  .tlhandle{position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize}
+  .tlhandle-l{left:-2px}
+  .tlhandle-r{right:-2px}
+  .tlbar:hover .tlhandle{background:rgba(255,255,255,.3); border-radius:3px}
+  /* Started, no deadline yet — a real bar (it spans two real dates, start and
+     today) but drawn as open-ended rather than as a task that is "due" today,
+     which it isn't. */
+  .tlbar.tltrail{
+    background-color:transparent;
+    background-image:repeating-linear-gradient(45deg, var(--bc) 0 4px, transparent 4px 8px);
+    opacity:.75;
+  }
+  .tlbar.over{background:var(--red)}
+  .tlbar.soon{background:var(--amber)}
+  .tlsub .tlbar{top:7px; height:10px}
+
+  /* A `due:` with no `start:` — most of the list. A diamond, not a bar backed
+     by a start date nobody set. */
+  .tlmilestone{
+    position:absolute; top:9px; width:12px; height:12px; background:var(--bc);
+    transform:rotate(45deg); border-radius:2px; cursor:grab;
+  }
+  .tlmilestone:active{cursor:grabbing}
+  .tlmilestone.over{background:var(--red)}
+  .tlmilestone.soon{background:var(--amber)}
+  .tlsub .tlmilestone{top:7px; width:9px; height:9px; cursor:pointer}
+
+  .tltray{margin-top:12px; padding:10px 11px; border:1px dashed var(--line); border-radius:10px}
+  .tltrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
+  .tltrayhead strong{font-size:12.5px; font-weight:700; color:var(--ink-soft)}
+  .tltrayhead span{font-size:11.5px; color:var(--ink-faint)}
+  .tltraycards{display:flex; flex-wrap:wrap; gap:8px}
+  .tltraycard{width:auto; flex:none; max-width:220px; cursor:grab}
+  .tltraycard:active{cursor:grabbing}
+
+  /* The live date readout while a bar or milestone is being dragged. Fixed to
+     the viewport and follows the pointer — see showTlPopover. */
+  .tlpopover{
+    position:fixed; z-index:50; transform:translate(-50%,-100%);
+    background:var(--ink); color:var(--bg); font-size:11.5px; font-weight:650;
+    padding:4px 9px; border-radius:6px; pointer-events:none; white-space:nowrap;
+    box-shadow:0 4px 12px rgba(16,20,28,.25); opacity:0; transition:opacity .08s;
+  }
+  .tlpopover.on{opacity:1}
 
   /* ---------- board ---------- */
   main{padding:14px 16px 40px; overflow-x:auto}
@@ -971,12 +1129,17 @@
   .card:hover{border-color:var(--ink-faint)}
   .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .card.dragging{opacity:.4}
-  /* Same ring the Matrix dot for the headline already uses (.mdot.hl) — a
-     colour this card shares with nothing else it could carry, so wherever it
-     is seen it means only one thing: this is also pinned as the one thing. */
-  .card.headline{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
-  .card.headline:hover{border-color:var(--ink-faint)}
-  .tag.headline{background:transparent; border:1px solid var(--accent); color:var(--accent)}
+  /* Same as any other card — same width, radius, padding, shadow, left
+     bucket-colour stripe — except the border colour and a faint accent tint
+     behind it, so it reads as "the same card, just marked" rather than a
+     different kind of card. */
+  .card.onething{
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    border-left:3px solid var(--bc,var(--line));
+    background:color-mix(in srgb, var(--accent) 6%, var(--panel));
+  }
+  .card.onething:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
+  .tag.onething{background:transparent; border:1px solid var(--accent); color:var(--accent)}
   .card.done{opacity:.34}
   .card.done:hover{opacity:1}
   .card.done .title{text-decoration:line-through}
@@ -1245,6 +1408,7 @@
     <span class="menulabel">Data</span>
     <button class="btn" id="undo" disabled title="Undo the last change (⌘Z)">Undo</button>
     <button class="btn" id="download">Download copy</button>
+    <button class="btn" id="backupsBtn">Backups</button>
   </span>
   <!-- Which private folder under data/ the board is pointed at. Hidden until
        loadDatasets() hears back from /datasets.json — an older server with no
@@ -1631,6 +1795,9 @@ const state = {
   urgentFilter: false,
   unscoredOnly: false,
   matrixHideWaiting: false,
+  /* Width of the timeline's frozen title column. Remembered the same way the
+     drawer's own width is — a drag he does once should not repeat itself. */
+  tlLabelWidth: (+localStorage.getItem('todo-board-tl-label')) || 200,
   sort: {},           /* column name -> 'priority'; absent means his own order */
   view: 'overview',   /* the view the file opens on */
   openTask: null,
@@ -1656,7 +1823,7 @@ state.sort = readSort();
    first render — otherwise every reload snaps back to the default view. */
 (function initViewFromHash(){
   const id = location.hash.slice(1);
-  if (viewDefs().some(d => d.id === id)) state.view = id;
+  if (isKnownView(id)) state.view = id;
 })();
 
 /* Six, and the fifth used to be the accent blue — which is the first bucket's
@@ -1836,6 +2003,7 @@ function shiftFieldDate(text, key, days){
 function rollRecurring(doc){
   const now = today();
   let n = 0, c = 0;
+  const archived = [];
   doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
     const rep = readRepeat(t.repeat);
     if (!rep) return;
@@ -1878,9 +2046,19 @@ function rollRecurring(doc){
     if (agAt > -1 && t.done) {
       /* Cut last cycle's Previous block first, or a year of them accumulates
          under a task nobody scrolls to the bottom of. Cut before rewriting, and
-         re-find the agenda afterwards, since cutting shifts the indices. */
+         re-find the agenda afterwards, since cutting shifts the indices.
+
+         The card keeps one cycle of history, which is what writing the next
+         agenda needs — but the one being cut here is not nothing, it is a
+         record of a meeting that happened. Filed to agenda-history.md before
+         it goes, so a month back is still readable somewhere, just not on the
+         card itself. */
       const prevAt = t.body.findIndex(l => PREV_AGENDA_NOTE.test(l));
-      if (prevAt > -1) t.body.splice(prevAt, blockLength(t.body, prevAt));
+      if (prevAt > -1) {
+        const old = readPrevAgenda(t.body);
+        if (old) archived.push({ title: t.title, when: old.date, topics: old.topics });
+        t.body.splice(prevAt, blockLength(t.body, prevAt));
+      }
       const at = t.body.findIndex(l => AGENDA_NOTE.test(l));
       const m = AGENDA_NOTE.exec(t.body[at]);
       t.body[at] = m[1] + '- Previous agenda (' + t.due + '):';
@@ -1915,7 +2093,36 @@ function rollRecurring(doc){
     n++;
     if (carried) c++;
   })));
-  return { n, carried: c };
+  return { n, carried: c, archived };
+}
+
+/* The plain-text shape of one filed agenda, reused from agendaClipboard's
+   bullet-building but without the clipboard's title/blank-line wrapper —
+   this is a heading in a file that already carries the date and the task
+   it belonged to, not a document pasted somewhere else. */
+function agendaHistoryMarkdown(entries){
+  return entries.map(e => {
+    const heading = '## ' + e.title + (e.when ? ' (' + e.when + ')' : '');
+    const body = e.topics.map(t =>
+      ['- ' + t.title].concat(t.context.map(c => '  - ' + c)).join('\n')
+    ).join('\n');
+    return heading + '\n\n' + body;
+  }).join('\n\n');
+}
+
+/* Best effort, and silent on failure. Before this existed, a previous agenda
+   the roll cut was simply gone — so a write that fails here leaves things no
+   worse than they always were, and is not worth interrupting a page load
+   over. Fired once, right after the roll that produced these entries. */
+async function flushAgendaHistory(entries){
+  if (!entries || !entries.length) return;
+  try {
+    await fetch('/agenda-history', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ text: agendaHistoryMarkdown(entries) })
+    });
+  } catch (err) { /* nothing to do — see comment above */ }
 }
 
 function renameParked(doc){
@@ -2316,7 +2523,7 @@ function renderTabs(){
       '<i class="dot"></i>' + esc(b.name) + '<span class="n">' + openIn(b) + '</span></button>';
   }).join('');
   wrap.querySelectorAll('.tab').forEach(el => {
-    el.onclick = () => { state.activeBucket = el.dataset.bucket; renderTabs(); renderBoard(); };
+    el.onclick = () => { state.activeBucket = el.dataset.bucket; renderTabs(); refreshView(); };
   });
   $('#editBuckets').onclick = openBucketEditor;
   $('#editTiers').onclick = openTierEditor;
@@ -2768,7 +2975,7 @@ function cardHTML(t, color, bucketLabel, opts){
      the headline bar, and used to give no sign of that — open two tabs and
      they read as two different tasks. The ring round the card and the tag
      both point back at the bar rather than duplicating it. */
-  if (t.headline) meta += '<span class="tag headline" title="This is the headline — pinned at the top as the one thing">the one thing</span>';
+  if (t.headline) meta += '<span class="tag onething" title="This is the headline — pinned at the top as the one thing">the one thing</span>';
   /* First, because it says which piece of work this belongs to, and that frames
      everything after it. Clicking it opens the project rather than the card —
      see the capture-phase handler on [data-project]. */
@@ -2816,7 +3023,7 @@ function cardHTML(t, color, bucketLabel, opts){
     prog = '<div class="notecount">' + notes + ' note' + (notes > 1 ? 's' : '') + '</div>';
   }
 
-  return '<article class="card' + (t.done ? ' done' : '') + (t.headline ? ' headline' : '') + '"' +
+  return '<article class="card' + (t.done ? ' done' : '') + (t.headline ? ' onething' : '') + '"' +
     (opts.static ? '' : ' tabindex="0" role="button"' + (opts.noDrag ? '' : ' draggable="true"')) +
     ' data-id="' + t.id + '" style="--bc:' + color + '">' +
     (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +
@@ -3220,15 +3427,34 @@ function itemBySlug(items, slug){ return items.find(i => i.slug === slug) || nul
 
    A sub-step carries no blocked-by tag of its own, but it cannot start before
    the task it sits inside can, so it inherits its parent's. */
-function unresolvedBlockers(items, it){
-  const own = it.blockedBy || [];
-  const inherited = it.sub ? (it.task.blockedBy || []) : [];
-  return own.concat(inherited).filter(slug => {
+function unresolvedBlockersFor(items, slugs){
+  return (slugs || []).filter(slug => {
     const src = itemBySlug(items, slug);
     return !src || !src.done;
   });
 }
+function unresolvedBlockers(items, it){
+  const own = it.blockedBy || [];
+  const inherited = it.sub ? (it.task.blockedBy || []) : [];
+  return unresolvedBlockersFor(items, own.concat(inherited));
+}
 function actionable(items, it){ return unresolvedBlockers(items, it).length === 0; }
+
+/* Same rule as actionable, asked the other way round: not "should this be
+   suggested" but "can this be ticked off right now". A task cannot be marked
+   done while something it waits on is still open — the tick means the work
+   is finished, and it cannot be if a dependency it needed first is not.
+   Unticking is never gated; only the move onto Done is. Returns a status-line
+   message naming what it is still waiting on, or '' if nothing is in the way. */
+function blockedMessage(items, slugs){
+  const unresolved = unresolvedBlockersFor(items, slugs);
+  if (!unresolved.length) return '';
+  const names = unresolved.map(slug => {
+    const src = itemBySlug(items, slug);
+    return src ? src.title : ('#' + slug);
+  });
+  return 'still waiting on ' + names.join(', ') + ' — finish that first';
+}
 function byDue(a, b){
   if (!a.due && !b.due) return 0;
   if (!a.due) return 1;
@@ -3938,9 +4164,15 @@ function viewDefs(){
     { id:'overview', label:'Overview' },
     { id:'board',    label:'Board' },
     { id:'matrix',   label:'Matrix' },
-    { id:'reports',  label:'Reports' },
-    { id:'backups',  label:'Backups' }
+    { id:'timeline', label:'Timeline' },
+    { id:'reports',  label:'Reports' }
   ];
+}
+/* Backups isn't a view of the board, it's a data operation — see the Backups
+   button in the header's data menu — so it sits outside viewDefs() and its
+   tabs, but it still needs a #backups URL and a renderView() case of its own. */
+function isKnownView(id){
+  return id === 'backups' || viewDefs().some(d => d.id === id);
 }
 
 /* =========================================================================
@@ -4743,6 +4975,21 @@ if (window.ResizeObserver) {
   window.addEventListener('resize', syncLockBarHeight);
 }
 
+/* How much of the viewport the app's own header (and the lock bar above it,
+   when one is showing) already takes up — read back with getBoundingClientRect
+   rather than added by hand, since the two can each change height on their
+   own (the lock bar wraps, the header wraps). Used to size the timeline's own
+   scrolling pane so it fits under the header instead of running off the
+   bottom of the window — see .tlscroll's max-height. */
+function syncHeaderHeight(){
+  document.body.style.setProperty('--header-h', Math.round($('header').getBoundingClientRect().bottom) + 'px');
+}
+if (window.ResizeObserver) {
+  new ResizeObserver(syncHeaderHeight).observe($('header'));
+} else {
+  window.addEventListener('resize', syncHeaderHeight);
+}
+
 $('#exitLock').onclick = exitBackupPreview;
 
 /* =========================================================================
@@ -4905,7 +5152,13 @@ function hideTrendPreview(){ if (tPreviewEl) tPreviewEl.classList.remove('on'); 
 function matrixTasks(){
   const items = allItems();
   const out = [];
+  // Same bucket tabs as the board. Blocker lookups still resolve against the
+  // full, unfiltered items above — a blocker sitting in a bucket that is
+  // currently hidden is still real and still done or not, so only which dots
+  // get drawn is scoped, not what they're allowed to depend on.
+  const shownNames = new Set(shownBuckets().map(b => b.name));
   state.doc.buckets.forEach((b, bi) => {
+    if (!shownNames.has(b.name)) return;
     const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
       if (t.done || !matches(t)) return;
@@ -5018,6 +5271,418 @@ function matrixSection(){
   return legend + read + hiddenNote + grid + tray + holdTray;
 }
 
+/* =========================================================================
+   4c. Timeline — top-level tasks as bars across dates, grouped by bucket.
+
+   `start:` and `due:` already exist on every task and sub-step (see "Two
+   dates, not one" in the README) — this view is the first thing to draw both
+   of them at once rather than reading one and ignoring the other.
+
+   Nothing here invents a date the file doesn't have. A task with both draws
+   as a bar; a task with only `due:` — most of the list — draws as a diamond
+   on that date rather than a bar backed by a start date nobody set; a task
+   with only `start:` draws as a bar out to today, since "started, no
+   deadline yet" is still two real dates once today is one of them. A task
+   with neither sits in the tray below the lanes rather than being dropped.
+   ========================================================================= */
+const TL_DAY_PX = 28;
+const TL_MIN_DAYS = 56;          // ~8 weeks, so a short list isn't a sliver
+
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+/* Standard ISO-8601 week number — the same figure `week_tag` in server.py
+   already stamps a weekly backup with, computed here instead because the
+   header labels every week in range, not just the current one. */
+function isoWeekNumber(d){
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (t.getUTCDay() + 6) % 7;               // Mon=0..Sun=6
+  t.setUTCDate(t.getUTCDate() - day + 3);            // nearest Thursday
+  const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const firstDay = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
+  return 1 + Math.round((t - firstThu) / (7 * 86400000));
+}
+
+/* Same split `matrixTasks` does — top-level only, open only, `matches()`
+   filtered — plus the one extra split this view needs: dated vs undated.
+   "Dated" means the task itself carries a date, or one of its steps does,
+   since a step's own bar would otherwise never be reachable. */
+function timelineTasks(){
+  const items = allItems();
+  const dated = [], undated = [];
+  // Same bucket tabs as the board and Matrix — see the comment in
+  // matrixTasks for why blocker lookups stay against the full items list.
+  const shownNames = new Set(shownBuckets().map(b => b.name));
+  state.doc.buckets.forEach((b, bi) => {
+    if (!shownNames.has(b.name)) return;
+    const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
+    b.tiers.forEach(tier => tier.tasks.forEach(t => {
+      if (t.done || !matches(t)) return;
+      const it = items.find(i => i.id === t.id && !i.sub);
+      const blocked = !!it && !actionable(items, it);
+      const steps = splitBody(t).steps
+        .filter(s => !s.done && (s.due || s.start))
+        .map(s => ({ id: t.id, title: s.clean, start: laterOf(s.start, t.start), due: s.due }));
+      const row = { id: t.id, title: t.title, bucket: b.name, color,
+                    start: t.start, due: t.due, blocked, steps };
+      (t.start || t.due || steps.length ? dated : undated).push(row);
+    }));
+  });
+  return { dated, undated };
+}
+
+/* The day range every lane draws against, padded a few days either side so a
+   bar or diamond is never flush against the scroll edge, and floored to a
+   minimum span so three tasks next week don't render as a two-inch strip. */
+function timelineScale(dated){
+  let min = today(), max = today();
+  dated.forEach(row => {
+    [row.start, row.due].concat(row.steps.flatMap(s => [s.start, s.due])).forEach(v => {
+      const d = parseDue(v);
+      if (!d) return;
+      if (d < min) min = d;
+      if (d > max) max = d;
+    });
+  });
+  min = addDays(min, -3);
+  max = addDays(max, 4);
+  let days = Math.round((max - min) / 86400000);
+  if (days < TL_MIN_DAYS) days = TL_MIN_DAYS;
+  return { min, days, dayPx: TL_DAY_PX };
+}
+function tlOffset(scale, dateStr){
+  const d = parseDue(dateStr);
+  return d ? Math.round((d - scale.min) / 86400000) : null;
+}
+/* The first of each month inside the scale's range, so the header can label
+   the scale without a caller having to walk the calendar itself. */
+function tlMonths(scale){
+  const out = [];
+  const cur = new Date(scale.min.getFullYear(), scale.min.getMonth(), 1);
+  const end = addDays(scale.min, scale.days);
+  if (cur < scale.min) cur.setMonth(cur.getMonth() + 1);
+  while (cur <= end) {
+    out.push({ offset: Math.round((cur - scale.min) / 86400000),
+               label: cur.toLocaleDateString(undefined, { month:'short', year:'numeric' }) });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return out;
+}
+/* Every Monday inside the scale's range, each with its ISO week number —
+   the gridlines that actually mean something, rather than a plain repeat
+   every seven days from wherever the scale happens to start. */
+function tlWeeks(scale){
+  const out = [];
+  const cur = new Date(scale.min);
+  const dow = (cur.getDay() + 6) % 7;                // Mon=0..Sun=6
+  if (dow !== 0) cur.setDate(cur.getDate() + (7 - dow));
+  const end = addDays(scale.min, scale.days);
+  while (cur <= end) {
+    out.push({ offset: Math.round((cur - scale.min) / 86400000), n: isoWeekNumber(cur) });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return out;
+}
+
+/* One row: a sticky label plus a track the width of the whole scale, with
+   the bar or diamond positioned inside it by day offset. `sub` narrows the
+   row for a step nested under its parent — same track, thinner mark, and no
+   drag handles: a step's dates live inside its line's own tags rather than
+   on a property the way a task's do, so rescheduling one by dragging would
+   mean rewriting that line's text rather than just setting a field — still
+   only done from the drawer, same as before this view existed. */
+function timelineRowHTML(row, scale, sub){
+  const trackWidth = scale.days * scale.dayPx;
+  const s = tlOffset(scale, row.start), d = tlOffset(scale, row.due);
+  const drag = !sub;
+  let mark = '';
+  if (s != null && d != null) {
+    const left = Math.min(s, d) * scale.dayPx;
+    const width = Math.max(1, Math.abs(d - s) + 1) * scale.dayPx;
+    const di = dueInfo(row.due);
+    mark = '<div class="tlbar' + (di ? ' ' + di.cls : '') + '" style="left:' + left + 'px;width:' + width +
+      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
+      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="move"' : '') +
+      ' title="' + esc(row.title) + '">' +
+      (drag ? '<span class="tlhandle tlhandle-l" data-tlrow="' + row.id + '" data-tldrag="start"></span>' +
+              '<span class="tlhandle tlhandle-r" data-tlrow="' + row.id + '" data-tldrag="due"></span>' : '') +
+      '</div>';
+  } else if (s != null) {
+    const t0 = tlOffset(scale, ymd(today()));
+    const left = Math.min(s, t0) * scale.dayPx;
+    const width = Math.max(1, Math.abs(t0 - s) + 1) * scale.dayPx;
+    mark = '<div class="tlbar tltrail" style="left:' + left + 'px;width:' + width +
+      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
+      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="start"' : '') +
+      ' title="' + esc(row.title) + ' — started, no due date yet"></div>';
+  } else if (d != null) {
+    const di = dueInfo(row.due);
+    mark = '<div class="tlmilestone' + (di ? ' ' + di.cls : '') + '" style="left:' + (d * scale.dayPx) +
+      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
+      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="due"' : '') +
+      ' title="' + esc(row.title) + '"></div>';
+  }
+  /* Only a task with steps gets a chevron, and only its own click toggles
+     them — the title stays a plain click-to-open, same as every other row,
+     so the two never fight over the same gesture. */
+  const chevron = (!sub && row.steps && row.steps.length)
+    ? '<button type="button" class="tlchevron' + (tlExpanded.has(row.id) ? ' open' : '') + '" data-tltoggle="' +
+      row.id + '" title="' + (tlExpanded.has(row.id) ? 'Hide' : 'Show') + ' ' + row.steps.length +
+      ' step' + (row.steps.length > 1 ? 's' : '') + '">›</button>'
+    : (sub ? '' : '<span class="tlchevron ph"></span>');
+  return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '">' +
+    '<div class="tllabel">' + chevron +
+      '<span class="tllabeltext" data-open="' + row.id + '" title="' + esc(row.title) + '">' + mdInline(row.title) + '</span>' +
+    '</div>' +
+    '<div class="tltrack" style="width:' + trackWidth + 'px">' + mark + '</div>' +
+  '</div>';
+}
+
+function timelineLaneHTML(bucket, rows, scale){
+  if (!rows.length) return '';
+  const key = 'tl:' + bucket;
+  const header = '<summary class="tlrow tllane"><div class="tllabel lanehead" style="--bc:' + rows[0].color + '">' +
+      '<i class="dot"></i>' + esc(bucket) + '<span class="lanecount">' + rows.length + '</span>' +
+    '</div><div class="tltrack" style="width:' + (scale.days * scale.dayPx) + 'px"></div></summary>';
+  const body = rows.map(row => timelineRowHTML(row, scale) +
+    (row.steps.length && tlExpanded.has(row.id) ? row.steps.map(s => timelineRowHTML(s, scale, true)).join('') : '')
+  ).join('');
+  return '<details class="tllanegroup" data-tlcollapse="' + esc(key) + '"' +
+    (sectionCollapsed(key) ? '' : ' open') + '>' + header + body + '</details>';
+}
+
+/* Undated open tasks — most of a fresh list — sit here rather than being
+   left off the view entirely. Same `chainCard` mini-card the dependency
+   chain already draws blockers with: bucket colour, title, where it sits,
+   click to open. Dragging one onto the scale sets its `due:`. */
+function timelineTrayHTML(undated){
+  if (!undated.length) return '';
+  return '<div class="tltray" id="tlTray">' +
+    '<div class="tltrayhead"><strong>' + undated.length + ' with no date</strong>' +
+    '<span>Drag one onto the scale to give it a due date.</span></div>' +
+    '<div class="tltraycards">' +
+      undated.map(row => '<div class="chaincard tltraycard" style="--bc:' + row.color + '"' +
+        (state.locked ? '' : ' draggable="true"') + ' data-tlid="' +
+        row.id + '" data-open="' + row.id + '" title="Drag onto the scale, or click to open">' +
+        '<span class="chaintitle">' + mdInline(row.title) + '</span>' +
+        '<div class="chainwhere">' + esc(row.bucket) + '</div></div>').join('') +
+    '</div></div>';
+}
+
+function timelineHeaderHTML(scale){
+  const months = tlMonths(scale);
+  const weeks = tlWeeks(scale);
+  const todayOffset = tlOffset(scale, ymd(today()));
+  const trackWidth = scale.days * scale.dayPx;
+  return '<div class="tlrow tlheader">' +
+      '<div class="tllabel">' +
+        '<div class="tlresize" id="tlResize" title="Drag to resize the title column · double-click to reset"></div>' +
+      '</div>' +
+    '<div class="tltrack" style="width:' + trackWidth + 'px">' +
+      months.map(m => '<span class="tlmonth" style="left:' + (m.offset * scale.dayPx) + 'px">' + esc(m.label) + '</span>').join('') +
+      weeks.map(w => '<span class="tlweeknum" style="left:' + (w.offset * scale.dayPx) + 'px">W' + w.n + '</span>').join('') +
+    '</div></div>' +
+    weeks.map(w => '<div class="tlweekline" data-dayoffset="' + w.offset + '" style="left:' +
+      (state.tlLabelWidth + w.offset * scale.dayPx) + 'px"></div>').join('') +
+    '<div class="tltoday" data-dayoffset="' + todayOffset + '" style="left:' +
+      (state.tlLabelWidth + todayOffset * scale.dayPx) + 'px" title="Today"></div>';
+}
+
+function timelineSection(){
+  const { dated, undated } = timelineTasks();
+  if (!dated.length && !undated.length) return '<p class="empty">Nothing open on the list.</p>';
+  const scale = timelineScale(dated);
+  const byBucket = new Map();
+  dated.forEach(row => {
+    if (!byBucket.has(row.bucket)) byBucket.set(row.bucket, []);
+    byBucket.get(row.bucket).push(row);
+  });
+  let lanes = '';
+  byBucket.forEach((rows, bucket) => { lanes += timelineLaneHTML(bucket, rows, scale); });
+  const body = dated.length
+    ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px" data-daypx="' +
+        scale.dayPx + '">' + timelineHeaderHTML(scale) + lanes + '</div></div>'
+    : '<p class="empty">Nothing with a date yet — everything open is in the tray below.</p>';
+  return body + timelineTrayHTML(undated);
+}
+
+/* The tray's cards drag the same way every board card does — same
+   `dataTransfer`/`dragId` convention — but drop onto the scale instead of a
+   tier, and the drop sets a date instead of a column. Wired after render,
+   same as renderBoard wires its own card drag handlers. */
+function wireTimelineDrag(){
+  if (state.locked) return;
+  const scroll = $('.tlscroll');
+  $('#lists').querySelectorAll('.tltraycard').forEach(el => {
+    el.ondragstart = e => {
+      e.dataTransfer.setData('text/plain', el.dataset.tlid);
+      e.dataTransfer.effectAllowed = 'move';
+      dragId = el.dataset.tlid;
+    };
+    el.ondragend = () => { dragId = null; };
+  });
+  if (!scroll) return;
+  const body = scroll.querySelector('.tlbody');
+  scroll.ondragover = e => { if (dragId) e.preventDefault(); };
+  scroll.ondrop = e => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain') || dragId;
+    const loc = id && locate(id);
+    if (!loc) return;
+    const rect = body.getBoundingClientRect();
+    const x = e.clientX - rect.left - state.tlLabelWidth;
+    const scale = timelineScale(timelineTasks().dated);
+    const dayN = Math.round(x / scale.dayPx);
+    const date = addDays(scale.min, dayN);
+    loc.task.due = ymd(date);
+    loc.task.dirty = true;
+    markDirty();
+    refreshView();
+  };
+
+  wireTlResize(scroll);
+  wireTlBarDrag();
+}
+
+/* A small fixed tooltip that follows the pointer — the live date(s) while a
+   bar or milestone is being dragged. One element, reused rather than
+   rebuilt, the same way the matrix and trend-line hover previews are. */
+let tlPopoverEl = null;
+function showTlPopover(x, y, text){
+  if (!tlPopoverEl) {
+    tlPopoverEl = document.createElement('div');
+    tlPopoverEl.className = 'tlpopover';
+    document.body.appendChild(tlPopoverEl);
+  }
+  tlPopoverEl.textContent = text;
+  tlPopoverEl.style.left = x + 'px';
+  tlPopoverEl.style.top = (y - 14) + 'px';
+  tlPopoverEl.classList.add('on');
+}
+function hideTlPopover(){ if (tlPopoverEl) tlPopoverEl.classList.remove('on'); }
+
+/* Drag a bar or a milestone to reschedule the task it belongs to, straight
+   from the chart — the Gantt exists to make "push this a week" a drag rather
+   than a trip to the drawer. Three targets, all wired the same way:
+     .tlbar itself       — data-tldrag="move", shifts start and due together
+     .tlhandle-l/-r       — data-tldrag="start"/"due", resizes one end
+     .tlmilestone         — data-tldrag="due", the only date it has
+   Sub-step marks carry none of these attributes (see timelineRowHTML), so
+   `querySelectorAll` simply finds nothing to wire for them.
+
+   A stopped drag under a few pixels is treated as the click it probably
+   was — `moved` stays false and nothing is written, so the native click
+   pointerup is about to fire still opens the drawer. A drag that actually
+   moved never gets that far: `ev.preventDefault()` inside move(), once
+   movement is confirmed, is what stops the browser following through with
+   that trailing click at all, so there is nothing left to suppress by hand
+   once the drag itself has run. */
+function wireTlBarDrag(){
+  $('#lists').querySelectorAll('[data-tldrag]').forEach(el => {
+    el.onpointerdown = e => {
+      if (e.button) return;
+      const kind = el.dataset.tldrag;
+      const loc = locate(el.dataset.tlrow);
+      const track = el.closest('.tltrack');
+      if (!loc || !track) return;
+      const t = loc.task;
+      const scale = timelineScale(timelineTasks().dated);
+      const bar = el.classList.contains('tlbar') ? el : el.closest('.tlbar');
+      const milestone = el.classList.contains('tlmilestone') ? el : null;
+      const trackRect = track.getBoundingClientRect();
+      const origStart = t.start ? tlOffset(scale, t.start) : null;
+      const origDue = t.due ? tlOffset(scale, t.due) : null;
+      const beginDay = Math.round((e.clientX - trackRect.left) / scale.dayPx);
+      let moved = false, newStart = origStart, newDue = origDue;
+
+      el.setPointerCapture(e.pointerId);
+
+      const move = ev => {
+        if (!moved && Math.abs(ev.clientX - e.clientX) < 3) return;
+        // Only once real movement is confirmed, and on this event rather than
+        // the pointerdown that started it: calling preventDefault there
+        // unconditionally suppresses the click a plain, unmoved press fires
+        // afterwards — the same click that opens the drawer the rest of the
+        // time. By now preventing it just stops the drag turning into a text
+        // selection.
+        ev.preventDefault();
+        moved = true;
+        const day = Math.round((ev.clientX - trackRect.left) / scale.dayPx);
+        if (kind === 'move') {
+          const delta = day - beginDay;
+          newStart = origStart != null ? origStart + delta : null;
+          newDue = origDue != null ? origDue + delta : null;
+        } else if (kind === 'start') {
+          newStart = origDue != null ? Math.min(day, origDue) : day;
+        } else if (kind === 'due') {
+          newDue = origStart != null ? Math.max(day, origStart) : day;
+        }
+        const lo = newStart != null && newDue != null ? Math.min(newStart, newDue) : (newStart != null ? newStart : newDue);
+        const hi = newStart != null && newDue != null ? Math.max(newStart, newDue) : (newStart != null ? newStart : newDue);
+        if (bar) {
+          bar.style.left = (lo * scale.dayPx) + 'px';
+          bar.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
+        } else if (milestone) {
+          milestone.style.left = (newDue * scale.dayPx) + 'px';
+        }
+        const label = newStart != null && newDue != null
+          ? dueLabel(ymd(addDays(scale.min, newStart))) + ' → ' + dueLabel(ymd(addDays(scale.min, newDue)))
+          : dueLabel(ymd(addDays(scale.min, newStart != null ? newStart : newDue)));
+        showTlPopover(ev.clientX, ev.clientY, label);
+      };
+      const up = () => {
+        el.removeEventListener('pointermove', move);
+        hideTlPopover();
+        if (!moved) return;
+        if (newStart != null) t.start = ymd(addDays(scale.min, newStart));
+        if (newDue != null) t.due = ymd(addDays(scale.min, newDue));
+        t.dirty = true;
+        markDirty();
+        refreshView();
+      };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up, { once:true });
+      el.addEventListener('pointercancel', up, { once:true });
+    };
+  });
+}
+
+/* Drag the title column's right edge to make it wider or narrower. The
+   handle itself sits inside the header's sticky label cell (see
+   timelineHeaderHTML), so it tracks the frozen column during a horizontal
+   scroll for free — no separate offset to keep in step. Everything that
+   isn't sticky (the today line, the week gridlines) carries its own day
+   offset instead, so a resize can reposition them without a full re-render. */
+function setTlLabelWidth(px){
+  state.tlLabelWidth = Math.round(Math.min(Math.max(px, 120), 400));
+  try { localStorage.setItem('todo-board-tl-label', state.tlLabelWidth); } catch (e) {}
+  const body = $('.tlbody');
+  if (!body) return;
+  body.style.setProperty('--tllabelw', state.tlLabelWidth + 'px');
+  const dayPx = +body.dataset.daypx || TL_DAY_PX;
+  body.querySelectorAll('[data-dayoffset]').forEach(el => {
+    el.style.left = (state.tlLabelWidth + (+el.dataset.dayoffset) * dayPx) + 'px';
+  });
+}
+function wireTlResize(scroll){
+  const grip = $('#tlResize');
+  if (!grip) return;
+  grip.onpointerdown = e => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    grip.classList.add('active');
+    const rect = scroll.getBoundingClientRect();
+    const move = ev => setTlLabelWidth(ev.clientX - rect.left);
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.classList.remove('active');
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up, { once:true });
+    grip.addEventListener('pointercancel', up, { once:true });
+  };
+  grip.ondblclick = () => setTlLabelWidth(200);
+}
+
 /* opts.collapsible is Overview's own five sections: shut until he opens one,
    remembered per section the same way the drawer's are — see overviewOpen.
    Matrix's two sections stay plain, always open, since there is only ever
@@ -5059,8 +5724,13 @@ function renderSections(viewId){
   // The grid is rebuilt from scratch here, so any preview on screen is pointing
   // at a dot that no longer exists.
   hideMatrixPreview();
-  const items = allItems();
-  let html = '', split = false, mview = false, cols = 4, hasCtx = false;
+  renderFilterBar();
+  // Same bucket tabs as the board, same meaning: narrowed to one bucket
+  // unless the AI filter, the urgent filter, the unscored chip or All widens
+  // it back out, per shownBuckets().
+  const shownNames = new Set(shownBuckets().map(b => b.name));
+  const items = allItems().filter(i => shownNames.has(i.bucket));
+  let html = '', split = false, mview = false, tview = false, cols = 4, hasCtx = false;
 
   if (viewId === 'overview') {
     const ctx = contextSection();
@@ -5086,14 +5756,21 @@ function renderSections(viewId){
       'Every open task by its two scores, except the ones parked in Backlog. One dot per task, coloured by bucket — hover for the title, click to open it. Faded dots are waiting on a review or on another task.',
       matrixSection()) +
       refSection('Dependency chain', 'Built from every `blocked-by:` tag.', chainSection(items));
+  } else if (viewId === 'timeline') {
+    tview = true;
+    html = refSection('Timeline',
+      'Open top-level tasks as bars and milestones across their `start:`/`due:` dates, one lane per bucket. ' +
+      'A `due:` with no `start:` draws as a diamond rather than a guessed bar. Undated tasks sit in the tray below — drag one onto the scale to give it a due date.',
+      timelineSection());
   }
 
   $('#lists').innerHTML =
-    '<div class="lists' + (split ? ' split' : '') + (mview ? ' mview' : '') + '"' +
+    '<div class="lists' + (split ? ' split' : '') + (mview ? ' mview' : '') + (tview ? ' tview' : '') + '"' +
       (split ? ' style="' + splitGridCSS(cols, hasCtx) + '"' : '') + '>' + html + '</div>' +
     '<p class="help listnote">Generated from the tags on the tasks, so every card here is a real task. ' +
     'Open one to change it, then Save.</p>';
   capMsgCards();
+  if (tview) wireTimelineDrag();
 }
 
 /* .ref .msg's 400px cap is CSS, and CSS alone cannot tell a card that landed
@@ -5117,8 +5794,9 @@ function renderView(){
   // Quick wins and Delegate to Claude are columns of Overview now, so an old
   // #quick or #delegate link lands where its content actually lives.
   if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
-  if (!defs.some(d => d.id === state.view)) state.view = 'board';
-  const def = defs.find(d => d.id === state.view);
+  const isBackups = state.view === 'backups';
+  if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
+  const def = isBackups ? { id:'backups', label:'Backups' } : defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
   // Keep the URL in step with whichever tab is on screen, so a refresh (or a
   // link back to this page) lands on the same view instead of the default.
@@ -5135,22 +5813,17 @@ function renderView(){
 
   $('#board').classList.toggle('hidden', !isBoard);
   $('#lists').classList.toggle('hidden', isBoard);
-  $('#aiWrap').classList.toggle('hidden', !isBoard);
-  $('#urgentWrap').classList.toggle('hidden', !isBoard);
-  $('#q').classList.toggle('hidden', !isBoard);
+  $('#backupsBtn').classList.toggle('on', isBackups);
 
   if (isBoard) { renderBoard(); return; }
-  $('#bucketFilters').classList.add('hidden');
-  $('#editBuckets').classList.add('hidden');
-  $('#editTiers').classList.add('hidden');
-  $('#allBuckets').classList.add('hidden');
-  $('#scoreChip').classList.add('hidden');
+  // The one thing bar is a board idea specifically — pinning a card above
+  // columns that don't exist anywhere else has nothing to attach to. Every
+  // other control in the header (the bucket tabs, the score chip, AI,
+  // urgent, search) applies the same way wherever it's shown, so it stays up
+  // on every tab rather than popping in and out as he switches between them.
   $('#headline').classList.add('hidden');
-  // Its chip is board-only, so leaving it on here would filter a view with no
-  // visible control to explain why half the tasks are missing.
-  state.unscoredOnly = false;
-  if (def.id === 'reports') { renderReportsView(); return; }
-  if (def.id === 'backups') { renderBackupsView(); return; }
+  if (def.id === 'reports') { renderFilterBar(); renderReportsView(); return; }
+  if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
 }
 
@@ -5225,18 +5898,17 @@ function renderHeadline(){
   $('#hlClear').onclick = e => { e.stopPropagation(); clearHeadline(false); };
 }
 
-function renderBoard(){
-  if (state.view !== 'board') return;
+/* The bucket tabs and the score chip, and the rule that widens both past a
+   single bucket — shared by the board and every list view (Overview, Matrix,
+   Timeline, Reports, Backups) now, rather than a board-only idea the rest
+   only tolerated. Filtering means the same thing wherever it's shown. */
+function renderFilterBar(){
   renderTabs();
-  renderHeadline();
   renderScoreChip();
-  const board = $('#board');
   // The "who does it" filter cuts across every bucket, so it overrides the tabs.
   // The urgent/due filter does the same. The All tab does the same thing, but
   // the tabs stay up so it can be undone.
   const across = !!state.aiFilter || state.urgentFilter;
-  const shown = shownBuckets();
-  const many = shown.length > 1;
   $('#bucketFilters').classList.toggle('hidden', across);
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
@@ -5246,6 +5918,15 @@ function renderBoard(){
   // cannot write anything, takes it away.
   $('#editTiers').classList.toggle('hidden', state.locked);
   $('#allBuckets').classList.toggle('hidden', !across);
+}
+
+function renderBoard(){
+  if (state.view !== 'board') return;
+  renderFilterBar();
+  renderHeadline();
+  const board = $('#board');
+  const shown = shownBuckets();
+  const many = shown.length > 1;
 
   // Blocked stays off the board entirely until something is actually sitting
   // in it — the empty-column treatment other tiers get would be misleading
@@ -5351,7 +6032,7 @@ function renderBoard(){
    one. Clicking it shows exactly those. */
 function renderScoreChip(){
   const chip = $('#scoreChip');
-  if (state.view !== 'board' || !state.doc) { chip.classList.add('hidden'); return; }
+  if (!state.doc) { chip.classList.add('hidden'); return; }
   let n = 0;
   state.doc.buckets.forEach(b => b.tiers.forEach(ti => ti.tasks.forEach(t => {
     if (!t.done && unscored(t) && matchesAi(t)) n++;
@@ -5362,13 +6043,18 @@ function renderScoreChip(){
     ? 'Showing ' + n + ' unscored · show all'
     : n + ' need scoring';
   chip.title = state.unscoredOnly
-    ? 'Back to the whole board'
+    ? 'Back to the whole list'
     : 'Tasks with no impact or no effort score yet. Click to see just those.';
-  chip.onclick = () => { state.unscoredOnly = !state.unscoredOnly; renderBoard(); };
+  chip.onclick = () => { state.unscoredOnly = !state.unscoredOnly; refreshView(); };
 }
 
 let dragId = null;
 let subDrag = null;
+/* Which timeline tasks are showing their steps. Not persisted — reparsing
+   mints fresh task ids (see resetUndo), so a stored id would stop matching
+   anything by the next reload anyway. Collapsed by default: the row-per-step
+   count could otherwise dwarf the tasks that own them. */
+let tlExpanded = new Set();
 
 /* A line showing where the card will land. One element, moved around the board
    rather than one per gap, so there is never more than one target on screen.
@@ -5430,6 +6116,8 @@ function dropTask(id, tierName, zone, clientY){
 
   // Done is not a section in the file — it is the tick box on the task.
   if (tierName === DONE_COL) {
+    const msg = blockedMessage(allItems(), loc.task.blockedBy);
+    if (msg) { $('#status').textContent = msg; return; }
     if (setDone(loc.task, true)) { markDirty(); refreshView(); }
     if (state.openTask === id) openDrawer(id);
     return;
@@ -5949,6 +6637,8 @@ function openDrawer(id, focusTitle){
   $('#f-tier').onchange = e => {
     const pick = e.target.value;
     if (pick === DONE_COL) {
+      const msg = blockedMessage(allItems(), t.blockedBy);
+      if (msg) { $('#status').textContent = msg; openDrawer(id); return; }
       setDone(t, true);
       markDirty(); refreshView(); openDrawer(id);
       return;
@@ -5975,7 +6665,15 @@ function openDrawer(id, focusTitle){
   const subsEl = $('#f-subs');
   if (subsEl) {
     subsEl.querySelectorAll('input').forEach(cb => {
-      cb.onchange = () => { toggleSub(t, +cb.dataset.line); refreshView(); openDrawer(id); };
+      cb.onchange = () => {
+        const lineIdx = +cb.dataset.line;
+        if (cb.checked) {
+          const step = splitBody(t).steps.find(s => s.line === lineIdx);
+          const msg = blockedMessage(allItems(), (step ? step.blockedBy : []).concat(t.blockedBy || []));
+          if (msg) { $('#status').textContent = msg; openDrawer(id); return; }
+        }
+        toggleSub(t, lineIdx); refreshView(); openDrawer(id);
+      };
     });
     subsEl.querySelectorAll('.subtext').forEach(span => {
       span.onclick = () => editSubtext(span, t, +span.dataset.line, id);
@@ -6162,6 +6860,7 @@ document.addEventListener('toggle', e => {
   const ds = e.target.dataset || {};
   if (ds.collapse) setSectionCollapsed(ds.collapse, !e.target.open);
   else if (ds.ovcollapse) setOverviewOpen(ds.ovcollapse, e.target.open);
+  else if (ds.tlcollapse) setSectionCollapsed(ds.tlcollapse, !e.target.open);
 }, true);
 
 /* Drag the panel's left edge to make it wider; the width is remembered. */
@@ -6252,7 +6951,7 @@ function load(text, name, opts){
      would show dates that are nowhere on disk — the demo would also silently
      lose its example agenda to a Previous agenda note. `state.locked` is set by
      the caller after this returns, so it cannot be the guard here. */
-  const rolled = opts.readOnly ? { n:0, carried:0 } : rollRecurring(state.doc);
+  const rolled = opts.readOnly ? { n:0, carried:0, archived:[] } : rollRecurring(state.doc);
   state.originalText = text;
   state.fileName = name || 'todo.md';
   $('#start').classList.add('hidden');
@@ -6286,6 +6985,7 @@ function load(text, name, opts){
         : '') +
       ' — save to apply';
   }
+  flushAgendaHistory(rolled.archived);
   // After, not before: the rename/stamp fixups above are auto-applied on every
   // load, not something to undo back out of, so the freshly loaded (and fixed)
   // document is what "nothing to undo yet" means.
@@ -6910,6 +7610,7 @@ setInterval(watchTick, WATCH_MS);
 
 /* wiring */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
+$('#backupsBtn').onclick = () => { state.view = 'backups'; renderView(); };
 $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };
@@ -6921,6 +7622,14 @@ $('#urgentFilter').onchange = e => { state.urgentFilter = e.target.checked; clos
    which recomputes it from scratch — so a tick moves the card out of Quick wins
    and into its done state everywhere at once, with nothing to keep in step. */
 $('#lists').addEventListener('click', e => {
+  const toggle = e.target.closest('[data-tltoggle]');
+  if (toggle) {
+    const id = toggle.dataset.tltoggle;
+    if (tlExpanded.has(id)) tlExpanded.delete(id); else tlExpanded.add(id);
+    renderView();
+    return;
+  }
+
   /* The pace chart's key. Only the counted card is redrawn, since nothing about
      the list itself has changed — this is a change of view, not an edit. */
   const key = e.target.closest('[data-trendkey]');
@@ -6935,8 +7644,21 @@ $('#lists').addEventListener('click', e => {
   if (tick) {
     const found = locate(tick.dataset.tick);
     if (!found) return;
-    if (tick.dataset.sub != null) toggleSub(found.task, +tick.dataset.sub);
-    else { setDone(found.task, !found.task.done); markDirty(); }
+    if (tick.dataset.sub != null) {
+      const lineIdx = +tick.dataset.sub;
+      const step = splitBody(found.task).steps.find(s => s.line === lineIdx);
+      if (!step || !step.done) {
+        const msg = blockedMessage(allItems(), (step ? step.blockedBy : []).concat(found.task.blockedBy || []));
+        if (msg) { $('#status').textContent = msg; return; }
+      }
+      toggleSub(found.task, lineIdx);
+    } else {
+      if (!found.task.done) {
+        const msg = blockedMessage(allItems(), found.task.blockedBy);
+        if (msg) { $('#status').textContent = msg; return; }
+      }
+      setDone(found.task, !found.task.done); markDirty();
+    }
     renderView();
     return;
   }
@@ -7160,7 +7882,7 @@ window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefau
    clicks above, which drive the switch straight off state.view instead. */
 window.addEventListener('hashchange', () => {
   const id = location.hash.slice(1);
-  if (viewDefs().some(d => d.id === id) && id !== state.view) {
+  if (isKnownView(id) && id !== state.view) {
     state.view = id;
     renderView();
   }
