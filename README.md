@@ -310,7 +310,18 @@ Every other view answers what to do next. The **Reports** tab answers what got
 done, which is what a one-to-one or an end-of-quarter write-up actually asks for
 and which nothing here could tell you without counting ticks by hand.
 
-The first report is **Completed in the last 30 days**, broken down by bucket.
+The first report is **Counted from the list**, broken down by bucket. It leads
+with the total, set large enough to read from across the desk, because that
+number is the answer to the question and the buckets underneath only say where it
+came from. The line under it names the period as well, so a screenshot of that
+block is not ambiguous about what it is counting.
+
+The **Show** picker sets the window: this week, 7, 15, 30, 60 or 90 days, or
+**All**, which does not filter at all and counts everything the list and the
+archive between them still remember. The narrower windows answer "how am I doing
+lately" at different grains; All answers "how much is there", which is a
+different question and a slower one, since it always reads the archive.
+
 It counts the `done:` date the board writes when a task is ticked, so it only
 sees work finished since that date started being recorded; anything ticked before
 then is invisible to it, and the report says so underneath rather than quietly
@@ -319,14 +330,34 @@ scaled to the busiest bucket, so a quiet month still reads as a shape instead of
 four slivers. Buckets with nothing in them stay on the list, because an empty
 bucket is a finding.
 
-Thirty days is not an arbitrary window. Finished work older than that can be
-archived out of `todo.md` into `done-archive.md`, so past thirty days the file
-stops being the whole story and a longer count taken from it would be wrong
-without knowing it. Opening a bucket shows the tasks behind the number, each one
-clickable into the drawer like anywhere else. Reading a backup preview reports on
-that backup rather than the live file, and nothing on this tab writes anything.
+Thirty days is the default for a reason. Finished work older than that can be
+archived out of `todo.md` into `done-archive.md`, so at thirty days and under the
+file is the whole story by construction. Every longer window, All included, reads
+`done-archive.md` as well and merges it in — and says in a note underneath
+whether that read succeeded, so a count that might be short about its older end
+tells you rather than looking complete. Opening a bucket shows the tasks behind
+the number, each one clickable into the drawer like anywhere else, except
+archived ones, which have no live card left to open. Reading a backup preview
+reports on that backup rather than the live file, and nothing on this tab writes
+anything.
 
-A second report means one more function that returns HTML, listed in
+The second report, **Weekly pace**, answers the question a single count cannot:
+whether that number is more or less than usual. Eight trailing complete weeks,
+Monday to Sunday, one line per bucket. It leads with its own total the same way,
+and with the per-week average beside it, since "23 over 8 weeks" needs arithmetic
+before it means anything and "2.9 a week" does not.
+
+Its window is fixed at those eight weeks and deliberately not wired to the Show
+picker — the point of a trend is a constant run to compare against, and letting
+the picker resize it would make both reports harder to read. That does mean the
+two totals on the tab are usually different numbers, which is why each one names
+its own period next to it. The key under the chart switches a bucket off, and
+every number on that report follows it: the total, the average, the per-week
+figures and the pace sentence, with a note saying so. A headline number still
+counting a line you have just hidden would contradict the chart directly above
+it.
+
+A third report means one more function that returns HTML, listed in
 `reportDefs()`. The tab is built to hold more than one.
 
 The column beside it, **Written reports**, holds the other kind. Counting can only
@@ -406,6 +437,10 @@ One tag, `` `repeat:` ``, and one card:
 | `repeat:wd5` | the fifth working day of every month |
 | `repeat:tue2` | the 2nd Tuesday of every month |
 | `repeat:tue2-15:00` | the 2nd Tuesday of every month, at 15:00 |
+| `repeat:wed/2` | every other Wednesday |
+| `repeat:15/3` | the 15th, quarterly |
+| `repeat:tue2/3` | the 2nd Tuesday, quarterly |
+| `repeat:mon1/6` | the first Monday, twice a year |
 | `repeat:~fri-15:00` | weekly, usually Friday 3pm, but the day moves |
 
 `[due:: ]` is the occurrence the card is currently pointing at, so the tag says
@@ -416,10 +451,33 @@ date somebody meant to hit.
 The working-day form is there because a real obligation needed it and neither of
 the other two could hold it: the AOP status update is due by the fifth working
 day, which is 7 September, 7 October, 6 November — a different date every month
-and not a day of the month at all. Working means Monday to Friday, and the tag
-knows nothing about bank holidays. That is deliberate rather than lazy: the
-checker already flags any date that lands on one, so teaching the board the
-holiday list too would be two lists to keep in step for no extra answer.
+and not a day of the month at all. Working means Monday to Friday here, and
+counts bank holidays as working days even though `todo.py` now knows perfectly
+well which ones they are. That is on purpose: "the fifth working day" is how the
+obligation is worded by the people who set it, and they mean the fifth weekday.
+Quietly shifting it because one of those days is a bank holiday would make the
+board disagree with the deadline it is tracking. The checker still flags the
+result if it lands on a holiday, which is the right place for a human to decide.
+
+**Longer cycles: the `/n` suffix.** Everything above repeats at its natural
+cadence — weekly for a day, monthly for the rest. `/n` multiplies that, and it
+works on all four forms rather than being a form of its own, because a quarterly
+meeting is not a different kind of cycle from a monthly one, it is the same cycle
+counted differently. `/2` on a weekly form is fortnightly, `/3` on any monthly
+one is quarterly, and anything from `/2` to `/24` is accepted.
+
+The thing worth understanding is where the phase lives. "Every other Wednesday"
+says nothing about *which* Wednesday, and the tag deliberately does not try to:
+`[due:: ]` was already carrying that, so the interval is counted forward from the
+date on the card. Move that date by hand and the whole series moves with it,
+which is exactly what a rebooked fortnightly meeting wants. The flip side is that
+the first date matters — a `/n` task tagged with no date gets the next plain
+occurrence of its base cycle and starts counting from there, so set it
+deliberately.
+
+The checker can only check the shape, never the phase. It will tell you a
+fortnightly Wednesday task is dated on a Thursday. It cannot tell you it is on
+the wrong Wednesday, because nothing on the card says which Wednesday is right.
 
 The `~` prefix says the cadence is the usual shape rather than a rule. The design
 system drop-in is why it exists: it is weekly, but which day it lands on gets
@@ -580,6 +638,96 @@ starts one. A prompt written on the task gets **Ask Claude**, which starts one
 with that prompt already in the box, unsent — most still have a `[path]` to fill
 in, and one that fired on click would send the placeholder.
 
+**A prompt is used up by actually being run.** The line disappears once you
+send that first message, not when you click Ask Claude — closing the modal
+unsent leaves it exactly where it was, since most of these still want editing
+first. The text is not lost: the conversation it started records it, so the
+card can say what it was started to do rather than only what the first
+message happened to say.
+
+Each entry in the list draws as a card — title, which task it belongs to, when
+it last did anything, whether it can write to disk — the same card the Canvas
+below draws, stacked in a column here instead of scattered on a surface.
+**Attach a session…**, next to **+ New chat**, reaches for a conversation
+Claude Code already has on disk that was never started from this board — one
+begun in a terminal, say — and files it here directly. The same thing from
+inside that conversation instead of from the task is the `/pa-attach` skill,
+which cannot write to `todo.md` itself and leaves a request for the board to
+pick up on its next load instead — see **Where a conversation actually
+lives**, below, and `AI-CANVAS.md` for the whole story.
+
+### The Canvas
+
+A sixth tab, next to Board, and the other spatial view of the same list. Every
+conversation with Claude drawn as a card, grouped into a box named after the
+task it belongs to.
+
+It exists because the drawer answers "what conversations are on this task" and
+nothing answered "what conversations are open at all, and what work is each
+one about". With three or four running across two or three tasks, that second
+question is the one you actually have, and the only way to answer it before was
+to open every task in turn.
+
+**A box is a task.** Not a folder and not a project invented for the purpose.
+The canvas in `ai_canvas`, the desktop app this borrows its shape from, had to
+invent projects, because Claude Code's notion of a project is a working
+directory and there is nowhere to write a name. This board has had tasks all
+along, with ids that survive a rename, a reorder and a move between buckets,
+and the `chat:` key on a task line is already how conversations are filed
+against it. So the canvas groups by something that exists rather than keeping a
+second grouping beside it. Only tasks that have conversations get a box: a task
+is not made for this purpose and there are hundreds of them, so a box appears
+when the first conversation is filed and goes when the last one leaves.
+
+**A card says four things**, the same four that canvas argued itself into: what
+the conversation is called, which task it belongs to, when it last did
+anything, and whether it can write to disk. That last one has no equivalent
+over there and is the most important thing on the card here — the difference
+between a conversation that can only read and one that can change files is
+worth seeing without opening it.
+
+**Dragging a card onto a box files it there.** That is the third way to file a
+conversation, alongside starting one from a task and attaching one that began
+in the terminal, and all three end in the same place: a row in `sessions.json`
+under the task's key. Dragging a card clear of every box takes it out of the
+task without touching the conversation, which is what you want when one
+wandered off the task it started on. A card belonging to no task says so and
+sits on its own.
+
+**A box resizes from its bottom-right corner**, and refuses to be smaller than
+the cards inside it. Dragging inwards past them is allowed as a gesture and
+simply has no effect below that floor — the box follows the cursor while you
+drag and settles back on release, rather than stopping dead under your hand.
+That floor is `containBox` in `cards.js`, the same function the desktop canvas
+uses, so a card can never end up outside its own task in either app.
+
+**A card closes with the × in its corner**, and it is worth being exact about
+what that does. The row leaves `sessions.json`, so the board stops listing the
+conversation. Claude Code's transcript is left exactly where it is, which means
+`claude --resume <id>` still opens it and Claude Desktop still imports it. The
+conversation is unfiled rather than deleted, and the confirm asks about the
+board rather than about the conversation for that reason — "delete this chat"
+would be a promise this board cannot keep, since the file belongs to Claude
+Code and nothing here should be reaching into it.
+
+**Nothing here starts a session.** The canvas is a view of filing. Chats still
+start from a task's drawer, which is where you are when you know what the
+conversation is for.
+
+The one thing it writes to `todo.md` is a `chat:` key, minted when a card is
+dropped onto a task that has never had one, and it goes through the same
+`markDirty` and autosave as any other edit. Card positions are not task
+content — a card's place is something you dragged, not something you decided —
+so they live in `data/<dataset>/canvas.json` beside `sessions.json`. Delete
+that file and the canvas lays itself out again from scratch, losing an
+arrangement and nothing else.
+
+Where a card sits, the box around a group and the box's refusal to shrink
+below what is in it are not written here at all. They are `cards.js` in
+`ai_chat_engine`, shared with `ai_canvas` rather than each app having a
+version — the same arrangement `chat.js` has always had. `#canvas!chat=<id>`
+opens one conversation, the way `#board!task=<key>` opens one card.
+
 ### Where a conversation actually lives
 
 Three things, and none of them is a copy of another:
@@ -603,6 +751,14 @@ like any other change — so a chat started and never saved leaves an entry in
 `sessions.json` with nothing pointing at it. The `×` on a row clears one out.
 Nothing is lost either way: the transcript is Claude Code's file and is left
 alone.
+
+**Minting that key is a write to `todo.md`, and only the board is ever allowed
+to make one.** That is what stops `/pa-attach` writing straight to
+`sessions.json` from inside the conversation it is filing: it drops what it
+knows — the session id, its working directory, the task it belongs to — into
+`data/<dataset>/attach-queue.json` instead, and the board reads that file and
+does the actual filing itself the next time it loads. So attaching still works
+from a terminal with no board open, and the board stays the only writer.
 
 ### Carrying on in Claude Desktop
 
@@ -783,6 +939,137 @@ does not hide what is blocked or not yet startable, and a sub-step needs its own
 `rank:`, `start:` and `blocked-by:` are still code spans, which Dataview cannot
 read inside. The board remains the authority.
 
+## The desktop companion
+
+The board only says anything while a tab is open on it, which means a day it is
+never opened is a day nothing is said. **To-Do Companion.app** is the answer to
+that: a menu bar icon that reads the list off disk and tells you once each
+working morning what is due and what is overdue.
+
+Double-click it to start, and Quit in its own menu to stop. It is a menu bar app
+and nothing else — no Dock icon, no window, no app switcher entry. The icon
+carries a count of what is owed, and turns into a warning triangle when
+something is overdue. Its menu lists the one thing, then what is overdue, then
+what is due today, and clicking any of them opens the board on that card, with
+its panel already up. Reading a task and doing something about it stay two
+different places on purpose: there is no ticking off in the menu, because a tick
+is a write to `todo.md` and the companion never writes to it. It opens the file
+read-only and that is the whole of its access, so it cannot race the board's
+autosave or damage a list.
+
+The morning notification goes out at the first check at or after 08:30 on a
+working day, once a day. Starting the app later in the day still gets you the
+briefing — opening the laptop at four having missed the morning is exactly when
+it is wanted — but not after 20:00, by which time the day is over. A working day
+means a weekday that is not a public holiday in the UK **or** Portugal: he takes
+the Portuguese ones and the team takes the UK ones, and a briefing is worth
+little on a morning either side is away. The menu names the holiday and which
+country it belongs to — "Quiet — Dia de Portugal (PT)" — so a silent Monday
+reads as the day off it is instead of as an app that has stopped. Only the
+notification is suppressed; the icon and the menu are live as usual, so a day
+off that turns out to be a working day costs nothing. Nothing is recorded on a
+quiet day, so the next working morning goes out as normal. Narrowing it to one
+country is one argument in `maybe_notify`.
+
+**What it counts as owed.** The same three exclusions Quick wins already makes,
+because two views of one list disagreeing about what is actionable is worse than
+either answer on its own. Waiting review and Blocked are out, since the next
+move belongs to somebody else. A task whose `blocked-by:` names something
+unticked is out, since the blocker is the real task. Sub-steps are out, since a
+step has no state of its own. Whatever is left out is counted in a line at the
+bottom of the menu, so nothing disappears silently.
+
+Recurring tasks are rolled forward in memory. The board rewrites a passed
+`repeat:` date into the file when it loads; the companion works out the same
+date and keeps it to itself, which is what lets it run all day on a day the
+board is never opened without ever touching the file.
+
+It watches `data/twinkl/` by name rather than following `data/.current`.
+Switching the board to another list for ten minutes should not quietly change
+what gets notified tomorrow morning. One list, until there is a reason for a
+second.
+
+### How it is built
+
+`companion/digest.py` decides what is owed and can be run on its own at a
+terminal — `python3 companion/digest.py`, or with a date to see what a future
+day looks like. `companion/app.py` is the menu bar item, written straight
+against AppKit through PyObjC because PyObjC is already installed alongside the
+Python that runs the board, and `rumps` would be one more thing to install and
+remember.
+
+Neither of them knows the file format. That lives in `kanban/todo.py`, which
+belongs to the board: a Python port of the parsing and the `repeat:` maths in
+`kanban/index.html`, read-only, so anything outside a browser tab that needs to
+know what is due asks the board's own reader rather than inventing a second one.
+Where the two disagree the board is right and `todo.py` is the bug — and
+`kanban/test_todo.py` is what proves they do not. It holds the board's own
+answers for seventeen `repeat:` forms against a year of seed dates, generated by
+running the board's JavaScript, so a change to either copy that breaks the
+agreement fails loudly rather than quietly rolling a meeting to the wrong day.
+Run it after touching either.
+
+`todo.py` also carries the working calendar: weekends, England-and-Wales bank
+holidays, and Portugal's national public holidays. Two countries because the work
+spans two. That is not file format and it sits there on sufferance, but three
+things need the same answer — the companion staying quiet on a day off, the
+`pa-checkin` checker flagging a deadline that lands on one, and the board's own
+idea of a working day — and the alternative is a second holiday list, which is a
+second list to go stale. Every function there takes a narrower set of regions if
+a caller only cares about one of them.
+
+The dates are worked out from the rules rather than kept as a table. A table has
+to be extended a year at a time by somebody who remembers to, and the year it
+runs out is the year it quietly starts calling every day a working day. The rules
+are stable: Easter drives seven of the entries, the UK's weekend substitution
+rule handles the rest, and Portugal does not substitute at all, which is why 2027
+is a thin year there. What no rule can produce goes in `UK_EXTRA` and `PT_EXTRA`,
+where a name adds a holiday and `None` removes one — that is how the VE Day move,
+the Platinum Jubilee, the State Funeral and the Coronation are represented, and
+how the next one will be. Portugal's municipal days and the Azores and Madeira
+sets are deliberately not included; add the relevant one to `PT_EXTRA` if it
+starts mattering.
+
+`kanban/test_todo.py` pins all of it against the published dates for 2026 and
+2027, and `--online` re-checks the generated calendar against the sources:
+gov.uk's own JSON feed for England and Wales, and Nager.Date for Portugal, which
+has no official feed. Every England-and-Wales date from 2019 to 2028 agrees, and
+both Portuguese years agree exactly. The offline tables are what run by default,
+because a test that needs the network is a test that fails on a train.
+
+**Opening a card from outside the board.** A task in the companion's menu links
+to `#!task=<key>`, where the key is the task's `#slug` if it has one and its
+title if it does not — the board mints a fresh id for every task on every parse,
+so an id is no use to anything outside the tab. The fragment carries the view and
+the card at once, `#<view>!task=<key>`, and the two do not compete: the view
+segment sets the view exactly as it always did, the task segment opens a drawer
+over whatever is showing, and an empty view segment means leave the view alone.
+The board writes the view back on its next draw, which is what drops the task
+again — an instruction that has been carried out should not survive a refresh.
+
+It is the fragment rather than a query string on purpose. A link differing only
+after the `#` is a same-document navigation, so the browser raises the tab that
+is already open and fires `hashchange`; a `?task=` would be a different URL and
+would give a second tab on one list, and two tabs both autosaving one `todo.md`
+is the failure this whole app is written to stay clear of. When the board is not
+running at all the companion launches it and waits for the port before sending
+the link, so the server's own tab is the one that gets it.
+
+The bundle is gitignored, like the board's Dock launcher, and
+`companion/build-app.command` rebuilds it. Two things in that recipe are worth
+knowing about, both to do with notifications. The app is ad-hoc signed, so macOS
+has a stable identity to hang notification permission on. And the launcher runs
+a copy of the framework Python's own app stub, kept inside the bundle, because a
+notification carries the name of the bundle the running process belongs to — run
+the framework interpreter directly and the alert says Python. If that copy ever
+stops working, the launcher rebuilds it on the next start, and if it cannot, the
+app falls back to posting through `osascript` and the alerts are attributed to
+Script Editor. Working notifications under the wrong name beat none at all.
+
+The log is at `~/Library/Logs/To-Do Companion.log`, which is the only place a
+menu bar app has to say anything. It records each start and which route every
+notification took.
+
 ## The skills
 
 `skills/pa-checkin/` is a Claude skill that runs the review session: read
@@ -800,13 +1087,43 @@ directly:
 python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
-Two reference files at the root of this repo sit behind all four skills, and
+It does not carry its own copy of the `repeat:` grammar or the bank holidays any
+more. Both are `kanban/todo.py`'s, and the checker imports them: run from the
+repo it reaches the original four folders up, and run from an installed skill,
+where there is no repo to reach, it imports the copy the build step staged beside
+it. The repo wins when both exist, so editing the original is always what takes
+effect and a stale staged copy cannot mask it.
+
+`skills/pa-mobile/` is the same list read from a phone, over Remote Control from
+the Claude app. It reads and writes the real file like any other session, so what
+makes it a separate skill is the surface rather than the data: every question is
+asked as multiple choice instead of as something to type, and every report is
+rendered from a template in `skills/pa-mobile/templates/` instead of being written
+freehand. The templates are Tiago's, one file per kind of report, and adding a
+file to that folder is the whole of adding a report shape. A status that comes out
+in the same shape every morning can be scanned in the four seconds a phone screen
+gets; one written fresh each time has to be read.
+
+Two reference files at the root of this repo sit behind all five skills, and
 neither is packaged inside one of them. `PA.md` is standing behaviour: who the
 list belongs to, where it lives, how he prioritises, the rules that hold whatever
 skill is running, and the tone. `CONVENTIONS.md` is the file format. Every skill
 reads both before it does anything, which is why none of them restate either.
 `pa-checkin/references/audit-checklist.md` is what to check by hand that the
 script cannot.
+
+### Packaging them
+
+`skills/build.command` writes every skill in `skills/` to
+`skills/dist/<name>.skill`. Double-click it, or run it from a terminal. A
+`.skill` file is a plain zip with `SKILL.md` at its root, so most of the job is
+copy, prune and zip; the reason it is a script rather than a `zip` line typed
+when needed is the staging in the middle. An installed skill has to stand alone,
+and `pa-checkin` needs the board's reader, which lives outside it. That file used
+to be transcribed in by hand, which meant two Python ports of one set of rules
+with nothing keeping them in step; now it is copied in at build time and there is
+still only one copy in git. The `.skill` files themselves are committed, so a
+machine that only wants to install them never needs to run this.
 
 ### Two dates, not one
 

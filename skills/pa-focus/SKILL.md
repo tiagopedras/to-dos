@@ -1,6 +1,6 @@
 ---
 name: pa-focus
-description: Question whether too much is sitting in To do and Doing on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), and go through both columns one task at a time to work out what is actually being worked, what hasn't started and is honestly still two to four weeks out, and what should go back to Backlog because it isn't really getting picked up any time soon. Opens with a count in each column, by bucket. Use whenever he asks something like "am I taking on too much", "let's do a focus check", "how much have I got in flight", "review my To do and Doing", "help me trim my WIP", "what should go back to Backlog", or "is this realistic". Top-level tasks only — a sub-step has no column of its own, it inherits its parent's. Do not use this for Waiting review or Blocked, which is pa-unstick, or for a general status read or re-prioritisation, which is pa-checkin. This skill only reviews and asks; pa-checkin does the actual writing.
+description: Question whether too much is sitting in To do and Doing on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), and go through both columns one task at a time to work out what is actually being worked, what hasn't started and is honestly still two to four weeks out, and what should go back to Backlog because it isn't really getting picked up any time soon. Opens with a count in each column, by bucket. Use whenever he asks something like "am I taking on too much", "let's do a focus check", "how much have I got in flight", "review my To do and Doing", "help me trim my WIP", "what should go back to Backlog", or "is this realistic". Top-level tasks only — a sub-step has no column of its own, it inherits its parent's. Do not use this for Waiting review or Blocked, which is pa-checkout, or for a general status read or re-prioritisation, which is pa-checkin. This skill only reviews and asks; pa-checkin does the actual writing.
 ---
 
 # Focus: trimming Doing and To do
@@ -112,7 +112,7 @@ named. Do not insist on covering both just because the skill can.
 move it anywhere first.
 
 **A task in Doing is real work but is actually stuck on something outside
-it** — that's pa-unstick's question, not this one. Note it and point him
+it** — that's pa-checkout's question, not this one. Note it and point him
 there rather than trying to resolve it here.
 
 **He answers with a batch instruction** ("move everything untouched in To do

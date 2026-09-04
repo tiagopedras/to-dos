@@ -45,7 +45,7 @@ Every top-level task carries impact, effort and a delegation tag. Dates only whe
 - `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
 - `urgent` — time-critical with no fixed date. Never combine with `due`, they are alternatives.
 - `done:YYYY-MM-DD` — the day it was ticked off. Written by the board, not by hand. Never add it to an open task, and never remove it from a ticked one: it is what decides when finished work is old enough to be archived out of the file.
-- `repeat:wed-9:15` — how often this task comes round: a three-letter weekday with an optional time, a day of the month, a working day of the month, the nth weekday of the month (`repeat:tue2` for the 2nd Tuesday), or any of those with a `~` in front where the day is the usual shape rather than a rule. See recurring tasks below.
+- `repeat:wed-9:15` — how often this task comes round: a three-letter weekday with an optional time, a day of the month, a working day of the month, the nth weekday of the month (`repeat:tue2` for the 2nd Tuesday), any of those with a `/n` after it for a longer cycle (`repeat:wed/2` fortnightly, `repeat:15/3` quarterly), and any of those with a `~` in front where the day is the usual shape rather than a rule. See recurring tasks below.
 
 Sub-steps carry their own `[due:: ]` where the parent needs back-planning, and their own `[ai:: ]` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
 
@@ -177,6 +177,11 @@ One tag and one card:
 - `repeat:15` — the 15th of every month. A month too short for the day lands on its last day rather than skipping.
 - `repeat:wd5` — the fifth working day of every month. For an obligation dated by working days rather than by the calendar, which the AOP status update is. Working means Monday to Friday; the tag knows nothing about bank holidays, and the checker's working-day check catches one landing on a holiday separately.
 - `repeat:tue2` — the 2nd Tuesday of every month. For a meeting that is monthly but pinned to a weekday rather than a day of the month, the way Game & Animation Production runs. Takes a time the same way the weekly form does: `repeat:tue2-15:00`. A month with no 5th occurrence of the day clamps to its last one, the same rule the working-day form uses.
+- `repeat:wed/2` — every other Wednesday. The `/n` suffix multiplies whatever comes before it, so it works on all four forms above: `repeat:15/3` is the 15th quarterly, `repeat:tue2/3` is the 2nd Tuesday quarterly, `repeat:wd5/3` is the fifth working day quarterly, `repeat:mon1/6` is the first Monday twice a year. `/2` on a weekly form is fortnightly; on a monthly one it is every other month. Anything from `/2` to `/24` is accepted.
+
+  **Which occurrence it is on lives in `[due:: ]`, not in the tag.** "Every other Wednesday" is not a fact about Wednesdays, it is a fact about which Wednesday he is on, and the card already carries that. So the interval counts forward from the date on the card: move that date by hand and the whole series moves with it, which is what a rebooked fortnightly meeting wants. A `/n` task with no date yet gets the next plain occurrence of its base cycle, and the interval runs from there — so set the first date deliberately, because every later one is counted off it.
+
+  The checker does not verify the phase, only the shape. It will tell you a fortnightly Wednesday task is dated on a Thursday; it cannot tell you it is on the wrong Wednesday, because nothing on the card says which Wednesday is right.
 - `repeat:~fri-15:00` — the `~` prefix works on any of the forms above and says the cadence is the usual shape rather than a rule. Use it where the meeting is real but gets rebooked: the design system drop-in is weekly and has run Friday, Thursday, Friday, Thursday. The board still rolls to the tagged day, and the checker stops flagging a date that lands off it.
 
 `[due:: ]` is the occurrence the card is currently pointing at. So the tag says how often and the date says which one, and neither is derivable from the other.

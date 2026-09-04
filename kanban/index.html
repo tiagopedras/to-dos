@@ -682,13 +682,26 @@
     font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
   }
   /* The total is the answer to the question; the buckets underneath say where
-     it came from. Big enough to read from across the desk. */
+     it came from. It used to sit on one baseline with its label, at a size that
+     read as a subheading — so the thing you came to the view for was the same
+     weight as the words describing it. Stacked and much bigger now: the number
+     first, what it counts underneath, readable from across the desk.
+     `font-variant-numeric` so the digits line up rather than wobbling at size. */
   .reportsview .total{
-    display:flex; align-items:baseline; gap:10px; background:var(--bg);
-    border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px;
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:18px 20px 16px; margin-bottom:16px;
   }
-  .reportsview .totaln{font-size:30px; font-weight:680; line-height:1; color:var(--ink)}
-  .reportsview .totall{font-size:13px; color:var(--ink-soft)}
+  .reportsview .totaln{
+    display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--ink);
+    letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+  }
+  .reportsview .totall{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
+  /* The period the number covers, said next to it rather than left to the
+     picker above — a screenshot of this block should not be ambiguous. */
+  .reportsview .totalw{color:var(--ink); font-weight:600; white-space:nowrap}
+  .reportsview .totalw::before{
+    content:'·'; color:var(--ink-faint); font-weight:400; margin:0 6px 0 2px;
+  }
   /* One bucket is a group, not a row: the count and the list behind it are the
      same fact, so the rule goes under the pair. With the rule under the row
      instead, an opened list sat below its own divider and read as the next
@@ -873,6 +886,14 @@
     position:relative; margin:2px 0 12px 14px; padding:10px 40px 10px 12px; background:var(--bg);
     border:1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius:8px;
   }
+  /* Message, prompt and Jira suggestions are click-to-copy over their whole
+     card (see handleCopy) — this hover is what tells him that before he's
+     found the small icon. Agenda cards are a different, denser shape and
+     keep their own quieter styling instead. */
+  .msg:not(.agenda):hover{
+    cursor:pointer; background:color-mix(in srgb, var(--amber) 12%, var(--bg));
+    border-color:color-mix(in srgb, var(--amber) 60%, transparent);
+  }
   .msgtext{font-size:13px; line-height:1.55; color:var(--ink)}
   /* Copy is the one action worth reaching for without hovering first — the
      rest (Open in Claude, Raise in Jira, Dismiss) only earn their place once
@@ -886,7 +907,7 @@
     color:var(--ink-soft); border-radius:6px;
   }
   .copy svg{width:14px; height:14px; display:block; fill:currentColor}
-  .copy:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .copy:hover, .msg:hover .copy{color:var(--ink); border-color:var(--ink-faint)}
   .msgextra{
     display:flex; flex-direction:column; align-items:stretch; gap:4px;
     opacity:0; pointer-events:none; transition:opacity .12s ease;
@@ -1191,7 +1212,26 @@
   aside.open{transform:none}
   aside .dhead{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
   aside .dhead strong{font-size:13px; font-weight:650}
-  aside .dbody{padding:14px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:14px}
+  aside .dbody{padding:14px; overflow:auto; flex:1; container-type:inline-size}
+  /* Two columns when the drawer is wide enough to hold them side by side —
+     main task fields on the left, everything suggestion-shaped (chats,
+     dependencies, agenda, message/prompt suggestions, Jira) on the right.
+     A container query on #dbody rather than a viewport media query, because
+     the drawer is user-resized independently of the window (see dgrip) —
+     what matters is its own width, not the screen's. Below the threshold,
+     or with nothing to put in a second column, it collapses back to the
+     single stacked layout this always had. */
+  .dcols{display:flex; flex-direction:column; gap:14px}
+  .dcol{display:flex; flex-direction:column; gap:14px; min-width:0}
+  @container (min-width:700px){
+    .dcols{flex-direction:row; align-items:flex-start}
+    .dcol-main{flex:1.15 1 0}
+    .dcol-side{flex:1 1 0}
+  }
+  /* Each side-column section leads with a rule meant to separate it from the
+     one above — the same markup used in the single-column stack. First in a
+     column, there is nothing above it to separate from. */
+  .dcol > hr.dsep:first-child{display:none}
   aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
   .field{display:flex; flex-direction:column; gap:5px}
   .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
@@ -1204,6 +1244,46 @@
   }
   .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+  /* ai: as a three-stop slider rather than a <select> — the field only ever
+     holds one of three values, so dragging a handle between them reads faster
+     than opening a dropdown, and it is more fun to use. Positions are fixed at
+     0/50/100%, never continuous: posToValue() in wireAiSlider() always rounds
+     to the nearest of the three, so there is nothing "in between" to land on
+     by accident. Padding on the outer element leaves room for the handle
+     (10px radius) to sit fully inside it at both ends of the track.
+
+     The handle's own resting spots at None and Full are pulled in by
+     --ai-inset rather than sitting exactly on the track's tips: parked right
+     on the tip, the handle is bigger than the track and hides both the
+     rounded end and that end's marker dot completely. Pulled in, the tip
+     stays visible past the handle at every position. Purely a display
+     offset — posToValue() still rounds the raw drag fraction across the full
+     track, so dragging all the way to either edge lands on None or Full. */
+  .aislider{--ai-inset:7px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
+  .aislider.disabled{opacity:.5; pointer-events:none}
+  .aislider:focus-visible{outline:none}
+  .aitrack{position:relative; height:6px; border-radius:999px; background:var(--line)}
+  .aitick{position:absolute; top:50%; width:4px; height:4px; border-radius:50%; background:var(--panel); transform:translate(-50%,-50%)}
+  .aitick[data-i="0"]{left:0} .aitick[data-i="1"]{left:50%} .aitick[data-i="2"]{left:100%}
+  .aifill{position:absolute; top:0; left:0; height:100%; border-radius:999px; transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
+  .aifill[data-v="none"]{width:0%; background:var(--ink-faint)}
+  .aifill[data-v="partial"]{width:50%; background:var(--amber)}
+  .aifill[data-v="full"]{width:calc(100% - var(--ai-inset)); background:var(--green)}
+  .aihandle{
+    position:absolute; top:50%; left:var(--ai-inset); width:20px; height:20px; border-radius:50%;
+    background:var(--panel); border:2px solid var(--ink-faint); box-shadow:0 1px 3px rgba(16,20,28,.2);
+    transform:translate(-50%,-50%);
+    transition:left .28s cubic-bezier(.34,1.56,.64,1), border-color .2s, transform .12s;
+  }
+  .aihandle[data-v="partial"]{left:50%; border-color:var(--amber)}
+  .aihandle[data-v="full"]{left:calc(100% - var(--ai-inset)); border-color:var(--green)}
+  .aislider.dragging .aihandle{transform:translate(-50%,-50%) scale(1.15); transition:border-color .2s}
+  .aislider:focus-visible .aihandle{outline:2px solid var(--accent); outline-offset:2px}
+  .aistops{display:flex; justify-content:space-between; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
+  .aistop{padding:2px 4px; border-radius:5px}
+  .aistop:hover{color:var(--ink); background:var(--chip)}
+  .aistop.on{color:var(--ink); font-weight:650}
   /* ---------- collapsible sections in the drawer ----------
      A <details> standing in for the <label>/<div> a field or a suggestion
      block would otherwise be, so Description, Chats, Message suggestions and
@@ -1217,7 +1297,7 @@
     cursor:pointer; list-style:none; display:flex; align-items:center; gap:5px;
   }
   details.field > summary::-webkit-details-marker, details.sugg > summary::-webkit-details-marker{display:none}
-  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size:9px; display:inline-block}
+  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size:13px; display:inline-block}
   details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
   .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--ink-faint); opacity:.85; margin-left:6px}
   .substeps{display:flex; flex-direction:column; gap:1px}
@@ -1309,12 +1389,11 @@
     display:block; font-size:11px; font-weight:650; text-transform:uppercase;
     letter-spacing:.04em; color:var(--ink-faint); margin-bottom:4px;
   }
-  .deplist{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:3px}
-  .depitem{font-size:12.5px; line-height:1.4}
-  .depitem.missing{color:var(--ink-faint); font-style:italic}
-  .depitem.done .deplink{color:var(--ink-faint); text-decoration:line-through}
-  .deplink{background:transparent; border:none; padding:0; color:var(--ink); font-size:12.5px; text-align:left; cursor:pointer}
-  .deplink:hover{color:var(--accent); text-decoration:underline}
+  .deplist{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px}
+  /* The card itself is .chaincard, shared with the Matrix dependency view —
+     these two rules only make it a full-width, resettable <button>. */
+  .chaincard.deplink{display:block; width:100%; margin:0; font:inherit; appearance:none; -webkit-appearance:none}
+  .depdates{display:flex; flex-wrap:wrap; gap:4px; margin-top:5px}
 
   .dgrip{position:absolute; left:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
   .dgrip::after{content:""; position:absolute; left:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
@@ -1386,9 +1465,198 @@
   .changes .where{color:var(--ink-faint)}
   .changes .none{font-size:12.5px; color:var(--ink-faint)}
   .hidden{display:none !important}
+
+  /* ---------- toasts ----------
+     Anything that stops an action the user just took — a drag onto Done, a
+     tick — needs to land where the eye already is, not in the header status
+     line, which sits far from the card and reads at 12px. Stacked bottom
+     centre, above the drawer scrim (z-index 60) so it is never hidden behind
+     an open drawer. */
+  .toasts{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:70;
+    display:flex; flex-direction:column; gap:8px; align-items:center;
+    pointer-events:none; max-width:min(480px,90vw);
+  }
+  .toast{
+    background:var(--ink); color:var(--panel); border-radius:10px;
+    padding:10px 16px; font-size:13px; line-height:1.4; text-align:center;
+    box-shadow:0 12px 28px rgba(10,12,16,.28), 0 2px 6px rgba(10,12,16,.16);
+    opacity:0; transform:translateY(6px); transition:opacity .15s, transform .15s;
+  }
+  .toast.blocked{background:var(--amber-bg); color:var(--amber); border:1px solid color-mix(in srgb, var(--amber) 35%, transparent)}
+  .toast.show{opacity:1; transform:translateY(0)}
+
+  /* ---------------------------------------------------------------------
+     The canvas — conversations with Claude, grouped by the task they belong to.
+
+     A view of filing rather than a place to start anything. Every card is a
+     conversation the sessions store already knows about; a box is a task that
+     has at least one. Nothing here is drawn from todo.md except the names on
+     the boxes, and nothing here writes to it except adopting a card, which
+     mints a `chat:` key on a task line the same way starting a chat from the
+     drawer already does.
+
+     Positions live in data/<dataset>/canvas.json. Delete it and the canvas
+     lays itself out again from scratch, which is the whole cost of losing it.
+     --------------------------------------------------------------------- */
+  .canvas{
+    position:relative; flex:1; min-height:0; overflow:auto;
+    background:
+      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px;
+  }
+  .cvsurface{position:relative; width:4000px; height:2600px}
+  .cvempty{
+    position:absolute; left:50%; top:120px; transform:translateX(-50%);
+    max-width:460px; text-align:center; color:var(--ink-soft);
+  }
+  .cvempty h2{font-size:15px; margin:0 0 6px; color:var(--ink)}
+  .cvempty p{margin:0 0 4px; font-size:13px; line-height:1.5}
+
+  /* A box is a task. It is drawn behind its cards and never smaller than
+     them — cards.js does that arithmetic, so this and the Electron canvas
+     agree on it rather than each having a version. */
+  .cvbox{
+    position:absolute; border:1px solid var(--line); border-radius:12px;
+    background:var(--line-soft); pointer-events:auto;
+  }
+  .cvbox.over{border-color:var(--accent); background:var(--chip)}
+  .cvboxbar{
+    display:flex; align-items:center; gap:8px; height:34px; padding:0 12px;
+    cursor:grab; font-weight:600; font-size:12.5px; color:var(--ink-soft);
+    white-space:nowrap; overflow:hidden;
+  }
+  .cvboxbar:active{cursor:grabbing}
+  .cvboxbar .cvcount{margin-left:auto; font-weight:400; color:var(--ink-faint)}
+  .cvboxbar .cvopen{
+    flex:1 1 auto; min-width:0; border:0; background:none; padding:0; cursor:pointer;
+    color:inherit; font:inherit; font-weight:600; text-align:left;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .cvboxbar .cvopen:hover{color:var(--accent); text-decoration:underline}
+
+  /* A card. Four lines, the same four the Electron canvas argued itself into:
+     what it is called, what work it belongs to, when it last did anything,
+     and whether it can write to disk. */
+  .cvcard{
+    position:absolute; width:280px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  /* The same card, stacked in the drawer's Chats field instead of scattered
+     on the canvas. No grip — a card here is already filed against the one
+     task it's open on, so there is nothing to drag it onto. */
+  .cvstack{display:flex; flex-direction:column; gap:8px; margin:0 0 8px}
+  .cvstack .cvcard{position:relative; width:auto; box-shadow:none}
+  .cvstack .cvgrip{display:none}
+  .aic-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  /* The picker for "Attach a session…" — a session Claude Code has on disk
+     that this board has never filed. Small and modal on purpose: it is a
+     one-off reach into the terminal's own conversations, not a place to
+     linger, unlike the chat window itself. */
+  .attachpick-wrap{
+    position:fixed; inset:0; z-index:90; display:flex; align-items:center;
+    justify-content:center; background:rgba(10,12,16,.32); padding:24px;
+  }
+  .attachpick{
+    width:min(480px, 100%); max-height:min(560px, 100%); display:flex;
+    flex-direction:column; background:var(--panel); border-radius:14px;
+    box-shadow:0 24px 48px rgba(10,12,16,.28); overflow:hidden;
+  }
+  .attachpick header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; font-weight:600; font-size:13.5px;
+    border-bottom:1px solid var(--line);
+  }
+  .attachpick-close{
+    border:0; background:none; cursor:pointer; color:var(--ink-faint);
+    font-size:16px; line-height:1; padding:2px 4px; border-radius:5px;
+  }
+  .attachpick-close:hover{background:var(--chip); color:var(--ink)}
+  .attachpick-body{overflow-y:auto; padding:8px}
+  .attachpick-row{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; color:inherit;
+  }
+  .attachpick-row:hover{background:var(--chip)}
+  .attachpick-row:disabled{opacity:.5; cursor:default}
+  .attachpick-title{
+    display:block; font-weight:600; font-size:13px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .attachpick-meta{
+    display:block; margin-top:2px; font-size:11.5px; color:var(--ink-faint);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .cvcard.dragging{opacity:.85; box-shadow:0 8px 24px rgba(16,20,28,.18)}
+  .cvgrip{
+    height:22px; border-radius:9px 9px 0 0; cursor:grab;
+    border-bottom:1px solid var(--line-soft); background:var(--line-soft);
+    display:flex; align-items:center; padding:0 8px; color:var(--ink-faint);
+    font-size:11px; letter-spacing:.08em;
+  }
+  .cvgrip:active{cursor:grabbing}
+  .cvbody{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
+  }
+  .cvbody:hover{background:var(--chip)}
+  .cvtitle{
+    display:block; font-weight:600; font-size:13px; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  /* The one flag the app cannot work out on its own: something happened
+     here since you last opened it. A dot rather than a badge, because it
+     is a nudge, not a count — copied from ai_canvas's own .unread-dot.
+     Cleared by opening the card; see markCanvasViewed(). */
+  .cvtitle .unread-dot{
+    display:inline-block; width:6px; height:6px; margin-left:6px;
+    border-radius:50%; background:var(--accent); vertical-align:middle; flex:none;
+  }
+  .cvowner{display:block; margin-top:5px; font-size:11.5px; color:var(--ink-soft);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cvowner.loose{color:var(--ink-faint); font-style:italic}
+  .cvmeta{display:block; margin-top:6px; font-size:11px; color:var(--ink-faint)}
+  .cvmeta .cvmode{
+    display:inline-block; margin-left:6px; padding:0 5px; border-radius:4px;
+    background:var(--amber-bg); color:var(--amber); font-style:normal;
+  }
+  .cvmeta .cvlive{color:var(--green); font-style:normal}
+  /* The corner a box resizes from. Bottom-right only, which is the corner a
+     window has: four handles on a box you rarely resize is more furniture than
+     the gesture is worth. */
+  .cvgrow{
+    position:absolute; right:0; bottom:0; width:16px; height:16px;
+    cursor:nwse-resize;
+  }
+  .cvgrow::after{
+    content:''; position:absolute; right:3px; bottom:3px; width:8px; height:8px;
+    border-right:2px solid var(--ink-faint); border-bottom:2px solid var(--ink-faint);
+    border-radius:0 0 3px 0; opacity:.5;
+  }
+  .cvbox:hover .cvgrow::after{opacity:1}
+
+  /* Taking a conversation off the board. Hidden until the card is under the
+     cursor, like every other destructive control here — it is one click and it
+     should not be sitting in the corner of every card inviting one. */
+  .cvclose{
+    position:absolute; top:3px; right:3px; width:20px; height:20px; padding:0;
+    border:0; border-radius:5px; background:none; cursor:pointer; opacity:0;
+    color:var(--ink-faint); font-size:14px; line-height:20px; text-align:center;
+  }
+  .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
+  .cvclose:hover{background:var(--red-bg); color:var(--red)}
+
+  .cvhint{
+    position:sticky; bottom:0; left:0; padding:6px 12px; font-size:11.5px;
+    color:var(--ink-faint); background:var(--bg); border-top:1px solid var(--line-soft);
+  }
 </style>
 </head>
 <body>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <div class="lockframe hidden" id="lockFrame" aria-hidden="true"></div>
 <div class="lockbar hidden" id="lockBar">
@@ -1454,6 +1722,7 @@
   <div class="headline hidden" id="headline"></div>
   <div class="board hidden" id="board"></div>
   <div id="lists" class="hidden"></div>
+<div class="canvas hidden" id="canvas"></div>
   <section class="start" id="start">
     <h2 id="startTitle">Loading todo.md…</h2>
     <div id="startErr"></div>
@@ -1487,6 +1756,11 @@
      load the same module. server.py serves them at /ai-chat/ straight from
      that sibling folder — see ai_chat/README.md. -->
 <script src="/ai-chat/chat.js"></script>
+<!-- Where a card sits and the box around a group of them, shared with the
+     Electron canvas rather than written twice. A module script, so it is
+     deferred and sets window.AICards after this document is parsed — every
+     read of it here happens when something is drawn, which is long after. -->
+<script type="module" src="/ai-chat/cards.js"></script>
 <script>
 'use strict';
 
@@ -1790,6 +2064,29 @@ const state = {
      rather than asking. The tidy-up runs again on the way back in. */
   migratedOnly: false,
   activeBucket: null,
+  /* The whole sessions index, owner key -> rows, handed over by chat.js's
+     onSessionsChanged. The drawer only ever needs one owner's worth and asks
+     for it directly; the canvas needs all of them at once, so this keeps the
+     last thing the engine said rather than asking again per box. */
+  chats: {},
+  /* Whether there is a Claude engine behind this board, as a plain flag rather
+     than a question asked of the chat object.
+
+     viewDefs() has to answer before that object exists: the first thing this
+     script does is read the URL's view out of the hash, which runs at the top
+     of the file, and `chat` is a const two thousand lines below it. Reaching
+     for it there is a temporal dead zone error that aborts the whole script
+     with no view, no board and nothing in the console to say why. */
+  chatsOn: false,
+  // False until onChatStatusChanged's first answer arrives — see renderView's
+  // isPendingCanvas, which needs to tell "canvas doesn't exist here" apart from
+  // "canvas exists, we just don't know it yet".
+  chatsChecked: false,
+  /* Where each card sits and the box around each task's cards, read from and
+     written to data/<dataset>/canvas.json. Furniture, not content: losing it
+     costs an arrangement and nothing else. */
+  canvas: { version: 1, cards: {}, boxes: {}, viewed: {} },
+  canvasLoaded: false,
   query: '',
   aiFilter: '',
   urgentFilter: false,
@@ -1816,14 +2113,108 @@ const state = {
   /* Example data is standing in for a list that is not there. It is a kind of
      lock rather than a separate mode, so nothing it renders can be written
      back — see loadDemo for why that matters. */
-  demo: false
+  demo: false,
+  /* A task named in the URL that hasn't been opened yet, because the document
+     wasn't loaded when the link arrived. Cleared the moment it is acted on;
+     see parseHash. */
+  pendingTask: ''
 };
 state.sort = readSort();
+
+/* The fragment carries two different things, so it needs a split:
+
+     #timeline               the view — durable, rewritten on every render
+     #timeline!task=ds-audit  …and a card to open, once
+     #!task=ds-audit          a card to open, whatever view is up
+
+   They don't compete. The view segment sets the view exactly as it always did;
+   the task segment opens a drawer over whatever is showing; an empty view
+   segment means leave the view alone. renderView writes `#<view>` back on the
+   next draw, which is what drops the task again — an instruction that has been
+   carried out shouldn't survive a refresh.
+
+   The fragment rather than a query string on purpose. A link that differs only
+   after the `#` is a same-document navigation, so the browser brings the tab
+   that is already open to the front and fires hashchange. A `?task=` would be a
+   different URL and would give a second tab on one list, and two tabs both
+   autosaving the same file is the one thing this board cannot survive. */
+function parseHash(){
+  const raw = location.hash.slice(1);
+  const cut = raw.indexOf('!');
+  const view = cut < 0 ? raw : raw.slice(0, cut);
+  const rest = cut < 0 ? '' : raw.slice(cut + 1);
+  const m = /^task=(.*)$/.exec(rest);
+  let task = '';
+  if (m) { try { task = decodeURIComponent(m[1]); } catch (e) { task = m[1]; } }
+  // `#canvas!chat=<session>` opens one conversation, the same way `!task=`
+  // opens one card. A session id is Claude Code's own and stable, so unlike a
+  // task it needs no slug-or-title guessing.
+  const c = /^chat=(.*)$/.exec(rest);
+  let chatId = '';
+  if (c) { try { chatId = decodeURIComponent(c[1]); } catch (e) { chatId = c[1]; } }
+  return { view, task: task.trim(), chat: chatId.trim() };
+}
+
+/* A task's `id` is minted fresh on every parse (see uid), so nothing outside
+   this tab can name a card by it. Two things in the file are stable enough to
+   link to: its `#slug` where it has one, and its title where it doesn't. Both
+   are tried, slug first — a slug is deliberate, a title is only as unique as he
+   happened to make it. */
+function findTaskByKey(key){
+  if (!key || !state.doc) return null;
+  const want = key.replace(/\s+/g, ' ').trim().toLowerCase();
+  let bySlug = null, byTitle = null;
+  for (const b of state.doc.buckets)
+    for (const tier of b.tiers)
+      for (const t of tier.tasks){
+        if (!bySlug && t.slug && t.slug.toLowerCase() === want) bySlug = t;
+        if (!byTitle && String(t.title || '').replace(/\s+/g, ' ').trim().toLowerCase() === want) byTitle = t;
+      }
+  return bySlug || byTitle;
+}
+
+/* Open the card a link named. The bucket tab is moved to the one holding it
+   first, so the card is actually behind the panel rather than filtered out of
+   the view underneath — a drawer over an empty board reads as a bug. */
+function openTaskByKey(key){
+  const t = findTaskByKey(key);
+  if (!t) {
+    renderView();
+    $('#status').textContent = 'no task called “' + key + '” on this list';
+    return false;
+  }
+  const loc = locate(t.id);
+  if (loc && state.activeBucket !== ALL_BUCKETS && loc.bucket.name !== state.activeBucket) {
+    state.activeBucket = loc.bucket.name;
+  }
+  renderView();
+  openDrawer(t.id);
+  return true;
+}
+
+/* Open the conversation a link named. Unlike a task there is nothing to search
+   for: the id is in sessions.json under exactly one owner, and that owner is
+   what the modal needs to know as well. */
+function openChatByKey(id){
+  if (!id) return false;
+  const index = state.chats || {};
+  for (const key of Object.keys(index)){
+    if (!(index[key] || []).some(r => r.id === id)) continue;
+    const task = tasksByChatKey()[key];
+    chat.openSession(task ? task.id : key, key, id);
+    return true;
+  }
+  $('#status').textContent = 'no conversation with that id on this list';
+  return false;
+}
+
 /* The URL's #slug is the one thing a refresh doesn't wipe, so read it before the
    first render — otherwise every reload snaps back to the default view. */
 (function initViewFromHash(){
-  const id = location.hash.slice(1);
-  if (isKnownView(id)) state.view = id;
+  const h = parseHash();
+  if (isKnownView(h.view)) state.view = h.view;
+  state.pendingTask = h.task;
+  state.pendingChat = h.chat;
 })();
 
 /* Six, and the fifth used to be the accent blue — which is the first bucket's
@@ -2185,6 +2576,11 @@ function setDone(t, on){
   t.done = on;
   t.doneOn = on ? ymd(today()) : '';
   t.dirty = true;
+  // Ticking the card off ticks its sub-steps too — a card in Done with open
+  // steps under it reads as unfinished work, which it no longer is. Going the
+  // other way leaves steps alone: dragging a card back out of Done doesn't
+  // mean the steps that were already ticked got undone.
+  if (on) splitBody(t).steps.forEach(s => { if (!s.done) toggleSub(t, s.line); });
   return true;
 }
 
@@ -3211,6 +3607,16 @@ function longDate(s){
      `repeat:tue2`      the 2nd Tuesday of every month
      `repeat:tue2-15:00`  the 2nd Tuesday of every month, at 15:00
      `repeat:~thu-14:00`  roughly weekly on Thursday, but the day moves
+     `repeat:wed/2`     every other Wednesday
+     `repeat:15/3`      the 15th, quarterly
+     `repeat:tue2/3`    the 2nd Tuesday, quarterly
+
+   The `/n` suffix multiplies whatever comes before it: `/2` on a weekly form is
+   fortnightly, `/3` on any monthly one is quarterly, and it reads the same way
+   on all four bases. It is a suffix rather than four new forms because a
+   quarterly meeting is not a different kind of cycle from a monthly one, it is
+   the same cycle counted differently — and `[due:: ]` was already carrying the
+   phase that makes "every other" mean anything.
 
    The nth-weekday form is for a meeting that is monthly but pinned to a
    weekday rather than a day of the month — Game & Animation Production is
@@ -3236,36 +3642,63 @@ function longDate(s){
    `[due:: ]` is the occurrence the card is currently pointing at, and the board
    moves it on once that date has passed. So the tag says how often, the date
    says which one, and neither is derivable from the other. */
-const REPEAT_VAL = /^(~?)(?:([a-z]{3})([1-5])?(?:[-\s]+(\d{1,2}:\d{2}))?|wd(\d{1,2})|(\d{1,2}))$/i;
+const REPEAT_VAL = /^(~?)(?:([a-z]{3})([1-5])?(?:[-\s]+(\d{1,2}:\d{2}))?|wd(\d{1,2})|(\d{1,2}))(?:\/(\d{1,2}))?$/i;
 const REPEAT_DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* Two years either way. Past that a "cycle" is an anniversary, and a date typed
+   once is clearer than a rule nobody will remember the phase of. */
+const MAX_EVERY = 24;
+
+/* How often the base cycle actually comes round: `/2` on a weekly form is
+   fortnightly, `/3` on a monthly one is quarterly. One suffix rather than a form
+   per cadence, because it multiplies every base the grammar already has — a
+   quarterly report on the 15th is `15/3`, a quarterly one on the second Tuesday
+   is `tue2/3`, and neither needed a new idea.
+
+   The phase lives in `[due:: ]`, not in the tag. "Every other Wednesday" is not
+   a fact about Wednesdays, it is a fact about which Wednesday you are on, and
+   the card already carries that — so the interval counts from the current
+   occurrence and `occurrenceAfter` is the only place it applies. A task tagged
+   `/n` with no date yet gets the next plain occurrence of its base cycle, and
+   the interval starts from there. */
+function everyLabel(n, unit){
+  if (n === 1) return '';
+  if (unit === 'week') return n === 2 ? 'fortnightly' : 'every ' + n + ' weeks';
+  return n === 3 ? 'quarterly' : (n === 6 ? 'twice a year' : 'every ' + n + ' months');
+}
 
 function readRepeat(val){
   const m = REPEAT_VAL.exec(String(val || '').trim());
   if (!m) return null;
   const loose = m[1] === '~';
+  const every = m[7] ? +m[7] : 1;
+  if (every < 1 || every > MAX_EVERY) return null;
+  const cyc = u => everyLabel(every, u);
   if (m[5]) {
     const nth = +m[5];
     if (nth < 1 || nth > 23) return null;          // 23 working days is a long month
-    return { kind:'workday', nth, time:'', loose,
-             label:'monthly, ' + ordinal(nth) + ' working day' };
+    return { kind:'workday', nth, time:'', loose, every,
+             label:(cyc('month') || 'monthly') + ', ' + ordinal(nth) + ' working day' };
   }
   if (m[6]) {
     const dom = +m[6];
     if (dom < 1 || dom > 31) return null;
-    return { kind:'monthly', dom, time:'', loose, label:'monthly, ' + ordinal(dom) };
+    return { kind:'monthly', dom, time:'', loose, every,
+             label:(cyc('month') || 'monthly') + ', ' + ordinal(dom) };
   }
   const dow = REPEAT_DAYS.indexOf(m[2].toLowerCase());
   if (dow < 0) return null;
   const time = m[4] || '';
   if (m[3]) {
     const nth = +m[3];
-    return { kind:'monthly-dow', dow, nth, time, loose,
-             label:'monthly, ' + ordinal(nth) + ' ' + DAY_NAMES[dow] +
+    return { kind:'monthly-dow', dow, nth, time, loose, every,
+             label:(cyc('month') || 'monthly') + ', ' + ordinal(nth) + ' ' + DAY_NAMES[dow] +
                    (time ? ' ' + time : '') };
   }
-  return { kind:'weekly', dow, time, loose,
-           label:(loose ? 'weekly, usually ' : 'every ') + DAY_NAMES[dow] +
+  return { kind:'weekly', dow, time, loose, every,
+           label:(every === 1
+                   ? (loose ? 'weekly, usually ' : 'every ')
+                   : cyc('week') + ', ' + (loose ? 'usually ' : '')) + DAY_NAMES[dow] +
                  (time ? ' ' + time : '') };
 }
 /* The nth day in a month matching `test`, or the last match when the month is
@@ -3324,10 +3757,33 @@ function occurrenceFrom(rep, from){
   const last = new Date(y, mo + 1, 0).getDate();
   return new Date(y, mo, Math.min(rep.dom, last));
 }
-/* The occurrence strictly after this one, which is what rolling forward needs. */
+/* The occurrence strictly after this one, which is what rolling forward needs.
+
+   This is where an interval applies, and the only place it does. `occurrenceFrom`
+   answers "the next Wednesday", which needs no phase; this answers "the next one
+   of mine", which is entirely phase, counted from the occurrence handed in. The
+   roll always hands in the card's current date, so the phase is whatever he last
+   set — move the date by hand and the whole series moves with it, which is the
+   behaviour a rebooked fortnightly meeting wants. */
 function occurrenceAfter(rep, date){
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-  return occurrenceFrom(rep, d);
+  const n = rep.every || 1;
+  if (n === 1) {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    return occurrenceFrom(rep, d);
+  }
+  if (rep.kind === 'weekly') {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7 * n);
+    // Zero unless the date was moved onto some other weekday by hand, in which
+    // case this snaps back onto the tagged day rather than drifting on it.
+    d.setDate(d.getDate() + ((rep.dow - d.getDay() + 7) % 7));
+    return d;
+  }
+  // Month overflow is Date's own — month 12 is next January — so n months on is
+  // an addition and nothing else.
+  const y = date.getFullYear(), mo = date.getMonth() + n;
+  if (rep.kind === 'workday') return nthWorkday(y, mo, rep.nth);
+  if (rep.kind === 'monthly-dow') return nthWeekday(y, mo, rep.dow, rep.nth);
+  return new Date(y, mo, Math.min(rep.dom, new Date(y, mo + 1, 0).getDate()));
 }
 
 function quoted(line){
@@ -3454,6 +3910,21 @@ function blockedMessage(items, slugs){
     return src ? src.title : ('#' + slug);
   });
   return 'still waiting on ' + names.join(', ') + ' — finish that first';
+}
+/* Shown at the card, not the header status line — see .toasts above. Stacks
+   if fired more than once before the first clears; each one clears itself. */
+function showToast(msg, kind){
+  const host = $('#toasts');
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  host.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 200);
+  }, 3200);
 }
 function byDue(a, b){
   if (!a.due && !b.due) return 0;
@@ -3836,39 +4307,142 @@ function claudeLink(text){
    three, and keeping them apart is the point — each stays short enough to
    be worth resuming. */
 
-// Feature parked while ai_chat/ is being reworked elsewhere — server.py's
-// AI_CHAT_DIR does not currently resolve to a real module, so /ai-chat/chat.js
-// 404s and the real AIChat is never defined. Falling straight through to
-// AIChat.create() would throw at the top level and stop the rest of this
-// script (loadFile() included) from ever running — the board would sit on
-// the start screen forever with no error shown. This stub keeps every call
-// site working with the feature simply switched off, the same "no engine, no
-// buttons, not a crash" rule server.py already follows.
+// The stub below is the no-engine case, not a parked feature: on this machine
+// server.py's AI_CHAT_DIR resolves to ../ai_chat_engine and /claude.json
+// answers, so the real AIChat loads and the buttons draw. Where that sibling
+// folder is missing — a checkout of this repo on its own, or the board served
+// statically — /ai-chat/chat.js 404s and AIChat is never defined. Falling
+// straight through to AIChat.create() would throw at the top level and stop the
+// rest of this script (loadFile() included) from ever running, and the board
+// would sit on the start screen forever with no error shown. The stub keeps
+// every call site working with the feature simply switched off, the same
+// "no engine, no buttons, not a crash" rule server.py already follows.
+// A session getting filed, a run finishing, or the modal closing can all
+// leave the drawer showing a stale "running" badge or an empty chat list —
+// this is the one place that redraws it. It is also where a prompt run
+// waiting to learn its own session id (see onPromptRunSend below) finds it:
+// whichever row under its key wasn't there a moment ago, stamped before this
+// moves on to the ordinary redraw.
+function onSessionsChanged(index){
+  if (state.pendingPromptRun) {
+    const p = state.pendingPromptRun;
+    const had = new Set((state.chats[p.key] || []).map(r => r.id));
+    const fresh = ((index || {})[p.key] || []).find(r => !had.has(r.id));
+    if (fresh) { notePrompt(p.key, fresh.id, p.raw); state.pendingPromptRun = null; }
+  }
+  state.chats = index || {};
+  if (state.pendingChat) {
+    const want = state.pendingChat;
+    state.pendingChat = '';
+    openChatByKey(want);
+  }
+  if (state.openTask) openDrawer(state.openTask);
+  if (state.view === 'canvas') renderCanvas();
+}
+/* Fired the instant a message leaves the composer, before any reply — the
+   one moment "a prompt was actually run" rather than merely opened can be
+   told apart from "the modal was opened and closed again". See "A prompt is
+   used up by being run" in AI-CANVAS.md for why this has to be on send
+   rather than on the Ask Claude click that opens the modal. */
+function onPromptRunSend(payload){
+  const p = state.pendingPromptRun;
+  if (!p || payload.session || payload.key !== p.key) return;
+  const task = tasksByChatKey()[p.key];
+  if (task) { removeBodyLine(task, p.raw); refreshView(); }
+  // pendingPromptRun stays set, now waiting on onSessionsChanged above to
+  // learn the session id the line's text gets recorded against.
+}
+function onChatChange(){ if (state.openTask) openDrawer(state.openTask); }
+// The status fetch on load is the first time claudeOn() can go from false to
+// true — the Ask Claude button on every prompt only exists once this has
+// answered, so the whole view needs a redraw, not just the drawer.
+function onChatStatusChanged(cfg){
+  state.chatsOn = !!cfg;
+  state.chatsChecked = true;
+  if (state.doc) renderView();
+}
+
 const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   ownerLabel: taskId => { const loc = locate(taskId); return loc ? loc.task.title : ''; },
   // Worth explaining once, on the button that starts a chat, not on every
   // task's Chats section — see the Ask Claude / New chat tooltips.
   readOnlyHelp: '',
-  // A session getting filed, a run finishing, or the modal closing can all
-  // leave the drawer showing a stale "running" badge or an empty chat list —
-  // this is the one place that redraws it.
-  onSessionsChanged: () => { if (state.openTask) openDrawer(state.openTask); },
-  onChange: () => { if (state.openTask) openDrawer(state.openTask); },
-  // The status fetch on load is the first time claudeOn() can go from false
-  // to true — the Ask Claude button on every prompt only exists once this
-  // has answered, so the whole view needs a redraw, not just the drawer.
-  onStatusChanged: () => { if (state.doc) renderView(); },
+  onSessionsChanged, onSend: onPromptRunSend, onChange: onChatChange, onStatusChanged: onChatStatusChanged,
 }) : {
   available: () => false,
   renderSection: () => '',
   newOwnerKey: () => '',
   openNew: () => {},
   openSession: () => {},
-  forget: () => {},
+  forget: () => Promise.resolve(),
+  loadSessions: () => Promise.resolve(),
   loadStatus: () => {},
 };
 
 function claudeOn(){ return chat.available() && !state.locked; }
+
+/* A top-level task by its exact title — the only thing durable enough to
+   name a task from outside todo.md, since t.id is 'a counter reset on every
+   load and would not survive a task moving between two loads. Used by
+   drainAttachQueue() below: /pa-attach can only tell the board which task by
+   what it saw when it ran, and by the time the board next loads, that is
+   what it still has to go on. */
+function findTaskByTitle(title){
+  if (!title || !state.doc) return null;
+  for (const b of state.doc.buckets) for (const ti of b.tiers) for (const t of ti.tasks) {
+    if (t.title === title) return t;
+  }
+  return null;
+}
+
+/* What /pa-attach, or a session picked up from a terminal while the board
+   was closed, left in data/<dataset>/attach-queue.json — see
+   attach_queue_path() in server.py for why the skill cannot write this
+   itself. Called only from loadFile(), after state.locked is confirmed
+   false: this mints a `chat:` key through the ordinary edit path for any
+   task that needs one, which is a write to todo.md and must never run on a
+   demo, a backup preview, or a locked tab.
+
+   An entry whose task cannot be found by title — renamed or deleted since
+   the skill ran — is written back rather than dropped, so nothing queued is
+   silently lost; it simply waits for the next load, in case the rename gets
+   undone or was itself a mistake. */
+async function drainAttachQueue(){
+  if (!chat.available()) return;
+  let items;
+  try {
+    const res = await fetch('/attach-queue.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    items = await res.json();
+  } catch (err) { return; }
+  if (!Array.isArray(items) || !items.length) return;
+
+  const left = [];
+  let filed = 0;
+  for (const item of items) {
+    const task = item && findTaskByTitle(item.title);
+    if (!task || !item.session || !item.cwd) { left.push(item); continue; }
+    const key = chatKeyFor(task, true);
+    try {
+      const res = await fetch('/claude/attach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+        body: JSON.stringify({ owner: key, session: item.session, cwd: item.cwd, title: item.title || '' })
+      });
+      if (res.ok) filed++; else left.push(item);
+    } catch (err) { left.push(item); }
+  }
+  if (!filed) return;
+
+  await fetch('/attach-queue.json', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+    body: JSON.stringify(left)
+  }).catch(() => {});
+  await chat.loadSessions();
+  $('#status').textContent = filed + ' conversation' + (filed === 1 ? '' : 's') +
+    ' attached from ' + (filed === 1 ? 'the terminal' : 'terminal sessions') + ' — save to apply';
+}
 
 /* The task's key, writing one onto the line if this is the first chat on it.
    That marks the list dirty, which is right — a task that has conversations
@@ -3882,55 +4456,726 @@ function chatKeyFor(t, make){
   return t.chat;
 }
 
+/* The task's Chats field, drawn with cvCardHTML — the same card the canvas
+   draws, stacked in a column instead of scattered on a surface. One renderer
+   either way: same markup, same dot, same click, wired below in handleAsk
+   rather than in chat.js's own renderSection, which this host no longer
+   calls. A rule ahead of it marks it as its own section rather than one more
+   field, the same as the two suggestion lists below it — but only when
+   there is something to show: with no chat engine at all, chat.available()
+   is false and a bare rule with nothing under it would be a dead end. */
 function chatSection(t){
-  const html = chat.renderSection({ ownerId: t.id, ownerKey: t.chat, label: 'Chats',
-    collapsible: true, collapsed: sectionCollapsed('chats'), collapseKey: 'chats' });
-  // A rule ahead of it marks it as its own section rather than one more
-  // field, the same as the two suggestion lists below it — but only when
-  // there is one: chat.renderSection() answers '' with no CLI behind it, and
-  // a bare rule with nothing under it would be a dead end.
-  return html ? '<hr class="dsep">' + html : '';
+  if (!chat.available()) return '';
+  const key = t.chat || '';
+  // state.chats rather than chat.sessionsFor(): the board's own cached copy
+  // of the sessions index, kept current by onSessionsChanged, is what
+  // canvasModel() reads too — sessionsFor() answers from chat.js's own
+  // index, which only fills in once loadSessions() has actually run.
+  const rows = (key && state.chats[key] || [])
+    .slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
+  const cards = rows.map(row => cvCardHTML(row, key, t.title, false)).join('');
+  const labelHTML = 'AI processes' + (rows.length ? ' <em class="aic-sublabel">' + rows.length + '</em>' : '');
+  const body =
+    '<div class="cvstack">' + (cards || '<p class="aic-none">No conversations yet.</p>') + '</div>' +
+    '<div class="aic-actions">' +
+      '<button type="button" class="aic-addsub" data-owner="' + esc(t.id) + '">+ New chat</button>' +
+      '<button type="button" class="aic-addsub aic-attach" data-owner="' + esc(t.id) +
+        '">Attach a session…</button>' +
+    '</div>';
+  const html = '<details class="aic-field aic-collapse"' + (sectionCollapsed('chats') ? '' : ' open') +
+    ' data-collapse="chats">' + '<summary>' + labelHTML + '</summary>' + body + '</details>';
+  return '<hr class="dsep">' + html;
+}
+
+/* ---- Attaching a session that started elsewhere ----
+   The other half of AI-CANVAS.md's "Attaching a session that started in the
+   terminal": /pa-attach handles the case where you are already in the
+   conversation; this is the case where you are already looking at the task
+   instead, and want to reach for a conversation Claude Code has on disk but
+   this board has never filed.
+
+   No queue needed here — unlike /pa-attach, which cannot touch todo.md at
+   all, this runs inside the board that is the one thing allowed to write it,
+   so chatKeyFor() mints the key and /claude/attach files the session in the
+   same click. */
+async function openAttachPicker(taskId){
+  const loc = locate(taskId);
+  if (!loc || !claudeOn()) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'attachpick-wrap';
+  overlay.innerHTML = '<div class="attachpick" role="dialog" aria-label="Attach a session">' +
+    '<header>Attach a session' +
+      '<button type="button" class="attachpick-close" aria-label="Close">×</button>' +
+    '</header>' +
+    '<div class="attachpick-body"><p class="aic-none">Loading…</p></div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+  overlay.querySelector('.attachpick-close').onclick = close;
+
+  let sessions = [];
+  try {
+    const res = await fetch('/claude/attachable.json?t=' + Date.now(), { cache: 'no-store' });
+    sessions = res.ok ? ((await res.json()).sessions || []) : [];
+  } catch (err) { sessions = []; }
+  if (!overlay.isConnected) return;   // closed while the list was loading
+
+  const body = overlay.querySelector('.attachpick-body');
+  if (!sessions.length) {
+    body.innerHTML = '<p class="aic-none">Nothing on disk that isn’t filed against a task already.</p>';
+    return;
+  }
+  body.innerHTML = sessions.map(s =>
+    '<button type="button" class="attachpick-row" data-session="' + esc(s.id) + '"' +
+      ' data-cwd="' + esc(s.cwd) + '" data-title="' + esc(s.title || '') + '">' +
+      '<span class="attachpick-title">' + esc(s.title || 'Untitled conversation') + '</span>' +
+      '<span class="attachpick-meta">' + esc(cvWhen(s.updated)) + ' · ' + esc(s.cwd) + '</span>' +
+    '</button>'
+  ).join('');
+  body.querySelectorAll('.attachpick-row').forEach(row => {
+    row.onclick = async () => {
+      body.querySelectorAll('.attachpick-row').forEach(r => r.disabled = true);
+      const key = chatKeyFor(loc.task, true);
+      try {
+        await fetch('/claude/attach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+          body: JSON.stringify({
+            owner: key, session: row.dataset.session,
+            cwd: row.dataset.cwd, title: row.dataset.title
+          })
+        });
+      } catch (err) { /* nothing to do — the drawer just won't show it */ }
+      close();
+      await chat.loadSessions();
+      refreshView();
+      openDrawer(taskId);
+    };
+  });
 }
 
 /* A prompt written on the task starts its own conversation, seeded with the
    prompt but not sent — most of them still have a [path] to fill in, and one
-   that fired on click would send the placeholder. */
-function askFromPrompt(taskId, text){
+   that fired on click would send the placeholder.
+
+   raw is the exact markdown line the prompt came from, the same text a
+   manual Dismiss would remove. Opening the modal does not touch it — see "A
+   prompt is used up by being run" in AI-CANVAS.md — it only marks this as
+   the run to watch for: if the first message actually sent on this owner
+   key matches, onSend above deletes the line, and onSessionsChanged records
+   the prompt against whatever session id that send turns out to create. */
+function askFromPrompt(taskId, text, raw){
   const loc = locate(taskId);
   if (!loc) return;
   const key = chatKeyFor(loc.task, true);
+  state.pendingPromptRun = raw ? { key, raw } : null;
   refreshView();
   chat.openNew(taskId, key, text);
+}
+
+// The task's own title and description, so a fresh chat opens with something
+// to work from rather than a blank box — seeded the same unsent way
+// askFromPrompt() seeds an authored prompt.
+function taskDescription(t){
+  const notes = dedent(bodyParts(t).notes);
+  return notes ? t.title + '\n\n' + notes : t.title;
 }
 
 function newChat(taskId){
   const loc = locate(taskId);
   if (!loc) return;
   const key = chatKeyFor(loc.task, true);
+  // Not seeded from a suggestion, so nothing here is "a prompt run" — a
+  // stale pending one from a modal opened and abandoned must not have its
+  // line deleted by a send that has nothing to do with it.
+  state.pendingPromptRun = null;
   refreshView();
-  chat.openNew(taskId, key, '');
+  chat.openNew(taskId, key, taskDescription(loc.task));
 }
 
 /* The list on a task and the prompt's "Ask Claude" button both land here,
-   sharing the listener the drawer and board already use for everything else. */
+   sharing the listener the drawer and board already use for everything else.
+   The card itself — .cvbody to open, .cvclose to take it off the board — is
+   the same markup the canvas draws and wires through wireCanvas(); openCard()
+   below is shared between the two rather than written twice. */
 function handleAsk(e){
   const ask = e.target.closest('.askclaude');
-  if (ask) { askFromPrompt(ask.dataset.task, ask.dataset.ask || ''); return; }
-  const open = e.target.closest('.aic-open');
-  if (open) { chat.openSession(open.dataset.owner, open.dataset.key, open.dataset.session); return; }
-  const forget = e.target.closest('.aic-forget');
-  if (forget) { chat.forget(forget.dataset.key, forget.dataset.session); return; }
+  if (ask) { askFromPrompt(ask.dataset.task, ask.dataset.ask || '', ask.dataset.raw || ''); return; }
+  const body = e.target.closest('.cvbody');
+  if (body) { openCard(body); return; }
+  const close = e.target.closest('.cvclose');
+  if (close) { closeCard(close.dataset.owner, close.dataset.session); return; }
   const fresh = e.target.closest('.aic-addsub');
-  if (fresh) newChat(fresh.dataset.owner);
+  if (fresh && !fresh.classList.contains('aic-attach')) { newChat(fresh.dataset.owner); return; }
+  const attach = e.target.closest('.aic-attach');
+  if (attach) openAttachPicker(attach.dataset.owner);
 }
 
 
+
+/* =========================================================================
+   The canvas — conversations with Claude, grouped by the task they belong to.
+
+   Two things make this different from the Electron canvas next door, and both
+   come from what this board already is:
+
+   A group here is a task, not a project invented for the purpose. Claude Code
+   has no idea what a piece of work is, so ai_canvas had to make projects up
+   and store them. This board has had tasks all along, with ids that survive a
+   rename, a reorder and a move between buckets, and the `chat:` key on a task
+   line is already how conversations are filed against it. So the canvas groups
+   by something that exists rather than keeping a second grouping beside it.
+
+   And nothing here starts a session. This is a view of filing: which
+   conversations are open and what work each belongs to. The one thing it
+   writes to todo.md is a `chat:` key, minted when a card is dropped onto a
+   task that has never had one, which is the same write the drawer already
+   makes when you start a chat from a task.
+
+   The arithmetic — where a card sits, the box around a group, the box's
+   refusal to shrink below what is in it — is cards.js in the chat engine,
+   shared with ai_canvas rather than written twice.
+   ========================================================================= */
+
+/* A loose conversation belongs to no task. Its owner key is minted with this
+   prefix so it is recognisable on sight in sessions.json, and so nothing ever
+   mistakes it for a task's key. The engine's OWNER_KEY pattern allows letters,
+   digits, dash and underscore, which is why this is a dash rather than the
+   colon that would read better. */
+const LOOSE_PREFIX = 'canvas-';
+function isLoose(key){ return String(key || '').startsWith(LOOSE_PREFIX); }
+
+/* Every task on the list that carries a chat key, by key. Rebuilt per draw
+   rather than cached: a task can gain a key at any point, and a stale map is
+   how a card ends up in the wrong box. */
+function tasksByChatKey(){
+  const map = {};
+  if (!state.doc) return map;
+  state.doc.buckets.forEach(b => b.tiers.forEach(ti => ti.tasks.forEach(t => {
+    if (t.chat) map[t.chat] = t;
+  })));
+  return map;
+}
+
+/* The canvas model: one entry per owner that has conversations, each either a
+   task with a box or a loose card with none.
+
+   An owner key pointing at no task is loose. That covers two cases and treats
+   them the same on purpose: a conversation started loose, and one whose task
+   has since been archived out of todo.md. Both are conversations with no work
+   attached, the transcripts survive either way, and re-filing one is the same
+   gesture. */
+function canvasModel(){
+  const byKey = tasksByChatKey();
+  const groups = [];
+  const loose = [];
+  Object.keys(state.chats || {}).forEach(key => {
+    const rows = (state.chats[key] || []).slice()
+      .sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
+    if (!rows.length) return;
+    const task = byKey[key];
+    if (task) groups.push({ key, task, rows });
+    else rows.forEach(row => loose.push({ key, row }));
+  });
+  groups.sort((a, b) => a.task.title.localeCompare(b.task.title));
+  return { groups, loose };
+}
+
+/* ---- The geometry store ----
+   Read once on load, written back debounced. A card the store has never seen
+   is laid out where the model puts it and written down on the next save, so
+   an arrangement builds itself the first time the canvas is opened rather
+   than needing every card placed by hand. */
+async function loadCanvasStore(){
+  if (state.canvasLoaded) return;
+  state.canvasLoaded = true;
+  try {
+    const res = await fetch('/canvas.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    state.canvas = {
+      version: 1,
+      cards: (data && data.cards) || {},
+      boxes: (data && data.boxes) || {},
+      viewed: (data && data.viewed) || {}
+    };
+  } catch (err) { /* no helper, no stored layout — the canvas lays itself out */ }
+}
+
+/* Opening a card is what "read" means — the same rule sessionPool.ts uses
+   in ai_canvas, just kept here instead: this board has no live process to
+   ask, so the unread flag is only ever a comparison against when the card
+   was last opened, not something a running session reports on its own. */
+function markCanvasViewed(id){
+  state.canvas.viewed = state.canvas.viewed || {};
+  state.canvas.viewed[id] = new Date().toISOString();
+  saveCanvas();
+  renderCanvas();
+}
+
+let canvasSaveTimer = null;
+function saveCanvas(){
+  // A locked tab cannot write anything, layout included. Same guard the file
+  // save uses, and for the same reason — a backup preview is a look at
+  // something that was, not a thing to rearrange.
+  if (state.locked) return;
+  clearTimeout(canvasSaveTimer);
+  canvasSaveTimer = setTimeout(() => {
+    // Checked again on the way out, not just on the way in. Half a second is
+    // long enough to drag a card and then open a backup preview, and a write
+    // scheduled by the live tab should not land after the tab has been locked.
+    if (state.locked) return;
+    fetch('/canvas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+      body: JSON.stringify(state.canvas)
+    }).catch(() => { /* the layout is not worth an error message */ });
+  }, 500);
+}
+
+/* Where a card sits, from the store or from a first-time layout. Cards are
+   dealt out inside their group's box, groups down the canvas in the order
+   the model put them, and loose cards in a column of their own on the left. */
+function layoutCanvas(model){
+  const C = window.AICards;
+  const cards = {};          /* session id -> geometry */
+  const boxes = {};          /* owner key   -> rect */
+  const stored = state.canvas.cards || {};
+  const GAP = C ? C.LAYOUT.gap : 20;
+  const CARD_W = 280, CARD_H = 108;
+
+  let y = 60;
+  model.groups.forEach(group => {
+    let x = 260;
+    group.rows.forEach(row => {
+      const held = stored[row.id];
+      cards[row.id] = held
+        ? { x: held.x, y: held.y, width: CARD_W, height: CARD_H, z: held.z || 1 }
+        : { x: x, y: y, width: CARD_W, height: CARD_H, z: 1 };
+      x += CARD_W + GAP;
+    });
+    const members = group.rows.map(r => ({ id: r.id, geometry: cards[r.id] }));
+    const held = state.canvas.boxes[group.key];
+    boxes[group.key] = C
+      ? C.containBox(held, members, {}, { fallbackHeight: CARD_H })
+      : held || null;
+    // Only advance the default row when this group used one. A group whose
+    // cards were all placed by hand should not push the next group down the
+    // canvas to make room for a row it never occupied.
+    if (group.rows.some(r => !stored[r.id])) y += CARD_H + 90;
+  });
+
+  let ly = y + 20;
+  model.loose.forEach(item => {
+    const held = stored[item.row.id];
+    cards[item.row.id] = held
+      ? { x: held.x, y: held.y, width: CARD_W, height: CARD_H, z: held.z || 1 }
+      : { x: 40, y: ly, width: CARD_W, height: CARD_H, z: 1 };
+    if (!held) ly += CARD_H + GAP;
+  });
+
+  return { cards, boxes };
+}
+
+/* When a conversation last did anything, in the words the drawer already
+   uses for the same rows. */
+function cvWhen(iso){
+  if (!iso) return '';
+  const then = new Date(iso);
+  if (isNaN(then)) return '';
+  const days = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return days + ' days ago';
+  return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+function cvCardHTML(row, ownerKey, ownerLabel, isLooseCard){
+  // Unread since the canvas last saw it opened — state.canvas.viewed is
+  // furniture, same as position, so it survives a reload. A row with no
+  // `updated` (shouldn't happen) never lights up rather than always doing so.
+  const viewedAt = (state.canvas.viewed || {})[row.id];
+  const unread = !!row.updated && (!viewedAt || row.updated > viewedAt);
+  return '<article class="cvcard" data-session="' + esc(row.id) + '"' +
+      ' data-owner="' + esc(ownerKey) + '">' +
+    '<div class="cvgrip" title="Drag to move. Drop on a task to file it there.">⠿</div>' +
+    '<button type="button" class="cvclose" data-session="' + esc(row.id) + '"' +
+      ' data-owner="' + esc(ownerKey) + '"' +
+      ' title="Take this conversation off the board. The transcript stays on disk.">×</button>' +
+    '<button type="button" class="cvbody" data-session="' + esc(row.id) + '"' +
+        ' data-owner="' + esc(ownerKey) + '">' +
+      '<span class="cvtitle">' + esc(row.title || 'Untitled conversation') +
+        (unread ? '<i class="unread-dot" title="New output since you last opened it"></i>' : '') +
+      '</span>' +
+      '<span class="cvowner' + (isLooseCard ? ' loose' : '') + '">' +
+        esc(isLooseCard ? 'Not filed against a task' : ownerLabel) + '</span>' +
+      '<span class="cvmeta">' + esc(cvWhen(row.updated)) +
+        (row.mode === 'work' ? '<em class="cvmode">can write</em>' : '') +
+      '</span>' +
+    '</button>' +
+  '</article>';
+}
+
+function renderCanvas(){
+  const host = $('#canvas');
+  if (!host) return;
+  if (!state.canvasLoaded) { loadCanvasStore().then(renderCanvas); }
+
+  const model = canvasModel();
+  const placed = layoutCanvas(model);
+
+  if (!model.groups.length && !model.loose.length) {
+    host.innerHTML = '<div class="cvsurface"><div class="cvempty">' +
+      '<h2>No conversations yet</h2>' +
+      '<p>Every chat you start from a task shows up here, in a box named after ' +
+      'that task. Drag a card onto a different box to re-file it, or out of ' +
+      'every box to leave it unattached.</p>' +
+      '<p>Start one from the AI processes section of any task.</p>' +
+      '</div></div>';
+    return;
+  }
+
+  // Boxes first so they sit behind their cards. Both are absolutely
+  // positioned siblings rather than nested, because a card has to be
+  // draggable out of its box and nesting would make that a reparent
+  // mid-drag rather than a move.
+  let html = '<div class="cvsurface">';
+  model.groups.forEach(group => {
+    const rect = placed.boxes[group.key];
+    if (!rect) return;
+    const loc = locate(group.task.id);
+    const bc = loc ? BUCKET_COLOR[loc.bi % BUCKET_COLOR.length] : 'var(--ink-faint)';
+    html += '<section class="cvbox" data-box="' + esc(group.key) + '"' +
+        ' style="left:' + rect.x + 'px; top:' + rect.y + 'px;' +
+        ' width:' + rect.width + 'px; height:' + rect.height + 'px">' +
+      '<header class="cvboxbar" data-box="' + esc(group.key) + '">' +
+        '<i class="bkdot" style="background:' + bc + '"' +
+          ' title="' + esc(loc ? loc.bucket.name : '') + '"></i>' +
+        '<button type="button" class="cvopen" data-task="' + esc(group.task.id) + '"' +
+          ' title="Open this task">' + esc(group.task.title) + '</button>' +
+        '<span class="cvcount">' + group.rows.length + '</span>' +
+      '</header>' +
+      '<div class="cvgrow" data-box="' + esc(group.key) + '"' +
+        ' title="Drag to resize. It will not go smaller than the cards in it."></div>' +
+    '</section>';
+  });
+
+  model.groups.forEach(group => {
+    group.rows.forEach(row => {
+      const g = placed.cards[row.id];
+      html += cvCardHTML(row, group.key, group.task.title, false)
+        .replace('<article class="cvcard"',
+          '<article class="cvcard" style="left:' + g.x + 'px; top:' + g.y + 'px; z-index:' + (10 + g.z) + '"');
+    });
+  });
+  model.loose.forEach(item => {
+    const g = placed.cards[item.row.id];
+    html += cvCardHTML(item.row, item.key, '', true)
+      .replace('<article class="cvcard"',
+        '<article class="cvcard" style="left:' + g.x + 'px; top:' + g.y + 'px; z-index:' + (10 + g.z) + '"');
+  });
+  html += '</div>';
+  host.innerHTML = html;
+
+  // Remember what the layout worked out, so a canvas opened once and never
+  // touched still comes back the same way rather than being re-derived from a
+  // model that may have gained a card since.
+  Object.keys(placed.cards).forEach(id => {
+    const g = placed.cards[id];
+    state.canvas.cards[id] = { x: g.x, y: g.y, z: g.z };
+  });
+  Object.keys(placed.boxes).forEach(key => {
+    if (placed.boxes[key]) state.canvas.boxes[key] = placed.boxes[key];
+  });
+
+  wireCanvas(host);
+}
+
+
+/* ---- Moving things about ----
+   One pointer handler on the canvas rather than one per card. It is cheaper
+   with a few dozen cards on screen, and it keeps a drag working when the
+   cursor outruns the card — the same call ai_canvas made, for the same
+   reason.
+
+   A card drags by the strip along its top and opens by its body, which is the
+   bargain a window title bar makes: the bar belongs to the furniture, the body
+   belongs to the content. Without that split there is no gesture left for
+   opening a card, since a card that moves when you press it cannot also be a
+   button. */
+let cvDrag = null;
+
+/* Opening a card, from wherever it was clicked — the canvas, wired below, or
+   the drawer's own stack, wired through handleAsk instead since that markup
+   sits inside #dbody rather than #canvas. */
+function openCard(el){
+  const owner = el.dataset.owner, id = el.dataset.session;
+  const task = tasksByChatKey()[owner];
+  markCanvasViewed(id);
+  chat.openSession(task ? task.id : owner, owner, id);
+}
+
+function wireCanvas(host){
+  host.querySelectorAll('.cvbody').forEach(el => { el.onclick = () => openCard(el); });
+  host.querySelectorAll('.cvopen').forEach(el => {
+    el.onclick = e => { e.stopPropagation(); openDrawer(el.dataset.task); };
+  });
+  host.querySelectorAll('.cvclose').forEach(el => {
+    el.onclick = e => { e.stopPropagation(); closeCard(el.dataset.owner, el.dataset.session); };
+  });
+
+  // A locked tab can look and open, and cannot rearrange — the same line
+  // every other view draws.
+  if (state.locked) return;
+
+  host.onpointerdown = e => {
+    const grip = e.target.closest('.cvgrip');
+    const bar = e.target.closest('.cvboxbar');
+    const grow = e.target.closest('.cvgrow');
+    if (!grip && !bar && !grow) return;
+    if (e.target.closest('.cvopen') || e.target.closest('.cvclose')) return;
+    e.preventDefault();
+
+    if (grow) {
+      const box = grow.closest('.cvbox');
+      cvDrag = {
+        kind: 'resize', el: box, key: box.dataset.box,
+        dx: e.clientX, dy: e.clientY,
+        ow: box.offsetWidth, oh: box.offsetHeight
+      };
+    } else if (grip) {
+      const card = grip.closest('.cvcard');
+      cvDrag = {
+        kind: 'card', el: card, id: card.dataset.session, from: card.dataset.owner,
+        dx: e.clientX, dy: e.clientY,
+        ox: parseFloat(card.style.left) || 0, oy: parseFloat(card.style.top) || 0
+      };
+      card.classList.add('dragging');
+      card.style.zIndex = 999;
+    } else {
+      const box = bar.closest('.cvbox');
+      const key = box.dataset.box;
+      const cards = [...host.querySelectorAll('.cvcard')]
+        .filter(c => c.dataset.owner === key)
+        .map(c => ({ el: c, ox: parseFloat(c.style.left) || 0, oy: parseFloat(c.style.top) || 0 }));
+      cvDrag = {
+        kind: 'box', el: box, key: key, cards: cards,
+        dx: e.clientX, dy: e.clientY,
+        ox: parseFloat(box.style.left) || 0, oy: parseFloat(box.style.top) || 0
+      };
+    }
+    host.setPointerCapture(e.pointerId);
+  };
+
+  host.onpointermove = e => {
+    if (!cvDrag) return;
+    const mx = e.clientX - cvDrag.dx, my = e.clientY - cvDrag.dy;
+    if (cvDrag.kind === 'resize') {
+      // Live, the box follows the corner freely — including inwards past its
+      // own cards, because a gesture that stops dead under your hand feels
+      // broken. The floor is applied on release, by cards.js, which is where
+      // it belongs: dragging inwards is allowed and simply has no effect
+      // below what the box contains.
+      cvDrag.el.style.width = Math.max(120, cvDrag.ow + mx) + 'px';
+      cvDrag.el.style.height = Math.max(60, cvDrag.oh + my) + 'px';
+      return;
+    }
+    cvDrag.el.style.left = (cvDrag.ox + mx) + 'px';
+    cvDrag.el.style.top = (cvDrag.oy + my) + 'px';
+    if (cvDrag.kind === 'box') {
+      cvDrag.cards.forEach(c => {
+        c.el.style.left = (c.ox + mx) + 'px';
+        c.el.style.top = (c.oy + my) + 'px';
+      });
+    } else {
+      // Light up the box the card would land in, so dropping is not a guess.
+      const over = cvBoxUnder(cvDrag.el);
+      host.querySelectorAll('.cvbox').forEach(b => {
+        b.classList.toggle('over', !!over && b.dataset.box === over && over !== cvDrag.from);
+      });
+    }
+  };
+
+  host.onpointerup = () => {
+    if (!cvDrag) return;
+    const drag = cvDrag;
+    cvDrag = null;
+    host.querySelectorAll('.cvbox.over').forEach(b => b.classList.remove('over'));
+
+    if (drag.kind === 'resize') {
+      const held = state.canvas.boxes[drag.key] || { x: 0, y: 0 };
+      const members = [...host.querySelectorAll('.cvcard')]
+        .filter(c => c.dataset.owner === drag.key)
+        .map(c => ({
+          id: c.dataset.session,
+          geometry: {
+            x: parseFloat(c.style.left) || 0, y: parseFloat(c.style.top) || 0,
+            width: c.offsetWidth, height: c.offsetHeight, z: 1
+          }
+        }));
+      const asked = {
+        x: held.x, y: held.y,
+        width: parseFloat(drag.el.style.width) || drag.ow,
+        height: parseFloat(drag.el.style.height) || drag.oh
+      };
+      // The same floor the Electron canvas uses, from the same function: a box
+      // grows to cover its cards and never shrinks below them.
+      const rect = window.AICards
+        ? window.AICards.containBox(asked, members, {}) : asked;
+      state.canvas.boxes[drag.key] = rect;
+      drag.el.style.left = rect.x + 'px';
+      drag.el.style.top = rect.y + 'px';
+      drag.el.style.width = rect.width + 'px';
+      drag.el.style.height = rect.height + 'px';
+      saveCanvas();
+      return;
+    }
+
+    if (drag.kind === 'box') {
+      state.canvas.boxes[drag.key] = Object.assign({}, state.canvas.boxes[drag.key], {
+        x: parseFloat(drag.el.style.left) || 0,
+        y: parseFloat(drag.el.style.top) || 0
+      });
+      drag.cards.forEach(c => cvRecord(c.el));
+      saveCanvas();
+      return;
+    }
+
+    drag.el.classList.remove('dragging');
+    drag.el.style.zIndex = '';
+    cvRecord(drag.el);
+    saveCanvas();
+
+    const landed = cvBoxUnder(drag.el);
+    if (landed === drag.from) return;
+    if (landed) return void adoptCard(drag.id, drag.from, landed);
+    // Dragged clear of every box. A card that was in one is being taken out
+    // of it deliberately; one that was already loose has simply been moved.
+    if (!isLoose(drag.from)) void releaseCard(drag.id, drag.from);
+  };
+}
+
+/* Which box a card is sitting on, by its own centre rather than by overlap —
+   a card is wider than the gap between two boxes, so any test based on
+   touching would find two of them. */
+function cvBoxUnder(cardEl){
+  const cx = (parseFloat(cardEl.style.left) || 0) + cardEl.offsetWidth / 2;
+  const cy = (parseFloat(cardEl.style.top) || 0) + cardEl.offsetHeight / 2;
+  const boxes = state.canvas.boxes || {};
+  const hit = Object.keys(boxes).filter(key => {
+    const r = boxes[key];
+    return r && cx >= r.x && cx <= r.x + r.width && cy >= r.y && cy <= r.y + r.height;
+  });
+  // Boxes should not overlap, but if two do, the smaller one is the one the
+  // eye reads as containing the card.
+  hit.sort((a, b) => (boxes[a].width * boxes[a].height) - (boxes[b].width * boxes[b].height));
+  return hit[0] || null;
+}
+
+function cvRecord(cardEl){
+  const id = cardEl.dataset.session;
+  const held = state.canvas.cards[id] || {};
+  state.canvas.cards[id] = {
+    x: parseFloat(cardEl.style.left) || 0,
+    y: parseFloat(cardEl.style.top) || 0,
+    z: held.z || 1
+  };
+}
+
+/* ---- Filing a card by dropping it ----
+   The third way to file a conversation, alongside starting one from a task and
+   attaching one from the terminal. All three end in the same place: a row in
+   sessions.json under the task's key.
+
+   The one write to todo.md in the whole canvas is here — a task that has never
+   had a conversation gets a `chat:` key minted on its line, exactly as
+   starting a chat from its drawer would. It goes through markDirty and the
+   ordinary autosave rather than round the side of it. */
+async function adoptCard(sessionId, fromKey, toKey){
+  const task = tasksByChatKey()[toKey];
+  if (!task) return;
+  await cvAssign(fromKey, sessionId, toKey);
+}
+
+/* Taking a card out of every box. The conversation keeps its transcript and
+   its history and stops being filed against the work — which is what you want
+   when it wandered off the task it started on. It gets a loose key of its own
+   rather than being left under the task's, so the box it came out of stops
+   counting it. */
+async function releaseCard(sessionId, fromKey){
+  await cvAssign(fromKey, sessionId, LOOSE_PREFIX + chat.newOwnerKey());
+}
+
+/* ---- Taking a conversation off the board ----
+   The same thing the × on a drawer row does, and worth being exact about what
+   it is: the row leaves sessions.json, so the board stops listing the
+   conversation, and Claude Code's transcript is left exactly where it is. The
+   conversation is not deleted, it is unfiled — `claude --resume <id>` still
+   opens it, and Claude Desktop still imports it.
+
+   Which is why the wording asks about the board rather than about the
+   conversation. "Delete this chat?" would be a promise this cannot keep: the
+   file belongs to Claude Code and nothing here should be reaching into it.
+
+   It is still a confirm. Nothing on the board undoes it, and putting a
+   conversation back means finding the id again. */
+async function closeCard(ownerKey, sessionId){
+  const rows = state.chats[ownerKey] || [];
+  const row = rows.find(r => r.id === sessionId);
+  const label = (row && row.title) || 'this conversation';
+  if (!confirm('Take “' + label + '” off the board?\n\n' +
+               'It stops being listed here. The transcript stays on disk, so ' +
+               'the conversation can still be resumed in Claude Code or opened ' +
+               'in Claude Desktop.')) return;
+
+  await chat.forget(ownerKey, sessionId);
+  // Its place on the canvas goes with it. Leaving the geometry behind would
+  // quietly re-place the card at its old spot if the same session were ever
+  // filed again, which is a surprise nobody asked for.
+  delete state.canvas.cards[sessionId];
+  delete state.canvas.viewed[sessionId];
+  saveCanvas();
+  await chat.loadSessions();
+  renderCanvas();
+}
+
+/* The one write onSend's line-deletion above cannot make itself: by the time
+   a run's session id exists, the send that started it is long past. Fire and
+   forget, the same as saveCanvas() — a session that never gets its prompt
+   recorded (server unreachable, tab closed mid-run) has simply lost a nicety,
+   not the conversation, which is why nothing here waits on or retries it. */
+function notePrompt(ownerKey, sessionId, raw){
+  fetch('/claude/note', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+    body: JSON.stringify({ owner: ownerKey, session: sessionId, prompt: raw })
+  }).catch(() => {});
+}
+
+async function cvAssign(fromKey, sessionId, toKey){
+  try {
+    const res = await fetch('/claude/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+      body: JSON.stringify({ owner: fromKey, session: sessionId, to: toKey })
+    });
+    if (!res.ok) return;
+  } catch (err) { return; }
+  await chat.loadSessions();
+  renderCanvas();
+}
+
 /* The prompt's own row. Ask starts a conversation on the task; the link is
    still there for the times the web app is what you wanted. */
-function claudeActions(text, taskId){
+function claudeActions(text, taskId, raw){
   if (!claudeOn() || !taskId) return claudeLink(text);
   return '<button type="button" class="askclaude" data-task="' + esc(taskId) + '"' +
     ' data-ask="' + esc(text) + '"' +
+    (raw ? ' data-raw="' + esc(raw) + '"' : '') +
     ' title="Starts a chat on this task with the prompt ready to send, running in ' +
     esc(chat.home()) + '">Ask Claude</button>' + claudeLink(text);
 }
@@ -4031,7 +5276,9 @@ function dismissBtn(raw, descRaw){
    dismissing on, so a caller with nowhere to persist a removal just omits it. */
 function messageHTML(text, opts){
   opts = opts || {};
-  const extra = (opts.claude ? claudeActions(text, opts.task) : '') +
+  // opts.dismiss is already the exact raw line, when there is one — the same
+  // text a manual Dismiss removes is what "used up by being run" removes.
+  const extra = (opts.claude ? claudeActions(text, opts.task, opts.dismiss) : '') +
     (opts.dismiss ? dismissBtn(opts.dismiss) : '');
   return '<div class="msg"><div class="msgtext">' +
       (opts.where ? '<em class="suggwhere">for: ' + esc(opts.where) + '</em>' : '') +
@@ -4160,19 +5407,29 @@ function contextSection(){
 /* Four tabs. Each reference section is generated from the tags on the tasks,
    so nothing here can name a task that is not on the board. */
 function viewDefs(){
-  return [
+  const defs = [
     { id:'overview', label:'Overview' },
     { id:'board',    label:'Board' },
     { id:'matrix',   label:'Matrix' },
     { id:'timeline', label:'Timeline' },
     { id:'reports',  label:'Reports' }
   ];
+  // Canvas only exists where there is an engine behind it. Same rule the Ask
+  // Claude buttons follow: no CLI, no helper, or a host serving these files
+  // statically, and the tab is simply not there rather than being there and
+  // empty. It sits next to Board because it is the other spatial view.
+  if (state.chatsOn && !state.locked) defs.splice(2, 0, { id:'canvas', label:'AI processes' });
+  return defs;
 }
 /* Backups isn't a view of the board, it's a data operation — see the Backups
    button in the header's data menu — so it sits outside viewDefs() and its
    tabs, but it still needs a #backups URL and a renderView() case of its own. */
 function isKnownView(id){
-  return id === 'backups' || viewDefs().some(d => d.id === id);
+  // 'canvas' is listed by hand rather than read off viewDefs(), which only
+  // offers it once the engine has answered. A link is read before that, and a
+  // refresh onto #canvas should land on the canvas rather than falling back to
+  // the board for the half-second it takes /claude.json to reply.
+  return id === 'backups' || id === 'canvas' || viewDefs().some(d => d.id === id);
 }
 
 /* =========================================================================
@@ -4203,7 +5460,12 @@ const REPORT_WINDOWS = [
   { id:'15',   label:'Past 15 days', days:15 },
   { id:'30',   label:'Past 30 days', days:30 },
   { id:'60',   label:'Past 60 days', days:60 },
-  { id:'90',   label:'Past 90 days', days:90 }
+  { id:'90',   label:'Past 90 days', days:90 },
+  /* No window at all: everything the file and the archive between them still
+     remember. Last in the list because it is the one that stops answering "how
+     am I doing lately" and starts answering "how much is there", which is a
+     different question and a slower one — it always reads the archive. */
+  { id:'all',  label:'All' }
 ];
 const REPORT_WINDOW_KEY = 'todo-board-report-window';
 function readReportWindow(){
@@ -4222,6 +5484,7 @@ function setReportWindow(id){
   return true;
 }
 function reportWindowStart(){
+  if (reportWindow === 'all') return new Date(0);
   if (reportWindow === 'week') {
     const dow = (today().getDay() + 6) % 7;   // Monday = 0
     return new Date(today() - dow * 86400000);
@@ -4232,12 +5495,28 @@ function reportWindowStart(){
 /* A function rather than a const, for two reasons: it depends on the picker
    above, and ARCHIVE_DAYS is declared further down the file, so a const
    reading either one up here would be evaluated before they exist. */
-function reportDays(){ return Math.round((today() - reportWindowStart()) / 86400000); }
+function reportDays(){
+  /* Infinity rather than a large number, so every `age > days` comparison down
+     the file lets everything through without anyone having to pick a ceiling —
+     and so `> ARCHIVE_DAYS` is true, which is what pulls the archive in. */
+  if (reportWindow === 'all') return Infinity;
+  return Math.round((today() - reportWindowStart()) / 86400000);
+}
 /* "This week" reads oddly re-said as "the last 3 days" on a Wednesday, so the
    two kinds of window get their own phrasing everywhere the count is put into
    a sentence. */
 function reportWindowPhrase(){
+  if (reportWindow === 'all') return 'at any point';
   return reportWindow === 'week' ? 'this week' : 'in the last ' + reportDays() + ' days';
+}
+/* What the total calls its own period. A bare noun phrase, not the sentence
+   fragment above: it is set off by a middot rather than run into the words
+   around it, because no single preposition works for "this week", "the last 30
+   days" and "all time" at once. */
+function reportWindowLabel(){
+  if (reportWindow === 'all') return 'all time';
+  if (reportWindow === 'week') return 'this week';
+  return 'the last ' + reportDays() + ' days';
 }
 
 function reportDefs(){
@@ -4413,7 +5692,7 @@ function completedByCategoryReport(){
   return '<div class="total"><span class="totaln">' + total + '</span>' +
       '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
       state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
-      '</span></div>' +
+      ' <span class="totalw">' + esc(reportWindowLabel()) + '</span></span></div>' +
     (total ? rows.map(rowHTML).join('')
            : '<div class="empty">Nothing has been ticked off with a date ' +
              reportWindowPhrase() + '.</div>') +
@@ -4494,7 +5773,6 @@ function weeklyTrendReport(){
     };
   });
 
-  const counts = weekData.map(w => w.total);
 
   /* One series per bucket, each week's count read back out of that week's
      breakdown. Buckets that no longer exist in the list still finished work in
@@ -4508,6 +5786,14 @@ function weeklyTrendReport(){
     values: weekData.map(w => (w.breakdown.find(b => b.name === name) || { n: 0 }).n)
   }));
   const shown = series.filter(s => !s.hidden);
+
+  /* Every number on this report counts the buckets currently switched on, not
+     all of them. The key hides a line from the chart, and a headline total or a
+     pace sentence still describing the hidden ones would contradict the picture
+     directly above it. Before the total existed the pace line quietly did that;
+     it does not now. */
+  const counts = weekData.map((w, i) => shown.reduce((a, sr) => a + sr.values[i], 0));
+  const hiddenN = series.length - shown.length;
 
   const n = weekData.length;
   const W = 700, H = 190, top = 12, base = H - 6;       // viewBox units, scaled to the card's width
@@ -4573,7 +5859,7 @@ function weeklyTrendReport(){
     '<div class="trendx">' + weekData.map((w, i) =>
       '<div class="trendxc' + (i === n - 1 ? ' current' : '') + '">' +
         '<span class="trendwk">' + esc(reportDay(ymd(w.start))) + '</span>' +
-        '<span class="trendn">(' + w.total + ')</span>' +
+        '<span class="trendn">(' + counts[i] + ')</span>' +
       '</div>').join('') + '</div>' +
     '<div class="trendkey">' + series.map(s =>
       '<button class="tkey' + (s.hidden ? ' off' : '') + '" data-trendkey="' + esc(s.name) + '" ' +
@@ -4597,6 +5883,8 @@ function weeklyTrendReport(){
   } else {
     pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
   }
+  if (hiddenN) pace += ' ' + hiddenN + ' bucket' + (hiddenN === 1 ? ' is' : 's are') +
+    ' hidden, so every number here counts only the rest.';
 
   return '<h2>Weekly pace</h2>' +
     '<p class="window">Tasks finished per week, Monday to Sunday, over the last ' +
@@ -4741,8 +6029,7 @@ function renderReportsView(){
     '<div class="lists rview">' +
       '<div class="listcard reportsview"><h3>Counted from the list</h3>' +
         '<label class="repwindow">Show ' + reportWindowSelectHTML() +
-          '<span class="repdates" id="repDates">' + esc(reportDay(ymd(reportWindowStart()))) + '–' +
-          esc(reportDay(ymd(today()))) + '</span></label>' +
+          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></label>' +
         '<div id="countedOut"></div>' +
       '</div>' +
       '<div class="listcard reportsview written"><h3>Written reports</h3>' +
@@ -4755,10 +6042,19 @@ function renderReportsView(){
   $('#reportWindow').onchange = e => {
     if (setReportWindow(e.target.value)) {
       renderCountedReports();
-      $('#repDates').textContent = reportDay(ymd(reportWindowStart())) + '–' + reportDay(ymd(today()));
+      $('#repDates').textContent = reportDateRange();
     }
   };
   renderWrittenReports();
+}
+
+/* The span the picker is currently showing. "All" has no start date to name —
+   the earliest thing counted is whatever the archive happens to still hold, and
+   that is not known until it has loaded — so it says what it is instead of
+   printing a date that would be wrong for the first second and misleading after. */
+function reportDateRange(){
+  if (reportWindow === 'all') return 'everything still on record';
+  return reportDay(ymd(reportWindowStart())) + '–' + reportDay(ymd(today()));
 }
 
 function reportWindowSelectHTML(){
@@ -5795,13 +7091,24 @@ function renderView(){
   // #quick or #delegate link lands where its content actually lives.
   if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
   const isBackups = state.view === 'backups';
-  if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
-  const def = isBackups ? { id:'backups', label:'Backups' } : defs.find(d => d.id === state.view);
+  // Canvas is gated behind onChatStatusChanged's async answer, which hasn't
+  // arrived yet on the very first render — load() calls this before that
+  // fetch resolves. Without this exception a refresh onto #canvas loses the
+  // race: the fallback below overwrites state.view to 'board' (and the URL
+  // with it, at the replaceState below) before chatsOn ever gets the chance
+  // to say yes, and nothing afterwards remembers canvas was ever wanted.
+  const isPendingCanvas = state.view === 'canvas' && !state.chatsChecked;
+  if (!isBackups && !isPendingCanvas && !defs.some(d => d.id === state.view)) state.view = 'board';
+  const def = isBackups ? { id:'backups', label:'Backups' }
+    : isPendingCanvas ? { id:'board', label:'Board' }
+    : defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
   // Keep the URL in step with whichever tab is on screen, so a refresh (or a
   // link back to this page) lands on the same view instead of the default.
   // replaceState rather than the hash setter: it doesn't add a history entry
   // or fire hashchange, so this can't loop with the listener below.
+  // Writing the view alone is also what clears a `!task=` once it has been
+  // acted on, so a refresh doesn't reopen the same drawer for ever.
   if (location.hash.slice(1) !== state.view) history.replaceState(null, '', '#' + state.view);
 
   $('#viewToggle').innerHTML = defs.map(d =>
@@ -5811,11 +7118,16 @@ function renderView(){
     b.onclick = () => { state.view = b.dataset.view; renderView(); };
   });
 
+  const isCanvas = def.id === 'canvas';
   $('#board').classList.toggle('hidden', !isBoard);
-  $('#lists').classList.toggle('hidden', isBoard);
+  $('#canvas').classList.toggle('hidden', !isCanvas);
+  $('#lists').classList.toggle('hidden', isBoard || isCanvas);
   $('#backupsBtn').classList.toggle('on', isBackups);
 
   if (isBoard) { renderBoard(); return; }
+  // Same reasoning as the board's early return: the canvas draws itself and
+  // has no bucket sections under it.
+  if (isCanvas) { $('#headline').classList.add('hidden'); renderCanvas(); return; }
   // The one thing bar is a board idea specifically — pinning a card above
   // columns that don't exist anywhere else has nothing to attach to. Every
   // other control in the header (the bucket tabs, the score chip, AI,
@@ -5832,6 +7144,7 @@ function renderView(){
    alone does nothing when a list view is up. */
 function refreshView(){
   if (state.view === 'board') renderBoard();
+  else if (state.view === 'canvas') renderCanvas();
   else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
@@ -6117,7 +7430,7 @@ function dropTask(id, tierName, zone, clientY){
   // Done is not a section in the file — it is the tick box on the task.
   if (tierName === DONE_COL) {
     const msg = blockedMessage(allItems(), loc.task.blockedBy);
-    if (msg) { $('#status').textContent = msg; return; }
+    if (msg) { showToast(msg, 'blocked'); return; }
     if (setDone(loc.task, true)) { markDirty(); refreshView(); }
     if (state.openTask === id) openDrawer(id);
     return;
@@ -6241,6 +7554,100 @@ function calendarHTML(month, selected){
       '<button type="button" class="calsm" data-day="">Clear</button>' +
     '</div>';
 }
+/* The ai: field, drawn as a three-stop slider. A blank value (never decided)
+   and 'none' (decided AI can't help) used to be different states in the file;
+   the slider only has three positions, so landing on None and never touching
+   it again leaves the field blank same as before, and dragging to None writes
+   'none' explicitly — the one place that distinction now shows up. */
+const AI_VALUES = ['none', 'partial', 'full'];
+const AI_LABELS = { none: 'None', partial: 'Partial', full: 'Full' };
+function aiSliderHTML(value, ro){
+  const v = (value === 'partial' || value === 'full') ? value : 'none';
+  return '<div class="aislider' + (ro ? ' disabled' : '') + '" id="f-ai" data-v="' + v + '"' +
+      (ro ? '' : ' tabindex="0"') +
+      ' role="slider" aria-label="How much of this AI can do" aria-valuemin="0" aria-valuemax="2"' +
+      ' aria-valuenow="' + AI_VALUES.indexOf(v) + '" aria-valuetext="' + AI_LABELS[v] + '">' +
+    '<div class="aitrack">' +
+      '<div class="aifill" data-v="' + v + '"></div>' +
+      '<span class="aitick" data-i="0"></span><span class="aitick" data-i="1"></span><span class="aitick" data-i="2"></span>' +
+      '<div class="aihandle" data-v="' + v + '"></div>' +
+    '</div>' +
+    '<div class="aistops">' +
+      AI_VALUES.map(av => '<span class="aistop' + (av === v ? ' on' : '') + '" data-v="' + av + '">' + AI_LABELS[av] + '</span>').join('') +
+    '</div>' +
+  '</div>';
+}
+/* Drag the handle, click a stop label, or arrow-key it once focused — three
+   ways into the same three positions. posToValue() always rounds to the
+   nearest stop, so a drag can only ever land on None/Partial/Full, never
+   between them. Mirrors the old <select>'s onchange: switching away from
+   ai:full still strips any prompts that were written for delegation. */
+function wireAiSlider(t, id, touch){
+  const el = $('#f-ai');
+  if (!el || el.classList.contains('disabled')) return;
+  const track = el.querySelector('.aitrack');
+
+  const paint = v => {
+    el.dataset.v = v;
+    el.setAttribute('aria-valuenow', AI_VALUES.indexOf(v));
+    el.setAttribute('aria-valuetext', AI_LABELS[v]);
+    el.querySelector('.aifill').dataset.v = v;
+    el.querySelector('.aihandle').dataset.v = v;
+    el.querySelectorAll('.aistop').forEach(s => s.classList.toggle('on', s.dataset.v === v));
+  };
+  const commit = v => {
+    t.ai = v;
+    if (t.ai !== 'full') {
+      const dropped = stripDelegation(t);
+      if (dropped.length) {
+        touch();
+        openDrawer(id);
+        $('#status').textContent = 'removed ' + dropped.length + ' prompt' +
+          (dropped.length > 1 ? 's' : '') + ' — no longer ai:full';
+        $('#status').classList.add('dirty');
+        return;
+      }
+    }
+    touch();
+  };
+  const posToValue = clientX => {
+    const r = track.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    return AI_VALUES[Math.round(frac * 2)];
+  };
+
+  el.querySelectorAll('.aistop').forEach(stop => {
+    stop.onclick = () => { paint(stop.dataset.v); commit(stop.dataset.v); };
+  });
+  el.onkeydown = e => {
+    const cur = AI_VALUES.indexOf(el.dataset.v);
+    let next = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = AI_VALUES[Math.min(cur + 1, 2)];
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = AI_VALUES[Math.max(cur - 1, 0)];
+    else if (e.key === 'Home') next = 'none';
+    else if (e.key === 'End') next = 'full';
+    if (next === null) return;
+    e.preventDefault();
+    paint(next); commit(next);
+  };
+  let dragging = false;
+  track.onpointerdown = e => {
+    dragging = true;
+    el.classList.add('dragging');
+    el.focus();
+    track.setPointerCapture(e.pointerId);
+    paint(posToValue(e.clientX));
+  };
+  track.onpointermove = e => { if (dragging) paint(posToValue(e.clientX)); };
+  const finish = () => {
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    commit(el.dataset.v);
+  };
+  track.onpointerup = finish;
+  track.onpointercancel = finish;
+}
 /* One picker per date field, so `field` says which one is being edited. Both
    dates use the same calendar; only the value they write differs. */
 const calMonth = {};
@@ -6297,11 +7704,25 @@ function taskDependencies(t){
   parts.steps.forEach(s => addFor(s.slug, s.blockedBy, s.clean));
   return out;
 }
+/* Stripped down from the full ref card: no bucket, no tier, no impact/effort/ai
+   chips — just the name and whichever dates actually bear on when it's due,
+   the two facts that matter while reading a chain of blockers rather than one
+   task on its own. Same chaincard shape the Matrix dependency view already
+   uses, so a mini task-card reads the same wherever it turns up. */
 function depLink(item, missingSlug){
-  if (!item) return '<li class="depitem missing">#' + esc(missingSlug) + ' — no task carries this slug</li>';
-  return '<li class="depitem' + (item.done ? ' done' : '') + '">' +
-    '<button type="button" class="deplink" data-open="' + item.id + '">' +
-      (item.done ? '✓ ' : '') + mdInline(item.title) +
+  if (!item) return '<li class="depitem"><div class="chaincard dep missing" title="No task carries this slug">' +
+    '<span class="chaintitle">#' + esc(missingSlug) + ' missing</span></div></li>';
+  const due = dueInfo(item.due, item.tier === WAIT_COL);
+  const si = startInfo(item.start);
+  const dates = (due || si) ? '<div class="depdates">' +
+      (due ? '<span class="tag due ' + due.cls + '">' + esc(due.label) + (due.note ? ' · ' + esc(due.note) : '') + '</span>' : '') +
+      (si  ? '<span class="tag startdate">' + esc(si.label) + '</span>' : '') +
+    '</div>' : '';
+  return '<li class="depitem">' +
+    '<button type="button" class="chaincard dep deplink' + (item.done ? ' done' : '') + '"' +
+      ' style="--bc:' + item.color + '" data-open="' + item.id + '" title="Open this task">' +
+      '<span class="chaintitle">' + (item.done ? '✓ ' : '') + mdInline(item.title) + '</span>' +
+      dates +
     '</button></li>';
 }
 function depGroupHTML(g){
@@ -6509,7 +7930,7 @@ function openDrawer(id, focusTitle){
     ? 'Read-only — from a backup, nothing here can be changed.'
     : 'Changes save automatically';
 
-  $('#dbody').innerHTML =
+  const mainFields =
     '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
     '<details class="field" data-collapse="notes"' + (sectionCollapsed('notes') ? '' : ' open') + '>' +
       '<summary>Description</summary>' +
@@ -6533,9 +7954,7 @@ function openDrawer(id, focusTitle){
       '</select></label>' +
     '</div>' +
     '<div class="grid2">' +
-      '<label class="field"><span>Who does it (ai:)</span><select id="f-ai"' + dis + '>' +
-        ['','full','partial','none'].map(v => '<option value="' + v + '"' + (v === t.ai ? ' selected' : '') + '>' + (v || '\u2014') + '</option>').join('') +
-      '</select></label>' +
+      '<div class="field"><span>Who does it (ai:)</span>' + aiSliderHTML(t.ai, ro) + '</div>' +
       /* A person, not Claude. Left blank on anything he is doing himself, which
          is most of the list, so the card shows nothing until it is filled in. */
       '<label class="field"><span>Delegated to</span>' +
@@ -6591,13 +8010,24 @@ function openDrawer(id, focusTitle){
       }).join('') +
       '</div>' +
       (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add step</button>') +
-    '</div>' +
+    '</div>';
+
+  // Chats, dependencies and the four suggestion-shaped sections below them are
+  // all "about the task" rather than "of the task" — kept in a second column
+  // when the drawer is wide enough to hold one, same content and order as
+  // when it isn't (see .dcols in the stylesheet).
+  const sideFields =
     chatSection(t) +
     dependenciesSection(t) +
     agendaSection(sugg.agenda, t.due, readPrevAgenda(bodyParts(t).notes)) +
     suggestionSection('Message suggestions', sugg.message) +
     suggestionSection('Prompt suggestions', sugg.prompt, { claude:true, task:t.id }) +
     jiraSection(sugg.jira);
+
+  $('#dbody').innerHTML = '<div class="dcols">' +
+    '<div class="dcol dcol-main">' + mainFields + '</div>' +
+    (sideFields ? '<div class="dcol dcol-side">' + sideFields + '</div>' : '') +
+  '</div>';
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
@@ -6611,21 +8041,7 @@ function openDrawer(id, focusTitle){
   $('#f-to').oninput     = e => { t.to = e.target.value; touch(); };
   $('#f-impact').onchange = e => { t.impact = e.target.value; touch(); };
   $('#f-effort').onchange = e => { t.effort = e.target.value; touch(); };
-  $('#f-ai').onchange     = e => {
-    t.ai = e.target.value;
-    if (t.ai !== 'full') {
-      const dropped = stripDelegation(t);
-      if (dropped.length) {
-        touch();
-        openDrawer(id);
-        $('#status').textContent = 'removed ' + dropped.length + ' prompt' +
-          (dropped.length > 1 ? 's' : '') + ' — no longer ai:full';
-        $('#status').classList.add('dirty');
-        return;
-      }
-    }
-    touch();
-  };
+  wireAiSlider(t, id, touch);
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };
   hlBtn.onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
   wireDatePicker(t, touch, 'start');
@@ -6638,7 +8054,7 @@ function openDrawer(id, focusTitle){
     const pick = e.target.value;
     if (pick === DONE_COL) {
       const msg = blockedMessage(allItems(), t.blockedBy);
-      if (msg) { $('#status').textContent = msg; openDrawer(id); return; }
+      if (msg) { showToast(msg, 'blocked'); openDrawer(id); return; }
       setDone(t, true);
       markDirty(); refreshView(); openDrawer(id);
       return;
@@ -6670,7 +8086,7 @@ function openDrawer(id, focusTitle){
         if (cb.checked) {
           const step = splitBody(t).steps.find(s => s.line === lineIdx);
           const msg = blockedMessage(allItems(), (step ? step.blockedBy : []).concat(t.blockedBy || []));
-          if (msg) { $('#status').textContent = msg; openDrawer(id); return; }
+          if (msg) { showToast(msg, 'blocked'); openDrawer(id); return; }
         }
         toggleSub(t, lineIdx); refreshView(); openDrawer(id);
       };
@@ -6820,20 +8236,20 @@ function setSectionCollapsed(key, collapsed){
   try { localStorage.setItem(SECTION_KEY, JSON.stringify(all)); } catch (e) {}
 }
 /* Overview's own sections — Big rocks, This week, Quick wins, Delegate to
-   Claude, Context — default the other way round: shut until he opens one, on
-   the same reasoning that put a limit on how many cards a column shows.
-   Skimmed at a glance, five open lists is not an overview, it is the board
-   again with extra steps. A separate key from the drawer's, so a section name
-   the two happen to share cannot cross-wire their two different defaults. */
-const OVSECTION_KEY = 'todo-board-overview-open';
+   Claude, Context — default open: an overview is meant to be skimmed in one
+   glance, not clicked open section by section. Remembers which ones he has
+   shut, per section, the same way the drawer's are. A separate key from the
+   drawer's, so a section name the two happen to share cannot cross-wire
+   their two different defaults. */
+const OVSECTION_KEY = 'todo-board-overview-closed';
 function overviewOpen(key){
-  try { return !!(JSON.parse(localStorage.getItem(OVSECTION_KEY) || '{}') || {})[key]; }
-  catch (e) { return false; }
+  try { return !((JSON.parse(localStorage.getItem(OVSECTION_KEY) || '{}') || {})[key]); }
+  catch (e) { return true; }
 }
 function setOverviewOpen(key, open){
   let all;
   try { all = JSON.parse(localStorage.getItem(OVSECTION_KEY) || '{}') || {}; } catch (e) { all = {}; }
-  if (open) all[key] = true; else delete all[key];
+  if (!open) all[key] = true; else delete all[key];
   try { localStorage.setItem(OVSECTION_KEY, JSON.stringify(all)); } catch (e) {}
 }
 /* A suggestion he does not want dismissed without touching the task itself —
@@ -6994,6 +8410,18 @@ function load(text, name, opts){
   state.migratedOnly = !!(renamed || stamped || rolled.n);
 }
 
+/* A link naming a task arrives before there is a document to find it in, so it
+   waits in state.pendingTask until one is loaded. Called by the loaders rather
+   than by load() itself: the drawer draws itself read-only or not off
+   state.locked, and that isn't settled until the caller has finished — load()
+   runs before loadDemo has said the demo may not be written to. */
+function applyPendingTask(){
+  if (!state.pendingTask) return;
+  const key = state.pendingTask;
+  state.pendingTask = '';
+  openTaskByKey(key);
+}
+
 function showErr(msg){
   $('#start').classList.remove('hidden');
   $('#board').classList.add('hidden');
@@ -7015,6 +8443,8 @@ async function loadFile(){
     state.locked = false;
     state.lockedLabel = '';
     updateLockUI();
+    applyPendingTask();
+    drainAttachQueue();
   } catch (err) {
     if (await loadDemo()) return;
     showErr('<strong>Could not read todo.md.</strong><br>Close this tab and start the board by ' +
@@ -7155,6 +8585,7 @@ async function loadDemo(){
     updateLockUI();
     markClean('');
     renderView();
+    applyPendingTask();
     return true;
   } catch (err) {
     return false;
@@ -7649,13 +9080,13 @@ $('#lists').addEventListener('click', e => {
       const step = splitBody(found.task).steps.find(s => s.line === lineIdx);
       if (!step || !step.done) {
         const msg = blockedMessage(allItems(), (step ? step.blockedBy : []).concat(found.task.blockedBy || []));
-        if (msg) { $('#status').textContent = msg; return; }
+        if (msg) { showToast(msg, 'blocked'); return; }
       }
       toggleSub(found.task, lineIdx);
     } else {
       if (!found.task.done) {
         const msg = blockedMessage(allItems(), found.task.blockedBy);
-        if (msg) { $('#status').textContent = msg; return; }
+        if (msg) { showToast(msg, 'blocked'); return; }
       }
       setDone(found.task, !found.task.done); markDirty();
     }
@@ -7840,23 +9271,29 @@ async function handleCopy(e){
    dismissing it is the same edit as deleting that note by hand: find the raw
    line and take it out of the body. A Jira note may carry a description on
    the line under it, which goes with it. */
+/* Takes one raw markdown line out of a task's body, the shared half of
+   dismissing a suggestion by hand and a prompt suggestion being used up by
+   actually being run — see askFromPrompt() and the onSend handler above
+   it. Marks the list dirty on a real removal; does nothing to a line that
+   isn't there, which covers both "already dismissed" and "no such line" the
+   same way. */
+function removeBodyLine(t, raw){
+  if (!raw) return false;
+  const idx = t.body.indexOf(raw);
+  if (idx === -1) return false;
+  t.body.splice(idx, 1);
+  t.dirty = true;
+  markDirty();
+  return true;
+}
 function handleDismiss(e){
   const btn = e.target.closest('.dismiss');
   if (!btn || state.locked) return;
   const loc = state.openTask && locate(state.openTask);
   if (!loc) return;
   const t = loc.task;
-  const raw = btn.dataset.dismiss;
-  const idx = t.body.indexOf(raw);
-  if (idx === -1) return;
-  t.body.splice(idx, 1);
-  const descRaw = btn.dataset.dismissDesc;
-  if (descRaw) {
-    const di = t.body.indexOf(descRaw);
-    if (di !== -1) t.body.splice(di, 1);
-  }
-  t.dirty = true;
-  markDirty();
+  if (!removeBodyLine(t, btn.dataset.dismiss)) return;
+  removeBodyLine(t, btn.dataset.dismissDesc);
   refreshView();
   openDrawer(t.id);
 }
@@ -7881,10 +9318,22 @@ window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefau
 /* Back/forward and hand-edited URLs come through here rather than the tab
    clicks above, which drive the switch straight off state.view instead. */
 window.addEventListener('hashchange', () => {
-  const id = location.hash.slice(1);
-  if (isKnownView(id) && id !== state.view) {
-    state.view = id;
+  const h = parseHash();
+  if (isKnownView(h.view) && h.view !== state.view) {
+    state.view = h.view;
     renderView();
+  }
+  /* A second link arriving at a tab that is already up — which is what the
+     companion's menu sends. If the file is still loading it waits for load(). */
+  if (h.task) {
+    if (state.doc) openTaskByKey(h.task);
+    else state.pendingTask = h.task;
+  }
+  if (h.chat) {
+    // The sessions index arrives with the engine's status rather than with the
+    // file, so a link that beats it waits for the next onSessionsChanged.
+    if (Object.keys(state.chats || {}).length) openChatByKey(h.chat);
+    else state.pendingChat = h.chat;
   }
 });
 
