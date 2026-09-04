@@ -310,23 +310,47 @@ Every other view answers what to do next. The **Reports** tab answers what got
 done, which is what a one-to-one or an end-of-quarter write-up actually asks for
 and which nothing here could tell you without counting ticks by hand.
 
-The first report is **Completed in the last 30 days**, broken down by bucket.
-It counts the `done:` date the board writes when a task is ticked, so it only
-sees work finished since that date started being recorded; anything ticked before
-then is invisible to it, and the report says so underneath rather than quietly
-under-reporting. Each bucket gets its count, its share of the total and a bar
-scaled to the busiest bucket, so a quiet month still reads as a shape instead of
-four slivers. Buckets with nothing in them stay on the list, because an empty
-bucket is a finding.
+The left card, **Tasks finished**, is one panel holding both counted reports,
+not two cards side by side — so it gets one heading, and directly under it, one
+description of what every report inside it counts and how complete that count
+is: only tasks carrying a `done:` date, which is invisible for anything ticked
+before the board started writing that date, and — past the 30 days finished
+work can be archived out of `todo.md` into `done-archive.md` — whether the
+current window still has the whole story or is depending on that archive to.
+That description updates with the picker below it rather than sitting fixed,
+since whether the archive matters at all depends on how far back the window
+reaches.
 
-Thirty days is not an arbitrary window. Finished work older than that can be
-archived out of `todo.md` into `done-archive.md`, so past thirty days the file
-stops being the whole story and a longer count taken from it would be wrong
-without knowing it. Opening a bucket shows the tasks behind the number, each one
-clickable into the drawer like anywhere else. Reading a backup preview reports on
-that backup rather than the live file, and nothing on this tab writes anything.
+A **Show** picker sits under that description — This week, or the past 7, 15,
+30, 60 or 90 days — and it is the one window for both reports in the panel:
+change it and both redraw against the same period, so the tab never has one
+report describing one span and another describing a different one.
 
-A second report means one more function that returns HTML, listed in
+The first report, **Completed**, is broken down by bucket. Each bucket gets its
+count, its share of the total and a bar scaled to the busiest bucket, so a quiet
+month still reads as a shape instead of four slivers. Buckets with nothing in
+them stay on the list, because an empty bucket is a finding. Opening a bucket
+shows the tasks behind the number, each one clickable into the drawer like
+anywhere else. Reading a backup preview reports on that backup rather than the
+live file, and nothing on this tab writes anything.
+
+The second report, **Weekly pace**, is the same question asked a different way:
+not how much finished, but whether that is more or less than usual. It draws
+one line per bucket, one point per complete week, Monday to Sunday, and reads
+that back as climbing, slowing or flat by comparing the back half of the run
+against the front half. It shares the picker above rather than keeping its own
+window — the picker counts in days, this report counts in weeks, so its span is
+the picker's window rounded up to whole weeks. A window that rounds up to a
+single week has nothing to compare it against, so it says that instead of
+guessing.
+
+Both reports carry their own heading and, where they need one, their own short
+description right under it — same shape as the panel's own heading and
+description above them, and the same shape the **Written reports** card beside
+it uses for its one heading. One setup, reused at both levels rather than
+invented twice.
+
+A third report means one more function that returns HTML, listed in
 `reportDefs()`. The tab is built to hold more than one.
 
 The column beside it, **Written reports**, holds the other kind. Counting can only

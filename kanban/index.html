@@ -668,7 +668,7 @@
   /* Sits above the counted report rather than inside it, since it governs
      every report in reportDefs(), not just the one built today. */
   .repwindow{
-    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:0 0 8px;
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
   }
   .repwindow select{
     border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
@@ -676,15 +676,17 @@
   /* The range the dropdown resolves to, stated once beside it rather than
      repeated as its own heading further down. */
   .repwindow .repdates{color:var(--ink-faint)}
-  /* The report's own name, not a section eyebrow: on this view the h2 is the
-     heading you read, so it carries weight instead of shrinking away. */
+  /* One h2 per report in reportDefs(), Completed and Weekly pace alike — a
+     report's own name, not a section eyebrow, so it carries weight instead of
+     shrinking away. Same bottom margin as the card's own h3 above it, so a
+     .help.listlead sits the same distance under either one. */
   .reportsview h2{
-    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
+    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 10px; letter-spacing:-.01em;
   }
   /* The total is the answer to the question; the buckets underneath say where
      it came from. Big enough to read from across the desk. */
   .reportsview .total{
-    display:flex; align-items:baseline; gap:10px; background:var(--bg);
+    display:flex; align-items:baseline; gap:10px; background:var(--bg); width:max-content; max-width:100%;
     border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px;
   }
   .reportsview .totaln{font-size:30px; font-weight:680; line-height:1; color:var(--ink)}
@@ -766,6 +768,11 @@
   }
   .tpreview.on{opacity:1; transform:none}
   .tprow{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:650; color:var(--ink)}
+  /* Two lines can cross the same value in the same week, stacking their dots
+     on the same point — the popover then lists one label-and-count pair per
+     line sharing it, so this gap is what keeps that reading as a short list
+     rather than one crowded block. First pair sits flush under the point. */
+  .tprow + .tprow{margin-top:8px}
   .tprow i{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
   .tpcount{margin-top:2px; font-size:11.5px; color:var(--ink-soft)}
   .tpcount strong{color:var(--ink); font-weight:700}
@@ -790,15 +797,24 @@
   .tkey:hover{color:var(--ink); border-color:var(--line)}
   .tkey.off{opacity:.45}
   .tkey.off i{background:var(--ink-faint)}
+  /* The one finding a report reads back to you, after its own chart or list —
+     "climbing", "flat" — as opposed to .help.listlead, which describes the
+     report rather than concluding one. */
   .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
 
   /* Two columns for the two kinds of report. The counted one needs room for a
-     bar and four numbers on a row; the written one wants a reading width and
-     no more, so it is capped rather than given half the window. */
+     bar and four numbers on a row without either crowding the other, so its
+     floor is a full reading-and-bars width rather than the bare minimum a
+     grid track would otherwise settle for; the written one wants a reading
+     width and no more, so it is capped rather than given half the window.
+     Same choice as Matrix and Overview: never stack these into one column,
+     just let `main`'s own overflow-x:auto scroll the pair sideways on a
+     narrower window, so the two reports keep reading side by side at
+     everything but genuinely small widths. */
   .lists.rview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:minmax(520px,1fr) minmax(420px,600px); min-width:970px;
+    grid-template-columns:minmax(960px,1fr) minmax(420px,600px); min-width:1394px;
   }
   .lists.rview .listcard{margin:0}
 
@@ -843,9 +859,6 @@
   .repdoc .repbul li{font-size:13.5px; line-height:1.5; color:var(--ink-soft); padding-left:14px; position:relative}
   .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
   .repdoc strong{color:var(--ink)}
-  @media (max-width:1000px){
-    .lists.rview{grid-template-columns:1fr; min-width:0}
-  }
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}
     .reportsview .bkname{min-width:0; flex:1 0 100%}
@@ -1205,6 +1218,17 @@
      is a sentence, and was inheriting the same rule by being the same element —
      which is why .sublabel already had to undo it by hand. Undone once here. */
   .field > span.help{font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0}
+  /* Subtasks' own label carries an action beside it — Complete all — so it
+     needs to be a row rather than plain inline text, without disturbing every
+     other .field > span, which is why this is a modifier rather than a change
+     to the shared rule above. */
+  .field > span.fieldhead{display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .completeall{
+    flex:none; text-transform:none; letter-spacing:0; font-weight:600; font-size:11.5px;
+    border:1px solid var(--line); background:transparent; color:var(--ink-soft);
+    border-radius:6px; padding:3px 8px;
+  }
+  .completeall:hover{border-color:var(--ink-faint); color:var(--ink)}
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }
@@ -1831,10 +1855,17 @@ const state = {
 };
 state.sort = readSort();
 /* The URL's #slug is the one thing a refresh doesn't wipe, so read it before the
-   first render — otherwise every reload snaps back to the default view. */
+   first render — otherwise every reload snaps back to the default view. The
+   bucket filter rides along as a second segment, #<view>/<bucket-slug> — see
+   syncHash(). It can't be resolved against a real bucket yet (state.doc isn't
+   loaded this early), so it waits in pendingBucketSlug for load() to match it
+   against the file once that arrives. */
+let pendingBucketSlug = null;
 (function initViewFromHash(){
-  const id = location.hash.slice(1);
+  const parts = location.hash.slice(1).split('/');
+  const id = parts[0];
   if (isKnownView(id)) state.view = id;
+  if (parts.length > 1) pendingBucketSlug = parts[1];
 })();
 
 /* Six, and the fifth used to be the accent blue — which is the first bucket's
@@ -2512,6 +2543,31 @@ function allMode(){ return state.activeBucket === ALL_BUCKETS; }
 function activeBucket(){
   return state.doc.buckets.find(b => b.name === state.activeBucket) || state.doc.buckets[0];
 }
+/* A bucket name in the URL, lowercased and despaced — "Design System" becomes
+   design-system. Not the name itself: spaces and punctuation are legal in a
+   bucket name and illegal-looking in a URL, and two different buckets could
+   still slugify the same way, so this is a best-effort match on load, never
+   the thing state.activeBucket actually stores. */
+function slugifyBucket(name){
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+function bucketBySlug(slug){
+  return (state.doc && state.doc.buckets.find(b => slugifyBucket(b.name) === slug)) || null;
+}
+/* Keeps the URL in step with the bucket filter, the same way renderView()
+   already keeps it in step with the view tab — #<view>/<bucket-slug>, one
+   segment deeper rather than a second mechanism next to the first. Called
+   from renderTabs() rather than from every place state.activeBucket changes,
+   since every one of those already ends in a render that reaches renderTabs()
+   (see renderFilterBar, and the tab click handler below). replaceState, not
+   the hash setter: it doesn't add a history entry or fire hashchange, so this
+   can't loop with the listener at the bottom of the file. */
+function syncHash(){
+  if (!state.doc) return;
+  const slug = allMode() ? 'all' : slugifyBucket(activeBucket().name);
+  const hash = '#' + state.view + '/' + slug;
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+}
 /* Which buckets the board draws. The AI filter cuts across every bucket, and so
    do the urgent/due filter, the All tab and the unscored queue, so any of them
    widens it from the single active bucket. Scoring is an intake job: what
@@ -2538,6 +2594,7 @@ function renderTabs(){
   });
   $('#editBuckets').onclick = openBucketEditor;
   $('#editTiers').onclick = openTierEditor;
+  syncHash();
 }
 
 /* =========================================================================
@@ -4376,13 +4433,20 @@ function completedByCategoryReport(){
     const width = most ? (n / most * 100) : 0;
     // An archived task has no live id to open the drawer with, so it renders
     // as plain text instead of a button.
+    //
+    // The "where" chip says Done for every row rather than it.tierName — Done
+    // is not a section in the file, it is the tick box on the task (see
+    // setDone/dropTask), so a ticked task keeps whatever tier it was last
+    // dragged into and it.tierName would show that raw tier instead. Every
+    // task in this report is done by construction, so the live board's own
+    // convention (t.done ? DONE_COL : tier.name) is what belongs here too.
     const tasks = r.items.map(it =>
       '<li style="--bc:' + r.color + '">' +
         '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
         (it.taskId
           ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
           : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
-        '<span class="where">' + esc(it.tierName) + '</span>' +
+        '<span class="where">' + esc(DONE_COL) + '</span>' +
       '</li>').join('');
     return '<div class="bkgroup">' +
         '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
@@ -4396,6 +4460,23 @@ function completedByCategoryReport(){
       '</div>';
   };
 
+  return '<h2>Completed</h2>' +
+    '<div class="total"><span class="totaln">' + total + '</span>' +
+      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
+      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
+      '</span></div>' +
+    (total ? rows.map(rowHTML).join('')
+           : '<div class="empty">Nothing has been ticked off with a date ' +
+             reportWindowPhrase() + '.</div>');
+}
+
+/* The one description of what every report on this tab counts and how
+   complete it is — right under the panel's own heading, same shape as the
+   Written reports column beside it: a headline, then what it means, then the
+   content. Lives here rather than inside completedByCategoryReport() because
+   it is true of Weekly pace too, not just the first report — both read the
+   same `done:` dates and reach into the same archive. */
+function countedLeadHTML(){
   const undated = undatedDoneCount();
   // Below 30 days this window sits inside the one archiving leaves alone, so the
   // count is a complete picture by construction. Past it, completeness depends
@@ -4403,32 +4484,24 @@ function completedByCategoryReport(){
   let archiveNote;
   if (reportDays() <= ARCHIVE_DAYS) {
     archiveNote = 'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md. This window ' +
-      'stays inside that, so the count above is the whole story for the period.';
+      'stays inside that, so every count below is the whole story for the period.';
   } else if (archiveEntriesError) {
     archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to the ' +
-      'archive, and that file could not be read — so the older end of this count may be incomplete.';
+      'archive, and that file could not be read — so the older end of these counts may be incomplete.';
   } else if (archiveEntries === null) {
     archiveNote = 'Reading the archive for finished work older than ' + ARCHIVE_DAYS + ' days…';
   } else {
     archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to ' +
-      '`data/backups/done-archive.md` — counted in here too, so the total above still covers the whole period.';
+      '`data/backups/done-archive.md` — counted below too, so these counts still cover the whole period.';
   }
   const notes = [
     'Only tasks carrying a `done:` date are counted. The board writes that date when ' +
-    'a task is ticked, so anything ticked before that was added is invisible here.',
+    'a task is ticked, so anything ticked before that was added is invisible below.',
     archiveNote
   ];
   if (undated) notes.unshift('<strong>' + undated + ' ticked task' + (undated === 1 ? ' has' : 's have') +
-    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' not in the count above.');
-
-  return '<div class="total"><span class="totaln">' + total + '</span>' +
-      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
-      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
-      '</span></div>' +
-    (total ? rows.map(rowHTML).join('')
-           : '<div class="empty">Nothing has been ticked off with a date ' +
-             reportWindowPhrase() + '.</div>') +
-    notes.map(n => '<p class="note">' + n + '</p>').join('');
+    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' missing from every count below.');
+  return notes.map(n => '<p class="help listlead">' + n + '</p>').join('');
 }
 
 /* ---- Weekly pace ----
@@ -4436,14 +4509,15 @@ function completedByCategoryReport(){
    A count for one window says how much moved. It says nothing about whether
    that is more or less than usual, and reconstructing that by memory or by
    digging out old reports is exactly the kind of arithmetic this view exists
-   to do instead. Eight trailing complete weeks, Monday to Sunday.
+   to do instead. Complete weeks, Monday to Sunday.
 
-   Deliberately its own window rather than tied to the picker above: that one
-   answers "how much lately" at whatever grain is asked for, this answers "is
-   the pace climbing or flat", and letting one silently resize the other would
-   make both harder to read. Reaches past ARCHIVE_DAYS by construction, so it
+   Tied to the picker above like every other report on this tab, so the whole
+   tab always describes one period rather than two. The picker counts in days
+   (or the calendar week); this chart counts in weeks, so its span is that
+   picker's window rounded up to whole weeks — "Past 30 days" becomes 5 weeks,
+   not a slice of a 6th. Reaches past ARCHIVE_DAYS by construction, so it
    reads the archive the same way completedRecently() does. */
-const TREND_WEEKS = 8;
+function trendWeeks(){ return Math.max(1, Math.ceil(reportDays() / 7)); }
 
 /* Which buckets the key has switched off. In memory only: it is a way of
    looking at the chart for a moment, not a setting worth keeping. */
@@ -4464,7 +4538,7 @@ function weekBuckets(n){
    live and archived alike, kept with the bucket it was in — a bar says how
    many, hovering it says which. */
 function trendEntries(){
-  const from = weekBuckets(TREND_WEEKS)[0].start;
+  const from = weekBuckets(trendWeeks())[0].start;
   const out = [];
   if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
     if (!t.done || !t.doneOn) return;
@@ -4482,7 +4556,7 @@ function trendEntries(){
 }
 
 function weeklyTrendReport(){
-  const weeks = weekBuckets(TREND_WEEKS);
+  const weeks = weekBuckets(trendWeeks());
   const entries = trendEntries();
   // Bucket order and colour match the board's own, so a bucket reads the same
   // colour here as everywhere else. An archived bucket that no longer exists
@@ -4593,25 +4667,32 @@ function weeklyTrendReport(){
 
   // Split the run in half and compare the two halves' averages, rather than
   // just the last week against the first — one quiet Friday should not read
-  // as a slowdown.
-  const half = Math.ceil(weeks.length / 2);
-  const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
-  const earlierN = weeks.length - half;
-  const earlierAvg = earlierN ? counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN : recentAvg;
+  // as a slowdown. A window that rounds up to a single week has no "before"
+  // half to compare against, so it gets its own sentence instead of a
+  // comparison against nothing.
   let pace;
-  if (recentAvg === 0 && earlierAvg === 0) {
-    pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
-  } else if (recentAvg > earlierAvg * 1.15) {
-    pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
-  } else if (recentAvg < earlierAvg * 0.85) {
-    pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
+  if (weeks.length < 2) {
+    pace = 'Just this one week in view — widen "Show" above to see whether the pace is climbing or slowing.';
   } else {
-    pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
+    const half = Math.ceil(weeks.length / 2);
+    const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
+    const earlierN = weeks.length - half;
+    const earlierAvg = counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN;
+    if (recentAvg === 0 && earlierAvg === 0) {
+      pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
+    } else if (recentAvg > earlierAvg * 1.15) {
+      pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
+    } else if (recentAvg < earlierAvg * 0.85) {
+      pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
+    } else {
+      pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
+    }
   }
 
   return '<h2>Weekly pace</h2>' +
-    '<p class="window">Tasks finished per week, Monday to Sunday, over the last ' +
-      weeks.length + ' weeks, one line per bucket. The number under each week is its total.</p>' +
+    '<p class="help listlead">Tasks finished per week, Monday to Sunday, over the last ' +
+      weeks.length + ' week' + (weeks.length === 1 ? '' : 's') +
+      ', one line per bucket. The number under each week is its total.</p>' +
     '<div class="trend">' + chart + '</div>' +
     '<p class="note">' + esc(pace) + '</p>';
 }
@@ -4750,7 +4831,8 @@ function renderReportsView(){
   }
   $('#lists').innerHTML =
     '<div class="lists rview">' +
-      '<div class="listcard reportsview"><h3>Counted from the list</h3>' +
+      '<div class="listcard reportsview"><h3>Tasks finished</h3>' +
+        '<div id="countedLead"></div>' +
         '<label class="repwindow">Show ' + reportWindowSelectHTML() +
           '<span class="repdates" id="repDates">' + esc(reportDay(ymd(reportWindowStart()))) + '–' +
           esc(reportDay(ymd(today()))) + '</span></label>' +
@@ -4780,8 +4862,12 @@ function reportWindowSelectHTML(){
 }
 // Its own render path rather than folded into renderReportsView, so changing
 // the window redraws only the counted card — not the written one beside it,
-// which would otherwise re-fetch /reports.json for no reason.
+// which would otherwise re-fetch /reports.json for no reason. Redraws the
+// lead description alongside the reports themselves, since its archive note
+// depends on the same window the picker just changed.
 function renderCountedReports(){
+  const lead = $('#countedLead');
+  if (lead) lead.innerHTML = countedLeadHTML();
   const out = $('#countedOut');
   if (!out) return;
   out.innerHTML = reportDefs().map(fn => fn()).join('');
@@ -5129,13 +5215,25 @@ function trendPreview(){
   }
   return tPreviewEl;
 }
+/* Two lines can cross the same value in the same week, which stacks their
+   hit targets exactly on top of each other — cx/cy are computed from the
+   same week index and the same value, so a real tie lands on the same
+   coordinates rather than merely close ones. Rather than showing whichever
+   circle happened to be drawn last (topmost under the pointer), find every
+   .trendpt at that exact point and list them all. */
 function showTrendPreview(pt){
   const el = trendPreview();
-  const count = +pt.dataset.trendcount;
-  el.innerHTML =
-    '<div class="tprow" style="--bc:' + esc(pt.dataset.trendcolor) + '"><i></i>' + esc(pt.dataset.trendlabel) + '</div>' +
-    '<div class="tpcount"><strong>' + count + '</strong> task' + (count === 1 ? '' : 's') +
-      ', week of ' + esc(pt.dataset.trendweek) + '</div>';
+  const svg = pt.closest('svg');
+  const cx = pt.getAttribute('cx'), cy = pt.getAttribute('cy');
+  const here = svg
+    ? [...svg.querySelectorAll('.trendpt')].filter(p => p.getAttribute('cx') === cx && p.getAttribute('cy') === cy)
+    : [pt];
+  el.innerHTML = here.map(p => {
+    const count = +p.dataset.trendcount;
+    return '<div class="tprow" style="--bc:' + esc(p.dataset.trendcolor) + '"><i></i>' + esc(p.dataset.trendlabel) + '</div>' +
+      '<div class="tpcount"><strong>' + count + '</strong> task' + (count === 1 ? '' : 's') +
+        ', week of ' + esc(p.dataset.trendweek) + '</div>';
+  }).join('');
   el.classList.add('on');
   placeTrendPreview(pt);
 }
@@ -5809,11 +5907,11 @@ function renderView(){
   if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
   const def = isBackups ? { id:'backups', label:'Backups' } : defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
-  // Keep the URL in step with whichever tab is on screen, so a refresh (or a
-  // link back to this page) lands on the same view instead of the default.
-  // replaceState rather than the hash setter: it doesn't add a history entry
-  // or fire hashchange, so this can't loop with the listener below.
-  if (location.hash.slice(1) !== state.view) history.replaceState(null, '', '#' + state.view);
+  // The URL is kept in step with whichever tab and bucket are on screen by
+  // syncHash(), called from renderTabs() — every branch below reaches it,
+  // either directly (reports, backups) or via renderBoard()/renderSections().
+  // state.view is finalised above this point, so whichever branch runs next
+  // syncs the URL to the right value.
 
   $('#viewToggle').innerHTML = defs.map(d =>
     '<button class="tab' + (d.id === state.view ? ' on' : '') + '" data-view="' + d.id + '">' + esc(d.label) + '</button>'
@@ -6527,7 +6625,7 @@ function openDrawer(id, focusTitle){
     '<details class="field" data-collapse="notes"' + (sectionCollapsed('notes') ? '' : ' open') + '>' +
       '<summary>Description</summary>' +
       '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
-      '<span class="help">Sub-steps live in the list below. Anything you type here is a note on the task.</span>' +
+      '<span class="help">Subtasks live in the list below. Anything you type here is a note on the task.</span>' +
     '</details>' +
     '<div class="grid2">' +
       '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
@@ -6589,8 +6687,12 @@ function openDrawer(id, focusTitle){
     '<div class="field"><span>Flags</span>' +
       '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + dis + '> urgent</label>' +
     '</div>' +
-    '<div class="field"><span>Sub-steps' +
-      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') + '</span>' +
+    '<div class="field"><span class="fieldhead">Subtasks' +
+      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') +
+      (!ro && subs.some(s => !s.done)
+        ? '<button type="button" class="completeall" id="f-completeall">Complete all</button>'
+        : '') +
+      '</span>' +
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
         const sd = dueInfo(s.due);
@@ -6599,11 +6701,11 @@ function openDrawer(id, focusTitle){
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
           '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + esc(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
-          (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this step">×</button>') +
+          (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
           '</div>';
       }).join('') +
       '</div>' +
-      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add step</button>') +
+      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
     '</div>' +
     chatSection(t) +
     dependenciesSection(t) +
@@ -6734,6 +6836,32 @@ function openDrawer(id, focusTitle){
         refreshView(); openDrawer(id);
       };
     });
+  }
+  /* Ticks every open subtask in one click — the same blocked check each box
+     makes on its own, applied per subtask rather than to the button as a
+     whole, since some waiting on a blocker while the rest are free to close
+     is the ordinary case, not a reason to refuse the lot. Several toggleSub()
+     calls in one synchronous run land in the same undo step (see noteUndo),
+     so this undoes as the one action it looks like. */
+  const allBtn = $('#f-completeall');
+  if (allBtn) {
+    allBtn.onclick = () => {
+      const items = allItems();
+      let done = 0, waiting = 0;
+      splitBody(t).steps.forEach(s => {
+        if (s.done) return;
+        if (blockedMessage(items, (s.blockedBy || []).concat(t.blockedBy || []))) { waiting++; return; }
+        toggleSub(t, s.line);
+        done++;
+      });
+      if (done) { refreshView(); openDrawer(id); }
+      $('#status').textContent = !done
+        ? 'Every open subtask is still waiting on something — finish that first'
+        : waiting
+          ? 'Completed ' + done + ', ' + waiting + ' still waiting on something'
+          : 'Completed ' + done + ' subtask' + (done === 1 ? '' : 's');
+      if (done) $('#status').classList.add('dirty');
+    };
   }
   /* Adds the step, then drops straight into editing its (empty) text — an
      "Add" click that still left a blank, unlabelled row would just be a second
@@ -6972,6 +7100,18 @@ function load(text, name, opts){
   $('#start').classList.add('hidden');
   $('#board').classList.remove('hidden');
   $('#hdr').classList.remove('hidden');
+  // The URL's bucket slug can only be matched against a real bucket once the
+  // file naming them has actually loaded — that's now, so it gets one shot
+  // here and is cleared either way, so a later reload of a different dataset
+  // doesn't reapply a slug that belonged to the URL, not to this file.
+  if (pendingBucketSlug !== null) {
+    if (pendingBucketSlug === 'all') state.activeBucket = ALL_BUCKETS;
+    else {
+      const match = doc.buckets.find(b => slugifyBucket(b.name) === pendingBucketSlug);
+      if (match) state.activeBucket = match.name;
+    }
+    pendingBucketSlug = null;
+  }
   if (state.activeBucket !== ALL_BUCKETS && !doc.buckets.some(b => b.name === state.activeBucket)) {
     state.activeBucket = ALL_BUCKETS;
   }
@@ -7894,13 +8034,21 @@ $('#dbody').onclick = handleMsgClick;
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 /* Back/forward and hand-edited URLs come through here rather than the tab
-   clicks above, which drive the switch straight off state.view instead. */
+   clicks above, which drive the switch straight off state.view instead. Same
+   for the bucket slug beside the view — an unmatched or missing one is left
+   alone rather than reset to All, since plenty of hashchanges (a view tab
+   click, for instance) carry no opinion about the bucket at all. */
 window.addEventListener('hashchange', () => {
-  const id = location.hash.slice(1);
-  if (isKnownView(id) && id !== state.view) {
-    state.view = id;
-    renderView();
+  const parts = location.hash.slice(1).split('/');
+  const id = parts[0];
+  let changed = false;
+  if (isKnownView(id) && id !== state.view) { state.view = id; changed = true; }
+  if (parts.length > 1 && state.doc) {
+    const slug = parts[1];
+    const name = slug === 'all' ? ALL_BUCKETS : (bucketBySlug(slug) || {}).name;
+    if (name && name !== state.activeBucket) { state.activeBucket = name; changed = true; }
   }
+  if (changed) renderView();
 });
 
 loadFile();
