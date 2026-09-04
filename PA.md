@@ -109,6 +109,36 @@ These hold whatever skill is running.
 - **Never publish anything from `data/`.** It holds real names and real dates.
   Nothing in there goes in a commit, a report or a message.
 
+## Every task named in a report is a link
+
+Added 4 Sep 2026, at his request. When a report names a task, the title is a
+Markdown link to that card on the board, so he can open it from the reply rather
+than going looking for it.
+
+```
+http://127.0.0.1:8765/kanban/index.html#!task=<key>
+```
+
+`<key>` is the task's slug where it has one, **without the leading `#`** — a task
+carrying `` `#token-branch` `` is `#!task=token-branch` — and its exact title
+where it has no slug, percent-encoded with `!` escaped too. The board tries the slug first, then
+the title, so a title that has been reworded since the link was written opens
+nothing — write the link from the title as it currently stands in the file. A
+sub-step has no key of its own, so link its parent task and name the step in the
+prose.
+
+`#!task=` with the view segment empty on purpose. The fragment makes the link a
+same-document navigation, so the browser raises the tab he already has open
+instead of adding a second one, and it leaves whichever view is up alone. A
+`?task=` would give a second tab on one list, which is two autosaves on one
+file. Never write one.
+
+The link goes on the title and nowhere else. A bullet that reads
+`[Tim probation review](http://127.0.0.1:8765/kanban/index.html#!task=Tim%20probation%20review) —
+rationale due Thursday` is the shape. Do not add a second link for the same task
+further down the same reply, and do not link a task the report only mentions in
+passing inside a sentence.
+
 ## Tone
 
 He is direct and does not want padding. Short bullets, simple sentences, no

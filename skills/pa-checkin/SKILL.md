@@ -21,6 +21,8 @@ Every reply about the list has the same three parts:
 
 That is the whole reply. No preamble, no restating what he just told you, no explaining which tag went on which line, no mention of the checker, the file or the board. He can see the file and the board.
 
+**Every task title in the reply is a link to its card.** The format and the rules are in `PA.md`, under every task named in a report is a link. That covers the status read in move 1 and the closing report in move 6 as much as anything in between.
+
 **Pending topics are things to discuss, not things to do.** An optimisation you spotted, a task that has not moved in three sessions, two tasks worth merging, a headline that looks wrong. Count them and stop. He will follow up if he wants them, and then you give him one at a time.
 
 Two things are never pending topics, because they hold the work up rather than extend it:

@@ -110,6 +110,39 @@ def backup_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "backups")
 
 
+def canvas_path(name=None):
+    """Where the canvas view keeps its furniture: which card sits where, the
+    box around each task's conversations, and when each card was last opened
+    (so the board knows which ones to mark unread).
+
+    A separate file from todo.md on purpose, and not a candidate for ever
+    being merged into it. Positions are not task content — a card's place is
+    something you dragged, not something you decided — and todo.md has exactly
+    one writer for reasons the README goes into at length. Nothing in here is
+    load-bearing: delete it and the canvas lays itself out again from scratch,
+    losing an arrangement and nothing else.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "canvas.json")
+
+
+def attach_queue_path(name=None):
+    """Where /pa-attach leaves what it could not write itself.
+
+    The skill knows a session's id and its own cwd — CLAUDE_CODE_SESSION_ID
+    and os.getcwd() — and which task it should be filed against, but it must
+    not touch todo.md: the board holds the whole document in memory and
+    autosaves it, so a second writer editing the file underneath an open tab
+    is exactly the failure this repo is built to avoid. So the skill writes
+    what it wants here and stops. loadFile() drains this on every real load,
+    once state.locked is confirmed false — minting any `chat:` key it needs
+    through the board's own edit path, filing the session, and clearing
+    whatever it managed. An entry whose task has since been renamed or
+    deleted is left behind rather than dropped, so nothing queued is ever
+    silently lost.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "attach-queue.json")
+
+
 def reports_dir(name=None):
     # Written reports live beside the list they're about rather than in the
     # repo, because a report names people, dates and internal decisions — the
@@ -400,9 +433,9 @@ def backup_listing():
 # ---- Claude, on a task -----------------------------------------------------
 #
 # The engine that runs Claude Code and the index of which sessions sit under
-# which task now live one level up, in ai_chat/ — a module any local tool can
-# load, not just this one. See ai_chat/README.md for the HTTP contract this
-# wires up below, and ai_chat/engine.py for what it actually does: run the
+# which task now live one level up, in ai_chat_engine/ — a module any local
+# tool can load, not just this one. See its README.md for the HTTP contract
+# this wires up below, and its engine.py for what it actually does: run the
 # CLI, stream its output, and read a transcript back from the file Claude
 # Code itself writes.
 #
@@ -412,7 +445,7 @@ def backup_listing():
 # has never seen this machine. AI_CHAT_DIR below is where the module that
 # fixes that lives; STATIC_PREFIX is where its own JS and CSS are served from.
 
-AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "ai_chat"))
+AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "ai_chat_engine"))
 STATIC_PREFIX = "/ai-chat/"
 
 Engine = ChatEndpoints = None
@@ -422,7 +455,8 @@ if os.path.isdir(AI_CHAT_DIR):
         from engine import Engine          # noqa: E402  (path set just above)
         from http_glue import ChatEndpoints  # noqa: E402
     except ImportError:
-        # ai_chat exists but is missing a file, or is an incompatible version.
+        # ai_chat_engine exists but is missing a file, or is an incompatible
+        # version.
         # Same rule as a missing folder: no engine, no buttons — not a crash.
         Engine = ChatEndpoints = None
 
@@ -512,6 +546,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path == "/datasets.json":
             return self._json(200, {"datasets": list_datasets(), "current": current_dataset()})
+        if path == "/canvas.json":
+            try:
+                with open(canvas_path(), encoding="utf-8") as fh:
+                    return self._json(200, json.load(fh))
+            except (OSError, ValueError):
+                # No file yet, or one written by hand and broken. Either way an
+                # empty canvas is the honest answer and the next save fixes it.
+                return self._json(200, {"version": 1, "cards": {}, "boxes": {}})
+        if path == "/attach-queue.json":
+            try:
+                with open(attach_queue_path(), encoding="utf-8") as fh:
+                    items = json.load(fh)
+                    return self._json(200, items if isinstance(items, list) else [])
+            except (OSError, ValueError):
+                # No file yet, or one written by hand and broken. Either way an
+                # empty queue is the honest answer.
+                return self._json(200, [])
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
         if path == "/backups.json":
@@ -536,6 +587,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             q = parse_qs(urlparse(self.path).query)
             got, err = ai_chat.transcript((q.get("session") or [""])[0], (q.get("cwd") or [""])[0])
             return self._json(404 if err else 200, err or got)
+        # Sessions Claude Code has on disk that aren't filed here yet — the
+        # drawer's "Attach a session…" reads this list.
+        if ai_chat and path == "/claude/attachable.json":
+            return self._json(200, ai_chat.attachable())
         # The chat widget's own JS and CSS, read straight from ai_chat/ rather
         # than copied in — see AI_CHAT_DIR above.
         if ai_chat and path.startswith(STATIC_PREFIX):
@@ -617,6 +672,88 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             except (UnicodeDecodeError, ValueError):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = ai_chat.forget(payload.get("owner"), payload.get("session"))
+            return self._json(400 if err else 200, err or got)
+        if path == "/canvas":
+            # Same guard as the Claude routes. Nothing here is dangerous —
+            # worst case is a scrambled layout — but this server's rule is that
+            # anything a page can POST carries the header, and one exception is
+            # how a rule stops being a rule.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, dict):
+                return self._json(400, {"error": "expected an object"})
+            path_out = canvas_path()
+            os.makedirs(os.path.dirname(path_out), exist_ok=True)
+            tmp = path_out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                json.dump(payload, fh, indent=2)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path_out)
+            return self._json(200, {"ok": True})
+        if path == "/attach-queue.json":
+            # Same guard, same shape as /canvas. Only the board calls this,
+            # after draining what it could — see attach_queue_path() — to
+            # write back whatever it could not file, or an empty list.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, list):
+                return self._json(400, {"error": "expected an array"})
+            path_out = attach_queue_path()
+            os.makedirs(os.path.dirname(path_out), exist_ok=True)
+            tmp = path_out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                json.dump(payload, fh, indent=2)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path_out)
+            return self._json(200, {"ok": True})
+        if ai_chat and path == "/claude/assign":
+            if not ai_chat.guard_ok(self):
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = ai_chat.assign(
+                payload.get("owner"), payload.get("session"), payload.get("to")
+            )
+            return self._json(400 if err else 200, err or got)
+        if ai_chat and path == "/claude/note":
+            if not ai_chat.guard_ok(self):
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = ai_chat.note(
+                payload.get("owner"), payload.get("session"), payload.get("prompt")
+            )
+            return self._json(400 if err else 200, err or got)
+        if ai_chat and path == "/claude/attach":
+            if not ai_chat.guard_ok(self):
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = ai_chat.attach(
+                payload.get("owner"), payload.get("session"),
+                payload.get("cwd"), payload.get("title")
+            )
             return self._json(400 if err else 200, err or got)
         if path == "/agenda-history":
             data = self._body()

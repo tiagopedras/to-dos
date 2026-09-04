@@ -2,7 +2,7 @@
 """Consistency checker for the PA to-do list.
 
 Catches the mechanical mistakes that are easy to make by hand and awkward to
-spot by eye: deadlines landing on weekends or UK bank holidays, sub-step dates
+spot by eye: deadlines landing on weekends or public holidays, sub-step dates
 running past their parent, a blocked-by: pointing at a task that does not exist,
 an ai:full task with no prompt to hand over, a week that is over-committed, and a
 queried tag written in a form Dataview cannot read.
@@ -29,26 +29,19 @@ import re
 import sys
 from pathlib import Path
 
-# England and Wales. Substitute days are the observed dates, which are the ones
-# that matter for whether someone is at their desk.
-BANK_HOLIDAYS = {
-    "2026-01-01": "New Year's Day",
-    "2026-04-03": "Good Friday",
-    "2026-04-06": "Easter Monday",
-    "2026-05-04": "Early May bank holiday",
-    "2026-05-25": "Spring bank holiday",
-    "2026-08-31": "Summer bank holiday",
-    "2026-12-25": "Christmas Day",
-    "2026-12-28": "Boxing Day (substitute)",
-    "2027-01-01": "New Year's Day",
-    "2027-03-26": "Good Friday",
-    "2027-03-29": "Easter Monday",
-    "2027-05-03": "Early May bank holiday",
-    "2027-05-31": "Spring bank holiday",
-    "2027-08-30": "Summer bank holiday",
-    "2027-12-27": "Christmas Day (substitute)",
-    "2027-12-28": "Boxing Day (substitute)",
-}
+# The `repeat:` grammar and the working calendar are the board's, not this
+# script's, and they used to be copied in here by hand. Two Python ports of one
+# set of rules that must agree is drift waiting to happen, and drift here is
+# quiet — a meeting rolls to the wrong Thursday and nothing complains.
+#
+# So there is one copy, kanban/todo.py, and this script reaches it two ways.
+# Run from the repo, it imports the original four folders up. Run from an
+# installed skill, where there is no repo to reach, it imports the copy that
+# build.command staged beside it. The repo wins when both exist, so editing the
+# original is always what takes effect and a stale staged copy cannot mask it.
+_KANBAN = Path(__file__).resolve().parents[3] / "kanban"
+sys.path.insert(0, str(_KANBAN if (_KANBAN / "todo.py").is_file() else Path(__file__).resolve().parent))
+import todo  # noqa: E402
 
 # Two syntaxes, one meaning. impact, effort, due and ai are written as Dataview
 # inline fields — [due:: 2026-08-21] — because views.md queries them and Dataview
@@ -104,22 +97,20 @@ HEADLINE = re.compile(r"`headline:([^`]*)`")
 START = re.compile(r"`start:([^`]*)`")
 PROMPT_NOTE = re.compile(r"^\s*-\s+Prompt:", re.IGNORECASE)
 # How often a task comes round: `repeat:wed`, `repeat:wed-9:15`, `repeat:15`,
-# `repeat:tue2` (the 2nd Tuesday of every month).
+# `repeat:tue2` (the 2nd Tuesday of every month), any of them with a `/n` for a
+# longer cycle (`repeat:wed/2` fortnightly, `repeat:15/3` quarterly).
 # The cycle rather than a date, because `[due:: ]` already carries the occurrence
 # the card is currently pointing at, and the board moves that on itself.
 REPEAT = re.compile(r"`repeat:([^`]*)`")
-REPEAT_VAL = re.compile(
-    r"^(~?)(?:(mon|tue|wed|thu|fri|sat|sun)([1-5])?(?:[-\s]+(\d{1,2}:\d{2}))?"
-    r"|wd(\d{1,2})|(\d{1,2}))$",
-    re.I,
-)
+# What a tag is allowed to say, and what it then means, are both todo.read_repeat
+# — see the import at the top. Only the wrapper that finds the tag on the line is
+# this file's business.
 # The agenda for a recurring meeting: a note whose content is the indented block
 # under it rather than a quoted string, so it cannot be read one line at a time.
 # No date on it — the task's `[due:: ]` is the date the topics are for.
 AGENDA_NOTE = re.compile(r"^(\s*)-\s+Agenda\s*:", re.IGNORECASE)
 # Last cycle's, written by the board's roll rather than by hand.
 PREV_AGENDA_NOTE = re.compile(r"^(\s*)-\s+Previous agenda(\s*\(([^)]*)\))?\s*:", re.IGNORECASE)
-REPEAT_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 class Finding:
@@ -138,15 +129,13 @@ def parse_date(s):
 
 
 def working_day_problem(date):
-    """Return a description when a date is not a working day, else None."""
-    iso = date.isoformat()
-    if iso in BANK_HOLIDAYS:
-        return f"{BANK_HOLIDAYS[iso]}, a UK bank holiday"
-    if date.weekday() == 5:
-        return "a Saturday"
-    if date.weekday() == 6:
-        return "a Sunday"
-    return None
+    """Return a description when a date is not a working day, else None.
+
+    The weekend rule and both holiday calendars live in todo.py now, so the
+    board, the companion and this script cannot disagree about a Monday off.
+    Both countries count: a deadline is awkward whether he is away or his team
+    is."""
+    return todo.non_working_reason(date)
 
 
 def previous_working_day(date):
@@ -295,123 +284,22 @@ def check_suggested_messages(lines):
     return findings
 
 
-def ordinal(n):
-    suffix = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
-
-
-def nth_workday(y, mo, nth):
-    """The nth Monday-to-Friday day of a month, clamped to its last working day.
-
-    Nothing about bank holidays: the working-day check already flags a date that
-    lands on one, and a second holiday list here would be one to keep in step."""
-    import calendar
-
-    seen, fallback = 0, 1
-    for day in range(1, calendar.monthrange(y, mo)[1] + 1):
-        if dt.date(y, mo, day).weekday() >= 5:
-            continue
-        fallback = day
-        seen += 1
-        if seen == nth:
-            return dt.date(y, mo, day)
-    return dt.date(y, mo, fallback)
-
-
-def nth_weekday(y, mo, dow, nth):
-    """The nth occurrence of a weekday in a month, clamped to its last if short.
-
-    Same shape as nth_workday, for a meeting pinned to a weekday rather than to
-    every working day — the 2nd Tuesday of the month rather than the 2nd
-    working day."""
-    import calendar
-
-    seen, fallback = 0, 1
-    for day in range(1, calendar.monthrange(y, mo)[1] + 1):
-        if dt.date(y, mo, day).weekday() != dow:
-            continue
-        fallback = day
-        seen += 1
-        if seen == nth:
-            return dt.date(y, mo, day)
-    return dt.date(y, mo, fallback)
+# The nth-working-day and nth-weekday maths, the next-occurrence walk and the
+# reading of a `repeat:` tag were all a second Python port of the board's, kept
+# in step by hand. They are todo.py's now; these are the names this file calls
+# them by. The labels come with them, so a finding here words a cycle exactly
+# the way the card does.
+ordinal = todo.ordinal
+nth_workday = todo.nth_workday
+nth_weekday = todo.nth_weekday
+read_repeat = todo.read_repeat
 
 
 def next_occurrence(rep, today):
     """The first occurrence on or after today. Today counts: on the morning of a
-    meeting the agenda is still wanted, so the day of it is not yet the next one.
-
-    A monthly day a short month does not have lands on that month's last day
-    rather than skipping the month, which is the one answer certainly wrong."""
-    if rep["kind"] == "weekly":
-        return today + dt.timedelta(days=(rep["dow"] - today.weekday()) % 7)
-    import calendar
-
-    y, mo = today.year, today.month
-    if rep["kind"] == "workday":
-        hit = nth_workday(y, mo, rep["nth"])
-        if hit < today:
-            hit = nth_workday(y + 1 if mo == 12 else y, 1 if mo == 12 else mo + 1, rep["nth"])
-        return hit
-    if rep["kind"] == "monthly-dow":
-        hit = nth_weekday(y, mo, rep["dow"], rep["nth"])
-        if hit < today:
-            hit = nth_weekday(
-                y + 1 if mo == 12 else y, 1 if mo == 12 else mo + 1, rep["dow"], rep["nth"]
-            )
-        return hit
-    if today.day > min(rep["dom"], calendar.monthrange(y, mo)[1]):
-        mo += 1
-        if mo == 13:
-            y, mo = y + 1, 1
-    return dt.date(y, mo, min(rep["dom"], calendar.monthrange(y, mo)[1]))
-
-
-def read_repeat(val):
-    m = REPEAT_VAL.match(val.strip())
-    if not m:
-        return None
-    loose = m.group(1) == "~"
-    if m.group(5):
-        nth = int(m.group(5))
-        if not 1 <= nth <= 23:
-            return None
-        return {
-            "kind": "workday",
-            "nth": nth,
-            "loose": loose,
-            "label": f"the {ordinal(nth)} working day of each month",
-        }
-    if m.group(6):
-        dom = int(m.group(6))
-        if not 1 <= dom <= 31:
-            return None
-        return {
-            "kind": "monthly",
-            "dom": dom,
-            "loose": loose,
-            "label": f"the {dom}th of each month",
-        }
-    dow = REPEAT_DAYS.index(m.group(2).lower())
-    time = m.group(4) or ""
-    if m.group(3):
-        nth = int(m.group(3))
-        return {
-            "kind": "monthly-dow",
-            "dow": dow,
-            "nth": nth,
-            "loose": loose,
-            "label": f"monthly, the {ordinal(nth)} {m.group(2).capitalize()}"
-            + (" " + time if time else ""),
-        }
-    return {
-        "kind": "weekly",
-        "dow": dow,
-        "loose": loose,
-        "label": ("weekly, usually " if loose else "every ")
-        + m.group(2).capitalize()
-        + (" " + time if time else ""),
-    }
+    meeting the agenda is still wanted, so the day of it is not yet the next
+    one."""
+    return todo.occurrence_from(rep, today)
 
 
 def agenda_under(lines, task_line, indent, head_re=AGENDA_NOTE):
@@ -509,8 +397,10 @@ def check_recurring(lines, today):
                     f"read. Write a three-letter day, optionally with a time "
                     f"(`repeat:wed-9:15`), a day of the month (`repeat:15`), a "
                     f"working day of the month (`repeat:wd5`), or the nth weekday of "
-                    f"the month (`repeat:tue2` for the 2nd Tuesday). Prefix it with "
-                    f"`~` when the day is the usual shape rather than a rule.",
+                    f"the month (`repeat:tue2` for the 2nd Tuesday). Add `/n` to any "
+                    f"of those for a longer cycle — `repeat:wed/2` is fortnightly, "
+                    f"`repeat:15/3` is quarterly. Prefix it with `~` when the day is "
+                    f"the usual shape rather than a rule.",
                 )
             )
             continue
@@ -595,9 +485,17 @@ def check_recurring(lines, today):
 
 
 def same_cycle(rep, date):
-    """Whether a date actually falls on the cycle the tag describes."""
+    """Whether a date actually falls on the cycle the tag describes.
+
+    Shape only, never phase. A `/n` interval says which occurrences are his, and
+    that is a fact about the series rather than about any one date — every other
+    Wednesday still lands on a Wednesday, and nothing on the card says which
+    Wednesday is the right one. So an interval is deliberately not checked here:
+    the alternative is flagging half of a correct fortnightly series."""
+    # todo.dow_of, not date.weekday(): rep["dow"] is Sunday-first, the way the
+    # tag counts, and Python's weekday() is Monday-first.
     if rep["kind"] == "weekly":
-        return date.weekday() == rep["dow"]
+        return todo.dow_of(date) == rep["dow"]
     if rep["kind"] == "workday":
         return date == nth_workday(date.year, date.month, rep["nth"])
     if rep["kind"] == "monthly-dow":

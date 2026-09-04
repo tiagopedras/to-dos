@@ -1,6 +1,6 @@
 # My To-Do list
 
-Last updated: 2026-08-23
+Last updated: 2026-09-03
 
 ## How this works
 
@@ -13,6 +13,13 @@ delegation tag. Steps that mean contacting somebody carry the message already
 written, steps handed to Claude carry the prompt, and anything that needs a ticket
 carries the Jira line. A recurring task carries how often it comes round, and a
 recurring meeting carries the agenda for the next one.
+
+A handful of tasks are already ticked, dated across the last couple of months,
+so Reports has a trend to draw. A couple carry a start date as well as a due
+date, or a start with no due date yet, so Timeline has both a bar and a trail
+to show alongside its usual diamonds — one of those is also still waiting on
+`checkout`, left unscored on purpose, so a blocked row and the "needs scoring"
+chip both show up somewhere too.
 
 ---
 
@@ -48,20 +55,29 @@ recurring meeting carries the agenda for the next one.
   - [ ] Nudge Priya and Sam [due:: 2026-08-25] [ai:: none] `week`
     - Suggested message: "Hey 👋 Quick nudge on the 360 for Alex, I still need yours to close the pack. It is five questions and takes about ten minutes. Could you get it back to me by Tuesday? Happy to talk it through if that is easier than writing it."
 
+- [x] **Wrap up the Q2 hiring retro notes** [impact:: med] [effort:: S] [ai:: none] `done:2026-07-14`
+
+- [x] **Send Priya's skip-level notes to HR** [impact:: low] [effort:: S] [ai:: none] `done:2026-08-28`
+
 ### To do
 
-- [ ] **Set up monthly growth conversations with the team** [impact:: high] [effort:: M] [ai:: none]
-  - Separate from 1:1s on purpose. 1:1s have become status updates.
+- [ ] **Set up monthly growth conversations with the team** [impact:: high] [effort:: M] [ai:: none] `start:2026-08-20`
+  - Separate from 1:1s on purpose. 1:1s have become status updates. Started scoping this, no date to land it by yet.
   - [ ] Draft the shape of the conversation [ai:: partial] `week`
   - [ ] Put the recurring slots in [ai:: none] `start:2026-09-01`
 
 - [ ] **Decide whether to open the mid-weight design role** [impact:: high] [effort:: S] [due:: 2026-09-15] [ai:: none]
   - Budget is confirmed, the question is whether the team needs breadth or depth.
 
+- [ ] **Tidy up the shared 1:1 notes template** [impact:: low] [effort:: S] [ai:: none]
+
 ### Backlog
 
 - [ ] **Rewrite the design career framework** [impact:: med] [effort:: L] [ai:: partial]
   - Deferred until the probation round is finished. Revisit 2026-10-01.
+
+- [x] **Pick the venue for the team offsite** [impact:: low] [effort:: S] [ai:: none]
+  - Ticked before the board started dating finished work, so it has no `done:` tag — Reports counts it as a gap rather than guessing.
 
 ---
 
@@ -71,7 +87,7 @@ recurring meeting carries the agenda for the next one.
 
 ### Doing
 
-- [ ] **Unblock the checkout redesign** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: none] `#checkout`
+- [ ] **Unblock the checkout redesign** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: none] `#checkout` `urgent`
   - Project: `data/projects/checkout-redesign`. Both directions, and why each one was drawn, are in that folder.
   - Jordan has two competing directions and no way to choose between them.
   - [ ] Sit with Jordan and pick a direction [due:: 2026-08-21] [ai:: none]
@@ -80,14 +96,23 @@ recurring meeting carries the agenda for the next one.
 
 - [ ] **Review the onboarding flow before it ships** [impact:: high] [effort:: S] [due:: 2026-08-28] [ai:: none] `week`
 
+- [x] **Sign off the empty-state pattern** [impact:: med] [effort:: M] [ai:: none] `done:2026-08-19`
+
+- [x] **Approve the nav redesign for release** [impact:: high] [effort:: S] [ai:: none] `done:2026-09-01`
+
 ### To do
 
 - [ ] **Write up how design reviews should run** [impact:: med] [effort:: M] [ai:: full] `rank:3`
   - Prompt: "Read the notes in [path] and draft a one page guide to how our design reviews run: who comes, what gets shown, what a reviewer is expected to leave with. Keep it to one page and write it as guidance rather than rules."
 
+- [ ] **Update the design QA checklist for the new checkout flow** [due:: 2026-09-08] [ai:: none] `blocked-by:checkout`
+  - Waiting on the checkout direction before this can be written, so it is still unscored.
+
 ### Backlog
 
 - [ ] **Audit which projects have no design owner** [impact:: med] [effort:: S] [ai:: partial]
+
+- [x] **Close out the icon audit ticket** [impact:: med] [effort:: S] [ai:: none] `done:2026-07-21`
 
 ---
 
@@ -100,12 +125,14 @@ recurring meeting carries the agenda for the next one.
 
 ### Doing
 
-- [ ] **Close the Figma against code gap on buttons** [impact:: high] [effort:: M] [due:: 2026-09-04] [ai:: partial]
+- [ ] **Close the Figma against code gap on buttons** [impact:: high] [effort:: M] [due:: 2026-09-04] [ai:: partial] `start:2026-08-25`
   - Project: `data/projects/button-parity`. The audit so far and the decisions taken are in that folder's `CLAUDE.md`.
   - Stream: audits.
   - [ ] Pull a fresh snapshot [due:: 2026-08-27] [ai:: full] `rank:2`
     - Prompt: "Run the ds-snapshot skill from the ds-snapshots folder to capture today's library, then tell me which button variants exist in Figma and not in Storybook. Do not compare against an old snapshot, take a new one first."
   - [ ] Agree the naming with the Web team [ai:: none] `blocked-by:checkout`
+
+- [x] **Retire the legacy colour palette** [impact:: med] [effort:: S] [ai:: none] `done:2026-08-11`
 
 ### To do
 
@@ -122,9 +149,13 @@ recurring meeting carries the agenda for the next one.
 - [ ] **Run a token clean-up pass** [impact:: low] [effort:: M] [ai:: partial]
   - Stream: improvements.
 
+- [x] **Publish the v2 badge component** [impact:: med] [effort:: M] [ai:: none] `done:2026-08-25`
+
 ### Backlog
 
-- [ ] **Move the icon set onto variables** [impact:: low] [effort:: L] [ai:: partial]
+- [ ] **Move the icon set onto variables** [impact:: low] [effort:: L] [ai:: partial] [to:: Jordan]
+
+- [x] **Ship the spacing token migration** [impact:: high] [effort:: M] [ai:: none] `done:2026-07-28`
 
 ---
 
@@ -138,9 +169,15 @@ recurring meeting carries the agenda for the next one.
   - [ ] Pull last quarter's numbers together [ai:: full] `rank:5`
     - Prompt: "Summarise the adoption numbers in [path] into five sentences I can put in front of the leadership team. Say what moved, what did not, and what the honest read is. Do not pad it with recommendations."
 
+- [x] **Finish the Q2 adoption readout** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-04`
+
 ### To do
 
 - [ ] **Test whether AI review speeds up design QA** [impact:: med] [effort:: M] [ai:: partial]
+
+- [ ] **Sketch a rough shape for the design ops role** [impact:: low] [effort:: L] [ai:: partial]
+
+- [x] **Circulate the tooling budget proposal** [impact:: med] [effort:: S] [ai:: none] `done:2026-08-30`
 
 ### Backlog
 

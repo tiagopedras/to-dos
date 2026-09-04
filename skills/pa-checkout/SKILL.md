@@ -1,5 +1,5 @@
 ---
-name: pa-unstick
+name: pa-checkout
 description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with a count in each of the three states. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read or re-prioritisation, which is pa-checkin, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; pa-checkin does the actual writing.
 ---
 
