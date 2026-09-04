@@ -18,6 +18,23 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- ~~Message suggestions and Prompt suggestions disappeared when empty.~~
+  **Done, 4 Sep 2026.** `suggestionSection` in `kanban/index.html` no longer
+  returns `''` for an empty list — it renders the section with a one-line
+  empty state instead (a plain `<p class="empty">`, the same class other empty
+  states in the app already use), so a task's shape in the drawer no longer
+  shifts depending on whether anything's in them.
+
+- ~~The suggestion-shaped section headlines and the Dependencies sub-labels
+  looked identical.~~ **Done, 4 Sep 2026.** In the drawer, "Dependencies",
+  "Message suggestions", "Prompt suggestions", "Meeting agenda" and "Jira
+  tickets" were rendering in `--ink-faint`, too low-contrast against a dark
+  panel for a heading. They're full `--ink` now, scoped to `.sugg` so ordinary
+  field labels (Title, Status, Notes...) keep their original weight. And
+  `.deplabel` ("Waiting on" / "Blocks" under Dependencies) used the exact same
+  rule as the "Dependencies" heading above it — now one visible rung down:
+  smaller, lighter weight, tighter letter-spacing, 80% opacity.
+
 ## Big
 
 - Recurring tasks understand a weekday, a day of the month and a working day of

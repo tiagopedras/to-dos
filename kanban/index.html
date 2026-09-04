@@ -1195,6 +1195,12 @@
   aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
   .field{display:flex; flex-direction:column; gap:5px}
   .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
+  /* The suggestion-shaped sections' own headlines — Dependencies, Message
+     suggestions, Prompt suggestions, Meeting agenda, Jira tickets — read too
+     faint against a dark panel: ink-faint is built for de-emphasis, not for a
+     heading. Full ink instead, scoped to .sugg so ordinary field labels
+     (Title, Status, Notes...) keep the quieter weight they're meant to have. */
+  .sugg > span, .sugg > summary{color:var(--ink)}
   /* The label above a field is a name and reads fine in caps. The help under it
      is a sentence, and was inheriting the same rule by being the same element —
      which is why .sublabel already had to undo it by hand. Undone once here. */
@@ -1286,6 +1292,7 @@
   .calsm:hover{color:var(--ink); border-color:var(--ink-faint)}
 
   /* ---------- suggestion sections in the panel ---------- */
+  .sugg .empty{margin:0 0 6px; font-size:12.5px}
   .sugg .msg{margin:0 0 7px; padding:9px 38px 9px 11px}
   .sugg .msg:last-of-type{margin-bottom:6px}
   .sugg .msgtext{font-size:12.5px}
@@ -1305,9 +1312,13 @@
   .depgroup:last-child{margin-bottom:6px}
   .depcols{display:flex; gap:16px; flex-wrap:wrap}
   .depcol{flex:1; min-width:130px}
+  /* One rung under the "Dependencies" summary, not a repeat of it — same
+     small-caps family so it still reads as a label, but smaller, lighter and
+     less spaced, the way a sub-heading sits under a heading rather than
+     beside it. */
   .deplabel{
-    display:block; font-size:11px; font-weight:650; text-transform:uppercase;
-    letter-spacing:.04em; color:var(--ink-faint); margin-bottom:4px;
+    display:block; font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-faint); opacity:.8; margin-bottom:4px;
   }
   .deplist{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:3px}
   .depitem{font-size:12.5px; line-height:1.4}
@@ -6357,16 +6368,18 @@ function suggestions(t){
 }
 function suggestionSection(label, list, opts){
   opts = opts || {};
-  if (!list.length) return '';
   const key = 'sugg:' + label;
+  const body = list.length
+    ? list.map(s => messageHTML(s.text, {
+        where: s.where, draft: s.draft, claude: opts.claude, task: opts.task,
+        dismiss: state.locked ? '' : s.raw
+      })).join('')
+    : '<p class="empty">' + esc(opts.emptyText || 'Nothing here yet.') + '</p>';
   return '<hr class="dsep">' +
     '<details class="field sugg" data-collapse="' + esc(key) + '"' + (sectionCollapsed(key) ? '' : ' open') + '>' +
     '<summary>' + esc(label) +
     (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</summary>' +
-    list.map(s => messageHTML(s.text, {
-      where: s.where, draft: s.draft, claude: opts.claude, task: opts.task,
-      dismiss: state.locked ? '' : s.raw
-    })).join('') +
+    body +
     '</details>';
 }
 
@@ -6595,8 +6608,10 @@ function openDrawer(id, focusTitle){
     chatSection(t) +
     dependenciesSection(t) +
     agendaSection(sugg.agenda, t.due, readPrevAgenda(bodyParts(t).notes)) +
-    suggestionSection('Message suggestions', sugg.message) +
-    suggestionSection('Prompt suggestions', sugg.prompt, { claude:true, task:t.id }) +
+    suggestionSection('Message suggestions', sugg.message,
+      { emptyText: 'None yet. Written as "- Suggested message: ..." in Notes.' }) +
+    suggestionSection('Prompt suggestions', sugg.prompt,
+      { claude:true, task:t.id, emptyText: 'None yet. Written as "- Prompt: ..." in Notes.' }) +
     jiraSection(sugg.jira);
 
   // Every handler below changes the task, so none of them are wired up in a
