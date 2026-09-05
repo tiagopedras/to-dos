@@ -953,17 +953,23 @@
   .uline.r{stroke:var(--b2); stroke-width:1.6}
   /* One vertical line per five-hour session, at the moment it opened. Night
      ones are picked out because they are the windows the nightly agent could
-     have spent in without touching the morning. */
-  .ubarv{stroke:var(--accent); stroke-width:1.4; opacity:.42}
-  .ubarv.night{opacity:.9}
-  .ubarv.live{stroke:var(--green); opacity:1; stroke-width:2}
+     have spent in without touching the morning.
+
+     crispEdges is doing real work here, not tidying. These are axis-aligned
+     lines under two pixels wide sitting on fractional x coordinates, and
+     antialiasing spreads each one across two columns of half-strength pixels —
+     which at the opacity the faded half started on came out as a smudge rather
+     than a line, and read as nothing being drawn at all. */
+  .ubarv{stroke:var(--accent); stroke-width:1.8; opacity:.55; shape-rendering:crispEdges}
+  .ubarv.night{opacity:1}
+  .ubarv.live{stroke:var(--green); opacity:1; stroke-width:2.4}
   .unow{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2 3; opacity:.6}
   .uaxl{font-size:9px; fill:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .uaxl.y{text-anchor:end}
   .uaxl.d{text-anchor:middle}
   .ukey{display:flex; flex-wrap:wrap; gap:12px; margin:6px 0 0; font-size:11.5px; color:var(--ink-faint)}
   .ukey .k{display:flex; align-items:center; gap:5px}
-  .ukey .k::before{content:''; width:3px; height:11px; border-radius:1px; background:var(--accent); opacity:.42}
+  .ukey .k::before{content:''; width:3px; height:11px; border-radius:1px; background:var(--accent); opacity:.55}
   .ukey .k.n::before{opacity:.9}
   .ukey .k.r::before{width:12px; height:3px; background:var(--b2); opacity:1}
   .ucap{margin:7px 0 0; font-size:11px; line-height:1.5; color:var(--ink-faint)}
