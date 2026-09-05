@@ -1,10 +1,10 @@
 # to-dos/skills
 
-The `pa-*` skills: six ways of running the one list at
+The `pa-*` skills: seven ways of running the one list at
 `to-dos/data/<dataset>/todo.md`. They are separate skills because they ask
 different questions, not because they touch different data. Read
 [../PA.md](../PA.md) and [../CONVENTIONS.md](../CONVENTIONS.md) before changing any
-of them, since all six share both.
+of them, since all seven share both.
 
 ## The skills index
 
