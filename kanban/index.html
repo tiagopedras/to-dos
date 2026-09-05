@@ -1251,56 +1251,68 @@
   .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 
-  /* ai: as a three-stop slider rather than a <select> — the field only ever
-     holds one of three values, so dragging a handle between them reads faster
-     than opening a dropdown, and it is more fun to use. Positions are fixed at
-     0/50/100%, never continuous: posToValue() in wireAiSlider() always rounds
-     to the nearest of the three, so there is nothing "in between" to land on
-     by accident. Padding on the outer element leaves room for the handle
-     (10px radius) to sit fully inside it at both ends of the track.
+  /* A fixed-stop slider — 2 or more positions, colour and count both set by
+     the caller — standing in for a <select> wherever the field only ever
+     holds one of a short, known set of values: ai:, impact:, effort:, and
+     the task's column. Reads faster dragged than picked from a dropdown, and
+     is more fun to use. Positions are fixed, never continuous: posToIdx() in
+     wireStepSlider() always rounds to the nearest stop, so there is nothing
+     "in between" to land on by accident. Padding on the outer element leaves
+     room for the handle (10px radius) to sit fully inside it at both ends.
 
-     The handle's own resting spots at None and Full are pulled in by
-     --ai-inset rather than sitting exactly on the track's tips: parked right
-     on the tip, the handle is bigger than the track and hides both the
+     The handle's own resting spots at the first and last stop are pulled in
+     by --step-inset rather than sitting exactly on the track's tips: parked
+     right on the tip, the handle is bigger than the track and hides both the
      rounded end and that end's marker dot completely. Purely a display
-     offset — posToValue() still rounds the raw drag fraction across the full
-     track, so dragging all the way to either edge lands on None or Full.
+     offset — posToIdx() still rounds the raw drag fraction across the full
+     track, so dragging all the way to either edge still lands on that stop.
 
-     The track itself is drawn a bit longer than that same 0–100% coordinate
-     space, via ::before rather than by resizing .aitrack — extending .aitrack
-     would move where 100% actually is and break the drag math above it. The
-     extra --ai-cap px on each side is what makes a rounded end visible at
-     all: without it, the end dot sits exactly on the track's real tip and the
-     "rounded end" is just the dot. With it, the tip is past the dot, so a bit
-     of cap curves away beyond both. */
-  .aislider{--ai-inset:10px; --ai-cap:5px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
-  .aislider.disabled{opacity:.5; pointer-events:none}
-  .aislider:focus-visible{outline:none}
-  .aitrack{position:relative; height:6px}
-  .aitrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--ai-cap)); right:calc(-1 * var(--ai-cap)); height:100%; border-radius:999px; background:var(--line)}
-  .aitick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
-  .aitick[data-i="0"]{left:0} .aitick[data-i="1"]{left:50%} .aitick[data-i="2"]{left:100%}
-  /* Left edge sits at -ai-cap, not 0, so the colour reaches into the same
-     stub of cap the track's own ::before draws — otherwise "filled so far"
-     stops short of the rounded end and leaves an uncoloured nub before it. */
-  .aifill{position:absolute; top:0; left:calc(-1 * var(--ai-cap)); height:100%; border-radius:999px; transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
-  .aifill[data-v="none"]{width:0%; background:var(--ink-faint)}
-  .aifill[data-v="partial"]{width:calc(50% + var(--ai-cap)); background:var(--amber)}
-  .aifill[data-v="full"]{width:calc(100% - var(--ai-inset) + var(--ai-cap)); background:var(--green)}
-  .aihandle{
-    position:absolute; top:50%; left:var(--ai-inset); width:20px; height:20px; border-radius:50%;
-    background:var(--panel); border:2px solid var(--ink-faint); box-shadow:0 1px 3px rgba(16,20,28,.2);
+     The track itself is drawn a bit longer than the 0–100% coordinate space
+     the stops sit in, via ::before rather than by resizing .steptrack —
+     resizing it would move where 100% actually is and break the drag math.
+     The extra --step-cap px on each side is what makes a rounded end visible
+     at all: without it, the end dot sits exactly on the track's real tip and
+     the "rounded end" is just the dot. With it, the tip is past the dot, so
+     a bit of cap curves away beyond both — and the fill's own left edge
+     matches that same -step-cap, so "filled so far" reaches the cap instead
+     of stopping short and leaving an uncoloured nub before it.
+
+     Stop labels are positioned to match their tick exactly (same fraction of
+     the track, translateX to center them on it, clamped at the two ends so
+     nothing overhangs the field) rather than laid out with flexbox — the
+     stop count and label length both vary by field (a column name runs much
+     longer than "S"), and only anchoring each label to its own coordinate
+     keeps it under the right tick regardless of what the neighbours say. */
+  .stepslider{--step-inset:10px; --step-cap:5px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
+  .stepslider.disabled{opacity:.5; pointer-events:none}
+  .stepslider:focus-visible{outline:none}
+  .steptrack{position:relative; height:6px}
+  .steptrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--step-cap)); right:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--line)}
+  .steptick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
+  .stepfill{position:absolute; top:0; left:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--step-color, var(--ink-faint)); transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
+  .stephandle{
+    position:absolute; top:50%; width:20px; height:20px; border-radius:50%;
+    background:var(--panel); border:2px solid var(--step-color, var(--ink-faint)); box-shadow:0 1px 3px rgba(16,20,28,.2);
     transform:translate(-50%,-50%);
     transition:left .28s cubic-bezier(.34,1.56,.64,1), border-color .2s, transform .12s;
   }
-  .aihandle[data-v="partial"]{left:50%; border-color:var(--amber)}
-  .aihandle[data-v="full"]{left:calc(100% - var(--ai-inset)); border-color:var(--green)}
-  .aislider.dragging .aihandle{transform:translate(-50%,-50%) scale(1.15); transition:border-color .2s}
-  .aislider:focus-visible .aihandle{outline:2px solid var(--accent); outline-offset:2px}
-  .aistops{display:flex; justify-content:space-between; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
-  .aistop{padding:2px 4px; border-radius:5px}
-  .aistop:hover{color:var(--ink); background:var(--chip)}
-  .aistop.on{color:var(--ink); font-weight:650}
+  .stepslider.dragging .stephandle{transform:translate(-50%,-50%) scale(1.15); transition:border-color .2s}
+  .stepslider:focus-visible .stephandle{outline:2px solid var(--accent); outline-offset:2px}
+  /* Fixed height rather than one that grows with content: every .stepstop is
+     positioned absolutely (so it can sit at its own coordinate rather than in
+     flexbox flow), which means the parent never sees their height and won't
+     stretch for a wrapped one on its own. 28px is two lines' worth at this
+     font, which is as far as a name like "Waiting review" ever needs to
+     wrap once it's capped to its own fair share of the track's width below. */
+  .stepstops{position:relative; height:28px; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
+  .stepstop{
+    position:absolute; top:0; padding:2px 4px; border-radius:5px; transform:translateX(-50%);
+    text-align:center; line-height:1.3; overflow-wrap:break-word;
+  }
+  .stepstop:first-child{transform:translateX(0); text-align:left}
+  .stepstop:last-child{transform:translateX(-100%); text-align:right}
+  .stepstop:hover{color:var(--ink); background:var(--chip)}
+  .stepstop.on{color:var(--ink); font-weight:650}
   /* ---------- collapsible sections in the drawer ----------
      A <details> standing in for the <label>/<div> a field or a suggestion
      block would otherwise be, so Description, Chats, Message suggestions and
@@ -7576,81 +7588,115 @@ function calendarHTML(month, selected){
       '<button type="button" class="calsm" data-day="">Clear</button>' +
     '</div>';
 }
-/* The ai: field, drawn as a three-stop slider. A blank value (never decided)
-   and 'none' (decided AI can't help) used to be different states in the file;
-   the slider only has three positions, so landing on None and never touching
-   it again leaves the field blank same as before, and dragging to None writes
-   'none' explicitly — the one place that distinction now shows up. */
-const AI_VALUES = ['none', 'partial', 'full'];
-const AI_LABELS = { none: 'None', partial: 'Partial', full: 'Full' };
-function aiSliderHTML(value, ro){
-  const v = (value === 'partial' || value === 'full') ? value : 'none';
-  return '<div class="aislider' + (ro ? ' disabled' : '') + '" id="f-ai" data-v="' + v + '"' +
+/* ai:, impact:, effort: and the task's column all pick from a short, known
+   set of values, so all four are drawn with the same fixed-stop slider. Each
+   caller supplies its own ordered list of {value, label, color} stops —
+   color is optional, and only meaningful on the stop actually selected, so a
+   trailing stop with no color just keeps whatever the previous one set.
+
+   impact: and effort: keep a blank stop at position 0 rather than folding it
+   into the lowest real value, because unscored is a real, load-bearing state
+   here — the matrix and the "needs scoring" count both key off it — where
+   ai:'s blank and ai:none were never told apart anywhere else, which is why
+   that slider only got three stops instead of four. */
+const AI_STOPS = [
+  { value: 'none', label: 'None', color: 'var(--ink-faint)' },
+  { value: 'partial', label: 'Partial', color: 'var(--amber)' },
+  { value: 'full', label: 'Full', color: 'var(--green)' },
+];
+const IMPACT_STOPS = [
+  { value: '', label: '—', color: 'var(--ink-faint)' },
+  { value: 'low', label: 'Low', color: 'var(--ink-faint)' },
+  { value: 'med', label: 'Med', color: 'var(--amber)' },
+  { value: 'high', label: 'High', color: 'var(--green)' },
+];
+const EFFORT_STOPS = [
+  { value: '', label: '—', color: 'var(--ink-faint)' },
+  { value: 'S', label: 'S', color: 'var(--ink-faint)' },
+  { value: 'M', label: 'M', color: 'var(--amber)' },
+  { value: 'L', label: 'L', color: 'var(--green)' },
+];
+
+/* Where a stop sits along the track: evenly spaced, except the first and
+   last are pulled in by --step-inset so the handle parked there doesn't
+   cover the tip (see the CSS comment above .stepslider). Ticks and stop
+   labels use the plain, un-inset fraction instead — they are reference
+   marks, not something a handle has to clear. */
+function stepPos(idx, n){
+  if (n < 2) return '50%';
+  if (idx === 0) return 'var(--step-inset)';
+  if (idx === n - 1) return 'calc(100% - var(--step-inset))';
+  return (idx / (n - 1) * 100) + '%';
+}
+function stepTickPos(idx, n){ return n < 2 ? '50%' : (idx / (n - 1) * 100) + '%'; }
+function stepFillWidth(idx, n){ return idx === 0 ? '0%' : 'calc(' + stepPos(idx, n) + ' + var(--step-cap))'; }
+
+function stepSliderHTML(id, stops, value, ro, ariaLabel){
+  const n = stops.length;
+  let idx = stops.findIndex(s => s.value === value);
+  if (idx < 0) idx = 0;
+  const color = stops[idx].color ? ';--step-color:' + stops[idx].color : '';
+  return '<div class="stepslider' + (ro ? ' disabled' : '') + '" id="' + id + '" data-idx="' + idx + '"' +
       (ro ? '' : ' tabindex="0"') +
-      ' role="slider" aria-label="How much of this AI can do" aria-valuemin="0" aria-valuemax="2"' +
-      ' aria-valuenow="' + AI_VALUES.indexOf(v) + '" aria-valuetext="' + AI_LABELS[v] + '">' +
-    '<div class="aitrack">' +
-      '<div class="aifill" data-v="' + v + '"></div>' +
-      '<span class="aitick" data-i="0"></span><span class="aitick" data-i="1"></span><span class="aitick" data-i="2"></span>' +
-      '<div class="aihandle" data-v="' + v + '"></div>' +
+      ' role="slider" aria-label="' + esc(ariaLabel) + '" aria-valuemin="0" aria-valuemax="' + (n - 1) + '"' +
+      ' aria-valuenow="' + idx + '" aria-valuetext="' + esc(stops[idx].label) + '">' +
+    '<div class="steptrack">' +
+      '<div class="stepfill" style="width:' + stepFillWidth(idx, n) + color + '"></div>' +
+      stops.map((s, i) => '<span class="steptick" style="left:' + stepTickPos(i, n) + '"></span>').join('') +
+      '<div class="stephandle" style="left:' + stepPos(idx, n) + color + '"></div>' +
     '</div>' +
-    '<div class="aistops">' +
-      AI_VALUES.map(av => '<span class="aistop' + (av === v ? ' on' : '') + '" data-v="' + av + '">' + AI_LABELS[av] + '</span>').join('') +
+    /* Capped to its own fair share of the width (100/n%) rather than left to
+       size itself: an even split is the one guarantee that holds regardless
+       of stop count or label length, so a wide one wraps onto a second line
+       under .stepstop's line-height instead of running into its neighbour —
+       which a name like "Waiting review" otherwise does at 5 stops. */
+    '<div class="stepstops">' +
+      stops.map((s, i) => '<span class="stepstop' + (i === idx ? ' on' : '') + '" data-i="' + i +
+        '" style="left:' + stepTickPos(i, n) + ';max-width:' + (100 / n).toFixed(3) + '%">' + esc(s.label) + '</span>').join('') +
     '</div>' +
   '</div>';
 }
 /* Drag the handle, click a stop label, or arrow-key it once focused — three
-   ways into the same three positions. posToValue() always rounds to the
-   nearest stop, so a drag can only ever land on None/Partial/Full, never
-   between them. Mirrors the old <select>'s onchange: switching away from
-   ai:full still strips any prompts that were written for delegation. */
-function wireAiSlider(t, id, touch){
-  const el = $('#f-ai');
+   ways into the same fixed set of positions. posToIdx() always rounds to the
+   nearest stop, so a drag can only ever land on one of them, never between.
+   onCommit(value) is the only thing that varies by field — everything above
+   it is just moving the handle and painting the result. */
+function wireStepSlider(id, stops, onCommit){
+  const el = $('#' + id);
   if (!el || el.classList.contains('disabled')) return;
-  const track = el.querySelector('.aitrack');
+  const track = el.querySelector('.steptrack');
+  const n = stops.length;
 
-  const paint = v => {
-    el.dataset.v = v;
-    el.setAttribute('aria-valuenow', AI_VALUES.indexOf(v));
-    el.setAttribute('aria-valuetext', AI_LABELS[v]);
-    el.querySelector('.aifill').dataset.v = v;
-    el.querySelector('.aihandle').dataset.v = v;
-    el.querySelectorAll('.aistop').forEach(s => s.classList.toggle('on', s.dataset.v === v));
+  const paint = idx => {
+    const s = stops[idx];
+    el.dataset.idx = idx;
+    el.setAttribute('aria-valuenow', idx);
+    el.setAttribute('aria-valuetext', s.label);
+    const fill = el.querySelector('.stepfill'), handle = el.querySelector('.stephandle');
+    fill.style.width = stepFillWidth(idx, n);
+    handle.style.left = stepPos(idx, n);
+    if (s.color) { fill.style.setProperty('--step-color', s.color); handle.style.setProperty('--step-color', s.color); }
+    el.querySelectorAll('.stepstop').forEach((stop, i) => stop.classList.toggle('on', i === idx));
   };
-  const commit = v => {
-    t.ai = v;
-    if (t.ai !== 'full') {
-      const dropped = stripDelegation(t);
-      if (dropped.length) {
-        touch();
-        openDrawer(id);
-        $('#status').textContent = 'removed ' + dropped.length + ' prompt' +
-          (dropped.length > 1 ? 's' : '') + ' — no longer ai:full';
-        $('#status').classList.add('dirty');
-        return;
-      }
-    }
-    touch();
-  };
-  const posToValue = clientX => {
+  const posToIdx = clientX => {
     const r = track.getBoundingClientRect();
     const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    return AI_VALUES[Math.round(frac * 2)];
+    return Math.round(frac * (n - 1));
   };
 
-  el.querySelectorAll('.aistop').forEach(stop => {
-    stop.onclick = () => { paint(stop.dataset.v); commit(stop.dataset.v); };
+  el.querySelectorAll('.stepstop').forEach(stop => {
+    stop.onclick = () => { const i = +stop.dataset.i; paint(i); onCommit(stops[i].value); };
   });
   el.onkeydown = e => {
-    const cur = AI_VALUES.indexOf(el.dataset.v);
+    const cur = +el.dataset.idx;
     let next = null;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = AI_VALUES[Math.min(cur + 1, 2)];
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = AI_VALUES[Math.max(cur - 1, 0)];
-    else if (e.key === 'Home') next = 'none';
-    else if (e.key === 'End') next = 'full';
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = Math.min(cur + 1, n - 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(cur - 1, 0);
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = n - 1;
     if (next === null) return;
     e.preventDefault();
-    paint(next); commit(next);
+    paint(next); onCommit(stops[next].value);
   };
   let dragging = false;
   track.onpointerdown = e => {
@@ -7658,14 +7704,14 @@ function wireAiSlider(t, id, touch){
     el.classList.add('dragging');
     el.focus();
     track.setPointerCapture(e.pointerId);
-    paint(posToValue(e.clientX));
+    paint(posToIdx(e.clientX));
   };
-  track.onpointermove = e => { if (dragging) paint(posToValue(e.clientX)); };
+  track.onpointermove = e => { if (dragging) paint(posToIdx(e.clientX)); };
   const finish = () => {
     if (!dragging) return;
     dragging = false;
     el.classList.remove('dragging');
-    commit(el.dataset.v);
+    onCommit(stops[+el.dataset.idx].value);
   };
   track.onpointerup = finish;
   track.onpointercancel = finish;
@@ -7927,6 +7973,10 @@ function openDrawer(id, focusTitle){
   // tick box that has nothing to do with the other columns.
   const cols = boardColumns();
   const nowIn = t.done ? DONE_COL : loc.tier.name;
+  // Neutral rather than a per-column palette — the columns themselves vary by
+  // board and carry no fixed meaning beyond "further along", except the last
+  // one, which always means done.
+  const tierStops = cols.map(n => ({ value: n, label: n, color: n === DONE_COL ? 'var(--green)' : 'var(--accent)' }));
   const subs = subSteps(t);
   const sugg = suggestions(t);
   const proj = taskProject(t);
@@ -7961,24 +8011,20 @@ function openDrawer(id, focusTitle){
       '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
       '<span class="help">Sub-steps live in the list below. Anything you type here is a note on the task.</span>' +
     '</details>' +
+    '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
+      state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
+    '</select></label>' +
+    /* Full width rather than sharing a grid2 with Bucket: a column name like
+       "Waiting review" needs the room a slider half that wide wouldn't give
+       its label, where the old <select> never had to fit the whole word next
+       to anything. */
+    '<div class="field"><span>Column</span>' + stepSliderHTML('f-tier', tierStops, nowIn, ro, 'Column') + '</div>' +
     '<div class="grid2">' +
-      '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
-        state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
-      '</select></label>' +
-      '<label class="field"><span>Column</span><select id="f-tier"' + dis + '>' +
-        cols.map(n => '<option' + (n === nowIn ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
-      '</select></label>' +
+      '<div class="field"><span>Impact</span>' + stepSliderHTML('f-impact', IMPACT_STOPS, t.impact, ro, 'Impact') + '</div>' +
+      '<div class="field"><span>Effort</span>' + stepSliderHTML('f-effort', EFFORT_STOPS, t.effort, ro, 'Effort') + '</div>' +
     '</div>' +
     '<div class="grid2">' +
-      '<label class="field"><span>Impact</span><select id="f-impact"' + dis + '>' +
-        ['','high','med','low'].map(v => '<option value="' + v + '"' + (v === t.impact ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
-      '</select></label>' +
-      '<label class="field"><span>Effort</span><select id="f-effort"' + dis + '>' +
-        ['','S','M','L'].map(v => '<option value="' + v + '"' + (v === t.effort ? ' selected' : '') + '>' + (v || '—') + '</option>').join('') +
-      '</select></label>' +
-    '</div>' +
-    '<div class="grid2">' +
-      '<div class="field"><span>Who does it (ai:)</span>' + aiSliderHTML(t.ai, ro) + '</div>' +
+      '<div class="field"><span>Who does it (ai:)</span>' + stepSliderHTML('f-ai', AI_STOPS, t.ai, ro, 'How much of this AI can do') + '</div>' +
       /* A person, not Claude. Left blank on anything he is doing himself, which
          is most of the list, so the card shows nothing until it is filled in. */
       '<label class="field"><span>Delegated to</span>' +
@@ -8065,9 +8111,23 @@ function openDrawer(id, focusTitle){
   // Not trimmed here, or a space between a first and last name would vanish as
   // it is typed. serializeTask trims it on the way to the file.
   $('#f-to').oninput     = e => { t.to = e.target.value; touch(); };
-  $('#f-impact').onchange = e => { t.impact = e.target.value; touch(); };
-  $('#f-effort').onchange = e => { t.effort = e.target.value; touch(); };
-  wireAiSlider(t, id, touch);
+  wireStepSlider('f-impact', IMPACT_STOPS, v => { t.impact = v; touch(); });
+  wireStepSlider('f-effort', EFFORT_STOPS, v => { t.effort = v; touch(); });
+  wireStepSlider('f-ai', AI_STOPS, v => {
+    t.ai = v;
+    if (t.ai !== 'full') {
+      const dropped = stripDelegation(t);
+      if (dropped.length) {
+        touch();
+        openDrawer(id);
+        $('#status').textContent = 'removed ' + dropped.length + ' prompt' +
+          (dropped.length > 1 ? 's' : '') + ' — no longer ai:full';
+        $('#status').classList.add('dirty');
+        return;
+      }
+    }
+    touch();
+  });
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };
   hlBtn.onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
   wireDatePicker(t, touch, 'start');
@@ -8076,8 +8136,7 @@ function openDrawer(id, focusTitle){
   /* Done is the tick box in the file, not a section, so picking it here ticks
      the task off and picking anything else unticks it — exactly what dragging a
      card in or out of the Done column does. */
-  $('#f-tier').onchange = e => {
-    const pick = e.target.value;
+  wireStepSlider('f-tier', tierStops, pick => {
     if (pick === DONE_COL) {
       const msg = blockedMessage(allItems(), t.blockedBy);
       if (msg) { showToast(msg, 'blocked'); openDrawer(id); return; }
@@ -8092,7 +8151,7 @@ function openDrawer(id, focusTitle){
       target.tasks.push(t);
     }
     markDirty(); refreshView(); openDrawer(id);
-  };
+  });
   $('#f-bucket').onchange = e => {
     const nb = state.doc.buckets.find(b => b.name === e.target.value);
     if (!nb) return;

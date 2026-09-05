@@ -60,6 +60,13 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Render the description field as markdown.** It's a plain `<textarea>` —
+  bold, links and lists all show as literal asterisks and brackets rather than
+  formatted. Needs a decision on whether it's a toggle between editing the raw
+  text and viewing it rendered, or a live preview alongside, and on how much of
+  markdown to support given the field also holds the prompt/message suggestion
+  scaffolding `suggestions()` parses back out of it.
+
 - **A desktop widget holding message suggestions, ready to copy.** Prompt
   suggestions today live on a task's row or drawer, one click away but still a
   trip into the board. A standing widget — companion-adjacent, always on
