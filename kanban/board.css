@@ -1,0 +1,1762 @@
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --ink-soft:#5d636e; --ink-faint:#8b919c;
+    --line:#e3e6ea; --line-soft:#eef0f3; --accent:#2f6feb; --accent-ink:#fff;
+    --red:#c8322f; --red-bg:#fdecec; --amber:#9a6100; --amber-bg:#fff4e0;
+    --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
+    --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f; --b5:#b1306b; --b6:#0f7d93;
+    --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14161a; --panel:#1c1f25; --ink:#e9ebee; --ink-soft:#a5abb6; --ink-faint:#7b818c;
+      --line:#2b3038; --line-soft:#23272e; --chip:#262b33;
+      --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
+      --green:#6fd398; --green-bg:#16301f;
+      --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+
+  /* ---------- backup preview mode ----------
+     A border around the whole viewport plus a sticky bar above the header —
+     belt and braces so there is no way to be in this mode and not notice.
+     The frame is a fixed overlay rather than a body border, so it can't shift
+     layout or get clipped by an inner scroll container. */
+  .lockframe{
+    position:fixed; inset:0; border:3px solid var(--amber); pointer-events:none; z-index:40;
+  }
+  .lockbar{
+    position:sticky; top:0; z-index:30; display:flex; align-items:center;
+    flex-wrap:wrap; gap:8px 10px;
+    padding:8px 16px; background:var(--amber-bg); color:var(--amber);
+    border-bottom:1px solid var(--amber); font-size:12.5px;
+  }
+  .lockbar strong{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  }
+  .lockbar .btn{background:var(--panel); border-color:var(--amber); color:var(--ink)}
+  /* The header sticks below the bar rather than under it. The offset is the
+     bar's real height, measured in syncLockBarHeight, because it was a fixed
+     37px and the bar wraps to two lines on a narrow window or a longer label —
+     at which point the header stuck too high and the bar covered its buttons.
+     The fallback only applies before the first measurement. */
+  body.locked header{top:var(--lockbar-h, 37px)}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky; top:0; z-index:20; background:var(--panel);
+    border-bottom:1px solid var(--line); padding:10px 16px;
+    display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center;
+  }
+  h1{font-size:15px; font-weight:650; margin:0 4px 0 0; letter-spacing:-.01em}
+  .status{font-size:12px; color:var(--ink-faint); white-space:nowrap}
+  .status.dirty{color:var(--amber); font-weight:600}
+  .spacer{flex:1 1 auto}
+  .btn{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border-radius:7px; padding:6px 11px; font-size:13px; font-weight:520;
+  }
+  .btn:hover{border-color:var(--ink-faint)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+  .btn.primary:disabled{opacity:.45; cursor:default}
+  .btn.ghost{border-color:transparent; color:var(--ink-soft)}
+  .btn.danger{color:var(--red); border-color:var(--line)}
+  .btn.on{background:var(--chip); border-color:var(--line); font-weight:640}
+  .menugroup{display:inline-flex; align-items:center; gap:9px}
+  .menulabel{
+    font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-faint);
+  }
+
+  .filters{display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%}
+  .tabs{display:inline-flex; gap:3px; background:var(--chip); padding:3px; border-radius:9px}
+  .tab{
+    border:1px solid transparent; background:transparent; border-radius:7px;
+    padding:5px 11px; font-size:13px; font-weight:560; color:var(--ink-soft);
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+  }
+  .tab .dot{width:7px; height:7px; border-radius:50%; background:var(--bc); opacity:.5}
+  .tab .n{font-size:11px; font-weight:650; color:var(--ink-faint); background:var(--panel); border-radius:5px; padding:0 5px; min-width:19px; text-align:center}
+  .tab:hover{color:var(--ink)}
+  .tabsep{width:1px; align-self:stretch; background:var(--line); margin:0 2px}
+  .tab.on{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
+  .tab.on .dot{opacity:1}
+  .tab.on .n{background:var(--chip); color:var(--ink-soft)}
+  /* No colour dot: All is not one of the buckets, it is all of them. */
+  .taball{font-weight:640}
+  .btn.mini{padding:3px 8px; font-size:12px; font-weight:560}
+  /* Editing the buckets sits beside the strip rather than inside it: the strip is
+     a filter, and a pencil in among the tabs reads as one more thing to filter by.
+     Icon only, and faint until it is pointed at, because renaming a bucket is a
+     once-a-quarter job and a labelled button that size shouts about it all year. */
+  .iconbtn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; padding:0; border:1px solid transparent; border-radius:7px;
+    background:transparent; color:var(--ink-faint);
+  }
+  .iconbtn svg{width:17px; height:17px; display:block; fill:currentColor}
+  .iconbtn:hover{color:var(--ink); background:var(--panel); border-color:var(--line)}
+  .iconbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* ---------- bucket editor ---------- */
+  .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-soft)}
+  .bkrow:last-child{border-bottom:0}
+  .bknum{flex:0 0 auto; width:14px; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+  .bkdot{flex:0 0 auto; width:8px; height:8px; border-radius:50%; background:var(--bc)}
+  .bkrow input[type="text"]{
+    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    border-radius:7px; padding:5px 8px; font-size:13px;
+  }
+  .bkn{
+    flex:0 0 auto; min-width:22px; text-align:center; font-size:11px; font-weight:650;
+    color:var(--ink-faint); background:var(--chip); border-radius:5px; padding:2px 6px;
+  }
+  .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
+  .bkadd input{
+    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    border-radius:7px; padding:6px 9px; font-size:13px;
+  }
+  /* Always in the layout, so an error appearing does not shove the buttons down. */
+  .bkerr{margin:11px 0 0; min-height:1.3em; font-size:12.5px; color:var(--red)}
+  input[type="search"]{
+    border:1px solid var(--line); background:var(--panel); border-radius:7px;
+    padding:5px 9px; width:200px;
+  }
+  label.toggle{font-size:12px; color:var(--ink-soft); display:inline-flex; gap:6px; align-items:center}
+
+  /* ---------- the one thing ----------
+     A single bar above the board. Set, it is the loudest thing on the page,
+     because that is the point of picking one. Empty, it is a thin dashed strip
+     that says what it is for and otherwise stays out of the way. */
+  .headline{
+    display:flex; align-items:center; gap:14px; margin:0 0 12px; padding:11px 14px;
+    border:1.5px dashed var(--line); border-radius:12px; background:transparent;
+  }
+  .headline.set{
+    border-style:solid; border-color:color-mix(in srgb, var(--accent) 40%, transparent);
+    background:color-mix(in srgb, var(--accent) 6%, var(--panel)); box-shadow:var(--shadow);
+  }
+  .headline.over{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel))}
+  /* Set, the whole bar opens the task, the same as a card. The empty bar has
+     nothing to open, so only the set state takes the pointer and the focus ring. */
+  .headline.set{cursor:pointer}
+  .headline.set:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
+  .headline.set:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .hllabel{
+    flex:none; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .headline.set .hllabel{color:var(--accent)}
+  .hlempty{font-size:12.5px; color:var(--ink-faint)}
+  .hlempty strong{font-weight:640; color:var(--ink-soft)}
+  .hlmain{flex:1; min-width:0}
+  /* Not a button any more: the bar around it is the thing you click, and a button
+     inside a button is neither valid nor tabbable in a sensible order. */
+  .hltitle{
+    font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.3;
+  }
+  .headline.set:hover .hltitle{text-decoration:underline}
+  .hlmeta{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px}
+  .hlwhere{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint)}
+  .tag.unblocks{background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green)}
+  .hlright{flex:none; display:flex; align-items:center; gap:10px}
+  .hlage{font-size:11.5px; color:var(--ink-faint)}
+  .hldone{font-size:11.5px; font-weight:640; color:var(--green)}
+  .hlclear{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+  }
+  .hlclear:hover{color:var(--ink); border-color:var(--ink-faint)}
+  /* The panel's own button for the same thing, since dragging is not obvious. */
+  .hlset{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px;
+    padding:7px 9px; width:100%; text-align:left; font-size:13px;
+  }
+  .hlset:hover{border-color:var(--ink-faint)}
+  .hlset.on{
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    background:color-mix(in srgb, var(--accent) 8%, var(--bg)); color:var(--accent); font-weight:600;
+  }
+  /* The same control as .hlset, sized for the panel's header rather than its
+     body. It sits beside Close because it is a decision about the task as a
+     whole, like closing it, and not one more field to scroll past. */
+  .hlpin{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:7px;
+    padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap;
+  }
+  .hlpin:hover{border-color:var(--ink-faint); color:var(--ink)}
+  .hlpin.on{
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    background:color-mix(in srgb, var(--accent) 10%, var(--bg)); color:var(--accent);
+  }
+
+  /* ---------- projects ----------
+     A project is a folder, not a task, so it gets a chip rather than a card. */
+  .tag.proj{
+    background:transparent; border:1px solid var(--line); color:var(--ink-soft);
+    font-weight:550; cursor:pointer;
+  }
+  .tag.proj:hover{border-color:var(--accent); color:var(--accent)}
+  .tag.proj::before{content:'▣ '; opacity:.6}
+  .projbtn{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px;
+    padding:7px 9px; width:100%; text-align:left; font-size:13px; font-weight:600;
+  }
+  .projbtn:hover{border-color:var(--accent); color:var(--accent)}
+  .projpath{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    color:var(--ink-soft); background:var(--bg); border:1px solid var(--line);
+    border-radius:7px; padding:7px 9px; overflow-wrap:anywhere;
+  }
+  .projlist{display:flex; flex-direction:column; gap:6px}
+  .projrow{
+    border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:8px 10px;
+    text-align:left; width:100%; display:flex; flex-direction:column; gap:4px; color:var(--ink);
+  }
+  .projrow:hover{border-color:var(--accent)}
+  .projrow .pt{font-size:13px; font-weight:600; line-height:1.35}
+  .projrow.done .pt{color:var(--ink-faint); text-decoration:line-through}
+  .projrow .pw{font-size:11px; color:var(--ink-faint); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+
+  /* ---------- intake: what still needs scoring ---------- */
+  .scorechip{
+    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 10px;
+    font-size:12px; font-weight:620; color:var(--ink-soft); white-space:nowrap;
+  }
+  .scorechip:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .scorechip.on{
+    background:var(--amber-bg); color:var(--amber);
+    border-color:color-mix(in srgb, var(--amber) 40%, transparent);
+  }
+  .tag.needsscore{background:var(--amber-bg); color:var(--amber)}
+
+  /* ---------- the matrix ----------
+     Nine cells. Impact down the left, effort across the top, so the cheap
+     high-impact corner is top-left where the eye lands first. Cells are tinted
+     by impact ÷ effort, which makes the gradient run corner to corner and turns
+     "where is my work sitting" into something you see rather than count. */
+  .mgrid{
+    display:grid; grid-template-columns:auto repeat(3, minmax(150px, 1fr));
+    gap:6px; margin:14px 0 0;
+  }
+  /* Both axis names sit in the corner cell, stacked and arrowed, so neither
+     overlaps the other and each says which way it runs. */
+  .mcorner{
+    min-width:74px; display:flex; flex-direction:column; align-items:flex-end;
+    justify-content:flex-end; gap:1px; padding:0 9px 8px 0;
+  }
+  .maxis{
+    font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-faint); white-space:nowrap;
+  }
+  .mhead{
+    padding:0 0 7px; text-align:center; font-size:12.5px; font-weight:700;
+    color:var(--ink-soft); display:flex; flex-direction:column; gap:2px;
+  }
+  .mhead .mhint{font-size:10.5px; font-weight:500; color:var(--ink-faint)}
+  .mside{
+    display:flex; align-items:center; justify-content:flex-end; padding-right:9px;
+    font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+    color:var(--ink-soft); min-width:62px;
+  }
+  .mcell{
+    border:1px solid var(--line); border-radius:10px; padding:8px 9px 9px; min-height:96px;
+    display:flex; flex-direction:column; gap:7px;
+    /* --w is impact ÷ effort, 0.33 to 3. Divided by 3 it drives the tint. */
+    background:color-mix(in srgb, var(--accent) calc(var(--w,1) * 4%), var(--panel));
+  }
+  .mcell.first{border-color:color-mix(in srgb, var(--accent) 50%, transparent)}
+  .mcell.empty{background:transparent; border-style:dashed}
+  .mcellhead{display:flex; align-items:baseline; gap:6px}
+  .madvice{flex:1; font-size:11px; font-weight:620; color:var(--ink-soft); line-height:1.3}
+  .mcell.first .madvice{color:var(--accent)}
+  .mcell.empty .madvice{color:var(--ink-faint); font-weight:550}
+  .mcount{font-size:11px; font-weight:700; color:var(--ink-faint)}
+  .mdots{display:flex; flex-wrap:wrap; gap:5px; align-content:flex-start}
+  /* One task. Bucket colour carries which area it belongs to, the title is on
+     hover, and a click opens the real card — so nothing is lost by shrinking it. */
+  .mdot{
+    width:14px; height:14px; border-radius:50%; border:0; padding:0; flex:none;
+    background:var(--bc); opacity:.85; cursor:pointer;
+  }
+  .mdot:hover{opacity:1; transform:scale(1.25)}
+  .mdot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .mdot.urgent{box-shadow:0 0 0 2px var(--red-bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
+  .mdot.hl{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
+  /* Waiting on a review, or on another task. Faded the same way a done card is
+     faded on the board, and restored on hover, so it still reads as present
+     without competing with the work he can actually pick up. */
+  .mdot.muted{opacity:.3}
+  .mdot.muted:hover{opacity:1}
+  /* The real card, floating beside the dot. Fixed so the scrolling column it
+     lives in cannot clip it, and inert so it cannot intercept the click. */
+  .mpreview{
+    position:fixed; left:0; top:0; z-index:40; width:252px; pointer-events:none;
+    opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
+  }
+  .mpreview.on{opacity:1; transform:none}
+  .mpreview .card{
+    cursor:default; border-color:var(--ink-faint);
+    box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
+  }
+  .mpreview .card.done{opacity:1}      /* a preview is for reading, not for dimming */
+  @media (prefers-reduced-motion:reduce){
+    .mpreview{transition:none}
+  }
+  .mlegend{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 4px}
+  .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft)}
+  .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
+  .mkeyhl i{background:transparent; box-shadow:0 0 0 2px var(--accent)}
+  .mkeyurg i{background:var(--ink-faint); box-shadow:0 0 0 1.5px var(--bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
+  .mkeymuted i{background:var(--ink-faint); opacity:.3}
+  /* Sits at the end of the legend rather than as a separate control above the
+     grid — it reads what it changes, so it belongs beside the key it affects. */
+  .mxfilter{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); margin-left:auto; cursor:pointer}
+  .mxfilter input{margin:0}
+  .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-soft) !important}
+  .mread strong{font-weight:700; color:var(--ink)}
+  .mhidden{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  /* Tasks with a score missing cannot be placed, so they sit under the grid
+     rather than being dropped. A dropped task is one he never scores. */
+  .mtray{
+    margin-top:12px; padding:10px 11px; border:1px dashed color-mix(in srgb, var(--amber) 45%, transparent);
+    background:var(--amber-bg); border-radius:10px;
+  }
+  .mtrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
+  .mtrayhead strong{font-size:12.5px; font-weight:700; color:var(--amber)}
+  .mtrayhead span{font-size:11.5px; color:var(--ink-soft)}
+  /* The backlog tray is not a prompt to do anything, so it drops the amber and
+     sits quietly under the grid. */
+  .mtray.mhold{border-color:var(--line); background:transparent}
+  .mtray.mhold .mtrayhead strong{color:var(--ink-soft)}
+  @media (max-width:720px){
+    .mgrid{grid-template-columns:auto repeat(3, minmax(84px, 1fr))}
+    .madvice{font-size:10px}
+    .mhead .mhint{display:none}
+  }
+
+  /* ---------- timeline ---------- */
+  /* One column, full width — a Gantt reads better wide than split in half the
+     way Matrix and its dependency chain sit side by side. */
+  .lists.tview{columns:auto; max-width:none; display:block}
+  .lists.tview .listcard{margin:0}
+  /* Its own scrolling pane, both axes, rather than leaving the vertical
+     growth to the page. `main` already scrolls horizontally for the board
+     (main{overflow-x:auto}), which makes main a scroll container by the
+     letter of the overflow spec whether or not it ever actually scrolls —
+     and a sticky child's "top" is measured against the nearest such
+     ancestor, not the viewport. main never scrolls in practice (the page
+     does, main just grows), so anything sticky inside it would render at a
+     fixed offset from main's own top forever, not track the page at all.
+     Bounding this pane's height and giving it the scroll instead sidesteps
+     that: .tlscroll is then unambiguously the real, moving scroller, so its
+     own sticky header and sticky label column behave exactly as normal. */
+  .tlscroll{
+    overflow:auto; border:1px solid var(--line); border-radius:10px;
+    max-height:calc(100vh - var(--header-h,68px) - 210px); min-height:240px;
+  }
+  .tlbody{position:relative; min-width:max-content}
+  .tlrow{display:flex; align-items:stretch; border-bottom:1px solid var(--line-soft)}
+  .tlrow:last-child{border-bottom:0}
+  /* Sticky rather than a second scroll container kept in sync by hand — the
+     label stays put while the dates scroll underneath it, for free. */
+  .tllabel{
+    flex:none; width:var(--tllabelw,200px); padding:0 10px 0 6px; font-size:12.5px; color:var(--ink);
+    position:sticky; left:0; z-index:2; background:var(--panel);
+    border-right:1px solid var(--line-soft);
+    display:flex; align-items:center; gap:2px; min-width:0;
+  }
+  .tllabel:hover{background:var(--chip)}
+  .tllabeltext{
+    cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    padding:8px 0;
+  }
+  .tltrack{position:relative; flex:none; min-height:34px}
+  .tlrow.tlsub .tllabel{padding-left:26px}
+  .tlrow.tlsub .tllabeltext{font-size:11.5px; color:var(--ink-soft)}
+  .tlrow.tlsub .tltrack{min-height:24px}
+  .tlrow.blocked .tllabeltext{opacity:.55}
+  .tlrow.blocked .tlbar, .tlrow.blocked .tlmilestone{opacity:.55}
+  /* A task with no steps gets an empty spacer instead of a chevron, so its
+     title still lines up with the ones that do have one. */
+  .tlchevron{
+    flex:none; width:16px; height:16px; padding:0; border:0; background:transparent;
+    color:var(--ink-faint); font-size:13px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:transform .12s;
+  }
+  .tlchevron:hover{color:var(--ink)}
+  .tlchevron.open{transform:rotate(90deg)}
+  .tlchevron.ph{cursor:default}
+
+  /* One <details> per bucket, so collapsing it is free — the browser hides
+     the rows rather than this having to omit them from the render and redraw
+     to bring them back. */
+  .tllanegroup{display:block}
+  .tllanegroup > summary{list-style:none; cursor:pointer}
+  .tllanegroup > summary::-webkit-details-marker{display:none}
+  .tlrow.tllane .tllabel{
+    font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em;
+    color:var(--ink-soft); background:var(--chip); padding-left:8px; gap:6px;
+  }
+  .tlrow.tllane .tltrack{background:var(--chip)}
+  .lanehead::before{content:'▾'; font-size:10px; color:var(--ink-faint)}
+  .tllanegroup:not([open]) .lanehead::before{content:'▸'}
+  .tllabel.lanehead .dot{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
+  .lanecount{font-weight:600; color:var(--ink-faint); text-transform:none; letter-spacing:0}
+
+  .tlrow.tlheader{position:sticky; top:0; z-index:3}
+  .tlrow.tlheader .tllabel{background:var(--panel); position:relative}
+  .tlrow.tlheader .tltrack{min-height:40px}
+  .tlmonth{
+    position:absolute; top:8px; font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-faint); white-space:nowrap;
+  }
+  .tlweeknum{
+    position:absolute; top:23px; font-size:9px; font-weight:600; color:var(--ink-faint); white-space:nowrap;
+  }
+  /* Sits inside the header's own sticky label cell rather than spanning the
+     whole table, so it tracks the frozen column through a horizontal scroll
+     without its own offset math — see wireTlResize. Same hit-target/hover
+     pattern as the drawer's own #dgrip, mirrored to the right edge. */
+  .tlresize{position:absolute; right:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
+  .tlresize::after{content:""; position:absolute; right:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
+  .tlresize:hover::after, .tlresize.active::after{background:var(--accent)}
+  /* Both of these span every lane at once, so they sit outside any one row —
+     a sibling of .tlbody's rows rather than inside one, positioned against
+     the same relatively-positioned ancestor. Real week boundaries, not a
+     cosmetic repeat, which is why they're drawn from tlWeeks rather than a
+     CSS background pattern. */
+  .tlweekline{
+    position:absolute; top:0; bottom:0; width:1px; background:var(--line-soft); pointer-events:none;
+  }
+  .tltoday{
+    position:absolute; top:0; bottom:0; width:1px;
+    background:color-mix(in srgb, var(--accent) 55%, transparent); z-index:1; pointer-events:none;
+  }
+  .tltoday::after{
+    content:"today"; position:absolute; top:2px; left:3px; font-size:9.5px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--accent); white-space:nowrap;
+  }
+
+  .tlbar{
+    position:absolute; top:8px; height:16px; border-radius:5px; background:var(--bc);
+    cursor:grab; opacity:.9;
+  }
+  .tlbar:hover{opacity:1}
+  .tlbar:active{cursor:grabbing}
+  /* Grab strips at each end, for changing just one date. Invisible until
+     hovered, same restraint the drawer's own drag handles use elsewhere —
+     the affordance is there to find, not to shout about. */
+  .tlhandle{position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize}
+  .tlhandle-l{left:-2px}
+  .tlhandle-r{right:-2px}
+  .tlbar:hover .tlhandle{background:rgba(255,255,255,.3); border-radius:3px}
+  /* Started, no deadline yet — a real bar (it spans two real dates, start and
+     today) but drawn as open-ended rather than as a task that is "due" today,
+     which it isn't. */
+  .tlbar.tltrail{
+    background-color:transparent;
+    background-image:repeating-linear-gradient(45deg, var(--bc) 0 4px, transparent 4px 8px);
+    opacity:.75;
+  }
+  .tlbar.over{background:var(--red)}
+  .tlbar.soon{background:var(--amber)}
+  .tlsub .tlbar{top:7px; height:10px}
+
+  /* A `due:` with no `start:` — most of the list. A diamond, not a bar backed
+     by a start date nobody set. */
+  .tlmilestone{
+    position:absolute; top:9px; width:12px; height:12px; background:var(--bc);
+    transform:rotate(45deg); border-radius:2px; cursor:grab;
+  }
+  .tlmilestone:active{cursor:grabbing}
+  .tlmilestone.over{background:var(--red)}
+  .tlmilestone.soon{background:var(--amber)}
+  .tlsub .tlmilestone{top:7px; width:9px; height:9px; cursor:pointer}
+
+  .tltray{margin-top:12px; padding:10px 11px; border:1px dashed var(--line); border-radius:10px}
+  .tltrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
+  .tltrayhead strong{font-size:12.5px; font-weight:700; color:var(--ink-soft)}
+  .tltrayhead span{font-size:11.5px; color:var(--ink-faint)}
+  .tltraycards{display:flex; flex-wrap:wrap; gap:8px}
+  .tltraycard{width:auto; flex:none; max-width:220px; cursor:grab}
+  .tltraycard:active{cursor:grabbing}
+
+  /* The live date readout while a bar or milestone is being dragged. Fixed to
+     the viewport and follows the pointer — see showTlPopover. */
+  .tlpopover{
+    position:fixed; z-index:50; transform:translate(-50%,-100%);
+    background:var(--ink); color:var(--bg); font-size:11.5px; font-weight:650;
+    padding:4px 9px; border-radius:6px; pointer-events:none; white-space:nowrap;
+    box-shadow:0 4px 12px rgba(16,20,28,.25); opacity:0; transition:opacity .08s;
+  }
+  .tlpopover.on{opacity:1}
+
+  /* ---------- board ---------- */
+  main{padding:14px 16px 40px; overflow-x:auto}
+  /* --cols is set from the number of sections found in the file. */
+  .board{
+    display:grid; gap:12px; align-items:start;
+    grid-template-columns:repeat(var(--cols,5), minmax(320px,1fr));
+    min-width:calc(var(--cols,5) * 332px);
+  }
+  /* Columns stay on one row and the board scrolls sideways when the window is
+     narrow — wrapping them would break the left-to-right order of the flow. */
+  .col.donecol{background:transparent; border-style:dashed}
+  .col.donecol h2{color:var(--ink-faint)}
+  /* Done work should recede far enough that the eye skips it, but stay readable
+     on hover so the column is still a record you can check. */
+  .col.donecol .card{opacity:.38}
+  .col.donecol .card:hover{opacity:1}
+  /* Work waiting on someone else is finished but not filed away, so it sits
+     halfway between a live card and a done one — dimmed enough to read as
+     off your plate, present enough to keep chasing. */
+  .col.waitcol{background:transparent}
+  .col.waitcol h2{color:var(--ink-soft)}
+  .col.waitcol .card{opacity:.69}
+  .col.waitcol .card:hover{opacity:1}
+  .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
+  .col h2{
+    margin:0; padding:11px 13px 9px; font-size:12.5px; font-weight:680; letter-spacing:.02em; text-transform:uppercase;
+    color:var(--ink-soft); display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line-soft);
+  }
+  .col h2 .count{margin-left:auto; font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
+  /* Says which order the column is in, and changes it. Quiet until it is on,
+     because "your order" is the normal state and needs no announcing. */
+  .sortbtn{
+    margin-left:auto; flex:none; border:1px solid transparent; background:transparent; border-radius:6px;
+    padding:2px 6px; font-size:11px; font-weight:650; letter-spacing:.02em; text-transform:none;
+    color:var(--ink-faint); opacity:.55;
+  }
+  .col:hover .sortbtn{opacity:1}
+  .sortbtn:hover{color:var(--ink); border-color:var(--line)}
+  .sortbtn.on{
+    color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, transparent);
+    background:color-mix(in srgb, var(--accent) 8%, transparent); opacity:1; font-size:10.5px;
+  }
+  .col h2 .sortbtn + .count{margin-left:8px}
+  .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
+  .drop{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1}
+  .drop.over{background:color-mix(in srgb, var(--accent) 7%, transparent)}
+  /* Where the card being dragged will land. Sits in the gap between two cards,
+     so the line is the answer to "in front of which one?". */
+  .dropline{
+    flex:none; height:3px; border-radius:2px; background:var(--accent); position:relative;
+  }
+  .dropline::before, .dropline::after{
+    content:""; position:absolute; top:-2px; width:7px; height:7px; border-radius:50%; background:var(--accent);
+  }
+  .dropline::before{left:-3px}
+  .dropline::after{right:-3px}
+  .col footer{padding:0 9px 10px}
+  .addbtn{width:100%; border:1px dashed var(--line); background:transparent; color:var(--ink-faint); border-radius:8px; padding:7px; font-size:12.5px}
+  .addbtn:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .empty{color:var(--ink-faint); font-size:12.5px; padding:6px 4px 10px}
+
+  /* ---------- lists view ---------- */
+  /* CSS columns rather than grid: sections are wildly different heights, and
+     columns pack them without leaving the row-sized gaps a grid would. */
+  .lists{columns:2; column-gap:12px; max-width:1180px}
+  /* Overview puts every section in its own column, like the board. It never
+     stacks: when the window is narrow the row scrolls sideways instead. */
+  .lists.split{
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:repeat(var(--refcols,4), minmax(380px,1fr));
+    min-width:calc(var(--refcols,4) * 394px);
+  }
+  .lists.split .listcard{margin:0}
+  /* Matrix pairs the nine cells with the dependency chain beside them. The grid
+     keeps the room it needs and the chain takes a fixed reading width, rather
+     than the two splitting the window evenly. */
+  .lists.mview{
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:minmax(620px,1fr) 560px; min-width:1194px;
+  }
+  .lists.mview .listcard{margin:0}
+  @media (max-width:820px){ .lists{columns:1} }
+  .listcard{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
+    padding:14px 16px 16px; margin:0 0 12px; break-inside:avoid; display:inline-block; width:100%;
+  }
+  .listcard h3{margin:0 0 10px; font-size:13px; font-weight:680; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft)}
+  /* Overview's own sections, shut by default — same visual weight as the h3
+     they replace, plus a chevron in the same shape the drawer's collapsible
+     fields already use. */
+  .ovsection > summary{
+    cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px;
+    margin:0 0 10px; font-size:13px; font-weight:680; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-soft);
+  }
+  .ovsection:not([open]) > summary{margin-bottom:0}
+  .ovsection > summary::-webkit-details-marker{display:none}
+  .ovsection > summary::before{content:'▸'; font-size:10px; display:inline-block; color:var(--ink-faint)}
+  .ovsection[open] > summary::before{content:'▾'}
+  .listcard h4{margin:14px 0 6px; font-size:13px; font-weight:640}
+  .listcard p{margin:0 0 9px; color:var(--ink-soft); font-size:13.5px; line-height:1.55}
+  .listcard p:last-child{margin-bottom:0}
+  .listcard .mdlist{margin:0 0 10px; padding-left:18px; display:flex; flex-direction:column; gap:5px}
+  .listcard ul.mdlist{list-style:none; padding-left:0}
+  .listcard ol.mdlist{padding-left:20px}
+  .listcard li{font-size:13.5px; line-height:1.5}
+  .listcard ul.mdlist > li{padding-left:14px; position:relative}
+  .listcard ul.mdlist > li::before{content:"·"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
+  .listcard li.chk{padding-left:24px}
+  .listcard li.chk::before{content:none}
+  .listcard li.chk .box{
+    position:absolute; left:0; top:1px; width:15px; height:15px; border:1px solid var(--line);
+    border-radius:4px; font-size:10px; line-height:14px; text-align:center; color:var(--green);
+  }
+  .listcard li.chk.done{color:var(--ink-faint); text-decoration:line-through}
+  .listcard li.chk.done .box{border-color:color-mix(in srgb, var(--green) 45%, transparent)}
+  .listcard code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ---------- backups view ----------
+     Scoped under .backupsview so its .row/.tag/.name/.empty/.err don't collide
+     with the task-card classes of the same name used everywhere else. */
+  .backupsview h2{
+    font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-faint); margin:20px 0 9px;
+  }
+  .backupsview h2:first-of-type{margin-top:4px}
+  .backupsview .row{
+    display:flex; align-items:center; gap:12px; background:var(--bg);
+    border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin-bottom:7px;
+  }
+  .backupsview .when{font-weight:600; color:inherit; text-decoration:none; min-width:14.5em}
+  .backupsview .when:hover{text-decoration:underline}
+  .backupsview .ago{color:var(--ink-faint); font-size:12.5px; min-width:8em}
+  .backupsview .size{color:var(--ink-faint); font-size:12.5px; min-width:5em; text-align:right}
+  .backupsview .tag{
+    font-size:11px; font-weight:650; border-radius:5px; padding:2px 7px;
+    background:var(--green-bg); color:var(--green);
+  }
+  .backupsview .tag.session{background:var(--chip); color:var(--ink-soft)}
+  .backupsview .name{
+    font-size:11.5px; color:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .backupsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  .backupsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+  .backupsview .loadbtn{flex:none; font-size:12px; padding:4px 10px}
+  @media (max-width:640px){
+    .backupsview .row{flex-wrap:wrap}
+    .backupsview .when, .backupsview .ago, .backupsview .size{min-width:0}
+  }
+
+  /* ---------- reports view ----------
+     Scoped under .reportsview for the same reason the backups view is scoped:
+     .row, .name and .tag already mean something else on a task card. A report
+     is a picture of the file at one moment, so nothing in here is clickable
+     except the task titles, which open the drawer like anywhere else. */
+  /* Sits above the counted report rather than inside it, since it governs
+     every report in reportDefs(), not just the one built today. */
+  .repwindow{
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:0 0 8px;
+  }
+  .repwindow select{
+    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
+  }
+  /* The range the dropdown resolves to, stated once beside it rather than
+     repeated as its own heading further down. */
+  .repwindow .repdates{color:var(--ink-faint)}
+  /* The report's own name, not a section eyebrow: on this view the h2 is the
+     heading you read, so it carries weight instead of shrinking away. */
+  .reportsview h2{
+    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
+  }
+  /* The total is the answer to the question; the buckets underneath say where
+     it came from. It used to sit on one baseline with its label, at a size that
+     read as a subheading — so the thing you came to the view for was the same
+     weight as the words describing it. Stacked and much bigger now: the number
+     first, what it counts underneath, readable from across the desk.
+     `font-variant-numeric` so the digits line up rather than wobbling at size. */
+  .reportsview .total{
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:18px 20px 16px; margin-bottom:16px;
+  }
+  .reportsview .totaln{
+    display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--ink);
+    letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+  }
+  .reportsview .totall{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
+  /* The period the number covers, said next to it rather than left to the
+     picker above — a screenshot of this block should not be ambiguous. */
+  .reportsview .totalw{color:var(--ink); font-weight:600; white-space:nowrap}
+  .reportsview .totalw::before{
+    content:'·'; color:var(--ink-faint); font-weight:400; margin:0 6px 0 2px;
+  }
+  /* One bucket is a group, not a row: the count and the list behind it are the
+     same fact, so the rule goes under the pair. With the rule under the row
+     instead, an opened list sat below its own divider and read as the next
+     bucket's. */
+  .reportsview .bkgroup{border-bottom:1px solid var(--line-soft)}
+  .reportsview .bkgroup:last-of-type{border-bottom:0}
+  .reportsview .row{display:flex; align-items:center; gap:12px; padding:9px 2px}
+  .reportsview .bkname{
+    display:flex; align-items:center; gap:8px; min-width:13em; flex:none;
+    font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .reportsview .bkname i{width:9px; height:9px; border-radius:50%; background:var(--bc); flex:none}
+  /* The bar is the comparison. It is scaled to the biggest bucket rather than to
+     the total, so a quiet month still reads as a shape instead of four slivers. */
+  .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--chip); border-radius:5px; overflow:hidden}
+  .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:5px}
+  .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--ink)}
+  .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--ink-faint)}
+  .reportsview .zero .n, .reportsview .zero .bkname{color:var(--ink-faint)}
+  /* Each bucket can be opened to see which tasks made the number. Closed by
+     default: the count is the report, the list is the evidence behind it. */
+  /* Indented under the bucket name it belongs to, so the pairing survives a
+     glance down the column. */
+  .reportsview details{margin:0 0 4px 21px}
+  .reportsview summary{
+    font-size:12.5px; color:var(--ink-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
+  }
+  .reportsview summary::-webkit-details-marker{display:none}
+  .reportsview summary::before{content:'▸ '; color:var(--ink-faint)}
+  .reportsview details[open] summary::before{content:'▾ '}
+  .reportsview summary:hover{color:var(--ink-soft)}
+  .reportsview .done{margin:2px 0 12px; padding:0; list-style:none}
+  .reportsview .done li{
+    display:flex; gap:10px; align-items:baseline; padding:5px 10px; margin-bottom:4px;
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    border-left:3px solid var(--bc,var(--line));
+  }
+  .reportsview .done .dt{
+    flex:none; min-width:6.5em; font-size:11.5px; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .reportsview .done .tt{
+    flex:1; min-width:0; font-size:13px; line-height:1.4; color:var(--ink);
+    background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
+  }
+  .reportsview .done .tt:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  /* Archived work has nothing left in todo.md to open, so it stays plain text. */
+  .reportsview .done .tt.archived{color:var(--ink-soft); cursor:default}
+  .reportsview .done .tt.archived:hover{color:var(--ink-soft); text-decoration:none}
+  .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
+  .reportsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  /* One band per bucket rather than one stack per week. A stack only ever
+     answers how many in total; the offset under each chunk moves every week,
+     so a single bucket cannot be followed along the row. Overlaid curves can,
+     and the key switches any of them off when they sit on top of each other.
+     SVG, because the whole thing has to scale with the column and the curves
+     have to stay smooth while it does. */
+  .trend{margin:10px 0 2px}
+  .trendchart{display:block; width:100%; height:auto}
+  .trendgrid{stroke:var(--line); stroke-width:1}
+  .trendbase{stroke:var(--line); stroke-width:1}
+  .trendline{fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round}
+  .trenddot{pointer-events:none}
+  .trendpt{fill:transparent; cursor:pointer}
+  .trendpt:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  /* The popover itself, same fixed-and-floating idea as the Matrix's dot
+     preview (.mpreview) — a fact he can check by pointing rather than one he
+     has to add the per-week totals up to reach. */
+  .tpreview{
+    position:fixed; left:0; top:0; z-index:40; pointer-events:none;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:7px 10px; box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
+    opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
+    white-space:nowrap;
+  }
+  .tpreview.on{opacity:1; transform:none}
+  .tprow{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:650; color:var(--ink)}
+  .tprow i{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
+  .tpcount{margin-top:2px; font-size:11.5px; color:var(--ink-soft)}
+  .tpcount strong{color:var(--ink); font-weight:700}
+  @media (prefers-reduced-motion:reduce){ .tpreview{transition:none} }
+  /* Labels are HTML under the chart, not text inside it: they stay at their own
+     size whatever width the card ends up at, and they theme with everything else. */
+  .trendx{display:flex; margin:8px 0 0}
+  .trendxc{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:1px}
+  .trendwk{font-size:10px; color:var(--ink-faint); white-space:nowrap}
+  .trendn{font-size:10px; color:var(--ink-faint)}
+  /* Current week is still filling up, so its label is marked rather than its
+     curve recoloured — the colour is the bucket's, not a status. */
+  .trendxc.current .trendwk{color:var(--accent); font-weight:660}
+  .trendxc.current .trendn{color:var(--ink-soft)}
+  .trendkey{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0}
+  .tkey{
+    display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px;
+    background:var(--chip); border:1px solid transparent; color:var(--ink-soft);
+    font-size:11.5px; font-weight:600; cursor:pointer;
+  }
+  .tkey i{flex:none; width:9px; height:9px; border-radius:50%; background:var(--bc)}
+  .tkey:hover{color:var(--ink); border-color:var(--line)}
+  .tkey.off{opacity:.45}
+  .tkey.off i{background:var(--ink-faint)}
+  .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+
+  /* Two columns for the two kinds of report. The counted one needs room for a
+     bar and four numbers on a row; the written one wants a reading width and
+     no more, so it is capped rather than given half the window. */
+  .lists.rview{
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:minmax(520px,1fr) minmax(420px,600px); min-width:970px;
+  }
+  .lists.rview .listcard{margin:0}
+
+  /* ---------- schedule ----------
+     Two cards side by side: what runs on a clock, and what the usage windows
+     have been doing. Scoped under .schedview the way .reportsview and
+     .backupsview are, so nothing here reaches the board. */
+  .schedjob{
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; margin:0 0 10px;
+  }
+  .schedhead{display:flex; align-items:center; gap:9px}
+  .schedhead .dot{width:9px; height:9px; border-radius:50%; flex:none}
+  /* Armed and not armed, and nothing in between. A job is either going to fire
+     or it is not, and a third colour would only invite a maybe. */
+  .schedhead .dot.on{background:var(--green)}
+  .schedhead .dot.off{background:var(--ink-faint)}
+  .schedname{font-size:14px; font-weight:640; color:var(--ink); flex:1; min-width:0}
+  .schedstate{font-size:11.5px; color:var(--ink-faint)}
+  .schedstate.on{color:var(--green)}
+  .schedwhat{margin:7px 0 0; font-size:12.5px; color:var(--ink-soft); line-height:1.5}
+  .schedmeta{
+    display:grid; grid-template-columns:auto 1fr; gap:3px 12px;
+    margin:9px 0 0; font-size:12px;
+  }
+  .schedmeta dt{color:var(--ink-faint)}
+  .schedmeta dd{margin:0; color:var(--ink-soft)}
+  .schedhint{
+    margin:9px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
+    font-size:12px; color:var(--ink-soft);
+  }
+  .schedhint code{
+    display:block; margin-top:5px; font-size:11.5px; word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink);
+  }
+  .schedlog{margin:9px 0 0; font-size:12px}
+  .schedlog summary{cursor:pointer; color:var(--ink-faint)}
+  .schedlog pre{
+    margin:7px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
+    font-size:11px; line-height:1.55; overflow-x:auto; color:var(--ink-soft);
+  }
+  /* The decision line: would it spend right now, and why not. The one thing
+     here about tonight rather than about the past, so it leads. */
+  .udecide{
+    padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.5;
+    background:var(--chip); color:var(--ink-soft); margin:0 0 10px;
+  }
+  .udecide strong{color:var(--ink); letter-spacing:.02em}
+  .udecide.ride, .udecide.open{background:var(--green-bg)}
+  .ustats{display:flex; flex-wrap:wrap; gap:14px; margin:12px 0 10px; font-size:12px; color:var(--ink-faint)}
+  .ustats b{color:var(--ink); font-weight:660; font-size:13px}
+  /* Thirty days is eighty-odd windows, which unrolled runs further down the
+     page than everything else on the view put together. Scrolled inside the
+     card instead, so the two cards stay the same height and the recent ones —
+     the only ones anybody reads — are the ones on screen. */
+  .ulist{border-top:1px solid var(--line-soft); max-height:min(52vh, 460px); overflow-y:auto}
+  .urow{
+    display:flex; align-items:center; gap:10px; padding:6px 2px;
+    border-bottom:1px solid var(--line-soft); font-size:12px; color:var(--ink-soft);
+  }
+  .uday{flex:none; width:8.5em}
+  .uspan{flex:none; width:7.5em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px}
+  .ubar{flex:1; min-width:40px; height:8px; background:var(--chip); border-radius:4px; overflow:hidden}
+  .ubar span{display:block; height:100%; background:var(--ink-faint); border-radius:4px}
+  .utok{flex:none; width:4.5em; text-align:right; font-variant-numeric:tabular-nums}
+  /* A window that opened in the night is one the agent could have ridden, and
+     one still running is the one it would ride now. Both are worth picking out
+     of a list of thirty. */
+  .urow.night .ubar span{background:var(--accent)}
+  .urow.live{color:var(--ink); font-weight:600}
+  .urow.live .uspan::after{content:' ·'; color:var(--accent)}
+  @media (max-width: 900px){
+    .urow{flex-wrap:wrap}
+    .uday{width:auto; flex:1 0 60%}
+    .ubar{flex:1 0 100%; order:3}
+  }
+
+  /* ---------- written reports ----------
+     A list of standfirsts that opens into the report itself. Closed, it should
+     read like a contents page. */
+  .reportsview.written .empty code{
+    background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .repitem{
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; margin:0 0 8px;
+  }
+  .repitem:last-child{margin-bottom:0}
+  .rephead{
+    display:flex; align-items:baseline; gap:10px; width:100%;
+    background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
+  }
+  .reptitle{
+    flex:1; min-width:0; font-size:14px; font-weight:640; line-height:1.35; color:var(--ink);
+  }
+  .rephead:hover .reptitle{color:var(--accent)}
+  .repdate{
+    flex:none; font-size:11.5px; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  /* Plans reuse the report item wholesale and add one thing reports do not
+     have: a state. Unread carries the accent so a night's work is findable at a
+     glance; actioned recedes, because it is kept as a record rather than as
+     something to read. */
+  .repitem.read{opacity:.82}
+  .repitem.actioned{opacity:.6; border-style:dashed}
+  .repitem:not(.read):not(.actioned) .repdate{
+    color:var(--accent); font-weight:640; font-family:inherit;
+  }
+  /* The standfirst is the whole point of the closed state: it should say what the
+     report found, so opening it is a choice rather than the only way to know. */
+  .repsum{margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  /* Reused inside the modal's .mid — see openReportModal — so the typography
+     is what's shared here, not any box styling of its own. */
+  .repdoc h4{
+    margin:16px 0 6px !important; font-size:13.5px !important; font-weight:660 !important;
+    color:var(--ink) !important;
+  }
+  .repdoc h4:first-child{margin-top:0 !important}
+  .repdoc p{margin:0 0 10px; font-size:13.5px; line-height:1.6; color:var(--ink-soft)}
+  .repdoc p:last-child{margin-bottom:0}
+  .repdoc .repbul{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
+  .repdoc .repbul li{font-size:13.5px; line-height:1.5; color:var(--ink-soft); padding-left:14px; position:relative}
+  .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
+  .repdoc strong{color:var(--ink)}
+  @media (max-width:1000px){
+    .lists.rview{grid-template-columns:1fr; min-width:0}
+  }
+  @media (max-width:640px){
+    .reportsview .row{flex-wrap:wrap}
+    .reportsview .bkname{min-width:0; flex:1 0 100%}
+    .reportsview details{margin-left:0}
+    .reportsview .done li{flex-wrap:wrap}
+  }
+
+  /* ---------- drawer, read-only ----------
+     Disabled controls already grey themselves out; this just makes the footer
+     say so instead of offering Delete on something there is nothing to delete
+     from. */
+  #drawer.readonly #del{display:none}
+  #drawer.readonly #dheadHl{display:none}
+  /* The panel showing a project is a reading view over other people's rows:
+     nothing in it belongs to a task, so neither control in the frame applies. */
+  #drawer.projectview #del{display:none}
+  #drawer.readonly #dfootHelp{color:var(--amber)}
+  .msglead{margin:0 0 4px 14px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  /* A suggestion, not a fact about the task — a message, a prompt, a ticket to
+     raise, an agenda. Dashed and faded rather than a solid coloured stripe, so
+     the border itself says "not committed yet" instead of just marking a type.
+     One shape everywhere it appears, drawer or Overview: the module itself
+     never changes layout by context, only how many cards sit next to it does. */
+  .msg{
+    position:relative; margin:2px 0 12px 14px; padding:10px 40px 10px 12px; background:var(--bg);
+    border:1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius:8px;
+  }
+  /* Message, prompt and Jira suggestions are click-to-copy over their whole
+     card (see handleCopy) — this hover is what tells him that before he's
+     found the small icon. Agenda cards are a different, denser shape and
+     keep their own quieter styling instead. */
+  .msg:not(.agenda):hover{
+    cursor:pointer; background:color-mix(in srgb, var(--amber) 12%, var(--bg));
+    border-color:color-mix(in srgb, var(--amber) 60%, transparent);
+  }
+  .msgtext{font-size:13px; line-height:1.55; color:var(--ink)}
+  /* Copy is the one action worth reaching for without hovering first — the
+     rest (Open in Claude, Raise in Jira, Dismiss) only earn their place once
+     he is actually looking at the card, so they wait in .msgextra below.
+     Both sit pinned to the same corner regardless of where the module is
+     drawn, rather than beside the text the way a row of buttons used to. */
+  .msgacts{position:absolute; top:6px; right:6px; display:flex; flex-direction:column; align-items:flex-end; gap:4px}
+  .copy{
+    flex:none; display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; padding:0; border:1px solid var(--line); background:var(--panel);
+    color:var(--ink-soft); border-radius:6px;
+  }
+  .copy svg{width:14px; height:14px; display:block; fill:currentColor}
+  .copy:hover, .msg:hover .copy{color:var(--ink); border-color:var(--ink-faint)}
+  .msgextra{
+    display:flex; flex-direction:column; align-items:stretch; gap:4px;
+    opacity:0; pointer-events:none; transition:opacity .12s ease;
+  }
+  .msg:hover .msgextra, .msg:focus-within .msgextra{opacity:1; pointer-events:auto}
+  .toclaude{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+    text-decoration:none; text-align:center; white-space:nowrap;
+  }
+  .toclaude:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .tojira{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+    text-decoration:none; text-align:center; white-space:nowrap;
+  }
+  .tojira:hover{color:var(--ink); border-color:var(--ink-faint)}
+
+  /* ---------- Claude, on a task ----------
+     Modelled on the claude.ai composer and thread, because that is the shape
+     this conversation already has in his head. The parts worth copying were
+     the asymmetry (a bubble for you, plain prose for the reply), one slot for
+     the primary action, and a status line whose words are the progress. The
+     part worth not copying was hiding the trace behind a hover. */
+  .askclaude{
+    flex:none; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; white-space:nowrap;
+  }
+  .askclaude:hover{filter:brightness(1.07)}
+
+  /* The chat modal and the list of conversations on a task now live in
+     ai_chat's own chat.css, loaded via a <link> at the top of this file —
+     see ai_chat/README.md. Only the trigger button above stays here, since
+     it is drawn by this file's own claudeActions(), not by that module. */
+
+  .tag.jira{color:var(--ink-soft); border-color:var(--ink-faint)}
+
+  /* An agenda is drawn as the document it is about to become: the meeting date as
+     a title, the word Agenda under it, then a real nested <ul>. Real bullets
+     rather than styled indentation, because the bullets are the format — what is
+     on screen and what lands in Google Docs should not be two designs of one
+     list. */
+  .agdate{display:block; font-weight:640; color:var(--ink); margin-bottom:8px}
+  .aglead{display:block; color:var(--ink-soft); margin-bottom:2px}
+  .aglist, .aglist ul{margin:0; padding-left:18px; list-style:disc}
+  .aglist ul{list-style:circle; margin-top:2px}
+  .aglist li{margin:2px 0; color:var(--ink)}
+  .aglist ul li{font-size:12.5px; line-height:1.5; color:var(--ink-faint)}
+  /* Last cycle's, read while writing the next one. Quieter throughout: it is
+     reference sitting under the live block, not a second thing to act on. */
+  .msg.agenda.prev{opacity:.72}
+  .msg.agenda.prev .aglead{font-size:12.5px}
+  .tag.repeat{color:var(--ink-soft); border-color:var(--ink-faint)}
+  /* The ticket body, under its summary. Quieter than the summary because the
+     summary is the thing to check and this is the thing to skim. */
+  .jirabody{display:block; margin-top:6px; font-size:12.5px; line-height:1.5; color:var(--ink-faint); font-style:normal}
+  .copy.done{color:var(--green); border-color:color-mix(in srgb, var(--green) 45%, transparent)}
+  .copy.warn{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
+  /* Same shape as Copy, quieter until it matters: a suggestion he does not want
+     is not a mistake to flag red, just something to stop seeing. */
+  .dismiss{
+    flex:none; border:1px solid var(--line); background:var(--panel); color:var(--ink-faint);
+    border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
+  }
+  .dismiss:hover{color:var(--red); border-color:color-mix(in srgb, var(--red) 35%, transparent)}
+  .listcard strong{font-weight:640; color:var(--ink)}
+  .listcard em{color:var(--ink-faint)}
+  .listnote{max-width:1180px; margin:4px 2px 0}
+  .listlead{margin:0 2px 10px}   /* one explanation above the columns, not one per column */
+
+  /* ---------- reference cards ----------
+     One per real task, in the sections outside the board. Deliberately lighter
+     than a board card: a line of title, where it lives, its tags, and only the
+     message or prompt where that is the whole point of the entry. Each one is
+     bordered so a list of them reads as separate things to act on. */
+  .ref{
+    position:relative; background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    border-left:3px solid var(--bc,var(--line)); padding:9px 11px; margin:0 0 8px;
+  }
+  .ref:last-child{margin-bottom:0}
+  .ref.done{opacity:.42}
+  .ref.done:hover{opacity:1}
+  .ref.done .reftitle{text-decoration:line-through}
+  .refhead{display:flex; align-items:flex-start; gap:7px}
+  .reftitle{
+    flex:1; min-width:0; font-size:13.5px; font-weight:570; line-height:1.4; color:var(--ink);
+    background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
+  }
+  .reftitle:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  .refbox{
+    flex:none; width:16px; height:16px; margin-top:1px; border:1px solid var(--line);
+    border-radius:4px; font-size:10px; line-height:14px; text-align:center; color:var(--green);
+    background:var(--bg); padding:0; cursor:pointer;
+  }
+  .refbox:hover{border-color:var(--ink-faint)}
+  .refdrop{
+    flex:none; border:1px solid transparent; background:transparent; color:var(--ink-faint);
+    border-radius:6px; padding:2px 7px; font-size:11.5px; font-weight:600; cursor:pointer; opacity:0;
+  }
+  .ref:hover .refdrop, .refdrop:focus-visible{opacity:1}
+  .refdrop:hover{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
+  .reflink{
+    flex:none; border:1px solid var(--line); background:transparent; color:var(--ink-faint);
+    border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:600; cursor:pointer;
+  }
+  .reflink:hover{color:var(--ink); border-color:var(--ink-faint); background:var(--bg)}
+  .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
+  /* Why a low-scoring card is sitting near the top of the chain. */
+  .refholds{font-style:normal; color:var(--amber)}
+  .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
+  /* A long message, prompt, ticket or agenda would otherwise stretch the card
+     past the rest of the column, so every kind clamps to the same height —
+     Copy and the rest still carry the full text regardless of what shows on
+     screen; only Overview's own reading of the card is cut short. */
+  .ref .msg{margin:8px 0 0 21px; max-height:400px; overflow:hidden}
+  /* Set by capMsgCards() once the card is in the DOM and its real height is
+     known — a fade plus a label, so a card that was actually cut off reads
+     as cut off rather than as one that just happens to end at 400px. */
+  .ref .msg.capped::after{
+    content:'truncated — open the task to read the rest';
+    position:absolute; left:0; right:0; bottom:0; height:60px;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
+    background:linear-gradient(to bottom, transparent, var(--bg) 60%);
+    font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.01em;
+    border-radius:0 0 8px 8px; pointer-events:none;
+  }
+  .ref .msglead, .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--ink-faint)}
+  .reflead.draft{color:var(--amber); font-weight:600}
+  .refgroup{margin:16px 0 8px !important; font-size:12.5px !important; font-weight:660 !important; color:var(--ink-soft)}
+  .refgroup:first-child{margin-top:0 !important}
+  .refhint{margin:0 0 10px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  .refnote{margin:10px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  .refwarn{
+    margin:0 0 10px; padding:8px 10px; border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+    background:color-mix(in srgb, var(--amber) 8%, transparent); border-radius:8px;
+    font-size:12.5px; color:var(--ink)
+  }
+  /* Quieter than refwarn: what was held back is a fact about the list, not a
+     problem with it. */
+  .refheld{margin:0 0 10px !important; font-size:12px !important; color:var(--ink-faint) !important}
+  .refheld strong{font-weight:640; color:var(--ink-soft)}
+  /* Trails the cards rather than leading them, since what it reports is that
+     the column stopped rendering, not a fact about the work itself. */
+  .refmore{margin:10px 0 0 !important; font-size:12px !important; color:var(--ink-faint) !important}
+  .refrow{display:flex; align-items:flex-start; gap:9px}
+  .refrow .ref{flex:1; min-width:0}
+  .refnum{
+    flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--chip);
+    color:var(--ink-soft); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
+  }
+  .refwaits{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:7px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  .refchip{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:6px;
+    padding:3px 8px; font-size:11.5px; font-weight:560; cursor:pointer;
+  }
+  .refchip:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .refchip.missing{color:var(--red); border-color:color-mix(in srgb, var(--red) 45%, transparent); cursor:default}
+  /* Dependency chain: the blocker(s) sit beside the card waiting on them.
+     Each blocker gets its own arrow into the target, so a task with several
+     blockers still reads as several distinct dependencies rather than one
+     lump. The target gets a dashed border, in the idle state, not just on
+     hover — it isn't ready to be delivered yet. */
+  .chainitem{margin:0 0 18px}
+  .chainitem:last-child{margin-bottom:0}
+  .chainrow{display:flex; align-items:center; gap:8px}
+  .chainfrom{display:flex; flex-direction:column; gap:10px; flex:1; min-width:0}
+  .chaindep{display:flex; align-items:center; gap:8px}
+  .chainarrow{flex:none; font-size:16px; color:var(--ink-faint); line-height:1}
+  .chaincard{
+    display:block; width:100%; text-align:left; background:var(--panel);
+    border:1px solid var(--line); border-radius:9px; border-left:3px solid var(--bc,var(--line));
+    padding:7px 10px; cursor:pointer; min-width:0;
+  }
+  .chaincard:hover{border-color:var(--ink-faint)}
+  .chaincard.dep{flex:1; min-width:0}
+  .chaincard.target{
+    flex:1; min-width:0; border-style:dashed; border-color:var(--ink-faint);
+    border-left-style:solid; border-left-color:var(--bc,var(--line)); border-left-width:3px;
+  }
+  .chaincard.done .chaintitle{text-decoration:line-through}
+  .chaincard.missing{
+    cursor:default; border-style:dashed; border-left-color:var(--red);
+    background:var(--red-bg);
+  }
+  .chaintitle{display:block; font-size:12.5px; font-weight:570; line-height:1.35; color:var(--ink); overflow-wrap:anywhere}
+  .chaincard.missing .chaintitle{color:var(--red)}
+  .chainwhere{margin:2px 0 0; font-size:11px; color:var(--ink-faint)}
+  .chainholds{margin:6px 0 0; font-size:11.5px; color:var(--amber)}
+  .empty{font-size:13px; color:var(--ink-faint)}
+  /* Context entries are facts, not work: no tick box, no link, nothing to open. */
+  .ref.ctx{border-left-color:var(--line); padding:8px 11px}
+  .ctxtext{font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  /* A string with nowhere to wrap — a pasted URL in Context, a long slug in a
+     message — used to run straight out through the side of its card. "anywhere"
+     rather than "break-word" so it also stops that string forcing the whole
+     column wider than the one it is sitting in. */
+  .ref, .msg, .msgtext, .ctxtext{min-width:0}
+  .ctxtext, .msgtext, .reftitle, .refchip, .refwaits, .listcard p, .listcard li{overflow-wrap:anywhere}
+  .ctxtext strong{color:var(--ink); font-weight:620}
+  .ref.ctx .meta{margin:6px 0 0}
+  /* One panel per `###` group in Context, closed by default — a dozen
+     sections is most of the column's length, and reading one shouldn't cost
+     scrolling past the other eleven. */
+  .ctxgroup{margin:0 0 2px; border-bottom:1px solid var(--line-soft)}
+  .ctxgroup:last-of-type{border-bottom:0}
+  .ctxgroup summary{
+    display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none;
+    padding:9px 2px; font-size:12.5px; font-weight:660; color:var(--ink-soft);
+  }
+  .ctxgroup summary::-webkit-details-marker{display:none}
+  .ctxgroup summary::before{content:'▸'; color:var(--ink-faint); font-size:10px}
+  .ctxgroup[open] summary::before{content:'▾'}
+  .ctxgroup summary:hover{color:var(--ink)}
+  .ctxgroup[open]{padding-bottom:8px}
+  #lists.hidden{display:none}
+  .allbuckets{
+    font-size:12.5px; font-weight:620; color:var(--ink-soft);
+    background:var(--chip); border-radius:7px; padding:6px 11px;
+  }
+  select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px}
+  select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); max-width:160px}
+  .legend{max-width:1180px; margin:2px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel)}
+  .legend summary{cursor:pointer; padding:11px 15px; font-size:12.5px; font-weight:640; color:var(--ink-soft); list-style:none}
+  .legend summary::-webkit-details-marker{display:none}
+  .legend summary::before{content:"▸ "; color:var(--ink-faint)}
+  .legend[open] summary::before{content:"▾ "}
+  .legend summary:hover{color:var(--ink)}
+  .legendbody{padding:0 15px 14px; border-top:1px solid var(--line-soft); padding-top:12px}
+  .legendbody p, .legendbody li{color:var(--ink-soft); font-size:13px}
+  .legendbody .mdlist{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
+  .legendbody ul.mdlist > li{padding-left:14px; position:relative}
+  .legendbody ul.mdlist > li::before{content:"·"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
+  .legendbody code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ---------- card ---------- */
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--bc,var(--line));
+    border-radius:9px; padding:9px 10px; cursor:grab; box-shadow:0 1px 1px rgba(16,20,28,.04);
+  }
+  .card:hover{border-color:var(--ink-faint)}
+  .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .card.dragging{opacity:.4}
+  /* Same as any other card — same width, radius, padding, shadow, left
+     bucket-colour stripe — except the border colour and a faint accent tint
+     behind it, so it reads as "the same card, just marked" rather than a
+     different kind of card. */
+  .card.onething{
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+    border-left:3px solid var(--bc,var(--line));
+    background:color-mix(in srgb, var(--accent) 6%, var(--panel));
+  }
+  .card.onething:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
+  .tag.onething{background:transparent; border:1px solid var(--accent); color:var(--accent)}
+  .card.done{opacity:.34}
+  .card.done:hover{opacity:1}
+  .card.done .title{text-decoration:line-through}
+  .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
+  .bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
+  .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
+  .title{font-size:13.5px; font-weight:570; line-height:1.35; letter-spacing:-.005em}
+  .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
+  /* Urgent and due read as "look at this now", so they sit apart from the rest
+     of the meta row, pinned to the right rather than wrapping in with it. */
+  .meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
+  .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
+  .tag.impact-high{color:var(--ink)}
+  .tag.due{background:var(--chip)}
+  /* A start date reads as a gate, not a warning: hollow rather than filled, so a
+     deadline still wins the eye on a card carrying both. */
+  .tag.startdate{
+    background:transparent; border:1px dashed var(--line); color:var(--ink-faint); font-weight:550;
+  }
+  .tag.due.soon{background:var(--amber-bg); color:var(--amber)}
+  .tag.due.over{background:var(--red-bg); color:var(--red)}
+  .tag.urgent{background:var(--red-bg); color:var(--red)}
+  .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
+  .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
+  .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
+  /* Delegated to a person. Its own colour, because "someone else has this" is a
+     different fact from every other chip on the card, all of which describe the
+     work rather than who holds it. */
+  .tag.who{
+    background:color-mix(in srgb, var(--accent) 12%, transparent);
+    color:var(--accent); font-weight:650;
+  }
+  .mini{font-style:normal; font-size:11px; font-weight:600; color:var(--ink-faint); background:var(--chip); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
+  .mini.over{background:var(--red-bg); color:var(--red)}
+  .mini.soon{background:var(--amber-bg); color:var(--amber)}
+  .prog{display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--ink-faint)}
+  .bar{flex:1; height:3px; border-radius:2px; background:var(--line-soft); overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--green)}
+  .notecount{font-size:11px; color:var(--ink-faint); margin-top:6px}
+
+  /* ---------- drawer ---------- */
+  .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}
+  .scrim.open{opacity:1; pointer-events:auto}
+  aside{
+    position:fixed; top:0; right:0; height:100%; width:400px; max-width:100vw; z-index:31;
+    background:var(--panel); border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(10,12,16,.12);
+    transform:translateX(103%); transition:transform .18s ease; display:flex; flex-direction:column;
+  }
+  aside.open{transform:none}
+  aside .dhead{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
+  aside .dhead strong{font-size:13px; font-weight:650}
+  aside .dbody{padding:14px; overflow:auto; flex:1; container-type:inline-size}
+  /* Two columns when the drawer is wide enough to hold them side by side —
+     main task fields on the left, everything suggestion-shaped (chats,
+     dependencies, agenda, message/prompt suggestions, Jira) on the right.
+     A container query on #dbody rather than a viewport media query, because
+     the drawer is user-resized independently of the window (see dgrip) —
+     what matters is its own width, not the screen's. Below the threshold,
+     or with nothing to put in a second column, it collapses back to the
+     single stacked layout this always had. */
+  .dcols{display:flex; flex-direction:column; gap:14px}
+  .dcol{display:flex; flex-direction:column; gap:14px; min-width:0}
+  @container (min-width:700px){
+    .dcols{flex-direction:row; align-items:flex-start}
+    .dcol-main{flex:1.15 1 0}
+    .dcol-side{flex:1 1 0}
+  }
+  /* Each side-column section leads with a rule meant to separate it from the
+     one above — the same markup used in the single-column stack. First in a
+     column, there is nothing above it to separate from. */
+  .dcol > hr.dsep:first-child{display:none}
+  aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
+  .field{display:flex; flex-direction:column; gap:5px}
+  .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
+  /* The suggestion-shaped sections' own headlines — Dependencies, Message
+     suggestions, Prompt suggestions, Meeting agenda, Jira tickets — read too
+     faint against a dark panel: ink-faint is built for de-emphasis, not for a
+     heading. Full ink instead, scoped to .sugg so ordinary field labels
+     (Title, Status, Notes...) keep the quieter weight they're meant to have. */
+  .sugg > span, .sugg > summary{color:var(--ink)}
+  /* The label above a field is a name and reads fine in caps. The help under it
+     is a sentence, and was inheriting the same rule by being the same element —
+     which is why .sublabel already had to undo it by hand. Undone once here. */
+  .field > span.help{font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0}
+  .field input[type="text"], .field input[type="date"], .field select, .field textarea{
+    border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
+  }
+  .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+  /* A fixed-stop slider — 2 or more positions, colour and count both set by
+     the caller — standing in for a <select> wherever the field only ever
+     holds one of a short, known set of values: ai:, impact:, effort:, and
+     the task's column. Reads faster dragged than picked from a dropdown, and
+     is more fun to use. Positions are fixed, never continuous: posToIdx() in
+     wireStepSlider() always rounds to the nearest stop, so there is nothing
+     "in between" to land on by accident. Padding on the outer element leaves
+     room for the handle (10px radius) to sit fully inside it at both ends.
+
+     The handle's own resting spots at the first and last stop are pulled in
+     by --step-inset rather than sitting exactly on the track's tips: parked
+     right on the tip, the handle is bigger than the track and hides both the
+     rounded end and that end's marker dot completely. Purely a display
+     offset — posToIdx() still rounds the raw drag fraction across the full
+     track, so dragging all the way to either edge still lands on that stop.
+
+     The track itself is drawn a bit longer than the 0–100% coordinate space
+     the stops sit in, via ::before rather than by resizing .steptrack —
+     resizing it would move where 100% actually is and break the drag math.
+     The extra --step-cap px on each side is what makes a rounded end visible
+     at all: without it, the end dot sits exactly on the track's real tip and
+     the "rounded end" is just the dot. With it, the tip is past the dot, so
+     a bit of cap curves away beyond both — and the fill's own left edge
+     matches that same -step-cap, so "filled so far" reaches the cap instead
+     of stopping short and leaving an uncoloured nub before it.
+
+     Stop labels are positioned to match their tick exactly (same fraction of
+     the track, translateX to center them on it, clamped at the two ends so
+     nothing overhangs the field) rather than laid out with flexbox — the
+     stop count and label length both vary by field (a column name runs much
+     longer than "S"), and only anchoring each label to its own coordinate
+     keeps it under the right tick regardless of what the neighbours say. */
+  .stepslider{--step-inset:10px; --step-cap:5px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
+  .stepslider.disabled{opacity:.5; pointer-events:none}
+  .stepslider:focus-visible{outline:none}
+  .steptrack{position:relative; height:6px}
+  .steptrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--step-cap)); right:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--line)}
+  .steptick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
+  .stepfill{position:absolute; top:0; left:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--step-color, var(--ink-faint)); transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
+  .stephandle{
+    position:absolute; top:50%; width:20px; height:20px; border-radius:50%;
+    background:var(--panel); border:2px solid var(--step-color, var(--ink-faint)); box-shadow:0 1px 3px rgba(16,20,28,.2);
+    transform:translate(-50%,-50%);
+    transition:left .28s cubic-bezier(.34,1.56,.64,1), border-color .2s, transform .12s;
+  }
+  .stepslider.dragging .stephandle{transform:translate(-50%,-50%) scale(1.15); transition:border-color .2s}
+  .stepslider:focus-visible .stephandle{outline:2px solid var(--accent); outline-offset:2px}
+  /* Fixed height rather than one that grows with content: every .stepstop is
+     positioned absolutely (so it can sit at its own coordinate rather than in
+     flexbox flow), which means the parent never sees their height and won't
+     stretch for a wrapped one on its own. 28px is two lines' worth at this
+     font, which is as far as a name like "Waiting review" ever needs to
+     wrap once it's capped to its own fair share of the track's width below. */
+  .stepstops{position:relative; height:28px; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
+  .stepstop{
+    position:absolute; top:0; padding:2px 4px; border-radius:5px; transform:translateX(-50%);
+    text-align:center; line-height:1.3; overflow-wrap:break-word;
+  }
+  .stepstop:first-child{transform:translateX(0); text-align:left}
+  .stepstop:last-child{transform:translateX(-100%); text-align:right}
+  .stepstop:hover{color:var(--ink); background:var(--chip)}
+  .stepstop.on{color:var(--ink); font-weight:650}
+  /* ---------- collapsible sections in the drawer ----------
+     A <details> standing in for the <label>/<div> a field or a suggestion
+     block would otherwise be, so Description, Chats, Message suggestions and
+     Prompt suggestions can each be put away — Chats and the suggestion lists
+     in particular can run long enough that they push everything below them
+     off screen. The label becomes the <summary>: clicking it is the whole
+     interaction, and the browser's own show/hide does the rest, so nothing
+     here has to track which section is open beyond a CSS arrow. */
+  .dsep{border:none; border-top:1px solid var(--line); margin:1px 0}
+  details.field > summary, details.sugg > summary{
+    cursor:pointer; list-style:none; display:flex; align-items:center; gap:5px;
+  }
+  details.field > summary::-webkit-details-marker, details.sugg > summary::-webkit-details-marker{display:none}
+  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size:13px; display:inline-block}
+  details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
+  .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--ink-faint); opacity:.85; margin-left:6px}
+  .substeps{display:flex; flex-direction:column; gap:1px}
+  .sub{
+    display:flex; gap:7px; align-items:flex-start; font-size:13px; padding:5px 6px; color:var(--ink);
+    border:1px solid transparent; border-radius:7px; background:var(--bg);
+  }
+  .sub:hover{border-color:var(--line)}
+  .sub.checked .subtext{color:var(--ink-faint); text-decoration:line-through}
+  .sub input{margin-top:3px; flex:none}
+  .sub .subtext{flex:1; cursor:text}
+  .sub .subtext:hover{color:var(--accent)}
+  .sub.checked .subtext:hover{color:var(--ink-faint)}
+  .sub .grip{cursor:grab; color:var(--ink-faint); opacity:.45; font-size:13px; line-height:1.5; user-select:none; flex:none}
+  .sub:hover .grip{opacity:.9}
+  .sub .subdel{
+    flex:none; border:none; background:transparent; color:var(--ink-faint); opacity:0;
+    font-size:15px; line-height:1; padding:0 2px; border-radius:4px;
+  }
+  .sub:hover .subdel{opacity:.6}
+  .sub .subdel:hover{opacity:1; color:var(--red)}
+  .sub.dragging{opacity:.4}
+  .sub.over-top{box-shadow:inset 0 2px 0 var(--accent)}
+  .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .subedit{
+    flex:1; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
+    border-radius:5px; padding:2px 6px; font-size:13px; font-family:inherit;
+  }
+  .addsub{
+    align-self:flex-start; margin-top:6px; border:1px dashed var(--line); background:transparent;
+    color:var(--ink-soft); border-radius:7px; padding:6px 10px; font-size:12.5px; font-weight:600;
+  }
+  .addsub:hover{border-color:var(--ink-faint); color:var(--ink)}
+
+  /* ---------- date picker ---------- */
+  .dpbtn{
+    border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px;
+    width:100%; text-align:left; font-size:13px; color:var(--ink);
+  }
+  .dpbtn:hover{border-color:var(--ink-faint)}
+  .dpbtn.empty{color:var(--ink-faint)}
+  .cal{border:1px solid var(--line); border-radius:9px; background:var(--bg); padding:9px 10px 8px}
+  .calhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:7px}
+  .calhead strong{font-size:12.5px; font-weight:650}
+  .calnav{
+    border:1px solid var(--line); background:var(--panel); border-radius:6px; width:24px; height:24px;
+    color:var(--ink-soft); font-size:14px; line-height:1;
+  }
+  .calnav:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+  .cw{font-size:10px; font-weight:650; color:var(--ink-faint); text-align:center; padding-bottom:3px}
+  .cd{
+    border:1px solid transparent; background:transparent; border-radius:6px; padding:5px 0;
+    font-size:12.5px; color:var(--ink); text-align:center;
+  }
+  .cd:hover{background:var(--chip)}
+  .cd.pad{visibility:hidden}
+  .cd.now{font-weight:700; color:var(--accent)}
+  .cd.sel{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:650}
+  .cd.sel.now{color:#fff}
+  .calfoot{display:flex; gap:6px; margin-top:8px; padding-top:7px; border-top:1px solid var(--line-soft)}
+  .calsm{
+    flex:1; border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:4px 8px;
+    font-size:11.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .calsm:hover{color:var(--ink); border-color:var(--ink-faint)}
+
+  /* ---------- suggestion sections in the panel ---------- */
+  .sugg .empty{margin:0 0 6px; font-size:12.5px}
+  .sugg .msg{margin:0 0 7px; padding:9px 38px 9px 11px}
+  .sugg .msg:last-of-type{margin-bottom:6px}
+  .sugg .msgtext{font-size:12.5px}
+  /* Which sub-step the message belongs to. A quiet line, not a heading: the
+     message underneath is the thing being read. */
+  .suggwhere{
+    display:block; font-style:normal; font-size:11.5px; font-weight:550;
+    color:var(--ink-faint); margin-bottom:5px; line-height:1.4;
+  }
+  .suggwhere.draft{color:var(--amber); font-weight:600}
+
+  /* Dependencies, both directions. Two columns rather than one merged list —
+     "waiting on" and "blocks" answer different questions, and a slug that is
+     both (A waits on B, which also waits on A) is exactly the loop worth
+     seeing as two separate, contradicting lists rather than one that hides it. */
+  .depgroup{margin:0 0 12px 14px}
+  .depgroup:last-child{margin-bottom:6px}
+  .depcols{display:flex; gap:16px; flex-wrap:wrap}
+  .depcol{flex:1; min-width:130px}
+  /* One rung under the "Dependencies" summary, not a repeat of it — same
+     small-caps family so it still reads as a label, but smaller, lighter and
+     less spaced, the way a sub-heading sits under a heading rather than
+     beside it. */
+  .deplabel{
+    display:block; font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-faint); opacity:.8; margin-bottom:4px;
+  }
+  .deplist{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px}
+  /* The card itself is .chaincard, shared with the Matrix dependency view —
+     these two rules only make it a full-width, resettable <button>. */
+  .chaincard.deplink{display:block; width:100%; margin:0; font:inherit; appearance:none; -webkit-appearance:none}
+  .depdates{display:flex; flex-wrap:wrap; gap:4px; margin-top:5px}
+
+  .dgrip{position:absolute; left:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
+  .dgrip::after{content:""; position:absolute; left:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
+  .dgrip:hover::after, .dgrip.active::after{background:var(--accent)}
+  body.resizing{cursor:col-resize; user-select:none}
+  .help{font-size:11.5px; color:var(--ink-faint); line-height:1.5}
+  .datewarn{
+    margin:0; padding:8px 10px; border-radius:8px; font-size:12px; line-height:1.45;
+    background:var(--red-bg); color:var(--red);
+    border:1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  }
+  .datenote{margin:0; font-size:11.5px; color:var(--ink-faint); line-height:1.5}
+
+  /* ---------- start screen ---------- */
+  .start{max-width:560px; margin:8vh auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px; box-shadow:var(--shadow)}
+  .start h2{margin:0 0 6px; font-size:18px; letter-spacing:-.01em}
+  .start p{color:var(--ink-soft); margin:0 0 16px; font-size:13.5px}
+  .start .drops{border:1.5px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--ink-faint); font-size:13px; margin-top:14px}
+  .start .drops.over{border-color:var(--accent); color:var(--accent)}
+  .err{background:var(--red-bg); color:var(--red); padding:9px 11px; border-radius:8px; font-size:12.5px; margin-top:12px}
+
+  /* ---------- conflict modal ----------
+     The one place the board interrupts. It only appears when the file on disk
+     and the unsaved work in the tab have both moved, because that is the only
+     situation where picking wrong loses something. */
+  /* Its own class, not the drawer's .scrim — that one is a permanent element
+     kept at opacity 0, and sharing the rule would break it. */
+  .mscrim{
+    position:fixed; inset:0; z-index:60; background:rgba(16,20,28,.45);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .sheet{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 12px 40px rgba(16,20,28,.28); width:min(560px,100%);
+    max-height:min(78vh,660px); display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* A written report is a document and wants a document's width — the default
+     560px is sized for a confirmation, not 600 words read down a gutter. */
+  .sheet.wide{width:min(760px,100%); max-height:min(84vh,760px)}
+  .sheet h2{font-size:15px; font-weight:660; margin:0; letter-spacing:-.01em}
+  .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--line-soft)}
+  .sheet .msub{font-size:13px; color:var(--ink-soft); margin:7px 0 0; line-height:1.5}
+  .sheet .mid{padding:14px 20px; overflow:auto; flex:1 1 auto}
+  .sheet .foot{
+    padding:13px 20px; border-top:1px solid var(--line-soft);
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; background:var(--bg);
+  }
+  .changes{margin:0 0 16px}
+  .changes:last-child{margin-bottom:0}
+  .changes h3{
+    font-size:11px; font-weight:660; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-faint); margin:0 0 7px;
+  }
+  .changes ul{list-style:none; margin:0; padding:0}
+  .changes li{
+    display:flex; gap:8px; align-items:baseline; font-size:12.5px;
+    padding:5px 0; border-bottom:1px solid var(--line-soft); line-height:1.4;
+  }
+  .changes li:last-child{border-bottom:0}
+  .changes .what{
+    flex:0 0 auto; font-size:10.5px; font-weight:660; text-transform:uppercase;
+    letter-spacing:.04em; border-radius:4px; padding:2px 6px; background:var(--chip); color:var(--ink-soft);
+  }
+  .changes .what.added{background:var(--green-bg); color:var(--green)}
+  .changes .what.removed{background:var(--red-bg); color:var(--red)}
+  .changes .what.ticked{background:var(--green-bg); color:var(--green)}
+  .changes .what.moved,
+  .changes .what.renamed{background:var(--amber-bg); color:var(--amber)}
+  .changes .where{color:var(--ink-faint)}
+  .changes .none{font-size:12.5px; color:var(--ink-faint)}
+  .hidden{display:none !important}
+
+  /* ---------- toasts ----------
+     Anything that stops an action the user just took — a drag onto Done, a
+     tick — needs to land where the eye already is, not in the header status
+     line, which sits far from the card and reads at 12px. Stacked bottom
+     centre, above the drawer scrim (z-index 60) so it is never hidden behind
+     an open drawer. */
+  .toasts{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:70;
+    display:flex; flex-direction:column; gap:8px; align-items:center;
+    pointer-events:none; max-width:min(480px,90vw);
+  }
+  .toast{
+    background:var(--ink); color:var(--panel); border-radius:10px;
+    padding:10px 16px; font-size:13px; line-height:1.4; text-align:center;
+    box-shadow:0 12px 28px rgba(10,12,16,.28), 0 2px 6px rgba(10,12,16,.16);
+    opacity:0; transform:translateY(6px); transition:opacity .15s, transform .15s;
+  }
+  .toast.blocked{background:var(--amber-bg); color:var(--amber); border:1px solid color-mix(in srgb, var(--amber) 35%, transparent)}
+  .toast.show{opacity:1; transform:translateY(0)}
+
+  /* ---------------------------------------------------------------------
+     The canvas — conversations with Claude, grouped by the task they belong to.
+
+     A view of filing rather than a place to start anything. Every card is a
+     conversation the sessions store already knows about; a box is a task that
+     has at least one. Nothing here is drawn from todo.md except the names on
+     the boxes, and nothing here writes to it except adopting a card, which
+     mints a `chat:` key on a task line the same way starting a chat from the
+     drawer already does.
+
+     Positions live in data/<dataset>/canvas.json. Delete it and the canvas
+     lays itself out again from scratch, which is the whole cost of losing it.
+     --------------------------------------------------------------------- */
+  .canvas{
+    position:relative; flex:1; min-height:0; overflow:auto;
+    background:
+      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px;
+  }
+  .cvsurface{position:relative; width:4000px; height:2600px}
+  .cvempty{
+    position:absolute; left:50%; top:120px; transform:translateX(-50%);
+    max-width:460px; text-align:center; color:var(--ink-soft);
+  }
+  .cvempty h2{font-size:15px; margin:0 0 6px; color:var(--ink)}
+  .cvempty p{margin:0 0 4px; font-size:13px; line-height:1.5}
+
+  /* A box is a task. It is drawn behind its cards and never smaller than
+     them — cards.js does that arithmetic, so this and the Electron canvas
+     agree on it rather than each having a version. */
+  .cvbox{
+    position:absolute; border:1px solid var(--line); border-radius:12px;
+    background:var(--line-soft); pointer-events:auto;
+  }
+  .cvbox.over{border-color:var(--accent); background:var(--chip)}
+  .cvboxbar{
+    display:flex; align-items:center; gap:8px; height:34px; padding:0 12px;
+    cursor:grab; font-weight:600; font-size:12.5px; color:var(--ink-soft);
+    white-space:nowrap; overflow:hidden;
+  }
+  .cvboxbar:active{cursor:grabbing}
+  .cvboxbar .cvcount{margin-left:auto; font-weight:400; color:var(--ink-faint)}
+  .cvboxbar .cvopen{
+    flex:1 1 auto; min-width:0; border:0; background:none; padding:0; cursor:pointer;
+    color:inherit; font:inherit; font-weight:600; text-align:left;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .cvboxbar .cvopen:hover{color:var(--accent); text-decoration:underline}
+
+  /* A card. Four lines, the same four the Electron canvas argued itself into:
+     what it is called, what work it belongs to, when it last did anything,
+     and whether it can write to disk. */
+  .cvcard{
+    position:absolute; width:280px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  /* The same card, stacked in the drawer's Chats field instead of scattered
+     on the canvas. No grip — a card here is already filed against the one
+     task it's open on, so there is nothing to drag it onto. */
+  .cvstack{display:flex; flex-direction:column; gap:8px; margin:0 0 8px}
+  .cvstack .cvcard{position:relative; width:auto; box-shadow:none}
+  .cvstack .cvgrip{display:none}
+  .aic-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+  /* The picker for "Attach a session…" — a session Claude Code has on disk
+     that this board has never filed. Small and modal on purpose: it is a
+     one-off reach into the terminal's own conversations, not a place to
+     linger, unlike the chat window itself. */
+  .attachpick-wrap{
+    position:fixed; inset:0; z-index:90; display:flex; align-items:center;
+    justify-content:center; background:rgba(10,12,16,.32); padding:24px;
+  }
+  .attachpick{
+    width:min(480px, 100%); max-height:min(560px, 100%); display:flex;
+    flex-direction:column; background:var(--panel); border-radius:14px;
+    box-shadow:0 24px 48px rgba(10,12,16,.28); overflow:hidden;
+  }
+  .attachpick header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; font-weight:600; font-size:13.5px;
+    border-bottom:1px solid var(--line);
+  }
+  .attachpick-close{
+    border:0; background:none; cursor:pointer; color:var(--ink-faint);
+    font-size:16px; line-height:1; padding:2px 4px; border-radius:5px;
+  }
+  .attachpick-close:hover{background:var(--chip); color:var(--ink)}
+  .attachpick-body{overflow-y:auto; padding:8px}
+  .attachpick-row{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; color:inherit;
+  }
+  .attachpick-row:hover{background:var(--chip)}
+  .attachpick-row:disabled{opacity:.5; cursor:default}
+  .attachpick-title{
+    display:block; font-weight:600; font-size:13px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .attachpick-meta{
+    display:block; margin-top:2px; font-size:11.5px; color:var(--ink-faint);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .cvcard.dragging{opacity:.85; box-shadow:0 8px 24px rgba(16,20,28,.18)}
+  .cvgrip{
+    height:22px; border-radius:9px 9px 0 0; cursor:grab;
+    border-bottom:1px solid var(--line-soft); background:var(--line-soft);
+    display:flex; align-items:center; padding:0 8px; color:var(--ink-faint);
+    font-size:11px; letter-spacing:.08em;
+  }
+  .cvgrip:active{cursor:grabbing}
+  .cvbody{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
+  }
+  .cvbody:hover{background:var(--chip)}
+  .cvtitle{
+    display:block; font-weight:600; font-size:13px; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  /* The one flag the app cannot work out on its own: something happened
+     here since you last opened it. A dot rather than a badge, because it
+     is a nudge, not a count — copied from ai_canvas's own .unread-dot.
+     Cleared by opening the card; see markCanvasViewed(). */
+  .cvtitle .unread-dot{
+    display:inline-block; width:6px; height:6px; margin-left:6px;
+    border-radius:50%; background:var(--accent); vertical-align:middle; flex:none;
+  }
+  .cvowner{display:block; margin-top:5px; font-size:11.5px; color:var(--ink-soft);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cvowner.loose{color:var(--ink-faint); font-style:italic}
+  .cvmeta{display:block; margin-top:6px; font-size:11px; color:var(--ink-faint)}
+  .cvmeta .cvmode{
+    display:inline-block; margin-left:6px; padding:0 5px; border-radius:4px;
+    background:var(--amber-bg); color:var(--amber); font-style:normal;
+  }
+  .cvmeta .cvlive{color:var(--green); font-style:normal}
+  /* The corner a box resizes from. Bottom-right only, which is the corner a
+     window has: four handles on a box you rarely resize is more furniture than
+     the gesture is worth. */
+  .cvgrow{
+    position:absolute; right:0; bottom:0; width:16px; height:16px;
+    cursor:nwse-resize;
+  }
+  .cvgrow::after{
+    content:''; position:absolute; right:3px; bottom:3px; width:8px; height:8px;
+    border-right:2px solid var(--ink-faint); border-bottom:2px solid var(--ink-faint);
+    border-radius:0 0 3px 0; opacity:.5;
+  }
+  .cvbox:hover .cvgrow::after{opacity:1}
+
+  /* Taking a conversation off the board. Hidden until the card is under the
+     cursor, like every other destructive control here — it is one click and it
+     should not be sitting in the corner of every card inviting one. */
+  .cvclose{
+    position:absolute; top:3px; right:3px; width:20px; height:20px; padding:0;
+    border:0; border-radius:5px; background:none; cursor:pointer; opacity:0;
+    color:var(--ink-faint); font-size:14px; line-height:20px; text-align:center;
+  }
+  .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
+  .cvclose:hover{background:var(--red-bg); color:var(--red)}
+
+  .cvhint{
+    position:sticky; bottom:0; left:0; padding:6px 12px; font-size:11.5px;
+    color:var(--ink-faint); background:var(--bg); border-top:1px solid var(--line-soft);
+  }

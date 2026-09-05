@@ -90,10 +90,25 @@ can be in any shape the work needs.
 
 ## The board
 
-`kanban/index.html` is one self-contained page. No build step, no dependencies.
-It parses `data/todo.md` into buckets, states and tags, renders them as columns,
-and writes the file back when you save. That path never changes — it always
-means whichever data set is current, see above.
+`kanban/index.html` is one page, still. No build step, no dependencies, and
+nothing to install. It parses `data/todo.md` into buckets, states and tags,
+renders them as columns, and writes the file back when you save. That path never
+changes — it always means whichever data set is current, see above.
+
+Two things sit beside it rather than inside it, and both moved out on 5 Sep 2026:
+
+- `kanban/board.css` — the stylesheet, 1,700 lines of it. It was inline for no
+  reason other than that the page started small, and nothing generates or
+  rewrites it, so it lifted out whole. The board still writes a handful of
+  custom properties from JavaScript — `--header-h`, `--cols`, `--step-color` and
+  two more — which is the only coupling left in either direction.
+- `core/todo.js` — the file format: parsing, serialising, sub-steps, suggested
+  messages and the `repeat:` maths. It went to `core/` rather than staying in
+  `kanban/` because it is the half that `core/todo.py` is a port *of*, and the
+  two belong where they can be read side by side. See `core/README.md`.
+
+Everything else is still the one inline `<script>`, and there is no plan to
+split it further beyond what is written in IMPROVEMENTS.md.
 
 `kanban/server.py` is a small local server so the page can read and write the
 file — a browser will not let a page opened straight off the disk do that. It
@@ -407,6 +422,69 @@ thorough. A report nobody finishes reading is worth nothing.
 **Under 400 words unless there is a reason to go longer.** Three or four sections
 is usually the shape: what moved, what has not, and what the pattern across the
 two is. If a section needs a paragraph to say one thing, it needs one sentence.
+
+### Plans
+
+A separate tab, beside Reports, and a separate folder. Plans are written
+overnight by the nightly prep agent in `nightly/` — one per task tagged
+`[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
+involves and proposing a course of action. **Nothing in a plan has been done.**
+
+They are files in `data/<dataset>/plans/<night>/`, listed by the server at
+`/plans.json` and read exactly the way written reports are.
+
+The reason they are not a third column in Reports is that they answer the
+opposite question. A report says what happened, and it is finished the day it is
+written. A plan proposes what to do next, and it stops being true the moment it
+is acted on. Folding the two together would also put machine output into a view
+of Tiago's own writing.
+
+Three states, and the difference between the last two is what the runner reads:
+
+| | |
+| --- | --- |
+| `unread` | Nobody has opened it. |
+| `read` | Opened. Marked automatically, because having it open is what read means. |
+| `actioned` | Acted on, so it no longer describes outstanding work. A deliberate press. |
+
+Marking one actioned writes the plan file and the runner's ledger, and nothing
+else — in particular it never touches `todo.md`. The next night then plans that
+task afresh rather than skipping it for looking unchanged, which is how a task he
+has moved on from gets a new plan.
+
+The full account of how the nightly agent decides what to plan and when it is
+allowed to spend is in [nightly/README.md](nightly/README.md). The short version
+of the part that matters: it only ever spends inside a usage window that expires
+before 07:00, so the morning is never eaten by work done overnight.
+
+### Schedule
+
+A header button beside Backups, opening a full-pane view. A button rather than a
+tab on the main nav, because it is about the machinery around the list rather
+than about the list.
+
+Three things here run on a clock rather than when you ask them to: the nightly
+agent's twelve launchd wakes, the companion's morning briefing, and the weekly
+backup thread inside `server.py`. Before this they were three places to go and
+look, and "did the nightly job actually run" had no answer short of reading a log.
+
+It reads two sources, and they are not alternatives. **Live** — `launchctl print`,
+the plist's own wake times, the companion's lock file — says whether a job is
+armed and when it fires next, which no log can know, since a log will happily
+describe a job that was unloaded a week ago. **The ledger** — `plans/nightly.log`,
+`companion.json`, the backup listing — says what it actually did, which
+`launchctl` cannot. A job that is not installed says so and gives the command to
+install it.
+
+The second card is the usage windows, which had no home outside running
+`core/windows.py --history` at a terminal. The last 30 days, one row a window,
+with the ones that started in the night picked out — those are the ones the
+nightly agent could have spent in. Above them is the agent's own decision as it
+stands this second, ride, open or stop, with its reasoning: that line answers
+"would it run tonight" without waiting for tonight.
+
+Everything in the view is read-only. It is the one view that writes nothing at
+all, not even a preference.
 
 ### Handing a prompt over
 
@@ -957,6 +1035,24 @@ is a write to `todo.md` and the companion never writes to it. It opens the file
 read-only and that is the whole of its access, so it cannot race the board's
 autosave or damage a list.
 
+Under those it lists **Messages to send** — every suggested message on a live
+contact step, ready to copy. That is the section the app earns its place with:
+what stalls one of those steps for days is writing the opening line, and a
+message already written turns it into a click. The step is the label, since that
+is what names the person, and the message itself is the tooltip.
+
+Clicking one copies it. Hold alt and the row becomes **Dismiss**, which hides it
+here and nowhere else — the message stays on the card, because a dismissal is a
+statement about this menu rather than about the work, and this process still
+never writes to `todo.md`. Dismissals are keyed on the message's own text, so
+rewording one deliberately brings it back: a changed message is a different
+message and is worth seeing again. What the companion cannot do is the board's
+delete-on-send, for the same reason it cannot tick a task off.
+
+Plans are deliberately not here. A plan is several minutes of reading and belongs
+on the board's Plans tab; what the companion does about them is say they exist,
+through the queue below.
+
 The morning notification goes out at the first check at or after 08:30 on a
 working day, once a day. Starting the app later in the day still gets you the
 briefing — opening the laptop at four having missed the morning is exactly when
@@ -998,16 +1094,30 @@ against AppKit through PyObjC because PyObjC is already installed alongside the
 Python that runs the board, and `rumps` would be one more thing to install and
 remember.
 
-Neither of them knows the file format. That lives in `kanban/todo.py`, which
-belongs to the board: a Python port of the parsing and the `repeat:` maths in
-`kanban/index.html`, read-only, so anything outside a browser tab that needs to
-know what is due asks the board's own reader rather than inventing a second one.
-Where the two disagree the board is right and `todo.py` is the bug — and
-`kanban/test_todo.py` is what proves they do not. It holds the board's own
-answers for seventeen `repeat:` forms against a year of seed dates, generated by
-running the board's JavaScript, so a change to either copy that breaks the
-agreement fails loudly rather than quietly rolling a meeting to the wrong day.
-Run it after touching either.
+Neither of them knows the file format. That lives in `core/todo.py`, which
+belongs to no one app: a Python port of the parsing, the suggested messages and
+the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
+tab that needs to know what is due asks one shared reader rather than inventing a
+second one. It sat in `kanban/` while the board was its only caller, and moved to
+`core/` on 5 Sep 2026 once the companion, the nightly agent and the pa-checkin
+checker all depended on a module filed inside one of them. The JavaScript
+followed it there the same day, out of the middle of `index.html`, so the two
+copies of one grammar now sit next to each other. `core/README.md` says what
+belongs there and what does not.
+
+Where the two disagree the board is right and `todo.py` is the bug, and
+`core/fixtures/` is what proves they do not. Three JSON tables, generated by
+running the board's own functions: thirty `repeat:` forms against 2,400 dates,
+the suggested-message notes, and a task line carrying every tag. Both suites read
+them — `python3 core/test_todo.py` and `node core/test_todo.mjs` — so a change to
+either copy that breaks the agreement fails loudly in both languages rather than
+quietly rolling a meeting to the wrong day. Run both after touching either.
+
+Writing the third of those tables found three places the two had already drifted,
+none of which anything would ever have hit: a title of nothing but asterisks, a
+`rank:` with characters after the number, and a numbered bucket written below the
+Context section. Small, but they are the shape of the problem — a disagreement
+about junk input is invisible until the day something writes junk.
 
 `todo.py` also carries the working calendar: weekends, England-and-Wales bank
 holidays, and Portugal's national public holidays. Two countries because the work
@@ -1030,7 +1140,7 @@ how the next one will be. Portugal's municipal days and the Azores and Madeira
 sets are deliberately not included; add the relevant one to `PT_EXTRA` if it
 starts mattering.
 
-`kanban/test_todo.py` pins all of it against the published dates for 2026 and
+`core/test_todo.py` pins all of it against the published dates for 2026 and
 2027, and `--online` re-checks the generated calendar against the sources:
 gov.uk's own JSON feed for England and Wales, and Nager.Date for Portugal, which
 has no official feed. Every England-and-Wales date from 2019 to 2028 agrees, and
@@ -1070,6 +1180,41 @@ The log is at `~/Library/Logs/To-Do Companion.log`, which is the only place a
 menu bar app has to say anything. It records each start and which route every
 notification took.
 
+### Asking the companion to say something
+
+The companion is the only thing here that can put a desktop notification on
+screen. The nightly agent has no interface at all, the board is a browser tab
+that is usually shut, and a skill is a conversation that has already ended by the
+time its result matters. So rather than each growing its own way to speak, they
+append to one file and the companion drains it on its next tick:
+
+```
+python3 companion/notify.py "Nightly agent" "3 plans waiting, 2 unchanged"
+```
+
+`data/<dataset>/notify-queue.json`, the same shape as `attach-queue.json`: a JSON
+array anything may append to, drained and cleared by the one process that can act
+on it. `companion/notify.py` is the writer, it never raises, and it caps the queue
+so a companion that has been shut for a fortnight comes back with the last few
+lines rather than the whole backlog at once.
+
+What the queue does not get to override: nothing is posted outside 08:30 to
+20:00, and no more than three at a time. A line queued at 02:00 waits for the
+morning, which is the whole point — the nightly agent finishes in the middle of
+the night and there is no version of being woken by it that is useful.
+
+Weekends and public holidays are the one rule the queue does **not** inherit from
+the morning briefing, and the difference is deliberate. The briefing is a
+scheduled interruption about a working day, so a Saturday rightly gets none. A
+queued line is the opposite: it answers something that has just happened, put
+there by something you set running yourself. Running the nightly agent on a
+Saturday and hearing about it on Monday helps nobody. The time window is the
+guard that matters, because that one is about not being woken, and it applies
+every day.
+
+So it is for things worth a banner, not for progress. A run that wrote three
+plans is one line at the end, not one line a plan.
+
 ## The skills
 
 `skills/pa-checkin/` is a Claude skill that runs the review session: read
@@ -1088,7 +1233,7 @@ python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 It does not carry its own copy of the `repeat:` grammar or the bank holidays any
-more. Both are `kanban/todo.py`'s, and the checker imports them: run from the
+more. Both are `core/todo.py`'s, and the checker imports them: run from the
 repo it reaches the original four folders up, and run from an installed skill,
 where there is no repo to reach, it imports the copy the build step staged beside
 it. The repo wins when both exist, so editing the original is always what takes

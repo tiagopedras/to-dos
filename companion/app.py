@@ -40,7 +40,7 @@ from PyObjCTools import AppHelper
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(ROOT, "kanban"))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 import digest  # noqa: E402
 import todo  # noqa: E402
 
@@ -234,7 +234,8 @@ class Companion(AppKit.NSObject):
 
     @objc.python_method
     def refresh(self):
-        self.digest = digest.build()
+        self.digest = digest.build(dismissed=set(self.state.get("dismissed", [])))
+        self.drain_notifications()
         self.draw_icon()
         self.draw_menu()
 
@@ -280,6 +281,18 @@ class Companion(AppKit.NSObject):
         if d.parked:
             self.menu.addItem_(AppKit.NSMenuItem.separatorItem())
             self._label("%d more with somebody else or blocked" % d.parked)
+
+        # The messages waiting to go out. This is the section the whole app is
+        # most useful for: what stalls a contact step for days is writing the
+        # opening line, and one already written turns that into a click.
+        #
+        # Listed rather than counted, unlike the parked tasks above, because the
+        # useful thing is which person is waiting rather than how many are.
+        if d.messages:
+            self.menu.addItem_(AppKit.NSMenuItem.separatorItem())
+            self._label("Messages to send")
+            for m in d.messages:
+                self._message(m)
 
         self.menu.addItem_(AppKit.NSMenuItem.separatorItem())
         self._action("Open the board", "openBoard:", "o")
@@ -342,6 +355,39 @@ class Companion(AppKit.NSObject):
         item.setToolTip_("%s · %s" % (task.bucket, task.column))
         self.menu.addItem_(item)
 
+    @objc.python_method
+    def _message(self, m):
+        # The step is the label, because that is what names the person, and the
+        # message itself is the tooltip — it is two or three sentences and a menu
+        # that wide is unreadable.
+        #
+        # Click copies. Hold alt and the row becomes Dismiss, which is the
+        # standard menu bar idiom for a second action and costs no extra rows.
+        # Dismissing is this app's own state and never touches todo.md: the
+        # message stays on the card, and the board is still where it gets
+        # deleted when it is actually sent.
+        label = m["where"] or m["task"]
+        if len(label) >= 46:
+            label = label[:45].rstrip() + "…"
+        if m["draft"]:
+            label += "  (draft)"
+        item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "  " + label, "copyMessage:", "")
+        item.setTarget_(self)
+        item.setRepresentedObject_(m["key"])
+        item.setToolTip_(m["text"])
+        self.menu.addItem_(item)
+
+        alt = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "  Dismiss — " + label.strip(), "dismissMessage:", "")
+        alt.setTarget_(self)
+        alt.setRepresentedObject_(m["key"])
+        alt.setKeyEquivalentModifierMask_(AppKit.NSEventModifierFlagOption)
+        alt.setAlternate_(True)
+        alt.setToolTip_("Hide this until the message is reworded. Nothing is "
+                        "removed from the board.")
+        self.menu.addItem_(alt)
+
     # ---- the morning -----------------------------------------------------------
 
     @objc.python_method
@@ -374,6 +420,75 @@ class Companion(AppKit.NSObject):
         self.state["notified_at"] = now.strftime("%-H:%M")
         write_state(self.state)
 
+    # ---- the notification pathway ----------------------------------------------
+
+    @objc.python_method
+    def drain_notifications(self):
+        """Post whatever anything else has asked to be said, and clear the queue.
+
+        This app is the only thing here that can put a notification on screen.
+        The nightly agent has no UI at all, the board is a browser tab that is
+        usually shut, and a skill is a conversation that has already ended by the
+        time its result matters. So rather than each of them growing its own way
+        to speak, they append to one file and this drains it on the next tick.
+
+        The shape is deliberately the same as `attach-queue.json`: a JSON array,
+        appended to by anything, drained and cleared by the one process that can
+        act on it. It is in `data/` because a notification quotes the list and so
+        can carry a name.
+
+        Rules the queue does not get to override:
+
+          - Nothing outside NOTIFY_AT..NOTIFY_UNTIL. A queued line waits for the
+            morning rather than going off at 02:00, which is exactly when the
+            nightly agent finishes and exactly when he is asleep.
+          - At most three at once, oldest first. Anything more is a bug in
+            whatever wrote them, and a stack of eleven banners is worse than
+            silence.
+
+        **The weekend and holiday rule does not apply here**, which is the one
+        way this differs from the morning briefing above. That briefing is a
+        scheduled interruption about a working day, so a Saturday rightly gets
+        none. A queued line is the opposite: it answers something that has just
+        happened, put there by something he set running himself. If he runs the
+        nightly agent on a Saturday, holding the result until Monday morning
+        helps nobody. The time window is the guard that matters, because that one
+        is about not being woken, and it still applies every day.
+
+        An entry is `{"title": ..., "body": ..., "queued": ISO}`. Title and body
+        are the whole contract; anything else in the object is ignored.
+        """
+        path = os.path.join(ROOT, "data", digest.DATASET, "notify-queue.json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                queued = json.load(fh)
+            if not isinstance(queued, list) or not queued:
+                return
+        except (OSError, ValueError):
+            return
+
+        now = dt.datetime.now()
+        if not (NOTIFY_AT <= now.time() <= NOTIFY_UNTIL):
+            return                      # left on the queue, said in the morning
+
+        for entry in queued[:3]:
+            if not isinstance(entry, dict):
+                continue
+            title = str(entry.get("title") or "To-do")[:120]
+            body = str(entry.get("body") or "")[:400]
+            if body:
+                notify(title, body)
+                log("queued notification sent: %s" % title)
+
+        rest = queued[3:]
+        try:
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(rest, fh, indent=2)
+            os.replace(tmp, path)
+        except OSError as exc:
+            log("could not clear the notification queue: %s" % exc)
+
     # ---- menu handlers ---------------------------------------------------------
 
     def tick_(self, timer):
@@ -385,6 +500,48 @@ class Companion(AppKit.NSObject):
 
     def openTask_(self, sender):
         open_board(sender.representedObject())
+
+    def copyMessage_(self, sender):
+        """Onto the clipboard, ready to paste into Slack or an email.
+
+        Copying is the whole interaction. A menu bar app that opens a window to
+        show two sentences has lost the point, and sending it from here would
+        mean this process knowing about Slack, which it is not going to."""
+        key = sender.representedObject()
+        m = next((x for x in self.digest.messages if x["key"] == key), None)
+        if not m:
+            return
+        pb = AppKit.NSPasteboard.generalPasteboard()
+        pb.clearContents()
+        pb.setString_forType_(m["text"], AppKit.NSPasteboardTypeString)
+        log("copied the message for %r" % (m["where"] or m["task"]))
+        # A moment of feedback in the icon, since the menu has already closed by
+        # the time this runs and there is nowhere else to say anything.
+        self.item.button().setTitle_(" copied")
+        Foundation.NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            1.4, self, "clearFlash:", None, False)
+
+    def clearFlash_(self, timer):
+        self.draw_icon()
+
+    def dismissMessage_(self, sender):
+        """Hide one message here, and only here.
+
+        Dismissing is a statement about this menu, not about the work: the
+        message stays on the card, and the board is still the only thing that
+        deletes one when it is actually sent. The key is a hash of the task, the
+        step and the text, so rewording a message deliberately brings it back —
+        a changed message is a different message and is worth seeing again."""
+        key = sender.representedObject()
+        seen = list(self.state.get("dismissed", []))
+        if key not in seen:
+            seen.append(key)
+            # Trimmed from the front so the file cannot grow without limit. Two
+            # hundred is far more than are ever live at once, and the oldest
+            # dropping off only means an already-sent message reappears once.
+            self.state["dismissed"] = seen[-200:]
+            write_state(self.state)
+        self.refresh()
 
     def checkNow_(self, sender):
         self.refresh()

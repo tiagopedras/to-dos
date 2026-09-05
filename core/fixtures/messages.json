@@ -1,0 +1,105 @@
+{
+ "_": "Every line below was put through the board's own MSG_NOTE and quoted() in a browser, and what came back is what is written here. The awkward ones are deliberate: a colon inside the text breaks a naive split, curly quotes are what autocorrect produces, and a message with no quotes at all is what survives being pasted out of an older file.",
+ "lines": [
+  {
+   "line": "    - Suggested message: \"Hey Tom 👋 Could you send me the list by Friday?\"",
+   "matches": true,
+   "draft": false,
+   "text": "Hey Tom 👋 Could you send me the list by Friday?"
+  },
+  {
+   "line": "    - Suggested message (draft): \"Hey Alex 👋 Sam's rationale is attached.\"",
+   "matches": true,
+   "draft": true,
+   "text": "Hey Alex 👋 Sam's rationale is attached."
+  },
+  {
+   "line": "    - Suggested message (DRAFT): \"Shouty marker still counts.\"",
+   "matches": true,
+   "draft": true,
+   "text": "Shouty marker still counts."
+  },
+  {
+   "line": "    - Suggested message: “Hey 👋 Curly quotes, from anything with autocorrect.”",
+   "matches": true,
+   "draft": false,
+   "text": "Hey 👋 Curly quotes, from anything with autocorrect."
+  },
+  {
+   "line": "    - Suggested message: Hey 👋 No quotes at all, so everything after the colon.",
+   "matches": true,
+   "draft": false,
+   "text": "Hey 👋 No quotes at all, so everything after the colon."
+  },
+  {
+   "line": "  - Suggested message: \"On the task itself rather than a step.\"",
+   "matches": true,
+   "draft": false,
+   "text": "On the task itself rather than a step."
+  },
+  {
+   "line": "    - Suggested message: \"A colon: inside the text, and \\\"nested\\\" quotes too.\"",
+   "matches": true,
+   "draft": false,
+   "text": "A colon: inside the text, and \\\"nested\\\" quotes too."
+  },
+  {
+   "line": "    - Suggested message:\"No space after the colon.\"",
+   "matches": true,
+   "draft": false,
+   "text": "No space after the colon."
+  },
+  {
+   "line": "    - suggested message: \"Lowercase label.\"",
+   "matches": true,
+   "draft": false,
+   "text": "Lowercase label."
+  },
+  {
+   "line": "    - Prompt: \"This is a prompt, not a message.\"",
+   "matches": false,
+   "draft": false,
+   "text": null
+  },
+  {
+   "line": "    - Jira (DSYS): \"Nor is this.\"",
+   "matches": false,
+   "draft": false,
+   "text": null
+  },
+  {
+   "line": "    - Not a suggested message: \"Because the label does not start the note.\"",
+   "matches": false,
+   "draft": false,
+   "text": null
+  },
+  {
+   "line": "    - Suggested message: \"\"",
+   "matches": true,
+   "draft": false,
+   "text": ""
+  }
+ ],
+ "doc": "## 1. People\n\n### Doing\n\n- [ ] **Chase the pack** [impact:: high] [effort:: M] [due:: 2026-09-11] [ai:: none]\n  - Suggested message: \"On the task itself.\"\n  - [ ] Ask the nominees [due:: 2026-09-08] [ai:: none]\n    - Suggested message: \"Hey 👋 Could you fill in the form?\"\n  - [x] Send the first request [ai:: none]\n    - Suggested message: \"Already gone out.\"\n  - [ ] Share it with Alex [ai:: none]\n    - Suggested message (draft): \"Hey Alex 👋 This one needs editing first.\"\n\n- [x] **A finished task** [impact:: low] [effort:: S] [ai:: none]\n  - [ ] A step nobody ticked\n    - Suggested message: \"Under a task that is done.\"\n",
+ "live": [
+  {
+   "text": "On the task itself.",
+   "where": "",
+   "due": "2026-09-11",
+   "draft": false
+  },
+  {
+   "text": "Hey 👋 Could you fill in the form?",
+   "where": "Ask the nominees",
+   "due": "2026-09-08",
+   "draft": false
+  },
+  {
+   "text": "Hey Alex 👋 This one needs editing first.",
+   "where": "Share it with Alex",
+   "due": "2026-09-11",
+   "draft": true
+  }
+ ],
+ "everyCount": 5
+}

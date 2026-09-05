@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The nightly prep agent's schedule.
+
+  Twelve wakes, 19:00 to 06:00, rather than one at 02:00. That is the whole
+  design decision and it is worth the twelve entries: the capacity is mostly in
+  a window Tiago opened himself in the evening, and the only way to catch one is
+  to keep looking. An hourly wake also gives the resume-after-a-limit behaviour
+  for free, with no long-lived process, nothing sleeping and nothing to restart.
+
+  Almost every one of these costs a few milliseconds. run.sh checks the clock,
+  then the lock, then the window, and stops at whichever says no.
+
+  RunAtLoad is deliberately absent: loading this at 10am should not start a run.
+  The clock guard in run.sh would refuse it anyway, and two guards on the same
+  mistake is the right number for something that spends money unattended.
+
+  Install:
+    ln -s ~/Code/to-dos/nightly/com.tiagopedras.todos-nightly.plist \
+          ~/Library/LaunchAgents/com.tiagopedras.todos-nightly.plist
+    launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-nightly.plist
+
+  Stop it:
+    launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-nightly.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tiagopedras.todos-nightly</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/tiagopedras/Code/to-dos/nightly/run.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/tiagopedras/Code/to-dos</string>
+
+  <!-- launchd gives a job almost no PATH. claude is installed for the user, so
+       without this the run fails at "could not start claude" every night. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/tiagopedras/.local/bin</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>1</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>2</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>4</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>5</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>5</integer></dict>
+  </array>
+
+  <!-- Both go to data/, which is gitignored, because a stray line of agent
+       output could name somebody. plans/nightly.log is the readable record;
+       these two are for when something has gone wrong with the runner itself. -->
+  <key>StandardOutPath</key>
+  <string>/Users/tiagopedras/Code/to-dos/data/nightly.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/tiagopedras/Code/to-dos/data/nightly.err.log</string>
+</dict>
+</plist>

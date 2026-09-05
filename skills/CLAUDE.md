@@ -16,7 +16,7 @@ in. A skill that is not in the index is a skill I will forget I have.
 ## Packaging
 
 `./build.command` writes every skill here to `dist/<name>.skill`. Run it after
-changing any of them, and after changing `kanban/todo.py` — the build stages a
+changing any of them, and after changing `core/todo.py` — the build stages a
 copy of that file into `pa-checkin/scripts/`, because `check_todo.py` imports the
 `repeat:` grammar and the working calendar from it and an installed skill has no
 repo to reach. Do not commit a copy of `todo.py` under `pa-checkin/`: one copy in

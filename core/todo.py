@@ -4,8 +4,14 @@
 The board's own reader is the JavaScript in kanban/index.html, and it stays the
 authority on writing the file: only the board and the pa-* skills ever change a
 task. This module is the read-only half of the same knowledge, for the things
-that are not a browser tab — today the desktop companion in companion/, and
-anything else later that needs to know what is due without opening the board.
+that are not a browser tab — the desktop companion in companion/, the nightly
+agent in nightly/, the pa-checkin consistency checker, and anything else later
+that needs to know what is due without opening the board.
+
+It lives in core/ rather than beside the board because of that list. It sat in
+kanban/ while the board was its only caller, which stopped being true the moment
+the companion imported it, and by the time four things did, a module every one of
+them depended on was filed inside one of them.
 
 It is a port of the parsing in index.html rather than a second design: the same
 two tag syntaxes, the same `repeat:` grammar, the same occurrence maths. Where
@@ -105,10 +111,13 @@ def parse_task(raw_lines):
         elif key == "blocked-by":
             task.blocked_by = [s.strip() for s in val.split(",") if s.strip()]
         elif key == "rank":
-            try:
-                task.rank = int(val)
-            except ValueError:
-                pass
+            # parseInt in the board, so a leading integer is taken and whatever
+            # follows it is ignored: `rank:3px` is rank 3 there, and has to be
+            # rank 3 here. int() would refuse the whole thing and silently drop
+            # a rank the board is honouring.
+            lead = re.match(r"[+-]?\d+", val)
+            if lead:
+                task.rank = int(lead.group(0))
         elif key == "headline":
             task.headline = val
         elif key == "chat":
@@ -134,7 +143,10 @@ def parse_task(raw_lines):
         task.week = True
         rest = rest.replace("`week`", " ")
     title = re.sub(r"\s+", " ", rest).strip()
-    if len(title) > 4 and title.startswith("**") and title.endswith("**"):
+    # The board's guard is a regex needing four characters to match at all
+    # (`^\*\*[\s\S]*\*\*$`), so `****` is an empty title there and `***` is
+    # left as written. Four, not five.
+    if len(title) >= 4 and title.startswith("**") and title.endswith("**"):
         title = title[2:-2].strip()
     task.title = title
     return task
@@ -160,13 +172,21 @@ def parse_doc(text):
             bucket, column, in_buckets = bm.group(2).strip(), "", True
             i += 1
             continue
-        # A `##` that is not a numbered bucket closes the run of them. That is
-        # what Context is, and everything in it is notes about people rather
-        # than tasks, some of it written as bullets that would otherwise parse.
-        if line.startswith("## "):
-            in_buckets = False
-            i += 1
-            continue
+        # A `##` that is not a numbered bucket ends the buckets, and the board
+        # stops reading there rather than waiting for the next one — everything
+        # below goes into doc.post untouched. That is what Context is: notes
+        # about people, some of it written as bullets that would otherwise
+        # parse. A numbered bucket underneath it would be read by the board as
+        # prose too, so it is read as prose here.
+        #
+        # `in_buckets` is load-bearing and was missing for a few hours on 5 Sep
+        # 2026. Without it this breaks on `## How this works`, the first heading
+        # in the file, and every Python reader of the list — the companion, the
+        # nightly agent, the checker — quietly saw an empty document. The board
+        # was never affected: parseDoc skips everything before the first
+        # numbered bucket into doc.pre, and this is the line that ports that.
+        if in_buckets and line.startswith("## "):
+            break
         tm = TIER_RE.match(line)
         if tm:
             column = tm.group(1).strip()
@@ -410,6 +430,103 @@ def effective_due(task, today):
     while nxt < today:
         nxt = occurrence_after(rep, nxt)
     return nxt
+
+
+# ---- notes, and the suggested messages inside them --------------------------
+#
+# A suggested message lives as a note under the thing it serves, indented one
+# level deeper than the step it belongs to so it is unambiguous which step that
+# is. `(draft)` marks one he has to edit before sending — probation outcomes,
+# performance, salary, anyone's contract. It used to be free prose mid-sentence,
+# which nothing could read reliably, so the bracket is the marker now and the
+# prose after it is the explanation.
+#
+# Ported from MSG_NOTE, splitBody and quoted in kanban/index.html. The board is
+# the authority; core/test_todo.py holds a frozen table of the board's own
+# answers so the two cannot drift apart quietly.
+MSG_NOTE = re.compile(r"^\s*-\s+Suggested message(\s*\(draft\))?\s*:", re.I)
+PROMPT_NOTE = re.compile(r"^\s*-\s+Prompt\s*:", re.I)
+SUB_RE = re.compile(r"^(\s*)-\s+\[([ xX])\]\s?(.*)$")
+
+
+def quoted(line):
+    """What a note actually says: between its first and last quote.
+
+    Falls back to everything after the colon when there are not two quotes, so a
+    message written without them still reads. Curly quotes count, because they
+    are what arrives when a message has been through anything with autocorrect
+    in it.
+    """
+    marks = [i for i, ch in enumerate(line) if ch in '"“”']
+    if len(marks) >= 2:
+        return line[marks[0] + 1:marks[-1]].strip()
+    return line[line.index(":") + 1:].strip() if ":" in line else line.strip()
+
+
+def split_body(task):
+    """A task's own notes, and its sub-steps with the notes under each.
+
+    The board's splitBody. A step's notes are the lines after it, up to the next
+    step at the same indent or shallower — which is what makes a message
+    unambiguous about which step it belongs to even when a parent carries both
+    notes and steps.
+    """
+    notes, steps = [], []
+    base = None
+    for line in task.body:
+        m = SUB_RE.match(line)
+        if m and (base is None or len(m.group(1)) <= base):
+            base = len(m.group(1))
+            step = parse_task(["- [%s] %s" % (m.group(2), m.group(3))])
+            step.bucket, step.column = task.bucket, task.column
+            steps.append({"task": step, "done": step.done, "notes": []})
+            continue
+        (steps[-1]["notes"] if steps else notes).append(line)
+    return notes, steps
+
+
+def messages(task, live_only=True):
+    """Every suggested message on this task, from the task and from its steps.
+
+    `live_only` leaves out the ones there is nothing to do about: a message under
+    a ticked step has been sent, and one under a ticked task went with it. That
+    is the same reasoning the board's Quick wins applies, and the caller that
+    wants everything — a checker, say — passes False.
+
+    Each entry carries the text, whether it is a draft, and the step it belongs
+    to, which is what a reader shows so he can tell two chases apart.
+    """
+    if live_only and task.done:
+        return []
+    notes, steps = split_body(task)
+    out = []
+
+    def take(lines, where, where_done):
+        if live_only and where_done:
+            return
+        for line in lines:
+            if MSG_NOTE.search(line):
+                out.append({
+                    "text": quoted(line),
+                    "draft": "(draft)" in line.lower(),
+                    "where": where,
+                    "task": task.title,
+                    "bucket": task.bucket,
+                    "column": task.column,
+                    "due": "",
+                    "raw": line.strip(),
+                })
+
+    take(notes, "", False)
+    for s in steps:
+        take(s["notes"], s["task"].title, s["done"])
+        for entry in out:
+            if entry["where"] == s["task"].title and not entry["due"]:
+                entry["due"] = s["task"].due or task.due
+    for entry in out:
+        if not entry["due"]:
+            entry["due"] = task.due
+    return out
 
 
 def slug_states(tasks):

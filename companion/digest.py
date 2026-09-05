@@ -8,7 +8,8 @@ status icon or a notification permission anywhere in the way:
     python3 companion/digest.py            what is owed today
     python3 companion/digest.py 2026-09-07 what would be owed on that day
 
-The format knowledge is not here — that is kanban/todo.py, which the board owns.
+The format knowledge is not here — that is core/todo.py, which every reader of
+the list shares.
 What is here is the policy, and the policy is one question: which tasks are
 actually owed today, as opposed to merely carrying a date.
 
@@ -27,13 +28,22 @@ actionable is worse than either answer:
 `start:` is deliberately ignored. It says the earliest work can begin, and a
 task whose deadline has arrived is owed whether or not its start date has —
 those two disagreeing is a tagging mistake worth seeing, not one worth hiding.
+
+It also collects the suggested messages waiting to be sent — see read_messages
+below. That is a second question and it is here for the same reason as the
+first: what stalls a contact step for days is writing the opening line, not
+doing the thing, and a message already sitting in the menu turns a five minute
+task into a ten second one.
+
+Both are read-only, which is the whole of what this process is allowed to be.
 """
 
 import datetime as dt
+import hashlib
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kanban"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core"))
 import todo  # noqa: E402
 
 # The one list this watches. It reads data/twinkl/ by name rather than following
@@ -53,6 +63,7 @@ class Digest:
         self.today = []        # due today
         self.headline = None   # the one thing, whatever its date
         self.parked = 0        # open, dated, but sitting with someone else
+        self.messages = []     # contact steps with a message ready to copy
         self.error = None      # the file could not be read
 
     @property
@@ -63,14 +74,14 @@ class Digest:
         """The one sentence the notification and the menu header both use."""
         if self.error:
             return "The list could not be read"
-        if not self.count:
-            return "Nothing due today"
         bits = []
         if self.today:
             bits.append("%d due today" % len(self.today))
         if self.overdue:
             bits.append("%d overdue" % len(self.overdue))
-        return ", ".join(bits)
+        if self.messages:
+            bits.append("%d to send" % len(self.messages))
+        return ", ".join(bits) if bits else "Nothing due today"
 
 
 def todo_path(root=None):
@@ -78,7 +89,54 @@ def todo_path(root=None):
     return os.path.join(root, "data", DATASET, "todo.md")
 
 
-def build(day=None, path=None):
+def message_key(m):
+    """A stable id for one message, for remembering it has been dismissed.
+
+    Built from the task, the step and the text rather than from a position in
+    the file, so re-ordering the board does not resurrect everything, and
+    rewording a message deliberately does — a changed message is a different
+    message and is worth seeing again.
+    """
+    raw = "%s\u241f%s\u241f%s" % (m["task"], m["where"], m["text"])
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def read_messages(text, day, dismissed=()):
+    """Suggested messages that are still waiting to go out.
+
+    The extraction is core/todo.py's — this is only the policy on top of it, and
+    the policy is the same three exclusions the rest of this file applies, for
+    the same reason. A message under a task sitting with somebody else, or
+    waiting on an unfinished blocker, is not one he can send today.
+
+    `start:` is honoured here, unlike in the dated half above. There the
+    argument is that a passed deadline is owed whatever its start date says;
+    here there is no deadline in play, so a step that cannot begin yet is
+    genuinely not ready and putting its message up would be noise.
+
+    Undated ones sort last rather than dropping out, which is what the board's
+    Quick wins does, because those are the ones that rot quietly.
+    """
+    tasks = todo.parse_doc(text)
+    slugs = todo.slug_states(tasks)
+    out = []
+    for t in tasks:
+        if t.column.strip().lower() in PARKED_COLUMNS or todo.is_blocked(t, slugs):
+            continue
+        for m in todo.messages(t):
+            if m["due"]:
+                start = todo.parse_date(t.start) if t.start else None
+                if start and start > day:
+                    continue
+            m["key"] = message_key(m)
+            if m["key"] in dismissed:
+                continue
+            out.append(m)
+    out.sort(key=lambda m: (m["due"] or "9999-99-99", m["task"], m["where"]))
+    return out
+
+
+def build(day=None, path=None, dismissed=()):
     day = day or dt.date.today()
     path = path or todo_path()
     d = Digest(day)
@@ -108,6 +166,7 @@ def build(day=None, path=None):
     # is the thing worth reading first.
     d.overdue.sort(key=lambda p: p[0])
     d.today.sort(key=lambda p: (p[1].bucket, p[1].title))
+    d.messages = read_messages(text, day, dismissed)
     return d
 
 
@@ -128,6 +187,12 @@ def main():
             print("  %-14s %s%s" % (t.bucket[:14], t.title, when))
     if d.parked:
         print("\n%d more dated but sitting with somebody else or blocked." % d.parked)
+    if d.messages:
+        print("\nMessages to send")
+        for m in d.messages:
+            mark = " (draft)" if m["draft"] else ""
+            print("  %-10s %s%s" % (m["due"] or "—", m["where"] or m["task"], mark))
+            print("             %s" % m["text"][:88])
     return 0
 
 

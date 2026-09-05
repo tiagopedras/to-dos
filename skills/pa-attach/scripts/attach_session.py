@@ -11,7 +11,10 @@ never guessed here.
 Reads the session id from CLAUDE_CODE_SESSION_ID, which Claude Code sets in
 the environment of every session, and the working directory from the current
 process unless --cwd overrides it — the board needs both to find this
-session's transcript again later. Appends rather than replaces: the board
+session's transcript again later. `--session` overrides the environment, for
+the one caller that is filing somebody else's session rather than its own:
+the nightly agent, which gets the id back in the JSON result of each headless
+run it starts and has no environment variable to read it from. Appends rather than replaces: the board
 drains and clears this file on its next load (see attach_queue_path() in
 kanban/server.py), so a queue this script finds non-empty is one the board
 has not opened since the last attach, and the new entry joins whatever is
@@ -33,12 +36,14 @@ def main():
     ap.add_argument("queue_path", help="data/<dataset>/attach-queue.json")
     ap.add_argument("--title", required=True, help="the task's exact title, as it stands in todo.md")
     ap.add_argument("--cwd", default=None, help="defaults to the current working directory")
+    ap.add_argument("--session", default=None,
+                    help="the session to file; defaults to this one, from CLAUDE_CODE_SESSION_ID")
     args = ap.parse_args()
 
-    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    session_id = (args.session or os.environ.get("CLAUDE_CODE_SESSION_ID", "")).strip()
     if not session_id:
         print("CLAUDE_CODE_SESSION_ID is not set — this only works run from inside "
-              "a Claude Code session.", file=sys.stderr)
+              "a Claude Code session, or with --session.", file=sys.stderr)
         return 1
 
     title = args.title.strip()

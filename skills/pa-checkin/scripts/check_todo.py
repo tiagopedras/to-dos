@@ -34,13 +34,13 @@ from pathlib import Path
 # set of rules that must agree is drift waiting to happen, and drift here is
 # quiet — a meeting rolls to the wrong Thursday and nothing complains.
 #
-# So there is one copy, kanban/todo.py, and this script reaches it two ways.
+# So there is one copy, core/todo.py, and this script reaches it two ways.
 # Run from the repo, it imports the original four folders up. Run from an
 # installed skill, where there is no repo to reach, it imports the copy that
 # build.command staged beside it. The repo wins when both exist, so editing the
 # original is always what takes effect and a stale staged copy cannot mask it.
-_KANBAN = Path(__file__).resolve().parents[3] / "kanban"
-sys.path.insert(0, str(_KANBAN if (_KANBAN / "todo.py").is_file() else Path(__file__).resolve().parent))
+_CORE = Path(__file__).resolve().parents[3] / "core"
+sys.path.insert(0, str(_CORE if (_CORE / "todo.py").is_file() else Path(__file__).resolve().parent))
 import todo  # noqa: E402
 
 # Two syntaxes, one meaning. impact, effort, due and ai are written as Dataview
@@ -228,7 +228,11 @@ NOT_CORRESPONDENCE = re.compile(
     r"\b(claude|recurring (?:reminder|task)|reminder task|cron|myself)\b", re.I
 )
 
-SUGGESTED_MESSAGE = re.compile(r"suggested message", re.I)
+# What counts as a message note is core/todo.py's to say, not this file's. Its
+# own regex here matched "suggested message" anywhere in a line, which would
+# have counted a note merely mentioning one; MSG_NOTE requires the label to
+# start the note, which is the shape the board reads and writes.
+SUGGESTED_MESSAGE = todo.MSG_NOTE
 
 
 def leading_spaces(line):

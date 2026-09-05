@@ -35,6 +35,21 @@ import webbrowser
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Everything is served from the project root, one level up from this file.
 ROOT = os.path.dirname(HERE)
+
+# The two shared modules in core/, imported the same conditional way ai_chat is:
+# a checkout without them serves the board and answers 404 on the routes that
+# need them, rather than refusing to start. `todo` is the working calendar, for
+# saying when the companion next speaks; `windows` is the usage-window
+# reconstruction behind the Schedule view.
+sys.path.insert(0, os.path.join(ROOT, "core"))
+try:
+    import todo
+except ImportError:
+    todo = None
+try:
+    import windows
+except ImportError:
+    windows = None
 # The list and everything derived from it live in one folder, and that folder is
 # the only thing git ignores. Before this, the private half of the repo was four
 # separate ignore rules — todo.md, backups/, todo-backup-*.md, views.md — and
@@ -259,6 +274,351 @@ def weekly_backup_watcher(every=1800):
         except OSError as err:
             sys.stdout.write("weekly backup failed: %s\n" % err)
         time.sleep(every)
+
+
+# ---- The schedule, and what the usage windows have been doing ---------------
+#
+# Three things around this app run on a clock rather than on demand, and until
+# now the only way to know whether any of them had actually fired was to go and
+# look in three different places. This is that, as one list.
+#
+# Two sources, and they are not alternatives:
+#
+#   Live   whether a job is installed and armed, and when it fires next. Only
+#          the system knows that, and a log will happily describe a job that was
+#          unloaded a week ago.
+#   Ledger what actually happened. launchctl cannot tell you the nightly agent
+#          wrote three plans and stopped on a usage limit.
+#
+# Everything here is read-only and local. `launchctl` is shelled out to with a
+# short timeout, and its absence is a real and expected answer rather than an
+# error: an uninstalled job is exactly the thing this view is most useful for
+# saying out loud.
+
+NIGHTLY_LABEL = "com.tiagopedras.todos-nightly"
+
+
+def _launchctl(args, timeout=3):
+    import subprocess
+    try:
+        p = subprocess.run(["/bin/launchctl"] + args, capture_output=True,
+                           text=True, timeout=timeout)
+        return p.stdout if p.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _tail(path, n=12):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return [l.rstrip("\n") for l in fh.readlines()[-n:]]
+    except OSError:
+        return []
+
+
+def _nightly_job():
+    """The nightly prep agent: twelve launchd wakes, 19:00 to 06:00."""
+    plist = os.path.join(ROOT, "nightly", "com.tiagopedras.todos-nightly.plist")
+    installed = os.path.exists(os.path.expanduser(
+        "~/Library/LaunchAgents/%s.plist" % NIGHTLY_LABEL))
+    printed = _launchctl(["print", "gui/%d/%s" % (os.getuid(), NIGHTLY_LABEL)])
+    loaded = bool(printed)
+
+    hours = sorted(int(h) for h in re.findall(
+        r"<key>Hour</key>\s*<integer>(\d+)</integer>",
+        open(plist, encoding="utf-8").read() if os.path.exists(plist) else ""))
+    now = datetime.datetime.now()
+    nxt = ""
+    if hours:
+        later = [h for h in hours if h > now.hour]
+        when = now.replace(hour=later[0] if later else hours[0], minute=5,
+                           second=0, microsecond=0)
+        if not later:
+            when += datetime.timedelta(days=1)
+        nxt = when.isoformat(timespec="minutes")
+
+    # The wakes run 19:00 to 06:00, so they wrap midnight and the first and last
+    # of a sorted list are 00 and 23 — which reads as "all day" and is the
+    # opposite of the truth. Find the real ends instead: the hour whose
+    # predecessor is not in the set starts the run, and the one whose successor
+    # is not in it ends the run.
+    span = ""
+    if hours:
+        hs = set(hours)
+        first = next((h for h in hours if (h - 1) % 24 not in hs), hours[0])
+        last = next((h for h in hours if (h + 1) % 24 not in hs), hours[-1])
+        span = "%d wakes, %02d:00–%02d:00" % (len(hours), first, last)
+
+    log = _tail(os.path.join(plans_dir(), "nightly.log"), 40)
+    ran = [l for l in log if " start:" in l or " done:" in l or " wake" in l]
+    last_done = next((l for l in reversed(log) if " done:" in l), "")
+    return {
+        "id": "nightly",
+        "name": "Nightly prep agent",
+        "what": "Plans every task tagged ai:full or ai:partial, one agent each.",
+        "schedule": span or "not configured",
+        "armed": loaded,
+        "state": ("running" if loaded else
+                  "installed, not loaded" if installed else "not installed"),
+        "next": nxt if loaded else "",
+        "last": last_done,
+        "recent": ran[-6:],
+        "hint": ("" if loaded else
+                 "ln -s nightly/%s.plist ~/Library/LaunchAgents/ && "
+                 "launchctl load ~/Library/LaunchAgents/%s.plist"
+                 % (NIGHTLY_LABEL, NIGHTLY_LABEL)),
+    }
+
+
+def _companion_job():
+    """The menu bar app. Not launchd — an app with a timer inside it."""
+    lock = os.path.join(dataset_dir(current_dataset()), "companion.lock")
+    running = "todocompanion" in _launchctl(["list"]).lower()
+    state = {}
+    try:
+        with open(os.path.join(dataset_dir(current_dataset()), "companion.json"),
+                  encoding="utf-8") as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        pass
+
+    # 08:30 on the next working day, from the same calendar the companion uses.
+    nxt = ""
+    if todo:
+        day = datetime.date.today()
+        if state.get("notified") == day.isoformat() or datetime.datetime.now().hour >= 20:
+            day += datetime.timedelta(days=1)
+        for _ in range(14):
+            if todo.is_working_day(day):
+                break
+            day += datetime.timedelta(days=1)
+        nxt = datetime.datetime.combine(day, datetime.time(8, 30)).isoformat(timespec="minutes")
+
+    last = state.get("notified", "")
+    return {
+        "id": "companion",
+        "name": "Desktop companion",
+        "what": "One briefing each working morning, and the messages waiting to go out.",
+        "schedule": "08:30 on a working day",
+        "armed": running,
+        "state": "running" if running else "not running",
+        "next": nxt if running else "",
+        "last": ("notified %s at %s" % (last, state.get("notified_at", "?"))
+                 if last else "has not spoken yet"),
+        "recent": [],
+        "hint": "" if running else "open To-Do Companion.app",
+        "lock": os.path.exists(lock),
+    }
+
+
+def _weekly_job():
+    """A thread inside this server, so armed means the server is up."""
+    weekly = [b for b in backup_listing() if b.get("kind") == "weekly"]
+    return {
+        "id": "weekly-backup",
+        "name": "Weekly backup",
+        "what": "One snapshot of todo.md a week, kept for %d weeks." % KEEP_WEEKLY,
+        "schedule": "checked every 30 minutes while the board is running",
+        "armed": True,
+        "state": "running, in this server",
+        "next": "",
+        "last": ("%s, %s" % (weekly[0]["name"], weekly[0]["modified"])
+                 if weekly else "none taken yet"),
+        "recent": [b["name"] for b in weekly[:4]],
+        "hint": "",
+    }
+
+
+def schedule_listing():
+    out = []
+    for fn in (_nightly_job, _companion_job, _weekly_job):
+        try:
+            out.append(fn())
+        except Exception as exc:                     # noqa: BLE001
+            # One job failing to describe itself must not empty the whole view.
+            out.append({"id": "?", "name": fn.__name__, "state": "could not read",
+                        "what": str(exc)[:200], "armed": False, "schedule": "",
+                        "next": "", "last": "", "recent": [], "hint": ""})
+    return out
+
+
+_usage_cache = {"at": 0.0, "data": None}
+
+
+def usage_summary(days=30, ttl=60):
+    """The rolling 5-hour usage windows, from core/windows.py.
+
+    Cached, because reconstructing a month is about forty thousand transcript
+    lines and a second or so — fine on demand, not fine on every render.
+    """
+    if windows is None:
+        return {"available": False}
+    now = time.time()
+    if _usage_cache["data"] and now - _usage_cache["at"] < ttl:
+        return _usage_cache["data"]
+
+    since = datetime.datetime.now().astimezone() - datetime.timedelta(days=days)
+    wins = windows.reconstruct(windows.turns(since=since))
+    decision = windows.decide(state=windows.read_state(
+        os.path.join(plans_dir(), "window.json")))
+    toks = sorted(w["tok"] for w in wins) or [0]
+    data = {
+        "available": True,
+        "days": days,
+        "morning": windows.MORNING.strftime("%H:%M"),
+        "cutoff": (datetime.datetime.combine(datetime.date.today(), windows.MORNING)
+                   - windows.WINDOW).strftime("%H:%M"),
+        "decision": {"action": decision["action"], "why": decision["why"]},
+        "median": toks[len(toks) // 2],
+        "p90": toks[int(len(toks) * 0.9)],
+        "max": toks[-1],
+        "windows": [{
+            "start": w["start"].isoformat(timespec="minutes"),
+            "end": w["end"].isoformat(timespec="minutes"),
+            "tok": w["tok"],
+            "turns": w["turns"],
+            "open": w["end"] > datetime.datetime.now().astimezone(),
+            # A window that both starts and ends inside the night is one the
+            # nightly agent could have spent in without touching the morning.
+            "night": w["start"].hour >= 19 or w["start"].hour < 7,
+        } for w in wins],
+    }
+    _usage_cache.update(at=now, data=data)
+    return data
+
+
+def plans_dir(name=None):
+    """Where the nightly agent leaves what it worked out overnight.
+
+    A different folder from reports/ on purpose, and not a candidate for being
+    merged into it. A report is Tiago's own record of what happened, written in
+    his voice and finished the day it is written. A plan is a proposal about
+    what to do next, written by an agent, and it expires the moment he acts on
+    it. Putting the two together would put machine output into the Reports view,
+    which is a view of his own writing.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "plans")
+
+
+def plan_meta(path, name, night):
+    """One nightly plan, described from its frontmatter.
+
+    Same idea as report_meta and deliberately not the same function: a plan
+    carries the task it belongs to, the agent that wrote it and whether it has
+    been actioned, and folding four extra fields into the report reader would
+    make both harder to follow than keeping them apart.
+    """
+    fields = {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            if fh.readline().strip() != "---":
+                return None
+            for line in fh:
+                if line.strip() == "---":
+                    break
+                key, _, value = line.partition(":")
+                fields[key.strip().lower()] = value.strip()
+    except OSError:
+        return None
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return {
+        "name": name,
+        "night": night,
+        "title": fields.get("title") or name[:-3].replace("-", " "),
+        "task": fields.get("task", ""),
+        "bucket": fields.get("bucket", ""),
+        "column": fields.get("column", ""),
+        "ai": fields.get("ai", ""),
+        "agent": fields.get("agent", ""),
+        "slug": fields.get("slug", ""),
+        "date": fields.get("date", night),
+        "status": fields.get("status", "unread"),
+        "summary": fields.get("summary", ""),
+        "bytes": st.st_size,
+        "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        # No dataset name in this, deliberately, and it is easy to get wrong:
+        # translate_path puts the current one in for every /data/ URL, so naming
+        # it here asks for data/twinkl/twinkl/plans/... and 404s. Reports and
+        # backups build their URLs the same way, for the same reason.
+        "url": "/" + DATA + "/plans/" + night + "/" + name,
+    }
+
+
+def plan_listing():
+    """Every plan the nightly agent has written, newest night first.
+
+    index.md is skipped: it is the night's own contents page, useful to read on
+    disk and noise in a list that already shows every plan it points at.
+    """
+    root = plans_dir()
+    if not os.path.isdir(root):
+        return []
+    out = []
+    for night in sorted(os.listdir(root), reverse=True):
+        folder = os.path.join(root, night)
+        if not os.path.isdir(folder) or night.startswith("."):
+            continue
+        for name in sorted(os.listdir(folder)):
+            if not name.endswith(".md") or name == "index.md" or name.startswith("."):
+                continue
+            meta = plan_meta(os.path.join(folder, name), name, night)
+            if meta:
+                out.append(meta)
+    out.sort(key=lambda p: (p["night"], p["modified"]), reverse=True)
+    return out
+
+
+def mark_plan(night, name, status):
+    """Flip one plan's `status:` in its own frontmatter, and in the ledger.
+
+    Both, because the two are read by different things and neither can be
+    derived from the other: the board reads the file, and the picker reads the
+    ledger to decide whether the task needs planning again. A plan marked
+    actioned is a task whose plan no longer describes outstanding work, so the
+    next night plans it afresh.
+
+    This is the only write either surface makes, and it writes a plan file.
+    Nothing here goes near todo.md.
+    """
+    if status not in ("unread", "read", "actioned"):
+        return None, {"error": "unknown status"}
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or "") or "/" in (name or "") or not name.endswith(".md"):
+        return None, {"error": "bad plan reference"}
+    path = os.path.join(plans_dir(), night, name)
+    if not os.path.isfile(path):
+        return None, {"error": "no such plan"}
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    new, n = re.subn(r"^status:.*$", "status: " + status, text, count=1, flags=re.M)
+    if not n:
+        new = text.replace("---\n", "---\nstatus: " + status + "\n", 1)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
+        fh.write(new)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+
+    ledger_path = os.path.join(plans_dir(), "ledger.json")
+    try:
+        with open(ledger_path, encoding="utf-8") as fh:
+            ledger = json.load(fh)
+    except (OSError, ValueError):
+        ledger = None
+    if isinstance(ledger, dict):
+        for title, row in ledger.items():
+            if isinstance(row, dict) and row.get("file") == name and row.get("night") == night:
+                row["status"] = status
+        tmp = ledger_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="") as fh:
+            json.dump(ledger, fh, indent=2, sort_keys=True)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, ledger_path)
+    return {"ok": True, "status": status}, None
 
 
 def report_meta(path, name):
@@ -565,6 +925,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, [])
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
+        if path == "/plans.json":
+            return self._json(200, {"plans": plan_listing()})
+        # Two routes rather than one, because the jobs are instant and the
+        # windows are a second: the view paints the jobs and fetches the usage
+        # after, instead of waiting on both.
+        if path == "/schedule.json":
+            return self._json(200, {"jobs": schedule_listing()})
+        if path == "/usage.json":
+            return self._json(200, usage_summary())
         if path == "/backups.json":
             return self._json(200, {
                 "backups": backup_listing(),
@@ -754,6 +1123,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload.get("owner"), payload.get("session"),
                 payload.get("cwd"), payload.get("title")
             )
+            return self._json(400 if err else 200, err or got)
+        if path == "/plan/status":
+            # Same guard as every other write route: only the board asks.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = mark_plan(payload.get("night"), payload.get("name"),
+                                 payload.get("status"))
             return self._json(400 if err else 200, err or got)
         if path == "/agenda-history":
             data = self._body()

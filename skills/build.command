@@ -6,7 +6,7 @@
 # copy, prune, zip. The reason it is a script rather than a line of `zip` typed
 # when needed is the staging in the middle: a skill has to stand alone once it
 # is installed, and pa-checkin needs the board's `repeat:` parser and bank
-# holiday list, which live in kanban/todo.py and are not inside the skill.
+# holiday list, which live in core/todo.py and are not inside the skill.
 #
 # That file used to be transcribed into the skill by hand, which meant two
 # Python ports of one set of rules with nothing keeping them in step. Now
@@ -43,7 +43,7 @@ for dir in */ ; do
   # travelling with it. Staged rather than committed, so the copy inside the
   # zip is always as new as the zip.
   if [ "$name" = "pa-checkin" ]; then
-    cp "$ROOT/kanban/todo.py" "$work/scripts/todo.py"
+    cp "$ROOT/core/todo.py" "$work/scripts/todo.py"
   fi
 
   # -X drops the extended attributes and resource forks; without it every zip
