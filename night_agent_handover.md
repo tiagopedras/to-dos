@@ -1,11 +1,11 @@
 # Nightly agent — handover
 
-Written 5 Sep 2026, at the end of the session that built it. For the session that
-picks it up next.
+Written 5 Sep 2026, at the end of the session that built it, and updated the
+next morning by the session that picked it up. For whoever comes after that.
 
-Everything described here works and is tested. **None of it is committed**, and
-the launchd job is deliberately not installed. Those are the two things to deal
-with first.
+Everything described here works and is tested. It is now **committed** (`19c3589`)
+and not yet pushed. The launchd job is **still not installed** — that is the one
+thing left, and it needs a command run by hand.
 
 Read [nightly/README.md](nightly/README.md) before changing any of it — this file
 is the state of the work, that one is the design and the reasoning. Same split as
@@ -65,45 +65,70 @@ derived from it. `nightly/README.md` has the full argument and the numbers.
 
 ---
 
-## First things to do
+## Where it got to
 
-### 1. Commit it
+### 1. Committed
 
-Nothing from this session is in git. 19 modified files and 12 untracked paths,
-including the whole of `core/` and `nightly/`. `core/todo.py` and
-`core/test_todo.py` are recorded as renames out of `kanban/`, so the history
-follows if they are committed as such.
+Done, as `19c3589`, one commit: the whole of `core/` and `nightly/`, the Plans and
+Schedule views, the new server routes, `companion/notify.py`, and the six agent
+definitions. `core/todo.py` and `core/test_todo.py` went in as renames out of
+`kanban/`, so the history follows.
 
-This repo pushes as the **personal** GitHub account, `tiagopedras` — see
-`CLAUDE.md`. Ask which account before any push; a `GITHUB_TOKEN` in the
+Two first names of real people were sitting in `core/fixtures/` as sample data.
+They are now `Alex` and `Sam`, which is the convention `kanban/demo.md` already
+used. Neither suite hardcodes a name, so the swap was a `sed` and both still pass.
+
+**Not pushed.** This repo pushes as the **personal** GitHub account,
+`tiagopedras` — see `CLAUDE.md`. Ask which account first; a `GITHUB_TOKEN` in the
 environment can override `gh auth switch` and force the work account.
 
-### 2. A full batch by hand, before arming anything
+### 2. The budget: left at $12, first night is partial by design
 
-One task has been run twice. A whole night has not.
+Asked and decided. `NIGHTLY_BUDGET` in `plan.py` stays at $12 against 25
+qualifying tasks at roughly $0.48 each. The batch is expected to stop a task or
+two short on the first night and the ledger carries the remainder to the second.
+That is the accepted behaviour now, not a surprise to investigate.
 
-```bash
-./nightly/run.sh --dry-run      # 26 tasks, no spend, any hour
-./nightly/run.sh --force        # the real batch, in the evening
-```
+### 3. The batch by hand: skipped, deliberately
 
-**The nightly ceiling is probably too low.** `NIGHTLY_BUDGET` in `plan.py` is
-$12. The two real runs cost $0.29 and $0.67, so 26 tasks is somewhere around
-$13 and the batch would stop short of finishing. Either raise it or accept that
-the first night is partial and the ledger carries the rest to the second — both
-are defensible, but it should be a decision rather than a surprise.
+`./nightly/run.sh --dry-run` was run and is clean — 25 to plan, 1 skipped as
+unchanged, every bucket resolving to its own agent and nothing falling through to
+the fallback. The real `--force` batch was **not** run: the session that would
+have paid for it was nearly out of window, and spending $12 of it in the morning
+is exactly what this whole design exists to avoid.
 
-### 3. Then install the launchd job
+So the first real night is the first full batch. What that leaves unproven is the
+loop rather than the parts: one task has been planned by hand twice and works,
+but the ledger across a batch, the budget stop, the prune, and the `todo.md`
+re-hash between tasks have only ever run in `test_nightly.py`. If a morning shows
+no plans, `data/<dataset>/plans/nightly.log` is the first thing to read, then
+`data/nightly.err.log`.
 
-Deliberately not done. The task says not to arm it until a night's output has
-been read by hand.
+### 4. Install the launchd job
+
+**Still to do**, and it needs running by hand — the sandbox in that session
+refused to write into `~/Library/LaunchAgents/`.
 
 ```bash
 ln -s ~/Code/to-dos/nightly/com.tiagopedras.todos-nightly.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-nightly.plist
 ```
 
-`RunAtLoad` is absent on purpose, so loading it at 10am starts nothing.
+`RunAtLoad` is absent on purpose, so loading it at 10am starts nothing. To stop
+it again:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-nightly.plist
+```
+
+### On scheduling it against a usage window
+
+There is no clock time to schedule against. A window opens on the first request
+after the previous one expired, so it is anchored to when Tiago starts working,
+not to a grid — `python3 core/windows.py --history` shows the last thirty and how
+irregular the starts are. That is the whole reason the plist wakes twelve times
+instead of once. Nothing outside `run.sh` needs to know when a window opens,
+because `run.sh` asks every hour and rides whichever one it finds.
 
 ---
 
