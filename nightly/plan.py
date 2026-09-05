@@ -58,6 +58,13 @@ FALLBACK_AGENT = "pa-plan-general"
 TASK_TIMEOUT = 10 * 60        # one agent's ceiling, seconds
 BUDGET_PER_TASK = 2.00        # dollars, handed to --max-budget-usd
 NIGHTLY_BUDGET = 12.00        # dollars across the whole batch
+
+# What the agent writes into its own frontmatter when it decides the task
+# cannot be planned without a decision only Tiago can make. See the folding
+# rule in PLAN-BRIEF.md — it is a real answer rather than a failure, so a
+# folded plan is written, listed and counted like any other, just under its own
+# heading.
+FOLDED = "folded"
 FLOOR = dt.timedelta(minutes=20)   # do not start another task below this
 KEEP_DAYS = 30
 
@@ -269,13 +276,22 @@ def write_plan(task, text, session, day):
     already know.
     """
     body = text.strip()
-    summary = ""
+    summary, outcome = "", ""
     m = FRONT_RE.match(body + "\n")
     if m:
         for line in m.group(1).splitlines():
             if line.lower().startswith("summary:"):
                 summary = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("outcome:"):
+                outcome = line.split(":", 1)[1].strip().lower()
         body = body[m.end():].lstrip("\n")
+    # `[fill in]` is the brief's marker for a fact the agent could not
+    # establish, so reusing it here made two different things read the same: a
+    # plan with an unknown in it, and a plan whose agent forgot the summary
+    # line. Two of ten did that on 5 Sep 2026 and listed as "[fill in]" with no
+    # way to tell which had happened.
+    if not summary:
+        summary = "The agent wrote no summary line."
 
     front = [
         "---",
@@ -292,14 +308,19 @@ def write_plan(task, text, session, day):
         front.append("slug: %s" % task.slug)
     if session:
         front.append("session: %s" % session)
-    front.append("summary: %s" % (summary or "[fill in]"))
+    # Kept as the agent wrote it. `folded` is the only value that means
+    # anything to the runner; anything else is passed through and ignored,
+    # rather than dropped, so a plan is never quieter than its own agent was.
+    if outcome:
+        front.append("outcome: %s" % outcome)
+    front.append("summary: %s" % summary)
     front.append("---")
 
     out = os.path.join(paths.night_dir(day), slugify(task.title) + ".md")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8", newline="") as fh:
         fh.write("\n".join(front) + "\n\n" + body.rstrip("\n") + "\n")
-    return out, summary
+    return out, summary, outcome == FOLDED
 
 
 def queue_attach(task, session):
@@ -327,13 +348,28 @@ def write_index(day, written, skipped, stopped):
     lines = ["---",
              "title: Plans for %s" % day.strftime("%A %-d %B %Y"),
              "date: %s" % day.isoformat(),
-             "count: %d" % len(written),
+             "count: %d" % len([w for w in written if not w[3]]),
+             "folded: %d" % len([w for w in written if w[3]]),
              "---", "",
              "# Plans for %s" % day.strftime("%A %-d %B %Y"), ""]
-    if written:
-        for name, title, summary in written:
-            lines.append("- **[%s](%s)** — %s" % (title, name, summary or "[fill in]"))
-    else:
+    plans = [w for w in written if not w[3]]
+    folded = [w for w in written if w[3]]
+    # Folded first. They are the ones with something for him to do, and a
+    # morning that reads top to bottom should reach the questions before the
+    # proposals.
+    if folded:
+        lines += ["## Waiting on you", "",
+                  "%d %s could not be planned without a decision only you can make."
+                  % (len(folded), "task" if len(folded) == 1 else "tasks"), ""]
+        for name, title, summary, _ in folded:
+            lines.append("- **[%s](%s)** — %s" % (title, name, summary))
+        lines.append("")
+    if plans:
+        if folded:
+            lines += ["## Planned", ""]
+        for name, title, summary, _ in plans:
+            lines.append("- **[%s](%s)** — %s" % (title, name, summary))
+    elif not folded:
         lines.append("Nothing planned.")
     if skipped:
         lines += ["", "## Not planned", ""]
@@ -405,12 +441,18 @@ def announce(written, skipped, stopped):
         import notify  # noqa: E402
     except ImportError:
         return
-    body = "%d plan%s waiting" % (len(written), "" if len(written) == 1 else "s")
+    plans = [w for w in written if not w[3]]
+    folded = [w for w in written if w[3]]
+    body = "%d plan%s waiting" % (len(plans), "" if len(plans) == 1 else "s")
+    # Named in the banner rather than left to be discovered, because a fold is
+    # a question addressed to him and a question nobody sees is not asked.
+    if folded:
+        body += ", %d waiting on you" % len(folded)
     if skipped:
         body += ", %d unchanged" % len(skipped)
     if stopped:
-        body += ". Stopped early."
-    first = written[0][1]
+        body += ". Stopped early"
+    first = (folded or plans or written)[0][1]
     body += ".\n" + (first if len(first) < 60 else first[:59].rstrip() + "…")
     notify.queue("Nightly agent", body)
 
@@ -500,9 +542,11 @@ def run(argv=None):
             skipped.append((task.title, "the run failed"))
             continue
 
-        out, summary = write_plan(task, body, session, day)
+        out, summary, folded = write_plan(task, body, session, day)
         queue_attach(task, session)
-        written.append((os.path.basename(out), task.title, summary))
+        written.append((os.path.basename(out), task.title, summary, folded))
+        if folded:
+            log("  folded  %-50s needs a decision from him first" % task.title[:50])
         ledger[task.title] = {
             "fingerprint": pick.fingerprint(task),
             "planned": day.isoformat(),
@@ -515,9 +559,14 @@ def run(argv=None):
 
     write_index(day, written, skipped, stopped)
     prune(day)
-    log("done: %d written, $%.2f spent%s" % (len(written), spent, " (cut short)" if stopped else ""))
+    folded = len([w for w in written if w[3]])
+    log("done: %d written%s, $%.2f spent%s"
+        % (len(written), (" (%d folded)" % folded) if folded else "", spent,
+           " (cut short)" if stopped else ""))
     announce(written, skipped, stopped)
     print("%d plans written to %s" % (len(written), os.path.relpath(paths.night_dir(day), paths.ROOT)))
+    if folded:
+        print("%d of them folded, waiting on a decision from you." % folded)
     if stopped:
         print(stopped)
     return 0

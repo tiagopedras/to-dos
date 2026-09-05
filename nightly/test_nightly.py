@@ -20,6 +20,7 @@ sys.path.insert(0, HERE)
 
 import pick  # noqa: E402
 import plan  # noqa: E402
+import todo  # noqa: E402
 import windows  # noqa: E402
 
 TZ = dt.timezone(dt.timedelta(hours=1))
@@ -239,6 +240,110 @@ def test_order():
             check("and stamps when it was saved", "saved" in json.load(fh), True)
     finally:
         __import__("shutil").rmtree(tmp, ignore_errors=True)
+
+
+# --- the rules the queue falls back on ---------------------------------------
+
+RULES_DOC = """# List
+
+## 1. People
+
+### To do
+
+- [ ] **Undated low value** [impact:: low] [effort:: L] [ai:: full]
+- [ ] **Dated next week** [impact:: low] [effort:: L] [ai:: full] [due:: 2026-09-12]
+
+## 2. DS
+
+### To do
+
+- [ ] **Undated high value** [impact:: high] [effort:: S] [ai:: full]
+- [ ] **Overdue** [impact:: low] [effort:: L] [ai:: full] [due:: 2026-09-01]
+- [ ] **The one thing** [impact:: low] [effort:: L] [ai:: full] `headline:2026-09-04`
+"""
+
+
+def test_rules():
+    """What orders the queue when he has not dragged anything.
+
+    This is the half that decides most nights, because the stored order only
+    ever covers what he has actually touched. It went wrong once and expensively
+    — on 5 Sep 2026 the fallback was file order, file order is bucket order, and
+    the first full batch spent its entire budget on Design System while three
+    buckets got nothing. So each key is pinned separately here.
+    """
+    day = dt.date(2026, 9, 5)
+    order = {"order": [], "hold": []}
+    # Not titles(), which sorts: every check here is about the order itself.
+    ranked = lambda o: [t.title for t in
+                        pick.select(RULES_DOC, day=day, use_ledger=False, order=o)[0]]
+    got = ranked(order)
+
+    check("the headline leads, whatever it scores", got[0], "The one thing")
+    check("then the dates, soonest first, because a date beats a score",
+          got[1:3], ["Overdue", "Dated next week"])
+    check("then the undated, by impact against effort",
+          got[3:], ["Undated high value", "Undated low value"])
+
+    # The whole point of sorting on the rules: a bucket cannot drain the night
+    # just by sorting early in the file.
+    buckets = [t.bucket for t in
+               pick.select(RULES_DOC, day=day, use_ledger=False, order=order)[0]]
+    check("buckets interleave rather than draining in file order",
+          buckets, ["DS", "DS", "People", "DS", "People"])
+
+    # And he still wins. A dragged order is him saying "this one first" and it
+    # sits above every rule above.
+    dragged = {"order": ["Undated low value"], "hold": []}
+    check("what he dragged outranks the headline",
+          ranked(dragged)[0], "Undated low value")
+
+
+# --- folding -----------------------------------------------------------------
+
+def test_folding():
+    """An agent that stops and asks rather than guessing.
+
+    See the folding rule in PLAN-BRIEF.md. The runner has to be able to tell a
+    fold from a plan, because the two want opposite things from him and a fold
+    that reads like a plan is a question nobody answers.
+    """
+    import shutil
+    import tempfile
+
+    task = todo.parse_task(["- [ ] **Improve the app** [impact:: high] "
+                            "[effort:: L] [ai:: partial]"])
+    task.bucket, task.column = "Processes", "Backlog"
+    day = dt.date(2026, 9, 5)
+
+    tmp = tempfile.mkdtemp(prefix="fold-test-")
+    real = plan.paths.night_dir
+    plan.paths.night_dir = lambda d=None: tmp
+    try:
+        folded_text = ("---\nstatus: unread\noutcome: folded\n"
+                       "summary: Needs the scope settled.\n---\n\n"
+                       "### What I could establish\n\nNot much.\n")
+        out, summary, folded = plan.write_plan(task, folded_text, "", day)
+        check("a folded plan is recognised", folded, True)
+        check("and keeps the agent's summary", summary, "Needs the scope settled.")
+        text = open(out, encoding="utf-8").read()
+        check("outcome survives into the file", "outcome: folded" in text, True)
+
+        plain = "---\nstatus: unread\nsummary: Do the thing.\n---\n\nBody.\n"
+        _, _, folded = plan.write_plan(task, plain, "", day)
+        check("an ordinary plan is not folded", folded, False)
+
+        # `[fill in]` is the brief's marker for a fact the agent could not
+        # establish. Reusing it for "the agent forgot the summary line" made two
+        # different problems read identically, which is how two of ten plans on
+        # 5 Sep 2026 listed as "[fill in]" with no way to tell why.
+        _, summary, _ = plan.write_plan(
+            task, "---\nstatus: unread\n---\n\nNo summary line.\n", "", day)
+        check("a missing summary says so rather than borrowing [fill in]",
+              summary, "The agent wrote no summary line.")
+    finally:
+        plan.paths.night_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 # --- the bucket mapping ------------------------------------------------------
@@ -627,6 +732,8 @@ def main():
     test_windows()
     test_pick()
     test_order()
+    test_rules()
+    test_folding()
     test_agents()
     test_server()
     test_queue_routes()

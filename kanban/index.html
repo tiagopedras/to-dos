@@ -3962,12 +3962,19 @@ function renderCountedReports(){
 const planBodies = {};
 let planList = [];
 
+/* A folded plan is one whose agent stopped and asked rather than guessing —
+   see the folding rule in nightly/PLAN-BRIEF.md. It is marked here rather than
+   left to read like any other, because the two want opposite things from him:
+   a plan wants reading, a fold wants answering. */
 function planItemHTML(p){
+  const folded = p.outcome === 'folded';
   const meta = [p.bucket, p.column, p.night].filter(Boolean).map(esc).join(' · ');
-  const cls = p.status === 'actioned' ? ' actioned' : (p.status === 'read' ? ' read' : '');
+  const cls = (p.status === 'actioned' ? ' actioned' : (p.status === 'read' ? ' read' : ''))
+    + (folded ? ' folded' : '');
   return '<article class="repitem' + cls + '" data-plan="' + esc(p.url) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
+      (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
       '<span class="repdate">' + esc(p.status === 'unread' ? 'new' : p.status) + '</span>' +
     '</button>' +
     (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
@@ -4148,7 +4155,7 @@ function wireQueue(){
       queueRows.splice(to, 0, queueRows.splice(from, 1)[0]);
       queueRows.forEach((row, i) => { row.position = i + 1; });
       renderQueueList();
-      saveQueueOrder();
+      saveQueueOrder(true);
     };
   });
 }
@@ -4168,18 +4175,31 @@ function toggleHold(i){
   }
   queueRows.forEach((r, n) => { r.position = n + 1; });
   renderQueueList();
-  saveQueueOrder();
+  saveQueueOrder(false);
 }
 
-/* Titles the server has stored but that are not on screen — held cards from an
+/* `ranked` says whether this save is him ordering the queue, and only a drag
+   passes true.
+
+   It matters because pick.py treats a stored order as him saying "this one
+   first" and puts it above every other rule. Holding one card used to write the
+   whole visible list as well, which stamped whatever order the picker happened
+   to produce into the file as if it had been chosen — on 5 Sep 2026 that froze
+   a bucket ordering nobody asked for and outranked the rules for good. A hold
+   is a hold: it changes what is held and leaves the ranking alone.
+
+   Titles the server has stored but that are not on screen — held cards from an
    earlier session, tasks blocked this week — are carried through rather than
    dropped, so releasing one later puts it back where it was rather than at the
    end of the queue. */
-async function saveQueueOrder(){
+async function saveQueueOrder(ranked){
   const norm = t => String(t || '').trim().toLowerCase();
-  const shown = queueRows.map(r => r.title);
-  const seen = new Set(shown.map(norm));
-  const order = shown.concat(queueOrder.filter(t => !seen.has(norm(t))));
+  let order = queueOrder;
+  if (ranked) {
+    const shown = queueRows.map(r => r.title);
+    const seen = new Set(shown.map(norm));
+    order = shown.concat(queueOrder.filter(t => !seen.has(norm(t))));
+  }
   const hold = queueHeld.map(r => r.title);
   try {
     const res = await fetch('/queue/order', {

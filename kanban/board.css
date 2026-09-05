@@ -1045,6 +1045,17 @@
      glance; actioned recedes, because it is kept as a record rather than as
      something to read. */
   .repitem.read{opacity:.82}
+  /* Folded: the agent stopped and asked rather than guessing, so this one wants
+     answering rather than reading. Amber rather than the accent, because the
+     accent already means "new" on the same row and two things in one colour is
+     two things nobody can tell apart. It keeps its mark once read — the
+     question does not go away because he has seen it. */
+  .repitem.folded{border-color:var(--amber); background:var(--amber-bg)}
+  .planfold{
+    flex:none; font-size:10.5px; font-weight:680; letter-spacing:.02em;
+    text-transform:uppercase; color:var(--amber);
+    border:1px solid currentColor; border-radius:999px; padding:1px 7px;
+  }
   .repitem.actioned{opacity:.6; border-style:dashed}
   .repitem:not(.read):not(.actioned) .repdate{
     color:var(--accent); font-weight:640; font-family:inherit;

@@ -617,6 +617,12 @@ def plan_meta(path, name, night):
         "slug": fields.get("slug", ""),
         "date": fields.get("date", night),
         "status": fields.get("status", "unread"),
+        # An agent that decided the task could not be planned without a
+        # decision only he can make writes `outcome: folded`. See the folding
+        # rule in nightly/PLAN-BRIEF.md. Passed through as written rather than
+        # reduced to a boolean, so a value this server has never heard of
+        # reaches the board instead of being swallowed here.
+        "outcome": fields.get("outcome", ""),
         "summary": fields.get("summary", ""),
         "bytes": st.st_size,
         "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),

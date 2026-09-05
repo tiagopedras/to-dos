@@ -132,7 +132,43 @@ matched and there is nothing to prune. Titles rather than ids, because titles
 are already what the ledger keys on; retitling a task loses its place in the
 order the same way it loses its ledger row, and costs one plan.
 
-The file is a preference. Delete it and the queue falls back to list order.
+Only a drag writes an ordering. Holding a card writes the hold and leaves
+`order` exactly as it was, which is a distinction that had to be learned: until
+5 Sep 2026 a hold saved the whole visible list too, so touching one card stamped
+whatever order the picker happened to produce into the file as though it had
+been chosen. It then outranked every rule below, permanently, and nothing on
+screen said so.
+
+The file is a preference. Delete it, or never write it, and the queue falls back
+to the rules.
+
+### What the queue falls back on
+
+Everything he has not ranked is sorted by the list's own rules, in `in_order`.
+Four keys:
+
+1. **What he dragged**, above.
+2. **The headline.** One task carries `headline:` and it is the one that makes
+   the others easier or unnecessary. Planning anything ahead of it is planning
+   the wrong task.
+3. **The date.** `PA.md` is explicit that a date beats a score, because the
+   tasks carrying real dates are the people ones and their consequences land on
+   somebody else. Overdue first, then soonest, with recurrence rolled forward in
+   memory so a fortnightly 1:1 sorts on the meeting it actually points at.
+
+   This is not `due:` deciding *whether* to plan something, which `pick.py`
+   rules out and this does not change. A deadline still hides nothing. It only
+   says what to reach first when the budget runs out before the queue does.
+4. **Impact against effort**, highest first, out of `core/todo.py` so it is the
+   same arithmetic the board draws. Unscored sorts last, which is right: nobody
+   has said the task is worth a night.
+
+**Bucket is not a key at any level**, and that is the point. The fallback used
+to be file order, file order is bucket order, and the first full batch on 5 Sep
+2026 spent its entire budget on Design System while People, Strategic and
+Processes got nothing at all. Sorting on merit is what interleaves them, so a
+night that stops early is a thin spread rather than one bucket finished and
+three unstarted.
 
 ## What the usage chart is drawn against
 
@@ -191,6 +227,28 @@ adds what its bucket needs.
 Buckets are renameable on the board, so the mapping in `plan.py` is by name with
 a fallback rather than a hard five. A task landing on the fallback is logged,
 because it means either a rename or a genuinely new kind of work.
+
+## Folding: when an agent asks instead of guessing
+
+Some tasks are a line he wrote to himself in ten seconds, and the detail that
+would make them plannable is in his head and nowhere else. Planning one of those
+means inventing the missing half, and an invented plan is worse than none: he
+reads it in the morning, it looks complete, and the wrong assumption is now
+written down.
+
+So an agent that cannot write the proposed course of action without deciding
+something only he can decide **folds**: it writes `outcome: folded` in its
+frontmatter, a summary naming what is missing, and two sections instead of four
+— what it could establish, and the questions it needs answered. The full rule,
+including when not to fold, is in `PLAN-BRIEF.md`, and the bar is deliberately
+high. Folding on a task that could have been planned costs a night's capacity
+and returns questions nobody needed to answer.
+
+A fold is not a task dropped. `plan.py` counts them separately, `index.md` puts
+them under **Waiting on you** above the plans, the banner names them, and the
+Plans view marks the card amber. Answering the questions is a note on the task,
+which changes the task's text, which is what makes the picker plan it afresh the
+next night. The question asked is the whole loop.
 
 ## Not writing todo.md
 

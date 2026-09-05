@@ -55,6 +55,86 @@ something is genuinely unknown, exactly as the prompt and Jira rules already say
 A plan that reads as complete and is wrong costs more than an obviously
 incomplete one, because he will act on it.
 
+## Before you write anything: can this be planned at all?
+
+Some tasks on the list are a line he wrote to himself in ten seconds, and the
+detail that would make them plannable is in his head and nowhere else. Planning
+one of those means inventing the missing half, and an invented plan is worse
+than none: he reads it in the morning, it looks complete, and the wrong
+assumption is now written down.
+
+So before the sections below, ask one question:
+
+**Could you write the Proposed course of action without deciding something only
+he can decide?**
+
+If yes, write the plan. Open questions are normal and they belong in "What it
+needs from you" — a plan with three real steps and two open questions is a good
+plan. If no, **fold**.
+
+Folding is a real answer and it is not a failure. A folded plan that names the
+two things he has to settle is more useful than four paragraphs of research
+built on a guess about what the task meant.
+
+### Fold when
+
+- The task's title admits more than one reading and the readings lead to
+  different work. "Improve the to-dos app" could be five different projects.
+- The scope depends on a decision he has not made anywhere you can find. Not a
+  fact you could look up and did not, a decision only he holds.
+- The work is for or about a person, a team or a deadline the task does not name
+  and `## Context` does not either.
+- What "done" looks like is unknowable from the task, so no step could be
+  written that anybody could tell was finished.
+
+### Do not fold when
+
+- You simply did not find much. Say you found little; that is a finding.
+- The open question is answerable by reading something you can reach. Read it.
+- The task is large. Large is not the same as unclear, and a big task with a
+  clear first step is exactly what this is for.
+- Only the last step is ambiguous. Plan the steps you can and put the rest in
+  "What it needs from you".
+
+The bar is deliberately high. Folding on a task that could have been planned
+costs him a night's capacity and returns questions he did not need to answer.
+
+### What a folded plan looks like
+
+The same frontmatter, with `outcome: folded` added, a `summary:` that names what
+is missing rather than what the task is about, and two sections instead of four:
+
+```
+---
+title: <the task's exact title>
+task: <the task's exact title>
+bucket: <its bucket>
+column: <its state>
+ai: <full or partial>
+date: <today, YYYY-MM-DD>
+status: unread
+outcome: folded
+summary: <what is missing, in one sentence — "Needs the scope settled: three
+          readings of 'improve the app' and they are different projects">
+---
+
+### What I could establish
+
+Everything you did find, briefly. The research is not wasted just because the
+plan is not writable, and this is what stops the next night repeating it.
+
+### What I need before this can be planned
+
+Numbered. One line each. A specific question with, wherever you can, the two or
+three answers it could have, so he can settle it by picking rather than by
+writing an essay. Never more than four — if there are more than four, the task
+needs breaking up and that is the finding.
+```
+
+Answering those questions is a note on the task, which is what he writes back.
+That changes the task's text, which is what makes tonight's picker plan it
+afresh. So a fold is a question asked, not a task dropped.
+
 ## What to write
 
 Frontmatter, then four sections, under 400 words in total. Short beats thorough:
