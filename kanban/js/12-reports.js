@@ -212,13 +212,19 @@ function completedByCategoryReport(){
     const width = most ? (n / most * 100) : 0;
     // An archived task has no live id to open the drawer with, so it renders
     // as plain text instead of a button.
+    // The "where" chip says Done for every row rather than it.tierName — Done
+    // is not a section in the file, it is the tick box on the task (see
+    // setDone/dropTask), so a ticked task keeps whatever tier it was last
+    // dragged into and it.tierName would show that raw tier instead. Every
+    // task in this report is done by construction, so the live board's own
+    // convention (t.done ? DONE_COL : tier.name) is what belongs here too.
     const tasks = r.items.map(it =>
       '<li style="--bc:' + r.color + '">' +
         '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
         (it.taskId
           ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
           : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
-        '<span class="where">' + esc(it.tierName) + '</span>' +
+        '<span class="where">' + esc(DONE_COL) + '</span>' +
       '</li>').join('');
     return '<div class="bkgroup">' +
         '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
@@ -232,6 +238,23 @@ function completedByCategoryReport(){
       '</div>';
   };
 
+  return '<h2>Completed</h2>' +
+    '<div class="total"><span class="totaln">' + total + '</span>' +
+      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
+      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
+      ' <span class="totalw">' + esc(reportWindowLabel()) + '</span></span></div>' +
+    (total ? rows.map(rowHTML).join('')
+           : '<div class="empty">Nothing has been ticked off with a date ' +
+             reportWindowPhrase() + '.</div>');
+}
+
+/* The one description of what every report on this tab counts and how
+   complete it is — right under the panel's own heading, same shape as the
+   Written reports column beside it: a headline, then what it means, then the
+   content. Lives here rather than inside completedByCategoryReport() because
+   it is true of Weekly pace too, not just the first report — both read the
+   same `done:` dates and reach into the same archive. */
+function countedLeadHTML(){
   const undated = undatedDoneCount();
   // Below 30 days this window sits inside the one archiving leaves alone, so the
   // count is a complete picture by construction. Past it, completeness depends
@@ -239,32 +262,24 @@ function completedByCategoryReport(){
   let archiveNote;
   if (reportDays() <= ARCHIVE_DAYS) {
     archiveNote = 'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md. This window ' +
-      'stays inside that, so the count above is the whole story for the period.';
+      'stays inside that, so every count below is the whole story for the period.';
   } else if (archiveEntriesError) {
     archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to the ' +
-      'archive, and that file could not be read — so the older end of this count may be incomplete.';
+      'archive, and that file could not be read — so the older end of these counts may be incomplete.';
   } else if (archiveEntries === null) {
     archiveNote = 'Reading the archive for finished work older than ' + ARCHIVE_DAYS + ' days…';
   } else {
     archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to ' +
-      '`data/backups/done-archive.md` — counted in here too, so the total above still covers the whole period.';
+      '`data/backups/done-archive.md` — counted below too, so these counts still cover the whole period.';
   }
   const notes = [
     'Only tasks carrying a `done:` date are counted. The board writes that date when ' +
-    'a task is ticked, so anything ticked before that was added is invisible here.',
+    'a task is ticked, so anything ticked before that was added is invisible below.',
     archiveNote
   ];
   if (undated) notes.unshift('<strong>' + undated + ' ticked task' + (undated === 1 ? ' has' : 's have') +
-    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' not in the count above.');
-
-  return '<div class="total"><span class="totaln">' + total + '</span>' +
-      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
-      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
-      ' <span class="totalw">' + esc(reportWindowLabel()) + '</span></span></div>' +
-    (total ? rows.map(rowHTML).join('')
-           : '<div class="empty">Nothing has been ticked off with a date ' +
-             reportWindowPhrase() + '.</div>') +
-    notes.map(n => '<p class="note">' + n + '</p>').join('');
+    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' missing from every count below.');
+  return notes.map(n => '<p class="help listlead">' + n + '</p>').join('');
 }
 
 /* ---- Weekly pace ----
@@ -272,14 +287,22 @@ function completedByCategoryReport(){
    A count for one window says how much moved. It says nothing about whether
    that is more or less than usual, and reconstructing that by memory or by
    digging out old reports is exactly the kind of arithmetic this view exists
-   to do instead. Eight trailing complete weeks, Monday to Sunday.
+   to do instead. Complete weeks, Monday to Sunday.
 
-   Deliberately its own window rather than tied to the picker above: that one
-   answers "how much lately" at whatever grain is asked for, this answers "is
-   the pace climbing or flat", and letting one silently resize the other would
-   make both harder to read. Reaches past ARCHIVE_DAYS by construction, so it
-   reads the archive the same way completedRecently() does. */
-const TREND_WEEKS = 8;
+   Tied to the picker above like every other report on this tab, so the whole
+   tab always describes one period rather than two. The picker counts in days
+   (or the calendar week); this chart counts in weeks, so its span is that
+   picker's window rounded up to whole weeks — "Past 30 days" becomes 5 weeks,
+   not a slice of a 6th. Reaches past ARCHIVE_DAYS by construction, so it
+   reads the archive the same way completedRecently() does.
+
+   "All" has no day count to round up — reportDays() returns Infinity for it,
+   which would hand weekBuckets() an infinite loop — so it falls back to the
+   width this chart used before it was tied to the picker at all. */
+function trendWeeks(){
+  if (reportWindow === 'all') return 8;
+  return Math.max(1, Math.ceil(reportDays() / 7));
+}
 
 /* Which buckets the key has switched off. In memory only: it is a way of
    looking at the chart for a moment, not a setting worth keeping. */
@@ -300,7 +323,7 @@ function weekBuckets(n){
    live and archived alike, kept with the bucket it was in — a bar says how
    many, hovering it says which. */
 function trendEntries(){
-  const from = weekBuckets(TREND_WEEKS)[0].start;
+  const from = weekBuckets(trendWeeks())[0].start;
   const out = [];
   if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
     if (!t.done || !t.doneOn) return;
@@ -318,7 +341,7 @@ function trendEntries(){
 }
 
 function weeklyTrendReport(){
-  const weeks = weekBuckets(TREND_WEEKS);
+  const weeks = weekBuckets(trendWeeks());
   const entries = trendEntries();
   // Bucket order and colour match the board's own, so a bucket reads the same
   // colour here as everywhere else. An archived bucket that no longer exists
@@ -436,27 +459,34 @@ function weeklyTrendReport(){
 
   // Split the run in half and compare the two halves' averages, rather than
   // just the last week against the first — one quiet Friday should not read
-  // as a slowdown.
-  const half = Math.ceil(weeks.length / 2);
-  const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
-  const earlierN = weeks.length - half;
-  const earlierAvg = earlierN ? counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN : recentAvg;
+  // as a slowdown. A window that rounds up to a single week has no "before"
+  // half to compare against, so it gets its own sentence instead of a
+  // comparison against nothing.
   let pace;
-  if (recentAvg === 0 && earlierAvg === 0) {
-    pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
-  } else if (recentAvg > earlierAvg * 1.15) {
-    pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
-  } else if (recentAvg < earlierAvg * 0.85) {
-    pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
+  if (weeks.length < 2) {
+    pace = 'Just this one week in view — widen "Show" above to see whether the pace is climbing or slowing.';
   } else {
-    pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
+    const half = Math.ceil(weeks.length / 2);
+    const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
+    const earlierN = weeks.length - half;
+    const earlierAvg = counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN;
+    if (recentAvg === 0 && earlierAvg === 0) {
+      pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
+    } else if (recentAvg > earlierAvg * 1.15) {
+      pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
+    } else if (recentAvg < earlierAvg * 0.85) {
+      pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
+    } else {
+      pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
+    }
   }
   if (hiddenN) pace += ' ' + hiddenN + ' bucket' + (hiddenN === 1 ? ' is' : 's are') +
     ' hidden, so every number here counts only the rest.';
 
   return '<h2>Weekly pace</h2>' +
-    '<p class="window">Tasks finished per week, Monday to Sunday, over the last ' +
-      weeks.length + ' weeks, one line per bucket. The number under each week is its total.</p>' +
+    '<p class="help listlead">Tasks finished per week, Monday to Sunday, over the last ' +
+      weeks.length + ' week' + (weeks.length === 1 ? '' : 's') +
+      ', one line per bucket. The number under each week is its total.</p>' +
     '<div class="trend">' + chart + '</div>' +
     '<p class="note">' + esc(pace) + '</p>';
 }
@@ -604,7 +634,8 @@ function renderReportsView(){
   }
   $('#lists').innerHTML =
     '<div class="lists rview">' +
-      '<div class="listcard reportsview"><h3>Counted from the list</h3>' +
+      '<div class="listcard reportsview"><h3>Tasks finished</h3>' +
+        '<div id="countedLead"></div>' +
         '<label class="repwindow">Show ' + reportWindowSelectHTML() +
           '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></label>' +
         '<div id="countedOut"></div>' +
@@ -642,8 +673,12 @@ function reportWindowSelectHTML(){
 }
 // Its own render path rather than folded into renderReportsView, so changing
 // the window redraws only the counted card — not the written one beside it,
-// which would otherwise re-fetch /reports.json for no reason.
+// which would otherwise re-fetch /reports.json for no reason. Redraws the
+// lead description alongside the reports themselves, since its archive note
+// depends on the same window the picker just changed.
 function renderCountedReports(){
+  const lead = $('#countedLead');
+  if (lead) lead.innerHTML = countedLeadHTML();
   const out = $('#countedOut');
   if (!out) return;
   out.innerHTML = reportDefs().map(fn => fn()).join('');

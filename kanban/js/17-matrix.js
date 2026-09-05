@@ -121,13 +121,25 @@ function hideMatrixPreview(){ if (mPreviewEl) mPreviewEl.classList.remove('on');
    attributes, written once when the chart was drawn. */
 let tPreviewEl = null;
 function trendPreview(){ return tPreviewEl || (tPreviewEl = makePreviewEl('tpreview')); }
+/* Two lines can cross the same value in the same week, which stacks their
+   hit targets exactly on top of each other — cx/cy are computed from the
+   same week index and the same value, so a real tie lands on the same
+   coordinates rather than merely close ones. Rather than showing whichever
+   circle happened to be drawn last (topmost under the pointer), find every
+   .trendpt at that exact point and list them all. */
 function showTrendPreview(pt){
   const el = trendPreview();
-  const count = +pt.dataset.trendcount;
-  el.innerHTML =
-    '<div class="tprow" style="--bc:' + esc(pt.dataset.trendcolor) + '"><i></i>' + esc(pt.dataset.trendlabel) + '</div>' +
-    '<div class="tpcount"><strong>' + count + '</strong> task' + (count === 1 ? '' : 's') +
-      ', week of ' + esc(pt.dataset.trendweek) + '</div>';
+  const svg = pt.closest('svg');
+  const cx = pt.getAttribute('cx'), cy = pt.getAttribute('cy');
+  const here = svg
+    ? [...svg.querySelectorAll('.trendpt')].filter(p => p.getAttribute('cx') === cx && p.getAttribute('cy') === cy)
+    : [pt];
+  el.innerHTML = here.map(p => {
+    const count = +p.dataset.trendcount;
+    return '<div class="tprow" style="--bc:' + esc(p.dataset.trendcolor) + '"><i></i>' + esc(p.dataset.trendlabel) + '</div>' +
+      '<div class="tpcount"><strong>' + count + '</strong> task' + (count === 1 ? '' : 's') +
+        ', week of ' + esc(p.dataset.trendweek) + '</div>';
+  }).join('');
   el.classList.add('on');
   placeTrendPreview(pt);
 }

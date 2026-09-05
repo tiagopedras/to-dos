@@ -636,7 +636,7 @@
   /* Sits above the counted report rather than inside it, since it governs
      every report in reportDefs(), not just the one built today. */
   .repwindow{
-    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:0 0 8px;
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
   }
   .repwindow select{
     border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
@@ -644,20 +644,24 @@
   /* The range the dropdown resolves to, stated once beside it rather than
      repeated as its own heading further down. */
   .repwindow .repdates{color:var(--ink-faint)}
-  /* The report's own name, not a section eyebrow: on this view the h2 is the
-     heading you read, so it carries weight instead of shrinking away. */
+  /* One h2 per report in reportDefs(), Completed and Weekly pace alike — a
+     report's own name, not a section eyebrow, so it carries weight instead of
+     shrinking away. Same bottom margin as the card's own h3 above it, so a
+     .help.listlead sits the same distance under either one. */
   .reportsview h2{
-    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 3px; letter-spacing:-.01em;
+    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 10px; letter-spacing:-.01em;
   }
   /* The total is the answer to the question; the buckets underneath say where
      it came from. It used to sit on one baseline with its label, at a size that
      read as a subheading — so the thing you came to the view for was the same
      weight as the words describing it. Stacked and much bigger now: the number
      first, what it counts underneath, readable from across the desk.
-     `font-variant-numeric` so the digits line up rather than wobbling at size. */
+     `font-variant-numeric` so the digits line up rather than wobbling at size.
+     width:max-content caps the box at its own content rather than the full
+     width of the (now much wider) card around it. */
   .reportsview .total{
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
-    padding:18px 20px 16px; margin-bottom:16px;
+    padding:18px 20px 16px; margin-bottom:16px; width:max-content; max-width:100%;
   }
   .reportsview .totaln{
     display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--ink);
@@ -747,6 +751,11 @@
   }
   .tpreview.on{opacity:1; transform:none}
   .tprow{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:650; color:var(--ink)}
+  /* Two lines can cross the same value in the same week, stacking their dots
+     on the same point — the popover then lists one label-and-count pair per
+     line sharing it, so this gap is what keeps that reading as a short list
+     rather than one crowded block. First pair sits flush under the point. */
+  .tprow + .tprow{margin-top:8px}
   .tprow i{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
   .tpcount{margin-top:2px; font-size:11.5px; color:var(--ink-soft)}
   .tpcount strong{color:var(--ink); font-weight:700}
@@ -771,15 +780,24 @@
   .tkey:hover{color:var(--ink); border-color:var(--line)}
   .tkey.off{opacity:.45}
   .tkey.off i{background:var(--ink-faint)}
+  /* The one finding a report reads back to you, after its own chart or list —
+     "climbing", "flat" — as opposed to .help.listlead, which describes the
+     report rather than concluding one. */
   .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
 
   /* Two columns for the two kinds of report. The counted one needs room for a
-     bar and four numbers on a row; the written one wants a reading width and
-     no more, so it is capped rather than given half the window. */
+     bar and four numbers on a row without either crowding the other, so its
+     floor is a full reading-and-bars width rather than the bare minimum a
+     grid track would otherwise settle for; the written one wants a reading
+     width and no more, so it is capped rather than given half the window.
+     Same choice as Matrix and Overview: never stack these into one column,
+     just let `main`'s own overflow-x:auto scroll the pair sideways on a
+     narrower window, so the two reports keep reading side by side at
+     everything but genuinely small widths. */
   .lists.rview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:minmax(520px,1fr) minmax(420px,600px); min-width:970px;
+    grid-template-columns:minmax(960px,1fr) minmax(420px,600px); min-width:1394px;
   }
   .lists.rview .listcard{margin:0}
 
@@ -1054,7 +1072,6 @@
   .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
   .repdoc strong{color:var(--ink)}
   @media (max-width:1000px){
-    .lists.rview{grid-template-columns:1fr; min-width:0}
     .lists.pview{grid-template-columns:1fr; min-width:0}
   }
   @media (max-width:640px){
@@ -1419,6 +1436,17 @@
      is a sentence, and was inheriting the same rule by being the same element —
      which is why .sublabel already had to undo it by hand. Undone once here. */
   .field > span.help{font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0}
+  /* Subtasks' own label carries an action beside it — Complete all — so it
+     needs to be a row rather than plain inline text, without disturbing every
+     other .field > span, which is why this is a modifier rather than a change
+     to the shared rule above. */
+  .field > span.fieldhead{display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .completeall{
+    flex:none; text-transform:none; letter-spacing:0; font-weight:600; font-size:11.5px;
+    border:1px solid var(--line); background:transparent; color:var(--ink-soft);
+    border-radius:6px; padding:3px 8px;
+  }
+  .completeall:hover{border-color:var(--ink-faint); color:var(--ink)}
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }

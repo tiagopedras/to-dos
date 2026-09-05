@@ -484,7 +484,7 @@ function openDrawer(id, focusTitle){
       '</div>' +
       '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
       '<div id="f-body-preview" class="repdoc" hidden></div>' +
-      '<span class="help">Sub-steps live in the list below. Anything you type here is a note on the task.</span>' +
+      '<span class="help">Subtasks live in the list below. Anything you type here is a note on the task.</span>' +
     '</details>' +
     '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
       state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
@@ -540,8 +540,12 @@ function openDrawer(id, focusTitle){
     '<div class="field"><span>Flags</span>' +
       '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + dis + '> urgent</label>' +
     '</div>' +
-    '<div class="field"><span>Sub-steps' +
-      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') + '</span>' +
+    '<div class="field"><span class="fieldhead">Subtasks' +
+      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') +
+      (!ro && subs.some(s => !s.done)
+        ? '<button type="button" class="completeall" id="f-completeall">Complete all</button>'
+        : '') +
+      '</span>' +
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
         const sd = dueInfo(s.due);
@@ -550,11 +554,11 @@ function openDrawer(id, focusTitle){
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
           '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + esc(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
-          (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this step">×</button>') +
+          (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
           '</div>';
       }).join('') +
       '</div>' +
-      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add step</button>') +
+      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
     '</div>';
 
   // Chats, dependencies and the four suggestion-shaped sections below them are
@@ -695,6 +699,32 @@ function openDrawer(id, focusTitle){
         refreshView(); openDrawer(id);
       };
     });
+  }
+  /* Ticks every open subtask in one click — the same blocked check each box
+     makes on its own, applied per subtask rather than to the button as a
+     whole, since some waiting on a blocker while the rest are free to close
+     is the ordinary case, not a reason to refuse the lot. Several toggleSub()
+     calls in one synchronous run land in the same undo step (see noteUndo),
+     so this undoes as the one action it looks like. */
+  const allBtn = $('#f-completeall');
+  if (allBtn) {
+    allBtn.onclick = () => {
+      const items = allItems();
+      let done = 0, waiting = 0;
+      splitBody(t).steps.forEach(s => {
+        if (s.done) return;
+        if (blockedMessage(items, (s.blockedBy || []).concat(t.blockedBy || []))) { waiting++; return; }
+        toggleSub(t, s.line);
+        done++;
+      });
+      if (done) { refreshView(); openDrawer(id); }
+      $('#status').textContent = !done
+        ? 'Every open subtask is still waiting on something — finish that first'
+        : waiting
+          ? 'Completed ' + done + ', ' + waiting + ' still waiting on something'
+          : 'Completed ' + done + ' subtask' + (done === 1 ? '' : 's');
+      if (done) $('#status').classList.add('dirty');
+    };
   }
   /* Adds the step, then drops straight into editing its (empty) text — an
      "Add" click that still left a blank, unlabelled row would just be a second

@@ -388,13 +388,19 @@ $('#dbody').onclick = handleMsgClick;
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 /* Back/forward and hand-edited URLs come through here rather than the tab
-   clicks above, which drive the switch straight off state.view instead. */
+   clicks above, which drive the switch straight off state.view instead. Same
+   for the bucket slug beside the view — an unmatched or missing one is left
+   alone rather than reset to All, since plenty of hashchanges (a view tab
+   click, for instance) carry no opinion about the bucket at all. */
 window.addEventListener('hashchange', () => {
   const h = parseHash();
-  if (isKnownView(h.view) && h.view !== state.view) {
-    state.view = h.view;
-    renderView();
+  let changed = false;
+  if (isKnownView(h.view) && h.view !== state.view) { state.view = h.view; changed = true; }
+  if (h.bucketSlug && state.doc) {
+    const name = h.bucketSlug === 'all' ? ALL_BUCKETS : (bucketBySlug(h.bucketSlug) || {}).name;
+    if (name && name !== state.activeBucket) { state.activeBucket = name; changed = true; }
   }
+  if (changed) renderView();
   /* A second link arriving at a tab that is already up — which is what the
      companion's menu sends. If the file is still loading it waits for load(). */
   if (h.task) {

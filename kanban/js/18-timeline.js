@@ -543,11 +543,11 @@ function renderView(){
   const isBoard = def.id === 'board';
   // Keep the URL in step with whichever tab is on screen, so a refresh (or a
   // link back to this page) lands on the same view instead of the default.
-  // replaceState rather than the hash setter: it doesn't add a history entry
-  // or fire hashchange, so this can't loop with the listener below.
-  // Writing the view alone is also what clears a `!task=` once it has been
-  // acted on, so a refresh doesn't reopen the same drawer for ever.
-  if (location.hash.slice(1) !== state.view) history.replaceState(null, '', '#' + state.view);
+  // syncHash() (07-render-board.js) does the actual write — every branch below
+  // reaches it, either via renderBoard()/renderFilterBar() calling renderTabs(),
+  // or, for canvas, which has no bucket tabs to call it from, at its own early
+  // return just below. state.view is finalised above this point, so whichever
+  // branch runs next syncs the URL to the right value.
 
   $('#viewToggle').innerHTML = defs.map(d => d.sep ? '<span class="tabsep"></span>' :
     '<button class="tab' + (d.id === state.view ? ' on' : '') + '" data-view="' + d.id + '">' + esc(d.label) + '</button>'
@@ -565,8 +565,10 @@ function renderView(){
 
   if (isBoard) { renderBoard(); return; }
   // Same reasoning as the board's early return: the canvas draws itself and
-  // has no bucket sections under it.
-  if (isCanvas) { $('#headline').classList.add('hidden'); renderCanvas(); return; }
+  // has no bucket sections under it — which is also why it has to call
+  // syncHash() itself rather than picking it up from renderTabs() the way
+  // every other view below does.
+  if (isCanvas) { $('#headline').classList.add('hidden'); syncHash(); renderCanvas(); return; }
   // The one thing bar is a board idea specifically — pinning a card above
   // columns that don't exist anywhere else has nothing to attach to. Every
   // other control in the header (the bucket tabs, the score chip, AI,

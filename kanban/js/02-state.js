@@ -79,7 +79,11 @@ const state = {
   /* A task named in the URL that hasn't been opened yet, because the document
      wasn't loaded when the link arrived. Cleared the moment it is acted on;
      see parseHash. */
-  pendingTask: ''
+  pendingTask: '',
+  /* Same idea, for the bucket slug riding along beside the view (see
+     syncHash in 07-render-board.js). Can't be resolved against a real bucket
+     until state.doc exists, so it waits here for load() to match it. */
+  pendingBucketSlug: null
 };
 // state.sort = readSort() and initViewFromHash() below both used to run here,
 // immediately. readSort() reads SORT_KEY, a const declared 150-odd lines
@@ -91,17 +95,22 @@ const state = {
 // Both moved to boot.js, called once everything above has actually loaded —
 // see the comment there. This also fixes the readSort() bug, on purpose.
 
-/* The fragment carries two different things, so it needs a split:
+/* The fragment carries three things, so it needs two splits:
 
-     #timeline               the view — durable, rewritten on every render
-     #timeline!task=ds-audit  …and a card to open, once
-     #!task=ds-audit          a card to open, whatever view is up
+     #timeline                     the view — durable, rewritten on every render
+     #timeline/design-system       …and which bucket tab is showing, durable too
+     #timeline!task=ds-audit       …or a card to open, once
+     #!task=ds-audit               a card to open, whatever view is up
 
-   They don't compete. The view segment sets the view exactly as it always did;
-   the task segment opens a drawer over whatever is showing; an empty view
-   segment means leave the view alone. renderView writes `#<view>` back on the
-   next draw, which is what drops the task again — an instruction that has been
-   carried out shouldn't survive a refresh.
+   None of them compete. The view segment sets the view exactly as it always
+   did; the bucket segment (a slug — see slugifyBucket in 07-render-board.js)
+   sets the active bucket tab; the task segment opens a drawer over whatever
+   is showing; an empty segment means leave that part of the state alone. The
+   `!` cut comes first, because `!task=`/`!chat=` never appears without it,
+   then the view half of what's left of it splits again on `/` for the bucket
+   slug. syncHash() writes the view+bucket half back on every render, which is
+   what drops the task again — an instruction that has been carried out
+   shouldn't survive a refresh.
 
    The fragment rather than a query string on purpose. A link that differs only
    after the `#` is a same-document navigation, so the browser brings the tab
@@ -111,8 +120,11 @@ const state = {
 function parseHash(){
   const raw = location.hash.slice(1);
   const cut = raw.indexOf('!');
-  const view = cut < 0 ? raw : raw.slice(0, cut);
+  const viewPart = cut < 0 ? raw : raw.slice(0, cut);
   const rest = cut < 0 ? '' : raw.slice(cut + 1);
+  const slash = viewPart.indexOf('/');
+  const view = slash < 0 ? viewPart : viewPart.slice(0, slash);
+  const bucketSlug = slash < 0 ? '' : viewPart.slice(slash + 1);
   const m = /^task=(.*)$/.exec(rest);
   let task = '';
   if (m) { try { task = decodeURIComponent(m[1]); } catch (e) { task = m[1]; } }
@@ -122,7 +134,7 @@ function parseHash(){
   const c = /^chat=(.*)$/.exec(rest);
   let chatId = '';
   if (c) { try { chatId = decodeURIComponent(c[1]); } catch (e) { chatId = c[1]; } }
-  return { view, task: task.trim(), chat: chatId.trim() };
+  return { view, bucketSlug, task: task.trim(), chat: chatId.trim() };
 }
 
 /* A task's `id` is minted fresh on every parse (see uid), so nothing outside
@@ -187,6 +199,7 @@ function initViewFromHash(){
   if (isKnownView(h.view)) state.view = h.view;
   state.pendingTask = h.task;
   state.pendingChat = h.chat;
+  state.pendingBucketSlug = h.bucketSlug || null;
 }
 
 /* Six, and the fifth used to be the accent blue — which is the first bucket's

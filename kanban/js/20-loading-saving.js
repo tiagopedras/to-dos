@@ -22,6 +22,18 @@ function load(text, name, opts){
   $('#start').classList.add('hidden');
   $('#board').classList.remove('hidden');
   $('#hdr').classList.remove('hidden');
+  // The URL's bucket slug can only be matched against a real bucket once the
+  // file naming them has actually loaded — that's now, so it gets one shot
+  // here and is cleared either way, so a later reload of a different dataset
+  // doesn't reapply a slug that belonged to the URL, not to this file.
+  if (state.pendingBucketSlug !== null) {
+    if (state.pendingBucketSlug === 'all') state.activeBucket = ALL_BUCKETS;
+    else {
+      const match = doc.buckets.find(b => slugifyBucket(b.name) === state.pendingBucketSlug);
+      if (match) state.activeBucket = match.name;
+    }
+    state.pendingBucketSlug = null;
+  }
   if (state.activeBucket !== ALL_BUCKETS && !doc.buckets.some(b => b.name === state.activeBucket)) {
     state.activeBucket = ALL_BUCKETS;
   }
