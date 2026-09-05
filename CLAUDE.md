@@ -53,11 +53,13 @@ up as a failure in both languages. After touching either file:
 python3 core/test_todo.py     node core/test_todo.mjs
 ```
 
-The board loads `core/todo.js` as a **classic** script, before its own inline
-one. Keep it classic — a module would be deferred past that inline script and
-every symbol would be missing at the moment it is first needed — and keep it free
-of `window`, `document` and `state`, since `test_todo.mjs` runs it in a bare
-`vm` context with none of them.
+The board loads `core/todo.js` as a **classic** script, before the board's own
+scripts in `kanban/js/` (one classic `<script src>` per banner-marked section,
+split out of what used to be one big inline block — see IMPROVEMENTS.md).
+Keep it classic — a module would be deferred past those and every symbol would
+be missing at the moment it is first needed — and keep it free of `window`,
+`document` and `state`, since `test_todo.mjs` runs it in a bare `vm` context
+with none of them.
 
 ## The nightly prep agent
 

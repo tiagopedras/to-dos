@@ -106,7 +106,53 @@ def write_state(state):
         pass          # a companion that cannot remember is still a companion
 
 
-def notify(title, body):
+class NotificationClicks(AppKit.NSObject):
+    """What happens when one of our banners is clicked.
+
+    A notification that says three things are due and then does nothing when you
+    press it is a notification that has to be acted on twice — once to read it,
+    once to go and find what it named. So every banner carries where it points
+    in its `userInfo`, and this delegate opens the board there.
+
+    `shouldPresent` is forced true because macOS suppresses a notification from
+    the frontmost app. The companion is an accessory with no windows and is
+    never really frontmost, but it can be during a `--notify-once` run, and a
+    briefing that silently does not appear is the worst failure this app has."""
+
+    def userNotificationCenter_shouldPresentNotification_(self, centre, note):
+        return True
+
+    def userNotificationCenter_didActivateNotification_(self, centre, note):
+        info = note.userInfo() or {}
+        task = info.get("task") or None
+        view = info.get("view") or None
+        log("banner clicked → %s" % (task or view or "the board"))
+        open_board(task, view)
+        try:
+            centre.removeDeliveredNotification_(note)
+        except Exception:
+            pass
+
+
+# Held here because NSUserNotificationCenter does not retain its delegate. A
+# local would be collected the moment notify() returned and the click would go
+# nowhere, silently.
+_clicks = None
+
+
+def notification_centre():
+    global _clicks
+    centre = Foundation.NSUserNotificationCenter.defaultUserNotificationCenter()
+    if centre is None:
+        return None
+    if _clicks is None:
+        _clicks = NotificationClicks.alloc().init()
+    if centre.delegate() is not _clicks:
+        centre.setDelegate_(_clicks)
+    return centre
+
+
+def notify(title, body, task=None, view=None):
     """One notification, by whichever route this machine actually allows.
 
     NSUserNotification first. It is deprecated, and Apple's replacement —
@@ -116,16 +162,31 @@ def notify(title, body):
     it delivers under this app's own name and icon, which is the whole reason
     for the bundle and the interpreter copy inside it.
 
+    `task` and `view` say where the banner goes when it is pressed — a card, a
+    view, or the board's front page when neither is given. They ride in the
+    notification's `userInfo`, which is where NotificationClicks reads them back
+    out. Only this route can carry them.
+
     `display notification` through osascript is the fallback, for the day that
-    call is finally removed or the bundle identity is lost. It always works and
-    is attributed to Script Editor, which is ugly and still better than silence.
+    call is finally removed or the bundle identity is lost. It always works, is
+    attributed to Script Editor, and cannot be clicked through to anything —
+    ugly and unresponsive, and still better than silence.
     Neither route is ever allowed to take the app down: a missed notification is
     worth less than a running menu bar."""
     try:
         note = Foundation.NSUserNotification.alloc().init()
         note.setTitle_(title)
         note.setInformativeText_(body)
-        centre = Foundation.NSUserNotificationCenter.defaultUserNotificationCenter()
+        where = {}
+        if task:
+            where["task"] = str(task)
+        if view:
+            where["view"] = str(view)
+        note.setUserInfo_(where)
+        # No action button: the whole banner is the target, so there is nothing
+        # for a second one to do that pressing the first does not.
+        note.setHasActionButton_(False)
+        centre = notification_centre()
         if centre is not None:
             centre.deliverNotification_(note)
             log("notification delivered")
@@ -160,24 +221,28 @@ def board_up(timeout=0.4):
         s.close()
 
 
-def board_url(task=None):
-    """The board, optionally with a card named in the fragment.
+def board_url(task=None, view=None):
+    """The board, optionally with a view and a card named in the fragment.
 
-    `#!task=<key>` — an empty view segment, so the board opens the card and
-    leaves whichever view is up alone. The fragment rather than a query string
-    because a link differing only after the `#` is a same-document navigation:
-    the browser raises the tab that is already open instead of adding a second
-    one, and two tabs autosaving one todo.md is the failure this whole app is
-    written to stay out of the way of.
+    `#<view>!task=<key>` — either half can be empty. An empty view segment
+    opens the card and leaves whichever view is up alone; a view on its own
+    switches to it. The fragment rather than a query string because a link
+    differing only after the `#` is a same-document navigation: the browser
+    raises the tab that is already open instead of adding a second one, and two
+    tabs autosaving one todo.md is the failure this whole app is written to stay
+    out of the way of.
 
     `safe=""` so a `!` inside a title is escaped and cannot look like the
     separator the board splits on."""
-    if not task:
+    if not task and not view:
         return BOARD_URL
-    return BOARD_URL + "#!task=" + urllib.parse.quote(task, safe="")
+    frag = view or ""
+    if task:
+        frag += "!task=" + urllib.parse.quote(task, safe="")
+    return BOARD_URL + "#" + frag
 
 
-def open_board(task=None):
+def open_board(task=None, view=None):
     """Open the board, starting the server first if nothing is listening.
 
     When it is already up this is one `open` and the tab comes forward. When it
@@ -187,10 +252,10 @@ def open_board(task=None):
     it. Best effort: if the board never comes up, nothing happens and the menu
     is still there."""
     if board_up():
-        subprocess.Popen(["/usr/bin/open", board_url(task)])
+        subprocess.Popen(["/usr/bin/open", board_url(task, view)])
         return
     subprocess.Popen(["/usr/bin/open", os.path.join(ROOT, "To-Do Board.app")])
-    if not task:
+    if not task and not view:
         return
 
     def follow():
@@ -198,10 +263,10 @@ def open_board(task=None):
         for _ in range(40):                 # twenty seconds, then give up
             if board_up(0.2):
                 time.sleep(1.5)             # let the server's own tab open first
-                subprocess.Popen(["/usr/bin/open", board_url(task)])
+                subprocess.Popen(["/usr/bin/open", board_url(task, view)])
                 return
             time.sleep(0.5)
-        log("board never came up; %r not opened" % task)
+        log("board never came up; %r not opened" % (task or view))
 
     threading.Thread(target=follow, daemon=True).start()
 
@@ -412,9 +477,15 @@ class Companion(AppKit.NSObject):
     def send(self):
         d = self.digest
         body = d.line()
+        target = None
         if d.headline:
             body += ".\nThe one thing: " + d.headline.title
-        notify("To-do — %s" % d.day.strftime("%A %-d %B"), body)
+            # Only when the banner actually names a card. A briefing that reads
+            # "3 due today, 1 overdue" names none, and picking one of them to
+            # open would be a guess — the board's front page is the honest
+            # answer to a line about several tasks.
+            target = task_key(d.headline)
+        notify("To-do — %s" % d.day.strftime("%A %-d %B"), body, task=target)
         now = dt.datetime.now()
         self.state["notified"] = now.date().isoformat()
         self.state["notified_at"] = now.strftime("%-H:%M")
@@ -455,8 +526,10 @@ class Companion(AppKit.NSObject):
         helps nobody. The time window is the guard that matters, because that one
         is about not being woken, and it still applies every day.
 
-        An entry is `{"title": ..., "body": ..., "queued": ISO}`. Title and body
-        are the whole contract; anything else in the object is ignored.
+        An entry is `{"title": ..., "body": ..., "queued": ISO}`, and may carry
+        `"task"` and `"view"` saying where the banner goes when it is pressed —
+        a card key and a board view, both optional, both passed straight through
+        to the fragment. Anything else in the object is ignored.
         """
         path = os.path.join(ROOT, "data", digest.DATASET, "notify-queue.json")
         try:
@@ -477,7 +550,9 @@ class Companion(AppKit.NSObject):
             title = str(entry.get("title") or "To-do")[:120]
             body = str(entry.get("body") or "")[:400]
             if body:
-                notify(title, body)
+                notify(title, body,
+                       task=str(entry.get("task") or "")[:200] or None,
+                       view=str(entry.get("view") or "")[:40] or None)
                 log("queued notification sent: %s" % title)
 
         rest = queued[3:]
@@ -561,22 +636,73 @@ def notify_once():
     waiting for a morning, and so one can be triggered from a script.
 
     Run it through the app bundle, or the alert loses the app's name:
-        open "To-Do Companion.app" --args --notify-once"""
+        open -n "To-Do Companion.app" --args --notify-once
+
+    `-n` matters. Without it, `open` on a bundle that is already running just
+    brings that copy forward and drops the arguments on the floor — so with the
+    companion in the menu bar, which is always, the command appears to succeed
+    and nothing is posted."""
     app = AppKit.NSApplication.sharedApplication()
     app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
     d = digest.build()
     body = d.line()
+    target = None
     if d.headline:
         body += ".\nThe one thing: " + d.headline.title
-    notify("To-do — %s" % d.day.strftime("%A %-d %B"), body)
-    # Delivery is asynchronous, so give it a moment before the process goes.
+        target = task_key(d.headline)
+    notify("To-do — %s" % d.day.strftime("%A %-d %B"), body, task=target)
+    # Delivery is asynchronous, and a banner is only clickable while the process
+    # that posted it is alive — so this waits out the banner rather than the
+    # delivery. It costs nothing: `open --args` has already returned, and this is
+    # an accessory process with no window and no menu bar item.
     Foundation.NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-        2.0, app, "terminate:", None, False)
+        30.0, app, "terminate:", None, False)
+    AppHelper.runEventLoop()
+
+
+def notify_test(task=None, view=None):
+    """One banner pointing wherever you say, at any hour — `--notify-test`.
+
+    The click path cannot be checked any other way. `--notify-once` sends the
+    digest, and the digest names a card only on a day that has a headline; the
+    queue is held outside 08:30–20:00 by design; and the menu's *Send this
+    morning's notification* needs a hand on the menu bar. This is the same
+    `notify()` and the same delegate as everything else, so what it proves is
+    real — the only thing it skips is deciding what to say.
+
+        open "To-Do Companion.app" --args --notify-test --view plans
+        open "To-Do Companion.app" --args --notify-test --task ds-audit
+
+    With neither, it points at whatever the list says is most owed today, so
+    there is always something to press."""
+    app = AppKit.NSApplication.sharedApplication()
+    app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
+    where = "the board"
+    if not task and not view:
+        d = digest.build()
+        pick = d.headline or (d.overdue[0][1] if d.overdue else
+                              (d.today[0][1] if d.today else None))
+        if pick:
+            task, where = task_key(pick), pick.title
+    elif task:
+        where = task
+    else:
+        where = "the %s view" % view
+    notify("To-do — test", "Press this. It should open %s." % where,
+           task=task, view=view)
+    log("test banner sent → %s" % (task or view or "the board"))
+    Foundation.NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        60.0, app, "terminate:", None, False)
     AppHelper.runEventLoop()
 
 
 def main():
-    if "--notify-once" in sys.argv[1:]:
+    argv = sys.argv[1:]
+    if "--notify-test" in argv:
+        def opt(name):
+            return argv[argv.index(name) + 1] if name in argv[:-1] else None
+        return notify_test(opt("--task"), opt("--view"))
+    if "--notify-once" in argv:
         return notify_once()
     global _lock
     _lock = claim_single_instance()

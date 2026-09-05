@@ -176,19 +176,9 @@
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
   .hlclear:hover{color:var(--ink); border-color:var(--ink-faint)}
-  /* The panel's own button for the same thing, since dragging is not obvious. */
-  .hlset{
-    border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px;
-    padding:7px 9px; width:100%; text-align:left; font-size:13px;
-  }
-  .hlset:hover{border-color:var(--ink-faint)}
-  .hlset.on{
-    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
-    background:color-mix(in srgb, var(--accent) 8%, var(--bg)); color:var(--accent); font-weight:600;
-  }
-  /* The same control as .hlset, sized for the panel's header rather than its
-     body. It sits beside Close because it is a decision about the task as a
-     whole, like closing it, and not one more field to scroll past. */
+  /* The panel's own button for the same thing, since dragging is not obvious.
+     Sits beside Close because it is a decision about the task as a whole,
+     like closing it, and not one more field to scroll past. */
   .hlpin{
     border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:7px;
     padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap;
@@ -603,20 +593,7 @@
   .listcard h4{margin:14px 0 6px; font-size:13px; font-weight:640}
   .listcard p{margin:0 0 9px; color:var(--ink-soft); font-size:13.5px; line-height:1.55}
   .listcard p:last-child{margin-bottom:0}
-  .listcard .mdlist{margin:0 0 10px; padding-left:18px; display:flex; flex-direction:column; gap:5px}
-  .listcard ul.mdlist{list-style:none; padding-left:0}
-  .listcard ol.mdlist{padding-left:20px}
   .listcard li{font-size:13.5px; line-height:1.5}
-  .listcard ul.mdlist > li{padding-left:14px; position:relative}
-  .listcard ul.mdlist > li::before{content:"·"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
-  .listcard li.chk{padding-left:24px}
-  .listcard li.chk::before{content:none}
-  .listcard li.chk .box{
-    position:absolute; left:0; top:1px; width:15px; height:15px; border:1px solid var(--line);
-    border-radius:4px; font-size:10px; line-height:14px; text-align:center; color:var(--green);
-  }
-  .listcard li.chk.done{color:var(--ink-faint); text-decoration:line-through}
-  .listcard li.chk.done .box{border-color:color-mix(in srgb, var(--green) 45%, transparent)}
   .listcard code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
   /* ---------- backups view ----------
@@ -1097,7 +1074,6 @@
      nothing in it belongs to a task, so neither control in the frame applies. */
   #drawer.projectview #del{display:none}
   #drawer.readonly #dfootHelp{color:var(--amber)}
-  .msglead{margin:0 0 4px 14px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   /* A suggestion, not a fact about the task — a message, a prompt, a ticket to
      raise, an agenda. Dashed and faded rather than a solid coloured stripe, so
      the border itself says "not committed yet" instead of just marking a type.
@@ -1236,8 +1212,6 @@
   }
   .reflink:hover{color:var(--ink); border-color:var(--ink-faint); background:var(--bg)}
   .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
-  /* Why a low-scoring card is sitting near the top of the chain. */
-  .refholds{font-style:normal; color:var(--amber)}
   .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
   /* A long message, prompt, ticket or agenda would otherwise stretch the card
      past the rest of the column, so every kind clamps to the same height —
@@ -1255,12 +1229,11 @@
     font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.01em;
     border-radius:0 0 8px 8px; pointer-events:none;
   }
-  .ref .msglead, .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--ink-faint)}
+  .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--ink-faint)}
   .reflead.draft{color:var(--amber); font-weight:600}
   .refgroup{margin:16px 0 8px !important; font-size:12.5px !important; font-weight:660 !important; color:var(--ink-soft)}
   .refgroup:first-child{margin-top:0 !important}
   .refhint{margin:0 0 10px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
-  .refnote{margin:10px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .refwarn{
     margin:0 0 10px; padding:8px 10px; border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
     background:color-mix(in srgb, var(--amber) 8%, transparent); border-radius:8px;
@@ -1279,13 +1252,6 @@
     flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--chip);
     color:var(--ink-soft); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
   }
-  .refwaits{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:7px 0 0; font-size:11.5px; color:var(--ink-faint)}
-  .refchip{
-    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:6px;
-    padding:3px 8px; font-size:11.5px; font-weight:560; cursor:pointer;
-  }
-  .refchip:hover{color:var(--ink); border-color:var(--ink-faint)}
-  .refchip.missing{color:var(--red); border-color:color-mix(in srgb, var(--red) 45%, transparent); cursor:default}
   /* Dependency chain: the blocker(s) sit beside the card waiting on them.
      Each blocker gets its own arrow into the target, so a task with several
      blockers still reads as several distinct dependencies rather than one
@@ -1326,7 +1292,7 @@
      rather than "break-word" so it also stops that string forcing the whole
      column wider than the one it is sitting in. */
   .ref, .msg, .msgtext, .ctxtext{min-width:0}
-  .ctxtext, .msgtext, .reftitle, .refchip, .refwaits, .listcard p, .listcard li{overflow-wrap:anywhere}
+  .ctxtext, .msgtext, .reftitle, .listcard p, .listcard li{overflow-wrap:anywhere}
   .ctxtext strong{color:var(--ink); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
   /* One panel per `###` group in Context, closed by default — a dozen
@@ -1350,19 +1316,6 @@
   }
   select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px}
   select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); max-width:160px}
-  .legend{max-width:1180px; margin:2px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel)}
-  .legend summary{cursor:pointer; padding:11px 15px; font-size:12.5px; font-weight:640; color:var(--ink-soft); list-style:none}
-  .legend summary::-webkit-details-marker{display:none}
-  .legend summary::before{content:"▸ "; color:var(--ink-faint)}
-  .legend[open] summary::before{content:"▾ "}
-  .legend summary:hover{color:var(--ink)}
-  .legendbody{padding:0 15px 14px; border-top:1px solid var(--line-soft); padding-top:12px}
-  .legendbody p, .legendbody li{color:var(--ink-soft); font-size:13px}
-  .legendbody .mdlist{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
-  .legendbody ul.mdlist > li{padding-left:14px; position:relative}
-  .legendbody ul.mdlist > li::before{content:"·"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
-  .legendbody code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-
   /* ---------- card ---------- */
   .card{
     background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--bc,var(--line));
@@ -1470,6 +1423,10 @@
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }
   .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
+  .notestabs{display:flex; gap:6px}
+  /* Same surface as the textarea it stands in for, since Preview replaces it
+     in place rather than sitting beside it — see the toggle in openDrawer. */
+  .field .repdoc{border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:9px 11px; min-height:200px}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 
   /* A fixed-stop slider — 2 or more positions, colour and count both set by
@@ -1881,7 +1838,6 @@
     display:inline-block; margin-left:6px; padding:0 5px; border-radius:4px;
     background:var(--amber-bg); color:var(--amber); font-style:normal;
   }
-  .cvmeta .cvlive{color:var(--green); font-style:normal}
   /* The corner a box resizes from. Bottom-right only, which is the corner a
      window has: four handles on a box you rarely resize is more furniture than
      the gesture is worth. */
@@ -1906,8 +1862,3 @@
   }
   .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
   .cvclose:hover{background:var(--red-bg); color:var(--red)}
-
-  .cvhint{
-    position:sticky; bottom:0; left:0; padding:6px 12px; font-size:11.5px;
-    color:var(--ink-faint); background:var(--bg); border-top:1px solid var(--line-soft);
-  }

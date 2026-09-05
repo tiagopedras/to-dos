@@ -8,12 +8,22 @@ its result matters. So rather than each growing its own way to speak, they all
 append here and the companion drains the queue on its next tick.
 
     python3 companion/notify.py "Nightly agent" "3 plans written, 2 skipped"
+    python3 companion/notify.py --view plans "Nightly agent" "3 plans waiting"
+    python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
     python3 companion/notify.py --dataset _test "Title" "Body"
 
 Or from Python:
 
     sys.path.insert(0, ".../companion"); import notify
-    notify.queue("Nightly agent", "3 plans written")
+    notify.queue("Nightly agent", "3 plans written", view="plans")
+
+`task` and `view` say where the banner goes when it is pressed. A task is a
+card's `#slug`, or its title where it has none — the two things in todo.md
+stable enough to point at. A view is one of the board's own tabs, `plans`,
+`schedule`, `board` and the rest. Give both and it opens the card on that view;
+give neither and it opens the board's front page. Sending someone to a banner
+they cannot follow up is most of what makes a notification annoying, so name
+one wherever there is an obvious one to name.
 
 Appending is all this does. It never posts anything itself and it never blocks,
 so it is safe to call from a script running at two in the morning with nobody
@@ -55,8 +65,13 @@ def queue_path(dataset=None):
     return os.path.join(ROOT, "data", dataset, "notify-queue.json")
 
 
-def queue(title, body, dataset=None):
+def queue(title, body, dataset=None, task=None, view=None):
     """Append one notification. Returns the path, or None if it could not be written.
+
+    `task` and `view` are where the banner goes when it is pressed, and are
+    left out of the entry entirely when empty rather than written as null — the
+    companion treats a missing key and an empty one the same way, and an entry
+    with nothing to say about where it points should not carry the keys.
 
     Never raises. A caller asking for a banner is never doing it as its main job,
     so a failure here must not take down whatever was actually being done.
@@ -70,11 +85,16 @@ def queue(title, body, dataset=None):
     except (OSError, ValueError):
         items = []
 
-    items.append({
+    entry = {
         "title": str(title)[:120],
         "body": str(body)[:400],
         "queued": dt.datetime.now().isoformat(timespec="seconds"),
-    })
+    }
+    if task:
+        entry["task"] = str(task)[:200]
+    if view:
+        entry["view"] = str(view)[:40]
+    items.append(entry)
     # A queue nobody drains is a companion that is not running. Cap it so that
     # comes back as the last few lines when it starts, rather than as a month of
     # backlog fired at once.
@@ -92,14 +112,16 @@ def queue(title, body, dataset=None):
 
 
 def main(argv):
-    dataset = None
-    if len(argv) > 1 and argv[0] == "--dataset":
-        dataset, argv = argv[1], argv[2:]
+    opts = {"--dataset": None, "--task": None, "--view": None}
+    while len(argv) > 1 and argv[0] in opts:
+        opts[argv[0]], argv = argv[1], argv[2:]
     if len(argv) < 2:
         print(__doc__.strip().splitlines()[0], file=sys.stderr)
-        print('usage: notify.py [--dataset NAME] "Title" "Body"', file=sys.stderr)
+        print('usage: notify.py [--dataset NAME] [--task KEY] [--view NAME] '
+              '"Title" "Body"', file=sys.stderr)
         return 2
-    path = queue(argv[0], argv[1], dataset)
+    path = queue(argv[0], argv[1], opts["--dataset"],
+                 task=opts["--task"], view=opts["--view"])
     if not path:
         print("could not write the queue", file=sys.stderr)
         return 1

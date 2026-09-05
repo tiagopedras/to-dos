@@ -454,7 +454,10 @@ def announce(written, skipped, stopped):
         body += ". Stopped early"
     first = (folded or plans or written)[0][1]
     body += ".\n" + (first if len(first) < 60 else first[:59].rstrip() + "…")
-    notify.queue("Nightly agent", body)
+    # Pressing it lands on the Plans tab, which is where the night's output
+    # actually is. Not on a single plan: the banner counts a batch, and opening
+    # one of several would answer a question it did not ask.
+    notify.queue("Nightly agent", body, view="plans")
 
 
 def run(argv=None):

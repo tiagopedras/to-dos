@@ -115,6 +115,14 @@ Where the plan needs nothing from him, ask whether it is right.
 **Batch a few before writing** if he moves quickly through several, but never let
 more than a handful pile up unwritten.
 
+**Close every plan with one line saying what happens to it.** Once his reaction
+is turned into one of the outcomes above, say plainly what that means for the
+plan and the task before moving to the next one: the status it's being set to,
+and whether a note went on the task (and roughly what it says, not the full
+text). "Marked read, no note — nothing to change" is as valid a closing line as
+"Marked actioned, dropping the task via pa-checkin." He should never have to ask
+what just happened to something he reacted to.
+
 ## What this skill writes, and what it hands over
 
 Two different things, and the split matters.

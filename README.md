@@ -1177,8 +1177,18 @@ app falls back to posting through `osascript` and the alerts are attributed to
 Script Editor. Working notifications under the wrong name beat none at all.
 
 The log is at `~/Library/Logs/To-Do Companion.log`, which is the only place a
-menu bar app has to say anything. It records each start and which route every
-notification took.
+menu bar app has to say anything. It records each start, which route every
+notification took, and where each banner that was clicked went.
+
+**A notification goes somewhere when you press it.** Every banner carries a card
+and a view in its `userInfo`, and clicking it opens the board there — the same
+`#<view>!task=<key>` link the menu rows use, through the same `open_board`, so a
+banner and a menu row behave identically and neither can give you a second tab.
+The morning briefing points at the one thing when there is one, and at the board
+itself when the line names several tasks, since picking one of three to open
+would be a guess. The nightly agent's line points at the Plans tab. Only the
+NSUserNotification route can carry a target: the `osascript` fallback posts a
+banner that does nothing when pressed, which is one more reason it is a fallback.
 
 ### Asking the companion to say something
 
@@ -1189,7 +1199,8 @@ time its result matters. So rather than each growing its own way to speak, they
 append to one file and the companion drains it on its next tick:
 
 ```
-python3 companion/notify.py "Nightly agent" "3 plans waiting, 2 unchanged"
+python3 companion/notify.py --view plans "Nightly agent" "3 plans waiting"
+python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
 ```
 
 `data/<dataset>/notify-queue.json`, the same shape as `attach-queue.json`: a JSON
@@ -1197,6 +1208,12 @@ array anything may append to, drained and cleared by the one process that can ac
 on it. `companion/notify.py` is the writer, it never raises, and it caps the queue
 so a companion that has been shut for a fortnight comes back with the last few
 lines rather than the whole backlog at once.
+
+`--task` and `--view` are where the banner goes when it is pressed, and both are
+optional — a task is a card's `#slug` or its title, a view is one of the board's
+own tabs. Name one wherever there is an obvious one to name: a banner that says
+three plans are waiting and then leaves you to go and find them has to be acted
+on twice.
 
 What the queue does not get to override: nothing is posted outside 08:30 to
 20:00, and no more than three at a time. A line queued at 02:00 waits for the

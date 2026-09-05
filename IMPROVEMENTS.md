@@ -30,15 +30,20 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   said would settle whether DS wants splitting into its five streams: it does,
   or the ordering does.
 
-- **A plan whose agent wrote no `summary:` lists as `[fill in]`.** Found 5 Sep
-  2026; 2 of 10 agents did it. `write_plan` in `nightly/plan.py` falls back to
-  the literal `[fill in]` when the agent's own frontmatter carries no summary
-  line, and that string is what `index.md` and the Plans view then show as the
-  plan's whole description. The fallback is right to be visible rather than
-  silent, but it should not be the placeholder text the brief uses for a fact
-  the agent could not establish — those two meanings are now the same string.
-  Either take the plan's first sentence, or say plainly that the agent wrote no
-  summary.
+- **A plan whose agent wrote no `summary:` lists as `[fill in]`, and the file
+  itself is worse than the symptom shows.** Found 5 Sep 2026; 2 of 10 agents did
+  it: `assess-the-need-for-component-tokens-and-how-they-map-to-the.md` and
+  `document-component-layout-and-grid-usage-rules-for-the-desig.md`. Both files
+  hold two frontmatter blocks back to back — a first one with a `session:` and
+  `summary: [fill in]`, immediately followed by a second, complete frontmatter
+  (proper `summary:`, no `session:`) and the real body. `write_plan` in
+  `nightly/plan.py` is writing a placeholder header, then appending the agent's
+  actual output underneath rather than replacing it, not genuinely falling back
+  because the agent wrote nothing. `index.md` and the Plans view read the first
+  block, so they show `[fill in]` over a plan that in fact has a perfectly good
+  summary two blocks down. Fix the write path so the real content replaces the
+  placeholder rather than following it, then decide separately what a plan with
+  a genuinely missing summary should show.
 
 - **The nightly budget is set from figures four times too low.** `NIGHTLY_BUDGET`
   in `nightly/plan.py` is $12, chosen against two runs that cost $0.29 and
@@ -147,6 +152,115 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A dedicated agent to act on a plan once it's been agreed, not just write it.**
+  Raised 5 Sep 2026, during a `pa-plans` review. Right now "accept" is only a
+  note on the task — nothing marks a plan as approved-to-run, and nothing reads
+  that mark if it existed. The gap gets wider as the nightly agent's plans get
+  good: reading and agreeing with ten of them and then still having to open a
+  session and delegate each one by hand is most of the friction this was meant
+  to remove.
+
+  Needs deciding before it gets built, not after:
+
+  - **What "agreed" looks like as a signal.** A fourth plan `status` alongside
+    `unread` / `read` / `actioned`, or a separate flag, that a review session
+    (or Tiago on the board) can set once a plan is accepted rather than just
+    read.
+  - **Whether it still never writes `todo.md`.** The nightly planner's hardest
+    rule is that it proposes and never executes, checked by hashing the file
+    before and after. An execution agent is the opposite by design — it has to
+    change things — so it needs its own version of that guard: what it's
+    allowed to touch (probably: do the work a plan describes, write its output
+    to disk, leave a report), and what stays off limits (`todo.md` itself,
+    which stays a `pa-checkin` edit even when the work behind it is done).
+  - **Whether it runs unattended at all, or only on demand.** The nightly
+    agent's whole design is riding a usage window nobody's sitting in front of.
+    Executing real changes unattended, overnight, with nobody watching what
+    lands, is a different risk profile from writing a markdown file nobody has
+    to act on until morning. Worth asking whether this one only ever runs when
+    Tiago says "yes, do it" in a live session, at least at first.
+
+- **Three changes to what the nightly agent plans and what a plan is for,**
+  raised 5 Sep 2026 during a `pa-plans` review.
+
+  - **Drop `partial` from the picker.** `PLANNABLE` in `nightly/pick.py:53` is
+    `{"full", "partial"}`. Tiago only wants `[ai:: full]` considered — a task he
+    has not judged fit to run mostly autonomously should not queue for a plan
+    at all. Narrowing `PLANNABLE` to `{"full"}` is the change; the queue
+    ordering and window-budget work already done in Plans does not need to
+    change alongside it.
+  - **A plan that hits an open question should stop there, not paper over it.**
+    If the agent's research turns up something it cannot resolve on its own —
+    a missing decision, a fact only Tiago has — the plan should say so and end,
+    rather than guess an answer and build a full actionable plan on top of the
+    guess. An assessment that says "blocked on X" is a legitimate, worthwhile
+    output of a run; a confident-sounding plan built on an invented answer is
+    not, and it is not worth the credits either way if it is not standing on
+    solid ground. This needs a shape decision: probably a plan `status` (or a
+    field on the existing frontmatter) distinct from a completed plan, so the
+    Plans view and `pa-plans` can tell "here's what to do" apart from "here's
+    what's blocking it" at a glance rather than by reading the body.
+  - **Plans should be actionable, not descriptive** — closer to the seed of a
+    background chat than a report. Once a plan is agreed, it should be able to
+    change the task's own subtasks to match what it proposes, the same way a
+    review session already edits a task from a conversation. And the work the
+    plan describes should be doable past the plan itself: agreeing a plan is
+    the point where it can be handed to a background agent to actually build
+    or do, not just a document that sits there until Tiago manually starts a
+    session from it. This is the same territory as the "dedicated agent to act
+    on a plan once it's been agreed" entry above and should be designed
+    alongside it rather than separately — an actionable plan and an execution
+    agent are two halves of one feature.
+
+- **The bucket agents need to be bound to their buckets more closely than they
+  are, and given somewhere to grow.** Raised 5 Sep 2026, same conversation as
+  the entry above, and read together with it.
+
+  The standing shape of this app: the board and its skills (`pa-checkin`,
+  `pa-checkout`, `pa-plans`, `pa-attach`, `pa-focus`, `pa-mobile`,
+  `pa-retrieve-tasks`) are Tiago's own on-ramps for managing the list himself —
+  that stays the main way in. The agents exist to move tasks forward and
+  produce actual outcomes on top of that, and today that means six nightly
+  planners, one per bucket plus a general fallback
+  (`.claude/agents/pa-plan-design-system.md`, `-people`, `-processes`,
+  `-strategic`, `-work-oversight`, `-general`), each running once per task and
+  writing a report. That is a start, not the end state.
+
+  What is missing is context and specificity, not more agents. Each bucket
+  covers a real, different kind of work — Design oversight is not Strategic is
+  not People — and the agents currently know that only at the level of a
+  one-line description in their frontmatter. Getting them properly useful
+  means Tiago feeding each one more of what he actually does in that bucket:
+  the kind of decision, the kind of document, the people and processes
+  involved, so the agent's research and its output are grounded in his actual
+  work rather than a generic reading of the task title. That is ongoing input
+  from him, not a one-off spec, and it is the blocker on everything else in
+  this entry.
+
+  Once an agent has that grounding, it should get its own skills, tailored to
+  the processes it actually needs to run in its bucket, the way `pa-checkin` or
+  `probation-review` are tailored to a process Tiago already does — rather than
+  the same generic research-and-write-a-plan loop for every bucket.
+
+  Two things fall out of that:
+
+  - **Output should vary by bucket and by task, not be one shape.** A message
+    (Slack, email — this already exists as a suggestion type in the drawer), a
+    further action on the board itself (subtasks, status, a note), or a
+    starting point for a background AI session on a specific piece of work.
+    Later, and explicitly not now: raising a Jira ticket (started once before
+    and not finished) and writing something back into the design system
+    directly. Both TBD, do not build either yet.
+  - **The nightly planners and the bucket agents that execute are not the same
+    agents, and should not become the same agents.** The nightly run
+    (`pa-plan-*`) exists to expand a problem and surface possible solutions
+    overnight, and its contract — proposes, never executes, never touches
+    `todo.md` — is load-bearing and stays exactly as it is. A plan being agreed
+    is what hands the work to the bucket's own agent, the one carrying the
+    fuller context above, to actually act on it. That agent is the "dedicated
+    agent to act on a plan" from the entry above, scoped per bucket rather than
+    generic — the two entries are one feature, decided together.
+
 - ~~**Token windows should be a line chart, not a list of rows.**~~ **Done, 5 Sep
   2026.** One chart, both series as a share of their ceiling on a single 0-100%
   axis, with the rows kept but folded away — they read as a log, which is the
@@ -186,18 +300,25 @@ they settled is written up in the README rather than left here:
     is. That prose is the reason this repo can be picked up cold.
   - **Repetition is real but small.** About 130 lines are exact duplicates of
     another line, and another ~140 sit in near-duplicate function pairs.
-  - **15 dead CSS classes** in `board.css`: `ai-full`, `ai-partial`, `chk`,
+  - **15 dead CSS classes, on paper.** `ai-full`, `ai-partial`, `chk`,
     `cvhint`, `cvlive`, `hlset`, `impact-high`, `legendbody`, `mdlist`,
-    `msglead`, `refchip`, `refholds`, `refnote`, `refwaits`, `ride`. Checked
-    against dynamic construction (nothing builds `'ai-' + t.ai`) and against
-    `ai_chat_engine`, which draws into the same page and could have owned them.
-    None does. 15 rules, 24 lines, plus 19 selector lists to trim a name out of.
+    `msglead`, `refchip`, `refholds`, `refnote`, `refwaits`, `ride`. The survey
+    named its own trap correctly — "checked against dynamic construction" — and
+    then missed four hits against its own rule when it wrote the final list.
+    `ai-full`/`ai-partial` are built by `'tag ai ai-' + esc(t.ai)`, `impact-high`
+    by `'tag impact-' + esc(t.impact)`, and `ride` by
+    `'udecide ' + esc(u.decision.action)` — all three live, all three not
+    caught because the grep that checked for dynamic construction looked for
+    the class's own prefix (`'ai-' + t.ai`) rather than the actual code, which
+    builds the whole `tag ai` / `tag impact` / `udecide` string first and
+    appends the value after. Fixed 5 Sep 2026: the 11 that were actually dead
+    are gone from `board.css`; those four are still there, on purpose.
   - **No dead custom properties.** All 25 are read.
 
   So the ceiling is somewhere around 300 lines out of 9,300, which is 3%. Worth
   doing for the reasons below, not for the number.
 
-  In rough order of what is actually worth it:
+  In rough order of what is actually worth it, **done 5 Sep 2026**:
 
   1. **A `getJSON` / `postJSON` pair.** The single biggest cluster: 32 `fetch`
      call sites, 18 of them repeating `'?t=' + Date.now()`, 7 repeating the
@@ -205,18 +326,47 @@ they settled is written up in the README rather than left here:
      `if (!res.ok) throw`, 4 repeating `res.json().catch(() => ({}))`. Two
      helpers collapse most of it, and the real gain is that a new endpoint stops
      being a copy-paste of an old one — which is how the cache-bust came to be
-     on 18 of 32 rather than all of them.
+     on 18 of 32 rather than all of them. Landed for every JSON call site with
+     plain, generic error handling — about 20 of the 32. Left alone on purpose:
+     the handful of GETs that branch on status code for a bespoke "the board
+     helper needs restarting" message (`/queue.json`, `/plans.json`,
+     `/schedule.json`, `/backups.json`), the text (not JSON) fetches
+     (`loadFile`, `loadDemo`, backup previews, the outside-edit watcher), the
+     `HEAD` request, and the `todo.md` `PUT` — none of those fit either helper's
+     shape without losing something a straight throw-on-`!ok` would flatten.
   2. **`matrixPreview` / `trendPreview`** are 95% identical, nine lines each.
-     One function with an argument.
+     Down to one shared `makePreviewEl(cls)`, with each singleton getter still
+     its own one-liner.
   3. **`confirmDeleteBucket` / `confirmDeleteTier`** (64% alike, 26 and 24
      lines) and **`openBucketEditor` / `openTierEditor`** (46%, 76 and 71). A
      bucket and a tier are the same shape of thing with different labels, and
-     these four have drifted apart in small ways already.
+     these four have drifted apart in small ways already. The delete-confirm
+     pair now share one `confirmDeleteHeading()` — the button footer and the
+     destination select's wiring are mechanical, the wording is still written
+     out in full by each caller rather than assembled from fragments, since the
+     two really do say different things in the details. The editor pair kept
+     their own `draw()`/`wire()` — the rename-sync logic differs in a real way
+     between a mutable bucket object and a re-read tier-name array, and neither
+     is under test, so only the one truly identical piece (the
+     move-up/move-down/delete button trio) came out, into
+     `moveDeleteButtonsHTML()`.
   4. **`openReportModal` / `openPlanModal`** and **`loadReportBody` /
      `loadPlanBody`** — 58% and 48%. Both are "fetch a Markdown file, render it
-     into a modal, mark it read".
+     into a modal, mark it read". Now `openDocModal()` and `loadDocBody()`,
+     each kind's own function reduced to the three or four lines that are
+     actually different (the buttons, the cache object, the noun in the error).
   5. **The dead CSS.** Trivial and safe, but it is 24 lines, so do it last and
-     do not pretend it was the point.
+     do not pretend it was the point. 11 of the 15 turned out to be genuinely
+     dead — see above for the other four — for 20 fewer lines and 8 fewer
+     names to trim out of shared selector lists.
+
+  Every one of the four proved itself against `node kanban/test_canvas.mjs`,
+  `test_plans.mjs` and `test_schedule.mjs` (132 checks between them) plus
+  `core/test_todo.py`/`.mjs`, all still green. The Description-field Preview
+  toggle below exercises `mdBlocks`/`mdInline`, which item 4's merge left
+  untouched, and item 3's editors have no automated coverage at all — worth
+  a manual look next time either is touched by hand, since nothing here would
+  catch a regression in them.
 
   How to re-run the survey rather than trusting this entry a year from now:
 
@@ -235,35 +385,56 @@ they settled is written up in the README rather than left here:
 
   **The rule for any of this work:** it changes no behaviour, so prove that
   rather than asserting it. `node kanban/test_canvas.mjs`, `test_plans.mjs` and
-  `test_schedule.mjs` between them boot the whole board and run 92 checks, and
+  `test_schedule.mjs` between them boot the whole board and run 132 checks, and
   `core/test_todo.mjs` covers the format. A refactor that cannot be shown green
   in all four is not finished. Where a change is meant to be a pure move rather
   than a rewrite, prove it the way `board.css` was: reassemble the pieces and
   diff against the original.
 
-- **The rest of `index.html` could be split the same way, and the survey is
-  already done.** 7,500 lines, 24 banner-marked sections, one inline
-  `<script>`. Cutting it into classic `<script>` files in source order works —
-  classic top-level declarations share one global environment, which is exactly
-  what `core/todo.js` is already relying on — and no section reads forward at
-  evaluation time, with two exceptions, both in section 2:
+- ~~**The rest of `index.html` could be split the same way, and the survey is
+  already done.**~~ **Done, 5 Sep 2026,** despite this entry's own doubt about
+  whether it was worth it — asked for directly, so built as planned rather than
+  relitigated. 25 banner-marked sections (one more than this entry counted),
+  each now its own classic `<script src>` in `kanban/js/`, in source order,
+  plus `boot.js`. `index.html` itself is down to 165 lines.
 
-  - `state.sort = readSort();`, where `readSort` is in section 3.
-  - the `initViewFromHash` IIFE, which calls `isKnownView`, nine sections away.
+  The two forward-reaching exceptions this entry predicted were the only two
+  that turned up on a full re-check of every top-level statement in the old
+  inline script (not just the two named here — every `setInterval`, event
+  wiring, and bare function call was checked against where the name it uses
+  was actually declared):
 
-  Both would move to a `boot.js` loaded last, beside the existing
-  `loadFile(); loadJira(); loadDatasets();` at the foot of the file.
+  - `state.sort = readSort();` — `readSort` reads `SORT_KEY`, a `const` in what
+    is now `03-tier-one-impact-effort.js`.
+  - the `initViewFromHash` IIFE — calls `isKnownView`, in what is now
+    `11-canvas.js`.
 
-  One thing to know before touching the first: it is already broken. `readSort`
-  reads a `const` declared 150 lines below it, so the `ReferenceError` fires
-  every load and is swallowed by `readSort`'s own `try/catch` — which is why the
-  saved per-column sort has never once restored. Moving that line fixes it as a
-  side effect, so make the change deliberately rather than discovering it.
+  Both now live in `boot.js`, `initViewFromHash` converted from a self-invoking
+  IIFE to a plain function so `boot.js` can call it. `boot.js` also inherited
+  the original tail — `loadFile(); loadJira(); loadDatasets(); chat.loadStatus();`
+  — exactly as this entry described.
 
-  Not obviously worth doing. The two lifts above each had a reason beyond size:
-  the CSS was a different language, and the format needed a test. Cutting the
-  remaining sections would only make the files smaller, and the banner comments
-  already do most of the navigating.
+  The predicted bug fix is real and checked, not just theoretical: before the
+  split, `readSort()` ran while `SORT_KEY` was still in its temporal dead zone,
+  threw, and was swallowed by `readSort`'s own `try/catch` — so the saved
+  per-column sort silently never restored, every load, since whenever that
+  code was written. Loaded fresh against the live server with a fake sort
+  planted in `localStorage` first, `state.sort` now comes back populated
+  instead of `{}`.
+
+  Every classic script tag stayed non-module and non-deferred, so execution
+  order is exactly what it was inside the one big inline script — each file's
+  `'use strict'` (lost, otherwise, since the pragma doesn't cross script
+  tags) added back individually. Proved against `node kanban/test_canvas.mjs`,
+  `test_plans.mjs` and `test_schedule.mjs` (132 checks) run against the actual
+  running board, not a fixture — all still green, plus every one of the 26
+  new files passing `node --check` on its own.
+
+  What this didn't touch: the banner-numbering itself still has two "2c"s and
+  two "4c"s, an old quirk from sections renumbered in place over time. The
+  file names in `kanban/js/` are sequential (`01`–`25`) rather than repeating
+  that, so the numbering mismatch is now only inside the banner comments, not
+  in anything a path depends on.
 
 - ~~**A list view of every cronned task tied to this app.**~~ **Done, 5 Sep
   2026.** A **Schedule** button beside Backups in the Data group, opening a
@@ -337,12 +508,21 @@ they settled is written up in the README rather than left here:
   `plan.py`'s own format strings filled in, so a change to the wording fails
   there rather than in the morning.
 
-- **Render the description field as markdown.** It's a plain `<textarea>` —
-  bold, links and lists all show as literal asterisks and brackets rather than
-  formatted. Needs a decision on whether it's a toggle between editing the raw
-  text and viewing it rendered, or a live preview alongside, and on how much of
-  markdown to support given the field also holds the prompt/message suggestion
-  scaffolding `suggestions()` parses back out of it.
+- ~~**Render the description field as markdown.**~~ **Done, 5 Sep 2026,** as an
+  Edit/Preview toggle rather than a live side-by-side — the drawer isn't wide
+  enough for both, and a toggle needed no new state, since Preview only ever
+  reads the textarea's own value and never writes to it. Preview runs the
+  field's text through the same `mdBlocks()`/`mdInline()` a report or plan
+  modal already renders with, styled with the same `.repdoc` CSS rather than a
+  new set of rules. The prompt/message scaffolding `suggestions()` parses back
+  out of the same field (a `- Message (draft): …` line, say) renders as an
+  ordinary bullet in Preview — honest rather than wrong, and not worth a
+  special case. `mdInline()` itself gained one thing it didn't have before:
+  `[text](url)` now renders as a link, everywhere it's used, not just here —
+  it was the other half of "bold, links and lists" the entry named, and
+  reports and plans get it for free. A lone `[path]` placeholder, which
+  prompts already rely on staying literal, is unaffected — the pattern only
+  fires with a `(url)` immediately after.
 
 - ~~**A desktop widget holding message suggestions, ready to copy.**~~
   **Where it lives is decided, 5 Sep 2026: the companion.** The open question

@@ -129,6 +129,17 @@ def test_notify_queue():
         check("the queue is capped", len(items), notify.MAX_QUEUED)
         check("and keeps the newest", items[-1]["body"], "body 39")
 
+        # Where the banner goes when it is pressed. Absent rather than null when
+        # there is nowhere in particular to send it.
+        notify.queue("Nightly agent", "3 plans waiting", dataset="x", view="plans")
+        notify.queue("Due today", "The audit", dataset="x", task="ds-audit")
+        with open(notify.queue_path("x"), encoding="utf-8") as fh:
+            items = json.load(fh)
+        check("a view rides along", items[-2].get("view"), "plans")
+        check("and a task", items[-1].get("task"), "ds-audit")
+        check("neither is written when neither was given",
+              [k for k in ("task", "view") if k in items[0]], [])
+
         # It must never raise: every caller is doing something else as its real
         # job, and a banner is not worth taking that down for.
         notify.ROOT = "/nonexistent/nowhere"
@@ -139,10 +150,36 @@ def test_notify_queue():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_board_url():
+    """The fragment grammar, which is the one thing in app.py worth checking.
+
+    It is the contract between this app and the board's parseHash, and it fails
+    silently in both directions — a wrong fragment opens the right board on the
+    wrong thing, which reads as the link not working. Skipped where PyObjC is
+    not installed, since importing app.py pulls in AppKit; it draws no menu and
+    claims no lock at import time, so on this machine it is safe to import."""
+    try:
+        import app  # noqa: E402
+    except ImportError:
+        return
+    base = app.BOARD_URL
+    check("nothing named opens the board itself", app.board_url(), base)
+    check("a card, whatever view is up", app.board_url("ds-audit"),
+          base + "#!task=ds-audit")
+    check("a view on its own", app.board_url(None, "plans"), base + "#plans")
+    check("both together", app.board_url("ds-audit", "plans"),
+          base + "#plans!task=ds-audit")
+    # A `!` in a title would otherwise look like the separator the board splits
+    # on, and a `#` would end the fragment.
+    check("a title is escaped", app.board_url("Ship it! #now"),
+          base + "#!task=Ship%20it%21%20%23now")
+
+
 def main():
     test_messages()
     test_digest_line()
     test_notify_queue()
+    test_board_url()
     if FAILED:
         print("%d failed\n" % len(FAILED))
         for f in FAILED:
