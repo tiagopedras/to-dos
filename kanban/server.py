@@ -456,6 +456,73 @@ def schedule_listing():
 _usage_cache = {"at": 0.0, "data": None}
 
 
+def ceiling(wins, roll, state):
+    """What counts as 100% on the usage chart, and where the figure came from.
+
+    The chart is a percentage of an allowance, and no allowance appears anywhere
+    on disk: `core/windows.py` reconstructs what each window spent, and the error
+    a real limit returns names the reset time but not the ceiling. So there are
+    two sources and they are not equal.
+
+      measured  a run was actually refused, and `plan.py` wrote what the window
+                had spent at that moment into window.json. A real floor under
+                the true allowance, and the honest answer.
+      observed  no limit has been hit yet, so the busiest window in the period
+                stands in for the ceiling. That is not the allowance and the
+                card says so — it is "against the heaviest session you have
+                had", which still answers whether today is unusual.
+
+    The week has no measured source at all. Nothing here has any notion of a
+    weekly allowance, so it is always the busiest seven days seen.
+    """
+    seen = max((w["tok"] for w in wins), default=0)
+    measured = (state or {}).get("limit_tok") or 0
+    return {
+        "session": max(measured, seen, 1),
+        "week": max((r["tok"] for r in roll), default=0) or 1,
+        "source": "measured" if measured >= seen and measured else "observed",
+        "measuredAt": (state or {}).get("limit_tok_at", ""),
+    }
+
+
+def rolling_week(wins, days):
+    """Tokens used in the seven days ending on each day of the range.
+
+    The weekly half of the usage chart, and a rolling total rather than a share
+    of anything, because nothing here knows what the ceiling is. `core/windows.py`
+    reconstructs windows from the transcripts and can say what each one used; no
+    limit figure appears anywhere on disk, and the error a real limit returns
+    names the reset time but not the allowance. So the chart answers "is this
+    trending down" rather than "how much is left", which is the question actually
+    being asked of it.
+
+    A window is counted on the day it opened. Windows run five hours and some
+    cross midnight, and splitting one across two days would be more precise about
+    a number nobody reads and less honest about the thing being counted, which is
+    sessions rather than hours.
+
+    The first six days of the range are short by construction — a seven-day total
+    needs seven days behind it — so they are not returned at all. A line that
+    ramps up from nothing for its first week looks like a trend and is an
+    artefact.
+    """
+    if not wins:
+        return []
+    per_day = {}
+    for w in wins:
+        day = w["start"].date()
+        per_day[day] = per_day.get(day, 0) + w["tok"]
+    last = datetime.date.today()
+    first = last - datetime.timedelta(days=days - 1)
+    out = []
+    day = first + datetime.timedelta(days=6)
+    while day <= last:
+        total = sum(per_day.get(day - datetime.timedelta(days=n), 0) for n in range(7))
+        out.append({"day": day.isoformat(), "tok": total})
+        day += datetime.timedelta(days=1)
+    return out
+
+
 def usage_summary(days=30, ttl=60):
     """The rolling 5-hour usage windows, from core/windows.py.
 
@@ -470,10 +537,13 @@ def usage_summary(days=30, ttl=60):
 
     since = datetime.datetime.now().astimezone() - datetime.timedelta(days=days)
     wins = windows.reconstruct(windows.turns(since=since))
-    decision = windows.decide(state=windows.read_state(
-        os.path.join(plans_dir(), "window.json")))
+    state = windows.read_state(os.path.join(plans_dir(), "window.json"))
+    decision = windows.decide(state=state)
     toks = sorted(w["tok"] for w in wins) or [0]
+    roll = rolling_week(wins, days)
     data = {
+        "rolling": roll,
+        "ceiling": ceiling(wins, roll, state),
         "available": True,
         "days": days,
         "morning": windows.MORNING.strftime("%H:%M"),

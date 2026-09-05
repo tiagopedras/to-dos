@@ -496,6 +496,76 @@ def test_queue_routes():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_usage_chart():
+    """rolling_week and ceiling — the two figures the usage chart is drawn from.
+
+    Both are arithmetic over dates, which is the kind of thing that looks right
+    and is off by one. Fabricated windows rather than the real transcripts, for
+    the same reason the window rule is tested that way: the real ones change
+    every time anybody uses Claude.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "kanban"))
+    import server
+
+    today = dt.date.today()
+
+    def win(days_ago, tok, hour=20):
+        when = dt.datetime.combine(today - dt.timedelta(days=days_ago),
+                                   dt.time(hour), tzinfo=TZ)
+        return {"start": when, "end": when + windows.WINDOW, "tok": tok, "turns": 1}
+
+    # Ten days, one window a day, one token each. Every seven-day total is 7.
+    wins = [win(n, 1) for n in range(9, -1, -1)]
+    roll = server.rolling_week(wins, 10)
+    check("a rolling total per day, minus the six it cannot fill",
+          len(roll), 4)
+    check("the first is not the first day of the range",
+          roll[0]["day"], (today - dt.timedelta(days=3)).isoformat())
+    check("the last is today", roll[-1]["day"], today.isoformat())
+    check("and each covers seven days", [r["tok"] for r in roll], [7, 7, 7, 7])
+
+    # A quiet fortnight then four heavy days: the total climbs one day at a
+    # time as the heavy days enter the window, rather than stepping.
+    wins = [win(n, 1 if n >= 4 else 10) for n in range(13, -1, -1)]
+    roll = server.rolling_week(wins, 14)
+    check("a heavy run climbs rather than steps",
+          [r["tok"] for r in roll][-4:], [16, 25, 34, 43])
+
+    # Two windows opened on one day both count, on that day.
+    same = [win(3, 5, hour=9), win(3, 5, hour=20)] + [win(n, 0) for n in range(6, -1, -1)]
+    check("two windows in a day both count",
+          server.rolling_week(same, 8)[-1]["tok"], 10)
+    # And a day that has fallen out of the seven no longer does.
+    old_day = [win(7, 5)] + [win(n, 0) for n in range(6, -1, -1)]
+    check("a window eight days back is out of the total",
+          server.rolling_week(old_day, 8)[-1]["tok"], 0)
+
+    check("no windows, no line to draw", server.rolling_week([], 30), [])
+
+    # The ceiling, and which of its two sources wins.
+    wins = [win(3, 100), win(2, 400), win(1, 250)]
+    roll = [{"day": today.isoformat(), "tok": 750}]
+    cap = server.ceiling(wins, roll, {})
+    check("with no limit ever hit, the busiest session stands in",
+          (cap["session"], cap["source"]), (400, "observed"))
+    check("and the week is always the busiest seen", cap["week"], 750)
+
+    cap = server.ceiling(wins, roll, {"limit_tok": 900, "limit_tok_at": "2026-09-05"})
+    check("a measured limit beats the observed one",
+          (cap["session"], cap["source"]), (900, "measured"))
+    check("and says when it was measured", cap["measuredAt"], "2026-09-05")
+
+    # A measured floor lower than something already seen is not a ceiling. The
+    # heavier window is proof the allowance is at least that big.
+    cap = server.ceiling(wins, roll, {"limit_tok": 200})
+    check("a stale measurement below what has been seen does not win",
+          (cap["session"], cap["source"]), (400, "observed"))
+
+    # Nothing on disk at all still has to divide by something.
+    cap = server.ceiling([], [], {})
+    check("an empty ceiling is one, not zero", (cap["session"], cap["week"]), (1, 1))
+
+
 def test_runner():
     """Two things about run.sh that cannot be checked by running it.
 
@@ -537,6 +607,7 @@ def main():
     test_agents()
     test_server()
     test_queue_routes()
+    test_usage_chart()
     test_runner()
     if FAILED:
         print("%d failed\n" % len(FAILED))

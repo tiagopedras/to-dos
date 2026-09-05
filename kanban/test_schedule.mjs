@@ -76,6 +76,7 @@ await evalJS(`(() => {
   window.__blocked = [];
   const now = Date.now();
   const iso = ms => new Date(ms).toISOString();
+  const day = ms => new Date(ms).toISOString().slice(0, 10);
   window.__jobs = [
     { id:'nightly', name:'Nightly prep agent', armed:false, state:'not installed',
       what:'Plans every task tagged ai:full or ai:partial, one agent each.',
@@ -98,7 +99,13 @@ await evalJS(`(() => {
       { start:iso(now - 3*864e5), end:iso(now - 3*864e5 + 18e6), tok: 71e6, turns:300, open:false, night:false },
       { start:iso(now - 864e5),   end:iso(now - 864e5 + 18e6),   tok:430e6, turns:1700, open:false, night:true },
       { start:iso(now - 36e5),    end:iso(now + 144e5),          tok: 12e6, turns:60,  open:true,  night:true }
-    ]
+    ],
+    rolling: [
+      { day: day(now - 2*864e5), tok: 320e6 },
+      { day: day(now - 864e5),   tok: 480e6 },
+      { day: day(now),           tok: 640e6 }
+    ],
+    ceiling: { session: 430e6, week: 640e6, source:'observed', measuredAt:'' }
   };
   window.fetch = (url, opts) => {
     const method = (opts && opts.method) || 'GET';
@@ -139,9 +146,10 @@ check('the decision leads the usage card', await evalJS(`
   document.querySelector('#usageOut .udecide strong').textContent === 'RIDE' &&
   document.querySelector('#usageOut .udecide').textContent.includes('23:40')
 `))
-check('the morning and the cutoff are both named', await evalJS(`
-  document.querySelector('#usageOut .help').textContent.includes('07:00') &&
-  document.querySelector('#usageOut .help').textContent.includes('02:00')
+// The card carries no explanatory prose any more: the decision line says what
+// tonight looks like and nightly/README.md holds the reasoning.
+check('the card explains itself with the decision, not a paragraph', await evalJS(`
+  !document.querySelector('#usageOut .help')
 `))
 const rows = await evalJS(`document.querySelectorAll('#usageOut .urow').length`)
 check('one row per window', rows === 3, `${rows} rows`)
@@ -160,6 +168,90 @@ check('tokens read in millions', await evalJS(`
 check('the bar is scaled to the biggest window', await evalJS(`
   document.querySelectorAll('#usageOut .urow')[1].querySelector('.ubar span').style.width === '100%'
 `))
+check('and the log of rows is folded, not the first thing on the card', await evalJS(`
+  document.querySelector('#usageOut .ufold') &&
+  document.querySelector('#usageOut .ufold .ulist') &&
+  !document.querySelector('#usageOut .ufold').open
+`))
+
+// The chart. Both series as a share of their own ceiling on one axis, which is
+// the whole reason it is percentages: a weekly total and a single session are
+// different sizes of number, and one raw axis flattens the sessions into the
+// floor.
+check('the axis is a percentage, not a token count', await evalJS(`
+  [...document.querySelectorAll('#usageOut .uaxl.y')].map(e => e.textContent).join(',')
+`) === '0%,50%,100%')
+check('and there is only one of them', await evalJS(`
+  !document.querySelector('#usageOut .uaxl.s') && !document.querySelector('#usageOut .uaxl.r')
+`))
+check('each five-hour session is its own vertical line', await evalJS(`
+  document.querySelectorAll('#usageOut .uchart .ubarv').length === 3
+`))
+// 430M against a 430M ceiling is the full height of the plot; 71M is a sixth
+// of it. Checked as a ratio so the geometry can move without breaking this.
+check('a session stands at its share of the ceiling', await evalJS(`
+  (() => { const bars = [...document.querySelectorAll('#usageOut .ubarv')];
+    const h = b => +b.getAttribute('y1') - +b.getAttribute('y2');
+    return Math.abs(h(bars[1]) / h(bars[0]) - 430 / 71) < 0.02 })()
+`))
+check('night sessions are picked out from the rest', await evalJS(`
+  document.querySelectorAll('#usageOut .ubarv.night').length === 2 &&
+  document.querySelectorAll('#usageOut .ubarv.live').length === 1
+`))
+check('the weekly total is a line across them', await evalJS(`
+  document.querySelector('#usageOut .uline.r').getAttribute('points').trim().split(/\\s+/).length === 3
+`))
+check('the ceiling is drawn, and drawn as an estimate', await evalJS(`
+  !!document.querySelector('#usageOut .ugrid.cap')
+`))
+check('and now is drawn as a rule', await evalJS(`
+  !!document.querySelector('#usageOut .uchart .unow')
+`))
+// The honest bit. No allowance is known, so the card must say what its 100%
+// actually is rather than implying an authority it has not got.
+// A percentage axis with an unstated denominator says nothing, so what 100% is
+// stays on the card even though the prose around it has gone.
+check('what 100% is stays on the card', await evalJS(`
+  (() => { const t = document.querySelector('#usageOut .ucap').textContent;
+    return t.includes('430M') && t.includes('640M') })()
+`), await evalJS(`document.querySelector('#usageOut .ucap').textContent`))
+check('an observed ceiling says it is only the heaviest seen', await evalJS(`
+  document.querySelector('#usageOut .ucap').textContent.includes('heaviest in 30 days')
+`))
+// A measured one — a run actually refused, its spend recorded — reads
+// differently, because it is a real floor under the allowance.
+await evalJS(`(async () => {
+  const keep = window.__usage;
+  window.__usage = Object.assign({}, keep, { ceiling:
+    { session: 430e6, week: 640e6, source:'measured', measuredAt:'2026-09-05' } });
+  await renderUsage();
+  window.__usage = keep;
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('a measured ceiling says so instead, with its date', await evalJS(`
+  (() => { const t = document.querySelector('#usageOut .ucap').textContent;
+    return t.includes('measured at a limit') && t.includes('2026-09-05') &&
+           !t.includes('heaviest') })()
+`))
+await evalJS(`renderUsage()`)
+await new Promise(r => setTimeout(r, 300))
+
+// No windows at all — a fresh checkout — has nothing to draw and must not
+// throw trying.
+await evalJS(`(async () => {
+  const keep = window.__usage;
+  window.__usage = Object.assign({}, keep, { windows: [], rolling: [] });
+  await renderUsage();
+  window.__usage = keep;
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('no windows draws no chart rather than a broken one', await evalJS(`
+  !document.querySelector('#usageOut .uchart') && !!document.querySelector('#usageOut .udecide')
+`))
+await evalJS(`renderUsage()`)
+await new Promise(r => setTimeout(r, 300))
 
 // Leaving and coming back must work, since the button is a toggle into a view
 // that is not in the registry.

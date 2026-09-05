@@ -198,10 +198,32 @@ def record_limit(err):
     it is worth the parsing. When the message cannot be read, the expiry is left
     unset and core/windows.py falls back to the estimate — which is the normal case
     anyway, so a miss here costs nothing.
+
+    It also records what the window had spent at the moment it was refused,
+    which is the one measurement of the session allowance this machine can
+    make. No limit figure appears anywhere on disk and the message names the
+    reset time but never the ceiling, so the alternative is a constant written
+    into the repo that goes stale the next time the plan changes. The board's
+    usage chart reads `limit_tok` as its 100%% when it is here, and falls back
+    to the busiest window seen when it is not.
+
+    It is a floor rather than the exact allowance — the refused request is not
+    counted, and the limit may have been crossed part way through the last one
+    — so it is only ever revised upward, never down.
     """
     state = windows.read_state(paths.window_path())
     state["limited_at"] = dt.datetime.now().astimezone().isoformat()
     state["message"] = (err or "")[:300]
+    try:
+        open_now = windows.reconstruct(windows.turns(
+            since=dt.datetime.now().astimezone() - windows.WINDOW * 2))
+        if open_now:
+            spent = open_now[-1]["tok"]
+            if spent > state.get("limit_tok", 0):
+                state["limit_tok"] = spent
+                state["limit_tok_at"] = dt.date.today().isoformat()
+    except (OSError, ValueError):
+        pass
     m = RESET_RE.search(err or "")
     if m:
         state["expires_raw"] = m.group(1)

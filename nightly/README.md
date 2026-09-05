@@ -134,6 +134,24 @@ order the same way it loses its ledger row, and costs one plan.
 
 The file is a preference. Delete it and the queue falls back to list order.
 
+## What the usage chart is drawn against
+
+The board's fourth column plots each five-hour session and the rolling seven-day
+total as a share of a ceiling, and nothing here is told what that ceiling is.
+`core/windows.py` reconstructs what each window spent; the error a real limit
+returns names the reset time and not the allowance.
+
+So `plan.py` records what the open window had spent at the moment a run was
+actually refused, as `limit_tok` in `window.json`. That is a floor under the real
+session allowance rather than the allowance itself — the refused request is not
+counted, and the limit may have been crossed part way through the previous one —
+so it is only ever revised upward. Until one is captured, 100% is the heaviest
+session in the period, and the card says which of the two it is using.
+
+The week has no measured source and will not get one. Nothing in here has any
+notion of a weekly allowance, so it is always against the busiest seven days
+seen.
+
 ## Watching a run
 
 The same view's second column reads `data/.nightly.lock` and `plans/nightly.log`

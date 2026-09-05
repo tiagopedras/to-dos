@@ -119,35 +119,29 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **Token windows should be a line chart, not a list of rows.** The card renders
-  one row per five-hour window with a bar for its token count, thirty days of
-  them stacked up. That reads as a log. The question it is actually being asked
-  is whether the sessions budget is being used better over time, and a list of
-  bars in reverse date order is a poor way to see a trend.
+- ~~**Token windows should be a line chart, not a list of rows.**~~ **Done, 5 Sep
+  2026.** One chart, both series as a share of their ceiling on a single 0-100%
+  axis, with the rows kept but folded away — they read as a log, which is the
+  wrong shape for "is this getting better" and the right one for "what happened
+  on Tuesday".
 
-  What he wants instead is one chart with two lines on it: the five-hour session
-  and the week. Reference is the Claude usage monitor, which plots both as a
-  percentage of their limit on a shared axis, with the limit itself as a dashed
-  rule across the top and a marker for now. Percentages are what makes the two
-  comparable, since a weekly allowance and a five-hour one are different sizes
-  of number.
+  Each five-hour session is its own vertical line at the moment it opened, night
+  ones picked out and the live one in green. Sessions are discrete events rather
+  than a continuous quantity, and joining them into a curve draws slopes between
+  windows that never existed. The rolling seven-day total is a line across them.
 
-  The blocker is the denominator, and it is worth naming before any drawing
-  starts. `core/windows.py` reconstructs windows from the transcripts and knows
-  how many tokens each one used; it has no idea what the limit is. There is no
-  weekly notion in there at all, only the five-hour window. So a percentage
-  needs either a figure written down somewhere in the repo, which goes stale
-  every time the plan changes, or a limit error caught in the wild, which is
-  what `window.json` already does for the *reset time* and could plausibly do
-  for the ceiling too. The second is the honest one, and it means the chart has
-  nothing to draw until the first time a limit is hit.
+  The denominator was the blocker and it is answered in two halves. Nothing on
+  this machine is told what the allowance is, so `plan.py` now records what the
+  window had spent at the moment a run was actually refused — `limit_tok` in
+  `window.json` — which is a real floor under the session allowance and the only
+  measurement available. Until one is captured, 100% is the heaviest session
+  seen in the period, and the card says which of the two it is drawing against
+  in the one line under the legend. The week never has a measured source at all;
+  nothing here has any notion of a weekly allowance.
 
-  A fallback worth considering if that is too fiddly: plot raw tokens on two
-  axes instead of percentages, and put the weekly line as a rolling seven-day
-  total rather than as a share of anything. It answers "am I trending down"
-  without needing to know the ceiling, which is the actual question.
-
-  Do this after the move into Plans above, not before.
+  What that means in practice: the chart answers whether today is unusual, not
+  how much is left, and it will start answering the second question the first
+  time a nightly run hits a limit.
 
 - **Making the code shorter is a different job from splitting it, and mostly
   there is nothing to cut.** Surveyed on 5 Sep 2026, after the split, because

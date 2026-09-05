@@ -150,6 +150,16 @@ anything, so the recording is also how the test asserts it posts only
 queue's ordering, both inside `plans/` — and never reaches `todo.md`. `kanban/test_schedule.mjs` is the
 same again for the Schedule view.
 
+A board test that throws before its `chrome.kill()` leaves a headless Chrome
+holding the debugging port and the page it had loaded. The next run finds the
+port taken, connects to that orphan, and asserts against a stale copy of
+`index.html` — which reads as three real failures in code that is fine. If a
+test fails on text you can see is correct on disk, that is what happened:
+
+```
+pkill -f "remote-debugging-port=94"
+```
+
 `core/test_todo.mjs` needs none of that, and is the one to reach for when what
 changed is the format rather than the view. It runs `core/todo.js` in a `vm`
 context with no browser, no server and no `todo.md` in reach, so it is fast and
