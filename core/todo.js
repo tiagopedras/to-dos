@@ -542,3 +542,28 @@ function occurrenceAfter(rep, date){
   if (rep.kind === 'monthly-dow') return nthWeekday(y, mo, rep.dow, rep.nth);
   return new Date(y, mo, Math.min(rep.dom, new Date(y, mo + 1, 0).getDate()));
 }
+
+
+/* =========================================================================
+   Tier one: impact against effort
+
+   Lived in kanban/index.html until 5 Sep 2026, when the nightly picker needed
+   the same answer to order its queue. Two copies of "high is 3" is exactly the
+   drift this file exists to stop, so it moved here with everything else the
+   board and its Python readers both need. index.html loads this file as a
+   classic script before its own, so the names below are already global by the
+   time it uses them.
+   ========================================================================= */
+
+const IMPACT_N = { high:3, med:2, low:1 };
+const EFFORT_N = { S:1, M:2, L:3 };
+/* A task missing either score cannot be placed at all, so the board says so out
+   loud rather than quietly sorting it as though it scored zero. */
+function unscored(t){ return !IMPACT_N[t.impact] || !EFFORT_N[t.effort]; }
+/* Higher comes first. Deliberately impact ÷ effort rather than impact − effort:
+   a high/S beats a high/L, and a med/S beats a high/L too, which is the whole
+   point of favouring lighter lifts. */
+function priorityScore(t){
+  if (unscored(t)) return -1;               // sinks below everything that is scored
+  return IMPACT_N[t.impact] / EFFORT_N[t.effort];
+}

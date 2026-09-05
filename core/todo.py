@@ -410,6 +410,36 @@ def occurrence_after(rep, date):
     return dt.date(y, mo, min(rep["dom"], calendar.monthrange(y, mo)[1]))
 
 
+# ---------------------------------------------------------------------------
+# Tier one: impact against effort
+#
+# The port of the same three names in core/todo.js. They lived in
+# kanban/index.html until 5 Sep 2026, when nightly/pick.py needed the same
+# answer to order its queue and a second copy of "high is 3" became the drift
+# this pair of files exists to stop.
+# ---------------------------------------------------------------------------
+
+IMPACT_N = {"high": 3, "med": 2, "low": 1}
+EFFORT_N = {"S": 1, "M": 2, "L": 3}
+
+
+def unscored(task):
+    """Whether either score is missing, in which case the task has no position."""
+    return not IMPACT_N.get(task.impact) or not EFFORT_N.get(task.effort)
+
+
+def priority_score(task):
+    """Higher comes first. -1 for anything unscored, which sinks it below
+    everything that is scored rather than sorting it as a zero.
+
+    Impact divided by effort rather than minus: a high/S beats a high/L, and a
+    med/S beats a high/L too, which is the whole point of favouring lighter
+    lifts."""
+    if unscored(task):
+        return -1.0
+    return IMPACT_N[task.impact] / float(EFFORT_N[task.effort])
+
+
 def effective_due(task, today):
     """The date this task is really pointing at, with any recurrence rolled
     forward in memory — the same answer the board writes into the file when it

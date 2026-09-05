@@ -154,11 +154,18 @@ def test_pick():
     p4, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
     check("changed is planned again", titles(p4), ["Plain and plannable", "Startable now"])
 
-    # The fingerprint covers the notes, not just the title line.
-    a = pick.select(DOC, use_ledger=False)[0][0]
-    b = pick.select(DOC.replace("**Plain and plannable** [impact:: high]",
-                                "**Plain and plannable** [impact:: high] `week`"),
-                    use_ledger=False)[0][0]
+    # The fingerprint covers the notes, not just the title line. Both sides are
+    # found by title rather than by position: in_order sorts on the rules now,
+    # so adding a tag can legitimately move a task up the queue and an index
+    # would be comparing two different tasks.
+    def only_task(text, title):
+        return next(t for t in pick.select(text, use_ledger=False)[0]
+                    if t.title == title)
+
+    a = only_task(DOC, "Plain and plannable")
+    b = only_task(DOC.replace("**Plain and plannable** [impact:: high]",
+                              "**Plain and plannable** [impact:: high] `week`"),
+                  "Plain and plannable")
     check("a changed tag changes the fingerprint",
           pick.fingerprint(a) != pick.fingerprint(b), True)
 

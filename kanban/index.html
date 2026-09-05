@@ -375,17 +375,13 @@ function boardColumns(){ return allTiers().slice().reverse().concat([DONE_COL]);
    rather than quietly sorting it as though it scored zero.
    ========================================================================= */
 
-const IMPACT_N = { high:3, med:2, low:1 };
+/* IMPACT_N, EFFORT_N, unscored and priorityScore moved to core/todo.js on
+   5 Sep 2026, when nightly/pick.py needed the same answer to order its queue
+   and a second copy of "high is 3" became a thing that could drift. That file
+   is loaded as a classic script above this one, so all four are already in
+   scope here. Only the emoji stayed: the picker has no use for them and the
+   board is the only thing that draws a card. */
 const IMPACT_EMOJI = { high:'🔥', med:'🌤️', low:'🍃' };
-const EFFORT_N = { S:1, M:2, L:3 };
-function unscored(t){ return !IMPACT_N[t.impact] || !EFFORT_N[t.effort]; }
-/* Higher comes first. Deliberately impact ÷ effort rather than impact − effort:
-   a high/S beats a high/L, and a med/S beats a high/L too, which is the whole
-   point of favouring lighter lifts. */
-function priorityScore(t){
-  if (unscored(t)) return -1;               // sinks below everything that is scored
-  return IMPACT_N[t.impact] / EFFORT_N[t.effort];
-}
 /* Sorting is a way of looking at a column, not a change to the file. His own
    order is the file order and it means something, so priority sort never
    rewrites it — which is also why hand-reordering is off while it is on. */

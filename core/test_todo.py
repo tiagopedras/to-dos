@@ -371,6 +371,7 @@ def check_messages():
 # back — because todo.py has no serialiser and deliberately never will. That
 # column is core/test_todo.mjs's to answer.
 PARSE = fixture("parse.json")
+PRIORITY = fixture("priority.json")
 
 # The board's names for the fields, and this file's. Only `bold` has no Python
 # side: it exists to remember whether to put the asterisks back on write, which
@@ -408,6 +409,49 @@ def check_parse():
                 failures += 1
     print("%d task lines, %d documents — %s"
           % (len(PARSE["cases"]), len(PARSE["docs"]),
+             "all agree" if not failures else "%d failed" % failures))
+    return failures
+
+
+def check_priority():
+    """Tier one, against the board's own answers.
+
+    The interesting row is med/S beating high/L. That is the counter-intuitive
+    half of the rule in PA.md and the one a well-meaning rewrite to
+    impact - effort would silently break, so the descending order is pinned as
+    well as the individual scores."""
+    failures = 0
+
+    class Scored:
+        __slots__ = ("impact", "effort")
+
+        def __init__(self, impact, effort):
+            self.impact, self.effort = impact, effort
+
+    for case in PRIORITY["cases"]:
+        t = Scored(case["impact"], case["effort"])
+        if todo.unscored(t) != case["unscored"]:
+            print("FAIL unscored %r/%r: got %r, board says %r"
+                  % (case["impact"], case["effort"],
+                     todo.unscored(t), case["unscored"]))
+            failures += 1
+        got = todo.priority_score(t)
+        if abs(got - case["score"]) > 1e-9:
+            print("FAIL score %r/%r: got %r, board says %r"
+                  % (case["impact"], case["effort"], got, case["score"]))
+            failures += 1
+
+    ranked = sorted(PRIORITY["descending"],
+                    key=lambda c: -todo.priority_score(Scored(c["impact"], c["effort"])))
+    if [c["impact"] + "/" + c["effort"] for c in ranked] != \
+       [c["impact"] + "/" + c["effort"] for c in PRIORITY["descending"]]:
+        print("FAIL priority order\n     got  %r\n     want %r"
+              % ([c["impact"] + "/" + c["effort"] for c in ranked],
+                 [c["impact"] + "/" + c["effort"] for c in PRIORITY["descending"]]))
+        failures += 1
+
+    print("%d score combinations, %d ranked — %s"
+          % (len(PRIORITY["cases"]), len(PRIORITY["descending"]),
              "all agree" if not failures else "%d failed" % failures))
     return failures
 
@@ -453,6 +497,7 @@ def main():
     failures += check_calendar()
     failures += check_messages()
     failures += check_parse()
+    failures += check_priority()
     if "--online" in sys.argv[1:]:
         print("\nAgainst the published sources:")
         failures += check_calendar_online()

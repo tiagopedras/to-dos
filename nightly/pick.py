@@ -167,17 +167,57 @@ def key(title):
     return (title or "").strip().lower()
 
 
-def in_order(tasks, order):
-    """The queue, sorted by what the board asked for.
+def in_order(tasks, order, today=None):
+    """The queue, in the order the list's own rules say to work through it.
 
-    A task the board has never ranked goes to the back rather than the front,
-    keeping its position relative to the other unranked ones. So an ordering he
-    set last week survives a new task appearing today: the new one queues behind
-    what he has already prioritised instead of jumping it.
+    Four keys, in this order, and the first three exist because the board's
+    ordering cannot express them:
+
+    1. **What he dragged.** `plans/queue-order.json` is him saying "this one
+       first" in as many words, and nothing here second-guesses it. A task he
+       has never ranked sorts behind every task he has, so an ordering set last
+       week survives a new task appearing today.
+
+    2. **The headline.** One task carries `headline:` and it is, by definition,
+       the one that makes the others easier or unnecessary. PA.md calls it the
+       one thing; planning anything ahead of it is planning the wrong task.
+
+    3. **The date.** PA.md is explicit that a date beats a score, because the
+       tasks with real dates are the people ones and their consequences land on
+       somebody else. Overdue first, then soonest. Recurrence is rolled forward
+       in memory by `effective_due` so a fortnightly 1:1 sorts on the meeting it
+       is actually pointing at.
+
+       This is not the same as `due:` deciding *whether* to plan something,
+       which the module docstring rules out and this does not change. A deadline
+       still hides nothing; it only says what to reach first when the budget
+       runs out before the queue does.
+
+    4. **Impact against effort**, highest first, straight out of
+       `core/todo.py` so it is the same arithmetic the board draws. An unscored
+       task scores -1 and sinks, which is right: a task nobody has scored is not
+       a task anybody has said is worth a night's spend.
+
+    Bucket is deliberately not a key at any level. The first full batch, on
+    5 Sep 2026, spent its whole budget on Design System and left three buckets
+    untouched, because the fallback was file order and file order is bucket
+    order. Sorting by the rules rather than by the file is what mixes them: the
+    buckets interleave on merit instead of one draining before the next starts.
     """
+    today = today or dt.date.today()
     rank = {key(t): i for i, t in enumerate(order or [])}
     back = len(rank)
-    return sorted(tasks, key=lambda t: rank.get(key(t.title), back))
+
+    def sort_key(t):
+        due = todo.effective_due(t, today)
+        return (
+            rank.get(key(t.title), back),
+            0 if t.headline else 1,
+            (due - today).days if due else 10 ** 6,
+            -todo.priority_score(t),
+        )
+
+    return sorted(tasks, key=sort_key)
 
 
 def is_stale(task, ledger):
@@ -234,7 +274,7 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
             continue
         stale, why = is_stale(t, ledger)
         (plan if stale else skip).append(t if stale else (t, why))
-    return in_order(plan, order.get("order")), skip
+    return in_order(plan, order.get("order"), day), skip
 
 
 def _report(plan, skip):

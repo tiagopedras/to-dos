@@ -40,7 +40,7 @@ const fixture = name =>
    value of that expression is what comes back. */
 const WANTED = ['TASK_RE', 'SUB_RE', 'MSG_NOTE', 'parseTask', 'serializeTask',
                 'parseDoc', 'serializeDoc', 'splitBody', 'quoted', 'readRepeat',
-                'occurrenceFrom', 'occurrenceAfter'];
+                'occurrenceFrom', 'occurrenceAfter', 'unscored', 'priorityScore'];
 const source = fs.readFileSync(path.join(HERE, 'todo.js'), 'utf8')
   + '\n;({ ' + WANTED.join(', ') + ' });\n';
 const board = vm.runInNewContext(source, {}, { filename: 'core/todo.js' });
@@ -204,8 +204,32 @@ function checkRoundTrip() {
   if (a.length !== b.length) fail(`demo.md is ${b.length} lines after a round trip, was ${a.length}`);
 }
 
+/* Tier one, against the table generated from these same functions. The row
+   that matters is med/S beating high/L — the counter-intuitive half of the rule
+   in PA.md, and the one a rewrite to impact - effort would silently break. So
+   the descending order is pinned as well as the individual scores. */
+function checkPriority() {
+  const table = fixture('priority.json');
+  for (const c of table.cases) {
+    const t = { impact: c.impact, effort: c.effort };
+    if (board.unscored(t) !== c.unscored)
+      fail(`unscored ${c.impact}/${c.effort}: got ${board.unscored(t)}, want ${c.unscored}`);
+    const got = board.priorityScore(t);
+    if (Math.abs(got - c.score) > 1e-9)
+      fail(`score ${c.impact}/${c.effort}: got ${got}, want ${c.score}`);
+  }
+  const ranked = table.descending.slice()
+    .sort((a, b) => board.priorityScore(b) - board.priorityScore(a))
+    .map(c => `${c.impact}/${c.effort}`);
+  const want = table.descending.map(c => `${c.impact}/${c.effort}`);
+  if (ranked.join() !== want.join())
+    fail(`priority order\n     got  ${ranked.join(' ')}\n     want ${want.join(' ')}`);
+  console.log(`${table.cases.length} score combinations, ${table.descending.length} ranked — all agree`);
+}
+
 checkRepeat();
 checkMessages();
 checkParse();
+checkPriority();
 checkRoundTrip();
 process.exit(failures ? 1 : 0);
