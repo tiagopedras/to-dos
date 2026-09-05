@@ -77,7 +77,9 @@ Two things to keep true:
 - **It never writes `todo.md`.** Same reason as the companion, and more so,
   because it runs unattended. `plan.py` hashes the file before the batch and
   checks it after every task; that guard is not decoration, and a change that
-  makes it noisy should be fixed rather than removed.
+  makes it noisy should be fixed rather than removed. The board's queue column
+  is held to the same rule: reordering or holding a task writes
+  `plans/queue-order.json` and nothing else.
 - **It spends only in a usage window that expires before 07:00.** The morning is
   his. `core/windows.py` owns that arithmetic and `python3
   nightly/test_nightly.py` covers it — run that after touching the rule, since
@@ -144,7 +146,8 @@ server on another port.
 `kanban/test_plans.mjs` follows the same shape for the Plans view, and its
 blocked-writes list does double duty: Plans is the one view that writes
 anything, so the recording is also how the test asserts it posts only
-`/plan/status` and never reaches `todo.md`. `kanban/test_schedule.mjs` is the
+`/plan/status` and `/queue/order` — the plan's own frontmatter and the nightly
+queue's ordering, both inside `plans/` — and never reaches `todo.md`. `kanban/test_schedule.mjs` is the
 same again for the Schedule view.
 
 `core/test_todo.mjs` needs none of that, and is the one to reach for when what

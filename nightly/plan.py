@@ -64,7 +64,16 @@ KEEP_DAYS = 30
 # What a usage limit looks like coming back. Matched loosely on purpose: the
 # wording is not ours and changes, so anything mentioning a limit and a reset is
 # treated as one, and a stray match only costs an early night.
-LIMIT_RE = re.compile(r"(usage limit|rate limit|limit reached|resets? at)", re.I)
+#
+# Widened 5 Sep 2026, after a real one got through. The CLI said "You've hit your
+# session limit · resets 12:20pm", which named neither "usage" nor "at", so the
+# batch treated it as an ordinary agent failure and moved on to the next task —
+# which would have failed the same way, twenty-four more times, in about a
+# minute, with no reset time recorded and nothing in window.json to stop the next
+# wake doing it again. Any word before "limit", and a reset with or without "at".
+LIMIT_RE = re.compile(
+    r"((usage|rate|session|weekly|daily)\s+limit|limit reached"
+    r"|resets?\s+(?:at\s+)?\d{1,2}:\d{2})", re.I)
 RESET_RE = re.compile(r"resets? (?:at )?([0-9]{1,2}:[0-9]{2}\s*(?:am|pm)?|[0-9T:\-\+]{10,})", re.I)
 
 

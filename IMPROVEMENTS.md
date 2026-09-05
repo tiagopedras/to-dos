@@ -52,6 +52,24 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   and revealing the rest on demand would help scroll and layout on the busier
   lists.
 
+- **Schedule should be part of Plans, not a view of its own.** Half done, 5 Sep
+  2026: Plans now ends in a **Token windows** column, the same `renderUsage()`
+  the Schedule view calls, so the question "would it even run tonight" is
+  answered beside the queue it would run on. What is left is the other card,
+  "What runs on a clock", and then retiring the view — the `schedule` view id,
+  the `#schedule` fragment, `renderScheduleView()` and the header button, which
+  also takes one item out of the crowded row below.
+
+  Only `schedRow()` and `schedule_listing()` still need to move, and neither
+  reads anything Plans does not already have. The layout question the entry
+  used to raise is settled: Plans is a four-column `.lists.pview`, and a fifth
+  card is a column rather than a rearrangement.
+
+  One thing to decide before finishing it. Five columns is a lot for a view
+  whose middle three are usually short, and "What runs on a clock" is the least
+  urgent of them — it changes when a plist changes, which is rarely. It may
+  belong under the in-flight column rather than beside it.
+
 - **The top-right header is a flat row of buttons and dropdowns** — Undo,
   Download copy, Backups, the dataset switcher, AI filter, Urgent/due, search —
   crowded together with no grouping. Sort into themed menus or a sectioned
@@ -101,6 +119,106 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Token windows should be a line chart, not a list of rows.** The card renders
+  one row per five-hour window with a bar for its token count, thirty days of
+  them stacked up. That reads as a log. The question it is actually being asked
+  is whether the sessions budget is being used better over time, and a list of
+  bars in reverse date order is a poor way to see a trend.
+
+  What he wants instead is one chart with two lines on it: the five-hour session
+  and the week. Reference is the Claude usage monitor, which plots both as a
+  percentage of their limit on a shared axis, with the limit itself as a dashed
+  rule across the top and a marker for now. Percentages are what makes the two
+  comparable, since a weekly allowance and a five-hour one are different sizes
+  of number.
+
+  The blocker is the denominator, and it is worth naming before any drawing
+  starts. `core/windows.py` reconstructs windows from the transcripts and knows
+  how many tokens each one used; it has no idea what the limit is. There is no
+  weekly notion in there at all, only the five-hour window. So a percentage
+  needs either a figure written down somewhere in the repo, which goes stale
+  every time the plan changes, or a limit error caught in the wild, which is
+  what `window.json` already does for the *reset time* and could plausibly do
+  for the ceiling too. The second is the honest one, and it means the chart has
+  nothing to draw until the first time a limit is hit.
+
+  A fallback worth considering if that is too fiddly: plot raw tokens on two
+  axes instead of percentages, and put the weekly line as a rolling seven-day
+  total rather than as a share of anything. It answers "am I trending down"
+  without needing to know the ceiling, which is the actual question.
+
+  Do this after the move into Plans above, not before.
+
+- **Making the code shorter is a different job from splitting it, and mostly
+  there is nothing to cut.** Surveyed on 5 Sep 2026, after the split, because
+  "9,500 lines" and "9,500 lines of waste" are not the same claim and only one
+  of them was ever checked. The result, honestly: the file is not bloated.
+
+  What the survey found:
+
+  - **No dead JavaScript at all.** 407 top-level declarations, every single one
+    referenced somewhere. Nothing to delete.
+  - **A quarter of the script is comments** — 1,843 lines of 7,418. That is the
+    house style and it stays. Do not count it as fat, and do not let anyone
+    "optimise" by deleting the prose that explains why a rule is the shape it
+    is. That prose is the reason this repo can be picked up cold.
+  - **Repetition is real but small.** About 130 lines are exact duplicates of
+    another line, and another ~140 sit in near-duplicate function pairs.
+  - **15 dead CSS classes** in `board.css`: `ai-full`, `ai-partial`, `chk`,
+    `cvhint`, `cvlive`, `hlset`, `impact-high`, `legendbody`, `mdlist`,
+    `msglead`, `refchip`, `refholds`, `refnote`, `refwaits`, `ride`. Checked
+    against dynamic construction (nothing builds `'ai-' + t.ai`) and against
+    `ai_chat_engine`, which draws into the same page and could have owned them.
+    None does. 15 rules, 24 lines, plus 19 selector lists to trim a name out of.
+  - **No dead custom properties.** All 25 are read.
+
+  So the ceiling is somewhere around 300 lines out of 9,300, which is 3%. Worth
+  doing for the reasons below, not for the number.
+
+  In rough order of what is actually worth it:
+
+  1. **A `getJSON` / `postJSON` pair.** The single biggest cluster: 32 `fetch`
+     call sites, 18 of them repeating `'?t=' + Date.now()`, 7 repeating the
+     `Content-Type` and `X-Board` header block, 12 repeating
+     `if (!res.ok) throw`, 4 repeating `res.json().catch(() => ({}))`. Two
+     helpers collapse most of it, and the real gain is that a new endpoint stops
+     being a copy-paste of an old one — which is how the cache-bust came to be
+     on 18 of 32 rather than all of them.
+  2. **`matrixPreview` / `trendPreview`** are 95% identical, nine lines each.
+     One function with an argument.
+  3. **`confirmDeleteBucket` / `confirmDeleteTier`** (64% alike, 26 and 24
+     lines) and **`openBucketEditor` / `openTierEditor`** (46%, 76 and 71). A
+     bucket and a tier are the same shape of thing with different labels, and
+     these four have drifted apart in small ways already.
+  4. **`openReportModal` / `openPlanModal`** and **`loadReportBody` /
+     `loadPlanBody`** — 58% and 48%. Both are "fetch a Markdown file, render it
+     into a modal, mark it read".
+  5. **The dead CSS.** Trivial and safe, but it is 24 lines, so do it last and
+     do not pretend it was the point.
+
+  How to re-run the survey rather than trusting this entry a year from now:
+
+  - **Dead JavaScript:** collect every `^function name` and `^const name =` in
+    the inline script, strip comments from the source, and count remaining
+    references of each name. Zero means dead. Watch for two false-positive
+    traps — a name only ever used inside a template string, and a handler
+    referenced from an `onclick=` attribute in the HTML above the script.
+  - **Dead CSS:** collect every `.class` in `board.css` and grep each one in
+    `index.html`. Before deleting any hit, check two things: that nothing builds
+    the name dynamically (`'impact-' + t.impact` would make `.impact-high` look
+    dead when it is not), and that `ai_chat_engine` does not own it, since
+    `chat.js` and `cards.js` draw into this same page.
+  - **Duplication:** `difflib.SequenceMatcher` over the body of every pair of
+    top-level functions with similar names is what found the pairs above.
+
+  **The rule for any of this work:** it changes no behaviour, so prove that
+  rather than asserting it. `node kanban/test_canvas.mjs`, `test_plans.mjs` and
+  `test_schedule.mjs` between them boot the whole board and run 92 checks, and
+  `core/test_todo.mjs` covers the format. A refactor that cannot be shown green
+  in all four is not finished. Where a change is meant to be a pure move rather
+  than a rewrite, prove it the way `board.css` was: reassemble the pieces and
+  diff against the original.
+
 - **The rest of `index.html` could be split the same way, and the survey is
   already done.** 7,500 lines, 24 banner-marked sections, one inline
   `<script>`. Cutting it into classic `<script>` files in source order works —
@@ -145,26 +263,55 @@ they settled is written up in the README rather than left here:
   last line is the useful one, because it answers "would it run tonight" without
   waiting for tonight.
 
-- **The Schedule view cannot show a run that is happening right now.** It reads
-  the last *finished* run out of `plans/nightly.log`, so an agent batch in
-  progress looks identical to one that ended an hour ago, and the view does not
-  refresh anyway — you have to leave it and come back. A run takes minutes per
-  task and twenty-odd tasks a night, so this is most of the time it is
-  interesting.
+- ~~**Nothing shows what is about to be planned, or lets it be prioritised.**~~
+  **Done, 5 Sep 2026**, as the **Queue for tonight** column, first in Plans,
+  off a new `/queue.json`.
 
-  Most of what it needs is already on disk. `run.sh` holds `data/.nightly.lock`
-  for the length of a batch, which is the only thing that distinguishes "still
-  going" from "died half way" — the log looks the same either way. And the log
-  now carries a `  > <task> (<agent>)` line written *before* each agent starts,
-  added 5 Sep 2026 for exactly this, so the task in flight can be named rather
-  than only the ones already finished. Counting `planned`/`failed` lines since
-  the last `start:` gives the progress against the total that line records.
+  Nothing is queued ahead of time and nothing is stored. The column is
+  `pick.select()` run against `todo.md` this second — the same call the runner
+  makes at 02:00, imported rather than reimplemented, so there is one selection
+  rule and the column cannot describe a different night from the one that
+  happens. Tick a task off and it leaves the queue on the next render.
 
-  What needs deciding is the front end. The view fetches once on render, so it
-  wants either polling while a run is live or a proper stream, and polling every
-  few seconds on a view somebody has left open all day is the kind of thing that
-  is easy to add and annoying to notice later. Worth settling that before
-  building the server half, which is otherwise about fifteen lines.
+  The ordering is the only thing written, to `plans/queue-order.json`, and it
+  matters because the batch stops on a budget, a window floor or a usage limit:
+  the front of the queue is the part that reliably gets planned. A card can also
+  be held back, which is the only way to say "not this one tonight" without
+  editing `todo.md` — which this view must never do, and does not.
+
+  Two rules in there are easy to get backwards, so both are pinned by tests. A
+  task the board has never ranked queues *behind* what he has already
+  prioritised, or every new task would arrive at the front of the night. And a
+  hold beats `--all`, because `--all` exists to ignore the ledger, which is a
+  cache, whereas a hold is an instruction.
+
+  Neither list decides what the queue contains — every rule in `pick.py` still
+  does. So a stored title that has since been ticked off, blocked or renamed is
+  simply never matched, and there is nothing to prune.
+
+- ~~**No view can show a run that is happening right now.**~~ **Done, 5 Sep
+  2026**, as the **In flight** column in Plans, off a new `/nightly.json`.
+
+  It reads the lock and the log together, because neither is enough. The lock
+  (`data/.nightly.lock`, held by `run.sh` for the length of a batch) is the only
+  thing that separates "still going" from "died half way" — the log looks
+  identical either way, and a log with a task in flight and no lock now says so
+  in as many words rather than showing a dead run as live. The log gives the
+  rest: the `  > <task> (<agent>)` line written *before* each agent starts names
+  what is being worked on, and the `planned`/`failed` lines since the last
+  `start:` give the tally against the total that line records.
+
+  The polling question the entry raised is settled the plain way: ten seconds
+  while a run is live, sixty otherwise, and the timer stops the moment the tab
+  is not on Plans. Nothing streams, and nothing polls in the background.
+
+  The parsing lives in `server.py` rather than being exported from `plan.py`, on
+  purpose. That log is read at a terminal far more often than it is parsed, and
+  pinning its wording to a format string the board depends on would stop it
+  being edited freely. When a line stops matching, the column goes quiet rather
+  than lying, and `test_queue_routes` in `nightly/test_nightly.py` holds
+  `plan.py`'s own format strings filled in, so a change to the wording fails
+  there rather than in the morning.
 
 - **Render the description field as markdown.** It's a plain `<textarea>` —
   bold, links and lists all show as literal asterisks and brackets rather than

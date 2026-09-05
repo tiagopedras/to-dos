@@ -16,8 +16,14 @@
  * also the assertion that it posts what it should, to the route it should,
  * without a single byte reaching a file.
  *
- * /plans.json is stubbed rather than read from disk, so this needs no plans to
- * exist and never touches data/.
+ * /plans.json, /queue.json and /nightly.json are all stubbed rather than read
+ * from disk, so this needs no plans, no queue and no run log to exist, and it
+ * never touches data/.
+ *
+ * The queue column is the reason the blocked list matters twice over: dragging
+ * a card there posts an ordering, and the whole design rests on that ordering
+ * going to plans/queue-order.json and nowhere near todo.md. Both halves are
+ * asserted below.
  */
 
 import { spawn } from 'node:child_process'
@@ -88,6 +94,41 @@ await evalJS(`(() => {
       bucket:'Strategic', column:'Backlog', ai:'partial', agent:'pa-plan-strategic',
       date:'2026-09-04', summary:'Done and dusted.' }
   ];
+  window.__queue = {
+    queue: [
+      { title:'Review the objectives', bucket:'People', column:'Doing', ai:'partial',
+        agent:'pa-plan-people', position:1, state:'queued', why:'never planned',
+        last:'', lastStatus:'' },
+      { title:'Rename the text styles', bucket:'DS', column:'To do', ai:'full',
+        agent:'pa-plan-design-system', position:2, state:'queued',
+        why:'changed since 2026-09-03', last:'2026-09-03', lastStatus:'read' },
+      { title:'Adoption and usage report', bucket:'DS', column:'Backlog', ai:'full',
+        agent:'pa-plan-design-system', position:3, state:'queued', why:'never planned',
+        last:'', lastStatus:'' }
+    ],
+    held: [
+      { title:'Arabic theme as a new token mode', bucket:'DS', column:'Backlog', ai:'full',
+        agent:'pa-plan-design-system', position:0, state:'held',
+        why:'held back from the board', last:'', lastStatus:'' }
+    ],
+    skipped: [
+      { title:'Something parked', bucket:'People', column:'Blocked', ai:'partial',
+        agent:'pa-plan-people', position:0, state:'skipped',
+        why:'unchanged since 2026-09-04', last:'2026-09-04', lastStatus:'unread' }
+    ],
+    order: ['Review the objectives', 'Rename the text styles', 'Adoption and usage report',
+            'Arabic theme as a new token mode'],
+    hold: ['Arabic theme as a new token mode']
+  };
+  window.__nightly = {
+    live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
+    current: { title:'Rename the text styles', agent:'pa-plan-design-system',
+               since:'2026-09-05 02:11:40' },
+    orphan: null,
+    done: [{ title:'Review the objectives', took: 214, cost: 0.83, at:'2026-09-05 02:11:38' }],
+    failed: [{ title:'A task that blew up', why:'the run failed', at:'2026-09-05 02:09:00' }],
+    stopped: '', left: 3
+  };
   window.fetch = (url, opts) => {
     const method = (opts && opts.method) || 'GET';
     if (method !== 'GET') {
@@ -96,6 +137,17 @@ await evalJS(`(() => {
     }
     if (String(url).startsWith('/plans.json')) {
       return Promise.resolve(new Response(JSON.stringify({plans: window.__plans}), {status:200}));
+    }
+    if (String(url).startsWith('/queue.json')) {
+      return Promise.resolve(new Response(JSON.stringify(window.__queue), {status:200}));
+    }
+    if (String(url).startsWith('/nightly.json')) {
+      return Promise.resolve(new Response(JSON.stringify(window.__nightly), {status:200}));
+    }
+    // The usage half is a second of work on the real server and nothing here
+    // asserts on it; an empty answer keeps the fourth column quiet.
+    if (String(url).startsWith('/usage.json')) {
+      return Promise.resolve(new Response('{"available":false}', {status:200}));
     }
     if (String(url).startsWith('/x/')) {
       return Promise.resolve(new Response('---\\ntitle: t\\n---\\n\\n## What already exists\\n\\nCaveat is in Foundations.\\n', {status:200}));
@@ -135,6 +187,120 @@ check('the summary is what the closed row shows', await evalJS(`
   document.querySelector('#plansOut .repsum').textContent.includes('Foundations file')
 `))
 
+// --- the queue column ------------------------------------------------------
+// What tonight would plan, in the order it would plan it, and the two ways to
+// change that: drag to reorder, hold to take one out entirely.
+
+check('all four columns are drawn', await evalJS(`
+  !!document.querySelector('#queueOut') && !!document.querySelector('#flightOut') &&
+  !!document.querySelector('#plansOut') && !!document.querySelector('#usageOut')
+`))
+check('the queue is the leftmost column', await evalJS(`
+  [...document.querySelectorAll('.lists.pview > .listcard')]
+    .map(c => c.querySelector('h3').textContent).join(' | ')
+`) === 'Queue for tonight | In flight | Written plans | Token windows')
+
+check('every queued task is listed', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem')].length
+`) === 3)
+check('numbered by the order it will be worked through', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem .qpos')].map(e => e.textContent).join('')
+`) === '123')
+check('each says why it is being planned again', await evalJS(`
+  document.querySelectorAll('#queueOut .qwhy')[1].textContent.includes('changed since 2026-09-03')
+`))
+check('held cards are shown, not hidden', await evalJS(`
+  document.querySelector('#queueOut .qfold summary').textContent.trim() === '1 held back'
+`))
+check('and a held card cannot be dragged', await evalJS(`
+  !document.querySelector('#queueOut .qitem.held').getAttribute('draggable')
+`))
+check('what a rule dropped is folded away with its reason', await evalJS(`
+  [...document.querySelectorAll('#queueOut .qfold summary')].some(s =>
+    s.textContent.trim() === '1 not eligible') &&
+  document.querySelector('#queueOut .qskip em').textContent.includes('unchanged')
+`))
+
+// Dragging the third card above the first. The board reorders locally and then
+// posts the whole ordering — the one write this column makes.
+await evalJS(`(() => {
+  const rows = document.querySelectorAll('#queueOut > .qitem');
+  const from = rows[2], to = rows[0];
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const box = to.getBoundingClientRect();
+  const opts = { dataTransfer: dt, bubbles:true, clientY: box.top + 2 };
+  to.dispatchEvent(new DragEvent('dragover', opts));
+  to.dispatchEvent(new DragEvent('drop', opts));
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('a drag reorders the queue', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem .qtitle')].map(e => e.textContent)[0]
+`) === 'Adoption and usage report')
+check('and renumbers what it moved', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem .qpos')].map(e => e.textContent).join('')
+`) === '123')
+const ordered = await evalJS(`window.__blocked.join(' | ')`)
+check('the new order is posted', ordered.includes('POST /queue/order'))
+check('front of the queue first in the body', await evalJS(`
+  JSON.parse(window.__blocked.find(b => b.startsWith('POST /queue/order'))
+    .split(' ').slice(2).join(' ')).order[0] === 'Adoption and usage report'
+`))
+// A held title the board is not showing as queued must survive the save, or
+// releasing it later would put it at the back of a queue it was never at the
+// back of.
+check('and a held title is carried through rather than dropped', await evalJS(`
+  JSON.parse(window.__blocked.find(b => b.startsWith('POST /queue/order'))
+    .split(' ').slice(2).join(' ')).order
+    .includes('Arabic theme as a new token mode')
+`))
+
+// Holding one takes it out of the queue and says so in the same post.
+await evalJS(`document.querySelector('#queueOut > .qitem [data-qhold]').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('holding a card removes it from the queue', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem')].length === 2
+`))
+check('and names it in the hold list', await evalJS(`
+  JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
+    .split(' ').slice(2).join(' ')).hold.includes('Adoption and usage report')
+`))
+
+// --- the in-flight column --------------------------------------------------
+
+check('the task in flight is named', await evalJS(`
+  document.querySelector('#flightOut .fnow strong').textContent === 'Rename the text styles'
+`))
+check('with the agent working on it', await evalJS(`
+  document.querySelector('#flightOut .fnow .repmeta').textContent.includes('pa-plan-design-system')
+`))
+check('progress through the batch is shown', await evalJS(`
+  document.querySelector('#flightOut .schedmeta').textContent.includes('1 of 4')
+`))
+check('what the run has written is listed with what it cost', await evalJS(`
+  document.querySelector('#flightOut .frow.done .fmeta').textContent === '214s · $0.83'
+`))
+check('and a failure is separated from a success', await evalJS(`
+  document.querySelector('#flightOut .frow.failed .fname').textContent === 'A task that blew up'
+`))
+
+// A dead run must not read as a live one. The lock is what says which.
+await evalJS(`(async () => {
+  window.__nightly = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
+    current: null,
+    orphan: { title:'Rename the text styles', agent:'pa-plan-design-system',
+              since:'2026-09-05 02:11:40' },
+    done: [], failed: [], stopped:'', left: 4 };
+  await renderNightly();
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('a run that died mid-task says so rather than looking live', await evalJS(`
+  !document.querySelector('#flightOut .fnow') &&
+  document.querySelector('#flightOut .err').textContent.includes('never finished')
+`))
+
 // Opening one: the body loads, and reading it is recorded as read — the one
 // write that happens without being asked for.
 await evalJS(`document.querySelector('#plansOut [data-plan-open]').click()`)
@@ -170,9 +336,14 @@ check('and the row moves into the actioned fold', await evalJS(`
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
 `))
-check('and every write was a plan status', await evalJS(`
-  window.__blocked.every(b => b.startsWith('POST /plan/status'))
+check('and every write was a plan status or a queue ordering', await evalJS(`
+  window.__blocked.every(b =>
+    b.startsWith('POST /plan/status') || b.startsWith('POST /queue/order'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
+// The whole queue column writes to exactly one place, and it is not the list.
+check('the queue writes only its own ordering', await evalJS(`
+  window.__blocked.filter(b => b.includes('order')).every(b => b.startsWith('POST /queue/order'))
+`))
 
 ws.close()
 chrome.kill()

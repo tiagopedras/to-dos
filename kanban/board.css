@@ -806,6 +806,93 @@
   }
   .lists.rview .listcard{margin:0}
 
+  /* ---------- plans ----------
+     Four columns, read left to right as the life of one task through the
+     nightly agent: what is queued, what is being worked on, what came back,
+     and what any of it costs. Narrower than the two-column views because four
+     of them have to fit, and scrolling sideways is what a board does anyway. */
+  .lists.pview{
+    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
+    grid-template-columns:repeat(3, minmax(330px,1fr)) minmax(320px,420px);
+    min-width:1360px;
+  }
+  .lists.pview .listcard{margin:0}
+
+  /* The queue. A card here is a proposal about tonight, so it is lighter than
+     a board card and carries its position rather than its state — the position
+     is the thing being edited. */
+  .qitem{
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:9px 11px; margin:0 0 7px; cursor:grab;
+  }
+  .qitem:last-child{margin-bottom:0}
+  .qitem.dragging{opacity:.4}
+  .qitem.over-top{box-shadow:inset 0 2px 0 var(--accent)}
+  .qitem.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .qhead{display:flex; align-items:baseline; gap:9px}
+  .qpos{
+    flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .qtitle{flex:1; min-width:0; font-size:13.5px; font-weight:620; line-height:1.35; color:var(--ink)}
+  .qhold{
+    flex:none; background:transparent; border:1px solid var(--line); border-radius:6px;
+    padding:1px 7px; font-size:11px; font-family:inherit; color:var(--ink-faint);
+    cursor:pointer; opacity:0; transition:opacity .1s;
+  }
+  .qitem:hover .qhold, .qitem:focus-within .qhold{opacity:1}
+  .qhold:hover{border-color:var(--accent); color:var(--accent)}
+  .qwhy{margin:4px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  /* Held cards keep their shape but lose their position, because that is
+     exactly what holding one does. */
+  .qitem.held{cursor:default; border-style:dashed; opacity:.72}
+  .qitem.held .qhold{opacity:1}
+  .qfold{margin:10px 0 0; border-top:1px solid var(--line-soft); padding-top:8px}
+  .qfold summary{
+    font-size:12px; color:var(--ink-faint); cursor:pointer; margin:0 0 8px;
+  }
+  .qskip{
+    display:flex; gap:10px; align-items:baseline; padding:4px 2px; font-size:12px;
+    color:var(--ink-faint);
+  }
+  .qskip span{flex:1; min-width:0; color:var(--ink-soft)}
+  .qskip em{flex:none; font-style:normal}
+
+  /* In flight. One card, because the runner runs one agent at a time. */
+  .fnow{
+    display:flex; gap:10px; align-items:flex-start; padding:11px 13px;
+    background:var(--green-bg); border:1px solid color-mix(in srgb, var(--green) 25%, transparent);
+    border-radius:10px; font-size:13.5px; color:var(--ink);
+  }
+  .fspin{
+    flex:none; width:9px; height:9px; margin-top:5px; border-radius:50%;
+    background:var(--green); animation:fpulse 1.6s ease-in-out infinite;
+  }
+  @keyframes fpulse{ 0%,100%{opacity:1} 50%{opacity:.25} }
+  @media (prefers-reduced-motion: reduce){ .fspin{animation:none} }
+  .fidle{
+    padding:11px 13px; background:var(--bg); border:1px dashed var(--line);
+    border-radius:10px; font-size:13px; color:var(--ink-faint);
+  }
+  .fstop{
+    margin:10px 0 0; padding:8px 11px; background:var(--amber-bg); border-radius:8px;
+    font-size:12.5px; color:var(--amber);
+  }
+  .fhead{margin:14px 0 6px !important; font-size:12px !important; font-weight:660 !important;
+    text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint) !important}
+  .frow{
+    display:flex; gap:10px; align-items:baseline; padding:5px 2px;
+    border-bottom:1px solid var(--line-soft); font-size:12.5px;
+  }
+  .frow:last-child{border-bottom:0}
+  .fname{flex:1; min-width:0; color:var(--ink-soft)}
+  .fmeta{
+    flex:none; font-size:11.5px; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .frow.failed .fname{color:var(--red)}
+  .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
+
   /* ---------- schedule ----------
      Two cards side by side: what runs on a clock, and what the usage windows
      have been doing. Scoped under .schedview the way .reportsview and
@@ -932,6 +1019,7 @@
   .repdoc strong{color:var(--ink)}
   @media (max-width:1000px){
     .lists.rview{grid-template-columns:1fr; min-width:0}
+    .lists.pview{grid-template-columns:1fr; min-width:0}
   }
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}

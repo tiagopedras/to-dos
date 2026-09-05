@@ -4039,14 +4039,307 @@ function renderPlansList(){
   });
 }
 
+/* -------------------------------------------------------------------------
+   The queue — what tonight would plan, and the one place to change it.
+
+   Nothing here is scheduled or stored. /queue.json is pick.select() run
+   against todo.md this second, the same call the runner makes at 02:00, so
+   the column cannot drift from what actually happens and there is no queued
+   batch to go stale. Tick a task off and it leaves the list on the next
+   render.
+
+   What a drag writes is only the ordering, to plans/queue-order.json. The
+   order matters because the batch stops on a budget, on a window floor or on
+   a usage limit: the front of this list is the part that reliably gets
+   planned, and the back is the part that might not. Holding a card back is
+   the other half of the same control — it is the only way to say "not this
+   one" without editing todo.md, which this view must never do.
+
+   Neither the order nor the hold list decides what the queue contains. Every
+   rule in nightly/pick.py still does that. A title in the file that has since
+   been ticked off, blocked or renamed is simply never matched, which is why
+   nothing here ever needs pruning.
+   ------------------------------------------------------------------------- */
+
+let queueRows = [];      // what tonight would plan, in order
+let queueHeld = [];      // deliberately held back
+let queueSkipped = [];   // dropped by a rule, with the reason
+let queueOrder = [];     // the stored ordering, so held ranks survive a save
+let queueDrag = null;
+
+function queueItemHTML(r, i){
+  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  const held = r.state === 'held';
+  return '<article class="qitem' + (held ? ' held' : '') + '"' +
+      (held ? '' : ' draggable="true"') + ' data-qi="' + i + '">' +
+    '<div class="qhead">' +
+      '<span class="qpos">' + (held ? '—' : r.position) + '</span>' +
+      '<span class="qtitle">' + esc(r.title) + '</span>' +
+      '<button class="qhold" data-qhold="' + i + '" title="' +
+        (held ? 'Put it back in the queue' : 'Hold it back from tonight') + '">' +
+        (held ? 'Release' : 'Hold') + '</button>' +
+    '</div>' +
+    (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
+    '<div class="qwhy">' + esc(r.why || '') +
+      (r.last ? ' · last planned ' + esc(r.last) : '') + '</div>' +
+  '</article>';
+}
+
+function renderQueueList(){
+  const out = $('#queueOut');
+  if (!out) return;
+  out.innerHTML =
+    (queueRows.length
+      ? queueRows.map((r, i) => queueItemHTML(r, i)).join('')
+      : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
+        'plan already, and none of them have changed since.</div>') +
+    (queueHeld.length
+      ? '<details open class="qfold"><summary>' + queueHeld.length + ' held back</summary>' +
+        queueHeld.map((r, i) => queueItemHTML(r, queueRows.length + i)).join('') + '</details>'
+      : '') +
+    (queueSkipped.length
+      ? '<details class="qfold"><summary>' + queueSkipped.length + ' not eligible</summary>' +
+        queueSkipped.map(r =>
+          '<div class="qskip"><span>' + esc(r.title) + '</span><em>' + esc(r.why) + '</em></div>'
+        ).join('') + '</details>'
+      : '');
+  wireQueue();
+}
+
+/* One list of rows across both arrays, indexed the way the DOM is, so a drag
+   and a hold press can name a card without caring which half it is in. */
+function queueAt(i){
+  return i < queueRows.length ? queueRows[i] : queueHeld[i - queueRows.length];
+}
+
+function wireQueue(){
+  const out = $('#queueOut');
+  out.querySelectorAll('[data-qhold]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); toggleHold(+btn.dataset.qhold); };
+  });
+
+  /* The same reorder gesture the sub-steps in the drawer use: drop above or
+     below whichever card the cursor is over, decided by its midpoint. Held
+     cards are not draggable — a held card has no position to hold. */
+  const rows = out.querySelectorAll('.qitem:not(.held)');
+  const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
+  rows.forEach(row => {
+    row.ondragstart = e => {
+      queueDrag = +row.dataset.qi;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'queue');
+      row.classList.add('dragging');
+    };
+    row.ondragend = () => { queueDrag = null; clear(); };
+    row.ondragover = e => {
+      if (queueDrag === null) return;
+      e.preventDefault();
+      const r = row.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      row.classList.toggle('over-bottom', after);
+      row.classList.toggle('over-top', !after);
+    };
+    row.ondragleave = () => row.classList.remove('over-top','over-bottom');
+    row.ondrop = e => {
+      if (queueDrag === null) return;
+      e.preventDefault(); e.stopPropagation();
+      const r = row.getBoundingClientRect();
+      let to = +row.dataset.qi + (e.clientY > r.top + r.height / 2 ? 1 : 0);
+      const from = queueDrag;
+      queueDrag = null; clear();
+      if (to > from) to--;
+      if (to === from) return;
+      queueRows.splice(to, 0, queueRows.splice(from, 1)[0]);
+      queueRows.forEach((row, i) => { row.position = i + 1; });
+      renderQueueList();
+      saveQueueOrder();
+    };
+  });
+}
+
+function toggleHold(i){
+  const row = queueAt(i);
+  if (!row) return;
+  if (row.state === 'held') {
+    row.state = 'queued';
+    queueHeld.splice(queueHeld.indexOf(row), 1);
+    queueRows.push(row);
+  } else {
+    row.state = 'held';
+    row.why = 'held back from the board';
+    queueRows.splice(queueRows.indexOf(row), 1);
+    queueHeld.push(row);
+  }
+  queueRows.forEach((r, n) => { r.position = n + 1; });
+  renderQueueList();
+  saveQueueOrder();
+}
+
+/* Titles the server has stored but that are not on screen — held cards from an
+   earlier session, tasks blocked this week — are carried through rather than
+   dropped, so releasing one later puts it back where it was rather than at the
+   end of the queue. */
+async function saveQueueOrder(){
+  const norm = t => String(t || '').trim().toLowerCase();
+  const shown = queueRows.map(r => r.title);
+  const seen = new Set(shown.map(norm));
+  const order = shown.concat(queueOrder.filter(t => !seen.has(norm(t))));
+  const hold = queueHeld.map(r => r.title);
+  try {
+    const res = await fetch('/queue/order', {
+      method:'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
+      body: JSON.stringify({ order, hold })
+    });
+    if (!res.ok) throw new Error(res.status);
+    queueOrder = order;
+  } catch (err) {
+    showToast('Could not save the queue order: ' + (err.message || err), 'bad');
+  }
+}
+
+async function renderQueue(){
+  const out = $('#queueOut');
+  if (!out) return;
+  try {
+    const res = await fetch('/queue.json?t=' + Date.now(), { cache:'no-store' });
+    if (res.status === 404) {
+      out.innerHTML = '<div class="empty">No nightly agent in this checkout, so there is ' +
+        'nothing queued and nothing to order.</div>';
+      return;
+    }
+    if (!res.ok) {
+      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
+        'It is running, but it is an older copy that does not know about the queue yet.</div>';
+      return;
+    }
+    const q = await res.json();
+    queueRows = q.queue || [];
+    queueHeld = q.held || [];
+    queueSkipped = q.skipped || [];
+    queueOrder = q.order || [];
+    renderQueueList();
+  } catch (err) {
+    out.innerHTML = '<div class="err">Could not read the queue. ' +
+      esc(String(err.message || err)) + '</div>';
+  }
+}
+
+/* -------------------------------------------------------------------------
+   In flight — the run happening right now, or the last one that happened.
+
+   Read from the lock directory and the log, which is the only honest way: the
+   agents are subprocesses of a shell launchd started, and nothing here can ask
+   them anything. One card, because plan.py runs its agents strictly one at a
+   time, which is a deliberate choice rather than a limitation — a runaway
+   agent then costs one timeout rather than the whole night.
+   ------------------------------------------------------------------------- */
+
+let flightTimer = null;
+
+function flightRowHTML(r, kind){
+  return '<div class="frow ' + kind + '">' +
+    '<span class="fname">' + esc(r.title) + '</span>' +
+    '<span class="fmeta">' + esc(
+      kind === 'done' ? r.took + 's · $' + r.cost.toFixed(2) : (r.why || '')
+    ) + '</span>' +
+  '</div>';
+}
+
+function renderFlight(n){
+  const out = $('#flightOut');
+  if (!out) return;
+  const when = s => s ? esc(s.slice(11, 16)) : '';
+  let html = '';
+
+  if (n.live && n.current) {
+    html += '<div class="fnow"><i class="fspin"></i>' +
+      '<div><strong>' + esc(n.current.title) + '</strong>' +
+      '<div class="repmeta">' + esc(n.current.agent) + ' · started ' +
+      when(n.current.since) + '</div></div></div>';
+  } else if (n.live) {
+    html += '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
+      '<div class="repmeta">between tasks — nothing in flight this second</div></div></div>';
+  } else if (n.orphan) {
+    html += '<div class="err">The last run stopped part way through <strong>' +
+      esc(n.orphan.title) + '</strong> and never finished. Its lock is gone, so ' +
+      'nothing is running now.</div>';
+  } else {
+    html += '<div class="fidle">Nothing running. The next wake is on the hour, ' +
+      'and it plans only if a usage window allows it.</div>';
+  }
+
+  if (n.started) {
+    html += '<dl class="schedmeta"><dt>Run started</dt><dd>' +
+      esc(n.started.slice(0, 16)) + '</dd>' +
+      '<dt>Planned</dt><dd>' + n.done.length +
+      (n.toPlan ? ' of ' + n.toPlan : '') + '</dd>' +
+      (n.left ? '<dt>Left</dt><dd>' + n.left + '</dd>' : '') +
+      '</dl>';
+  }
+  if (n.stopped) html += '<p class="fstop">' + esc(n.stopped) + '</p>';
+  if (n.done.length) {
+    const spent = n.done.reduce((a, d) => a + d.cost, 0);
+    html += '<h4 class="fhead">Written this run — $' + spent.toFixed(2) + '</h4>' +
+      n.done.map(d => flightRowHTML(d, 'done')).join('');
+  }
+  if (n.failed.length) {
+    html += '<h4 class="fhead">Failed</h4>' +
+      n.failed.map(d => flightRowHTML(d, 'failed')).join('');
+  }
+  if (!n.started) {
+    html += '<p class="help">The log has nothing since the last run started. ' +
+      'A wake that found no window logs its reason and stops without starting one.</p>';
+  }
+  out.innerHTML = html;
+}
+
+/* Polls while the tab is on Plans and stops the moment it is not. Faster while
+   a run is live, because that is the only time anything moves; an agent takes
+   minutes, so ten seconds is frequent enough to watch and rare enough to
+   ignore. */
+async function renderNightly(){
+  clearTimeout(flightTimer);
+  const out = $('#flightOut');
+  if (!out) return;
+  let live = false;
+  try {
+    const res = await fetch('/nightly.json?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const n = await res.json();
+    live = !!n.live;
+    renderFlight(n);
+  } catch (err) {
+    out.innerHTML = '<div class="err">Could not read the run log. ' +
+      esc(String(err.message || err)) + '</div>';
+  }
+  flightTimer = setTimeout(() => {
+    if (state.view === 'plans' && $('#flightOut')) renderNightly();
+  }, live ? 10000 : 60000);
+}
+
 async function renderPlansView(){
   $('#lists').innerHTML =
-    '<div class="lists rview">' +
-      '<div class="listcard reportsview written"><h3>Plans from the nightly agent</h3>' +
+    '<div class="lists pview">' +
+      '<div class="listcard reportsview queueview"><h3>Queue for tonight</h3>' +
+        '<p class="help listlead">Worked out from the list as it stands now, not booked ' +
+        'in advance. Drag to change what gets planned first — the run stops on a budget ' +
+        'or a usage limit, so the top of this list is the part that reliably happens.</p>' +
+        '<div id="queueOut">Loading…</div>' +
+      '</div>' +
+      '<div class="listcard reportsview flightview"><h3>In flight</h3>' +
+        '<p class="help listlead">One task at a time, on purpose. Read from the run\'s own ' +
+        'lock and log, so this is what is happening rather than what was asked for.</p>' +
+        '<div id="flightOut">Loading…</div>' +
+      '</div>' +
+      '<div class="listcard reportsview written"><h3>Written plans</h3>' +
         '<p class="help listlead">One per task tagged <code>ai:full</code> or ' +
         '<code>ai:partial</code>, researched overnight. Nothing here has been done — ' +
         'each one proposes a course of action and waits.</p>' +
         '<div id="plansOut">Loading…</div>' +
+      '</div>' +
+      '<div class="listcard schedview usage"><h3>Token windows</h3>' +
+        '<div id="usageOut">Loading…</div>' +
       '</div>' +
     '</div>';
   const out = $('#plansOut');
@@ -4060,15 +4353,20 @@ async function renderPlansView(){
     planList = (await res.json()).plans || [];
     if (!planList.length) {
       out.innerHTML = '<div class="empty">Nothing yet. The nightly agent writes into ' +
-        '<code>data/plans/</code>; run <code>nightly/run.sh --dry-run</code> to see what it ' +
-        'would pick up tonight.</div>';
-      return;
+        '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
+    } else {
+      renderPlansList();
     }
-    renderPlansList();
   } catch (err) {
     out.innerHTML = '<div class="err">Could not read the plan list. ' +
       esc(String(err.message || err)) + '</div>';
   }
+  // The other three after the plans have painted, for the same reason the
+  // Schedule view defers its usage half: reconstructing a month of windows is
+  // about a second, and nothing else should wait on it.
+  renderQueue();
+  renderNightly();
+  renderUsage();
 }
 
 /* =========================================================================

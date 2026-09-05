@@ -14,6 +14,7 @@ has a good moment. This does it at two in the morning instead.
 
 ```
 nightly/run.sh --dry-run          what it would do tonight, no spend, any hour
+python3 nightly/pick.py           the queue, in the order it would be worked
 nightly/run.sh --task "Some task" one task by hand, now
 python3 core/windows.py --history the last 30 days of usage windows
 python3 nightly/test_nightly.py   the arithmetic that decides what gets spent
@@ -98,6 +99,51 @@ files and the whole thing is ignored inside a week.
 
 The hash covers the task's notes, not just its title, because a new sub-step or a
 rewritten note makes last night's plan stale without touching the title.
+
+## The order is his, and so is what gets held back
+
+The board's Plans view opens with the queue — the same `pick.select()` this
+runner calls, run against `todo.md` as it stands the moment the column is drawn.
+Nothing is queued in advance and nothing is stored, so the column cannot
+describe a different night from the one that happens: tick a task off at 23:00
+and it is gone from the queue before the run starts.
+
+Dragging a card there writes `plans/queue-order.json`, which is the one thing
+that persists:
+
+```json
+{ "order": ["The one to do first", "…"], "hold": ["Not tonight"] }
+```
+
+Order matters because the batch stops on a budget, a window floor or a usage
+limit — the front of the queue is the part that reliably gets planned, and the
+back is the part that might not. A task he has never ranked queues *behind* what
+he has, rather than in front of it, so an ordering set last week survives a new
+task appearing today.
+
+`hold` is the other half: a held task is not planned at all. It beats `--all`,
+which exists to ignore the ledger — the ledger is a cache and a hold is an
+instruction. It is also the only way to say "not this one" without editing
+`todo.md`, which the board must not do from this view and does not.
+
+Neither list decides what the queue *contains*. Every rule above still does, so
+a title in the file that has since been ticked off, blocked or renamed is never
+matched and there is nothing to prune. Titles rather than ids, because titles
+are already what the ledger keys on; retitling a task loses its place in the
+order the same way it loses its ledger row, and costs one plan.
+
+The file is a preference. Delete it and the queue falls back to list order.
+
+## Watching a run
+
+The same view's second column reads `data/.nightly.lock` and `plans/nightly.log`
+together, which is the only honest way — the agents are subprocesses of a shell
+`launchd` started and nothing can ask them anything. The lock says whether a
+batch is going; the log says what it has got through. A log with a task in
+flight and no lock is a run that died between the two, and the column says that
+rather than showing it as live.
+
+One card, not a list, because `plan.py` runs its agents strictly one at a time.
 
 ## The sub-agents
 

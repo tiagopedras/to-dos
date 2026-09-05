@@ -1,7 +1,8 @@
 # Nightly agent — handover
 
-Written 5 Sep 2026, at the end of the session that built it, and updated the
-next morning by the session that picked it up. For whoever comes after that.
+Written 5 Sep 2026, at the end of the session that built it, updated the next
+morning by the session that picked it up, and again by the one that added the
+queue and in-flight columns. For whoever comes after that.
 
 Everything described here works and is tested. It is now **committed** (`19c3589`)
 and not yet pushed. The launchd job is **still not installed** — that is the one
@@ -41,8 +42,9 @@ nightly/
 companion/
   notify.py            the queue anything can ask for a banner on
 kanban/
-  server.py            /plans.json, /schedule.json, /usage.json, POST /plan/status
-  index.html           the Plans view and the Schedule view
+  server.py            /plans.json, /queue.json, /nightly.json, /schedule.json,
+                       /usage.json, POST /plan/status, POST /queue/order
+  index.html           the Plans view (four columns) and the Schedule view
 ```
 
 Plus, on the same day and tangled with it: the companion now lists suggested
@@ -70,8 +72,9 @@ derived from it. `nightly/README.md` has the full argument and the numbers.
 ### 1. Committed
 
 Done, as `19c3589`, one commit: the whole of `core/` and `nightly/`, the Plans and
-Schedule views, the new server routes, `companion/notify.py`, and the six agent
-definitions. `core/todo.py` and `core/test_todo.py` went in as renames out of
+Schedule views, the server routes it had then, `companion/notify.py`, and the six
+agent definitions. The queue and in-flight columns came later and are described
+under 5 below. `core/todo.py` and `core/test_todo.py` went in as renames out of
 `kanban/`, so the history follows.
 
 Two first names of real people were sitting in `core/fixtures/` as sample data.
@@ -131,6 +134,35 @@ instead of once. Nothing outside `run.sh` needs to know when a window opens,
 because `run.sh` asks every hour and rides whichever one it finds.
 
 ---
+
+### 5. The Plans view now has four columns
+
+Added after the first real night, when the obvious gap turned out to be the one
+the view could not answer: *what is it going to do tonight, and can I change
+that.*
+
+Left to right — **Queue for tonight**, **In flight**, **Written plans**, **Token
+windows**. The queue is `pick.select()` run on demand against `todo.md`, imported
+into `server.py` rather than reimplemented, so there is exactly one selection
+rule. Dragging a card writes `plans/queue-order.json`; holding one back keeps it
+out of the night entirely. In flight reads `data/.nightly.lock` and the log
+together and polls every ten seconds while a run is live.
+
+Two things to keep true, both for the reason everything else here has:
+
+- **The queue view writes only `plans/queue-order.json`.** It is the second
+  write either surface makes, after `/plan/status`, and both stay inside
+  `plans/`. `kanban/test_plans.mjs` asserts it: every non-GET is recorded rather
+  than sent, and the run is checked for anything reaching `todo.md`.
+- **The log parsing lives in `server.py`, not `plan.py`.** That log is read at a
+  terminal far more often than it is parsed, and pinning its wording to a format
+  string the board depends on would stop it being edited freely. When a line
+  stops matching, the column goes quiet rather than lying —
+  `test_queue_routes` holds `plan.py`'s format strings filled in so the failure
+  lands there instead.
+
+`nightly/README.md` has the design; `IMPROVEMENTS.md` has what is left, which is
+the "What runs on a clock" card and then retiring the Schedule view.
 
 ## Open questions
 

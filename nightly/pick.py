@@ -17,6 +17,11 @@ either answer on its own.
 finished, not whether it is worth thinking about tonight, and CONVENTIONS.md is
 explicit that a deadline never hides anything.
 
+Order comes from the board. The Plans view shows this queue as its first column
+and writes `plans/queue-order.json` when a card is dragged, so the front of the
+list is what he asked for first rather than whichever bucket happens to sort
+early. Cards can also be held back there, and a held task is not planned at all.
+
 The ledger is what makes planning all of them affordable rather than a wall of
 identical files every morning. Each planned task is recorded against a hash of
 its own text; a task whose text has not moved, and whose last plan has not been
@@ -26,7 +31,7 @@ plans only what changed.
 No format knowledge lives here. Everything about how todo.md is written comes
 from core/todo.py, which every reader of the list shares.
 
-    python3 nightly/pick.py            what tonight would plan
+    python3 nightly/pick.py            what tonight would plan, in order
     python3 nightly/pick.py --all      ignore the ledger
     python3 nightly/pick.py --json     the same, for the runner
 """
@@ -97,6 +102,84 @@ def save_ledger(ledger, path=None):
     os.replace(tmp, path)
 
 
+# --- the board's ordering ----------------------------------------------------
+#
+# The queue used to be whatever order the tasks happened to sit in todo.md,
+# which is bucket order, which is not a priority. This is the board's say in it:
+# `plans/queue-order.json`, written by the Plans view when a card is dragged,
+# holding two lists of titles.
+#
+#   order  the front of the queue, in the order they should be planned
+#   hold   tasks not to plan at all until they are let back in
+#
+# Titles rather than ids because titles are already what the ledger keys on, and
+# a second identity scheme for the same tasks is a second thing to keep in step.
+# Retitling a task loses its place in the order, which is the same thing it does
+# to its ledger row, and costs one plan rather than anything else.
+#
+# Neither list is authoritative about what the queue contains. Every rule above
+# still decides that; this only sorts what survives them and drops what is held.
+# So a title in here that no longer exists, or that has gone Blocked since, is
+# simply never matched, and there is nothing to prune.
+
+
+def titles(value):
+    """A list of non-empty titles, or nothing, from whatever was in the file.
+
+    `isinstance(value, list)` rather than truthiness, because a string is
+    iterable: a hand-edited file saying `"order": "Some task"` would otherwise
+    come back as one entry per letter and quietly shuffle the whole queue.
+    """
+    if not isinstance(value, list):
+        return []
+    return [str(t) for t in value if str(t).strip()]
+
+
+def load_order(path=None):
+    try:
+        with open(path or paths.order_path(), encoding="utf-8") as fh:
+            got = json.load(fh)
+    except (OSError, ValueError):
+        return {"order": [], "hold": []}
+    if not isinstance(got, dict):
+        return {"order": [], "hold": []}
+    return {"order": titles(got.get("order")), "hold": titles(got.get("hold"))}
+
+
+def save_order(order, path=None):
+    path = path or paths.order_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    body = {
+        "order": titles(order.get("order")),
+        "hold": titles(order.get("hold")),
+        "saved": dt.datetime.now().astimezone().isoformat(timespec="minutes"),
+    }
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
+        json.dump(body, fh, indent=2)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+    return body
+
+
+def key(title):
+    return (title or "").strip().lower()
+
+
+def in_order(tasks, order):
+    """The queue, sorted by what the board asked for.
+
+    A task the board has never ranked goes to the back rather than the front,
+    keeping its position relative to the other unranked ones. So an ordering he
+    set last week survives a new task appearing today: the new one queues behind
+    what he has already prioritised instead of jumping it.
+    """
+    rank = {key(t): i for i, t in enumerate(order or [])}
+    back = len(rank)
+    return sorted(tasks, key=lambda t: rank.get(key(t.title), back))
+
+
 def is_stale(task, ledger):
     """Whether this task needs a fresh plan.
 
@@ -113,8 +196,15 @@ def is_stale(task, ledger):
     return False, "unchanged since %s" % seen.get("planned", "?")
 
 
-def select(text, day=None, use_ledger=True, ledger=None, only=None):
-    """(to plan, skipped) — skipped carries a reason for the log."""
+def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
+    """(to plan, skipped) — skipped carries a reason for the log.
+
+    The returned queue is in the order it will actually be worked through, which
+    is the board's order first and list order behind it. That matters more than
+    it looks: the batch stops on a budget, a floor or a usage limit, so the
+    front of this list is the part that reliably gets planned and the back is
+    the part that might not.
+    """
     day = day or dt.date.today()
     tasks = todo.parse_doc(text)
     slugs = todo.slug_states(tasks)
@@ -128,28 +218,36 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None):
             hit = [t for t in tasks if want in t.title.strip().lower()]
         return hit, []
 
+    order = order if order is not None else load_order()
+    held = {key(t) for t in order.get("hold") or []}
     ledger = ledger if ledger is not None else (load_ledger() if use_ledger else {})
     plan, skip = [], []
     for t in cand:
+        # Held beats everything, --all included. The ledger is a cache and --all
+        # exists to ignore it; this is an instruction, and ignoring it would
+        # mean the one control he has over the night quietly not working.
+        if key(t.title) in held:
+            skip.append((t, "held back from the board"))
+            continue
         if not use_ledger:
             plan.append(t)
             continue
         stale, why = is_stale(t, ledger)
         (plan if stale else skip).append(t if stale else (t, why))
-    return plan, skip
+    return in_order(plan, order.get("order")), skip
 
 
 def _report(plan, skip):
     if not plan:
         print("Nothing to plan.")
     else:
-        print("%d to plan:\n" % len(plan))
-        bucket = None
-        for t in plan:
-            if t.bucket != bucket:
-                bucket = t.bucket
-                print("  %s" % bucket)
-            print("    %-14s %-8s %s" % (t.column, t.ai, t.title[:60]))
+        # Numbered and flat rather than grouped by bucket. Grouping would imply
+        # the runner works bucket by bucket, and since the board started
+        # ordering this queue it works straight down it.
+        print("%d to plan, in order:\n" % len(plan))
+        for i, t in enumerate(plan, 1):
+            print("  %2d. %-14s %-8s %-40s %s" % (
+                i, t.column, t.ai, t.title[:40], t.bucket))
     if skip:
         print("\n%d skipped:" % len(skip))
         for t, why in skip:

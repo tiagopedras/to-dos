@@ -50,6 +50,17 @@ try:
     import windows
 except ImportError:
     windows = None
+# The nightly agent's own two modules, imported the same way and for the same
+# reason. `pick` is what decides which tasks tonight would plan, and the board's
+# queue column is that decision rendered rather than a second guess at it —
+# there is one selection rule and this is it. `plan` comes along for the bucket
+# mapping alone, so the queue can name the agent each task would go to.
+sys.path.insert(0, os.path.join(ROOT, "nightly"))
+try:
+    import pick as nightly_pick
+    import plan as nightly_plan
+except ImportError:
+    nightly_pick = nightly_plan = None
 # The list and everything derived from it live in one folder, and that folder is
 # the only thing git ignores. Before this, the private half of the repo was four
 # separate ignore rules — todo.md, backups/, todo-backup-*.md, views.md — and
@@ -580,8 +591,9 @@ def mark_plan(night, name, status):
     actioned is a task whose plan no longer describes outstanding work, so the
     next night plans it afresh.
 
-    This is the only write either surface makes, and it writes a plan file.
-    Nothing here goes near todo.md.
+    One of the two writes this view makes; set_queue_order below is the other.
+    Between them they write a plan file and a preferences file, both inside
+    plans/. Nothing here goes near todo.md.
     """
     if status not in ("unread", "read", "actioned"):
         return None, {"error": "unknown status"}
@@ -602,23 +614,225 @@ def mark_plan(night, name, status):
         os.fsync(fh.fileno())
     os.replace(tmp, path)
 
-    ledger_path = os.path.join(plans_dir(), "ledger.json")
+    ledger = ledger_path()
     try:
-        with open(ledger_path, encoding="utf-8") as fh:
-            ledger = json.load(fh)
+        with open(ledger, encoding="utf-8") as fh:
+            rows = json.load(fh)
     except (OSError, ValueError):
-        ledger = None
-    if isinstance(ledger, dict):
-        for title, row in ledger.items():
+        rows = None
+    if isinstance(rows, dict):
+        for title, row in rows.items():
             if isinstance(row, dict) and row.get("file") == name and row.get("night") == night:
                 row["status"] = status
-        tmp = ledger_path + ".tmp"
+        tmp = ledger + ".tmp"
         with open(tmp, "w", encoding="utf-8", newline="") as fh:
-            json.dump(ledger, fh, indent=2, sort_keys=True)
+            json.dump(rows, fh, indent=2, sort_keys=True)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, ledger_path)
+        os.replace(tmp, ledger)
     return {"ok": True, "status": status}, None
+
+
+# ---- The queue, and what the agent is doing with it right now ---------------
+#
+# The Plans view used to show only finished plans, which meant the one question
+# it could not answer was the one asked most: what is it going to work on
+# tonight, and can I change that. Both halves are here.
+#
+# Nothing is stored ahead of time and nothing is scheduled. The queue is
+# pick.select() run on demand against todo.md as it stands this second — the
+# same call the runner makes at 02:00, not a second implementation of the same
+# rules — so it cannot go stale and there is no queue file to keep in step. Tick
+# a task off and it leaves the queue on the next render.
+#
+# What is stored is only the ordering: plans/queue-order.json, written here when
+# a card is dragged, read by pick. That file is a preference, not a plan. Losing
+# it costs an ordering.
+
+def ledger_path():
+    return os.path.join(plans_dir(), "ledger.json")
+
+
+def queue_order_path():
+    return os.path.join(plans_dir(), "queue-order.json")
+
+
+NIGHTLY_LOCK = os.path.join(ROOT, DATA, ".nightly.lock")
+
+
+def _queue_row(task, ledger, position=0, state="queued", why=""):
+    seen = ledger.get(task.title) if isinstance(ledger, dict) else None
+    if not why and nightly_pick:
+        _, why = nightly_pick.is_stale(task, ledger or {})
+    return {
+        "title": task.title,
+        "bucket": task.bucket,
+        "column": task.column,
+        "ai": task.ai or "",
+        "slug": task.slug or "",
+        "impact": getattr(task, "impact", "") or "",
+        "effort": getattr(task, "effort", "") or "",
+        "agent": nightly_plan.bucket_agent(task.bucket) if nightly_plan else "",
+        "position": position,
+        "state": state,
+        "why": why,
+        # What happened to it last time, so a card that has been planned three
+        # nights running says so rather than looking new every morning.
+        "last": (seen or {}).get("planned", ""),
+        "lastStatus": (seen or {}).get("status", ""),
+    }
+
+
+def queue_listing():
+    """What tonight would plan, in the order it would plan it.
+
+    Returns None when the nightly agent is not in this checkout, which the route
+    answers as a 404 — the same shape the Ask Claude routes use, and the board
+    draws no queue column rather than an error.
+    """
+    if nightly_pick is None or todo is None:
+        return None
+    try:
+        with open(todo_path(), encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return {"queue": [], "held": [], "skipped": [], "order": [], "hold": [],
+                "error": "no todo.md to read"}
+
+    order = nightly_pick.load_order(queue_order_path())
+    try:
+        with open(ledger_path(), encoding="utf-8") as fh:
+            ledger = json.load(fh)
+    except (OSError, ValueError):
+        ledger = {}
+    if not isinstance(ledger, dict):
+        ledger = {}
+
+    queue, skipped = nightly_pick.select(text, order=order, ledger=ledger)
+    holds = {nightly_pick.key(t) for t in order.get("hold") or []}
+
+    rows = [_queue_row(t, ledger, i + 1) for i, t in enumerate(queue)]
+    held, other = [], []
+    for task, why in skipped:
+        if nightly_pick.key(task.title) in holds:
+            held.append(_queue_row(task, ledger, 0, "held", why))
+        else:
+            other.append(_queue_row(task, ledger, 0, "skipped", why))
+    return {
+        "queue": rows, "held": held, "skipped": other,
+        "order": order.get("order") or [], "hold": order.get("hold") or [],
+    }
+
+
+def set_queue_order(order, hold):
+    """Write the board's ordering. The second write either surface makes.
+
+    It writes a file the nightly agent owns and nothing else reads. Both lists
+    are taken as given rather than validated against the current queue: a title
+    in here that no longer exists is never matched and costs nothing, whereas
+    dropping unknown titles would quietly lose the ordering of a task that is
+    merely Blocked this week and back next.
+    """
+    if nightly_pick is None:
+        return None, {"error": "no nightly agent in this checkout"}
+    if not isinstance(order, list) or not isinstance(hold, list):
+        return None, {"error": "order and hold must both be lists"}
+    if len(order) + len(hold) > 500:
+        return None, {"error": "too many titles"}
+    body = nightly_pick.save_order({"order": order, "hold": hold},
+                                   queue_order_path())
+    return {"ok": True, "order": body["order"], "hold": body["hold"],
+            "saved": body["saved"]}, None
+
+
+# The log lines plan.py writes, and which of them mean what. Matched here rather
+# than exported from plan.py because the log is a human artefact first: it is
+# read at a terminal far more often than it is parsed, and pinning its wording
+# to a format string the board depends on would stop it being edited freely.
+# When one of these stops matching, the column goes quiet — it does not lie.
+_LOG_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s\s+(.*)$")
+_FLIGHT_RE = re.compile(r"^>\s+(.*?)\s+\(([a-z0-9\-]+)\)\s*$")
+_DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
+# Greedy up to 50 rather than lazy to a run of spaces: plan.py pads the title
+# into a 50-character field, so a title that fills it is followed by a single
+# space and a lazy match would take the message as part of the title.
+_FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
+
+
+def nightly_run():
+    """What the nightly agent is doing, or did last, from its lock and its log.
+
+    Two sources again, and neither is enough alone. The lock directory says
+    whether a run is going on right now — it is held for the life of the batch
+    and cleared by a trap on the way out. The log says what that run has got
+    through. A log with a task in flight and no lock is a run that died between
+    the two, which is worth saying out loud rather than showing as live.
+
+    Only ever one task is in flight: plan.py runs its agents one at a time, on
+    purpose, so this is a single card rather than a list of them.
+    """
+    live = os.path.isdir(NIGHTLY_LOCK)
+    since = ""
+    if live:
+        try:
+            since = datetime.datetime.fromtimestamp(
+                os.path.getmtime(NIGHTLY_LOCK)).isoformat(timespec="minutes")
+        except OSError:
+            live = False
+
+    lines = []
+    for raw in _tail(os.path.join(plans_dir(), "nightly.log"), 400):
+        m = _LOG_RE.match(raw)
+        if m:
+            lines.append((m.group(1), m.group(2).strip()))
+
+    # Everything since the last "start:" is this run. Before that is last night.
+    begun = ""
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i][1].startswith("start:"):
+            begun, lines = lines[i][0], lines[i:]
+            break
+    else:
+        lines = []
+
+    to_plan = 0
+    current, done, failed, stopped = None, [], [], ""
+    for stamp, body in lines:
+        m = re.match(r"^start:\s+(\d+) to plan", body)
+        if m:
+            to_plan = int(m.group(1))
+            continue
+        m = _FLIGHT_RE.match(body)
+        if m:
+            current = {"title": m.group(1), "agent": m.group(2), "since": stamp}
+            continue
+        m = _DONE_RE.match(body)
+        if m:
+            done.append({"title": m.group(1).strip(), "took": int(m.group(2)),
+                         "cost": float(m.group(3)), "at": stamp})
+            current = None
+            continue
+        m = _FAIL_RE.match(body)
+        if m:
+            failed.append({"title": m.group(1).strip(), "why": m.group(2), "at": stamp})
+            current = None
+            continue
+        if body.startswith("Stopped") or body.startswith("STOPPED"):
+            stopped, current = body, None
+
+    orphan = bool(current) and not live
+    return {
+        "live": live,
+        "since": since,
+        "started": begun,
+        "toPlan": to_plan,
+        "current": None if orphan else current,
+        "orphan": orphan and current or None,
+        "done": done,
+        "failed": failed,
+        "stopped": stopped,
+        "left": max(0, to_plan - len(done) - len(failed)) if to_plan else 0,
+    }
 
 
 def report_meta(path, name):
@@ -927,6 +1141,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, {"reports": report_listing()})
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
+        # Three routes rather than one, and split by how long each takes: the
+        # queue is a parse of todo.md, the run is a tail of a log, and both are
+        # instant. A checkout with no nightly/ answers 404 on the queue and the
+        # board simply draws one fewer column.
+        if path == "/queue.json":
+            got = queue_listing()
+            return self._json(404 if got is None else 200,
+                              got if got is not None else {"error": "no nightly agent here"})
+        if path == "/nightly.json":
+            return self._json(200, nightly_run())
         # Two routes rather than one, because the jobs are instant and the
         # windows are a second: the view paints the jobs and fetches the usage
         # after, instead of waiting on both.
@@ -1135,6 +1359,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = mark_plan(payload.get("night"), payload.get("name"),
                                  payload.get("status"))
+            return self._json(400 if err else 200, err or got)
+        if path == "/queue/order":
+            # Same guard as every other write route: only the board asks.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = set_queue_order(payload.get("order") or [],
+                                       payload.get("hold") or [])
             return self._json(400 if err else 200, err or got)
         if path == "/agenda-history":
             data = self._body()

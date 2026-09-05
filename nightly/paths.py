@@ -61,3 +61,14 @@ def log_path():
 
 def attach_queue_path():
     return os.path.join(data_dir(), "attach-queue.json")
+
+
+def order_path():
+    """The board's priority list for the queue: order, and what is held back.
+
+    A sidecar rather than anything in todo.md, because todo.md has exactly one
+    writer and the board dragging a card in the Plans view must not become a
+    second one. Nothing outside the nightly agent reads it, and losing it costs
+    an ordering rather than any work.
+    """
+    return os.path.join(plans_dir(), "queue-order.json")
