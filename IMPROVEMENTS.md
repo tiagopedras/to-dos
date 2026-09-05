@@ -18,6 +18,34 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The nightly agent's first full batch spent the whole night on one bucket.**
+  Found 5 Sep 2026, on the first real 24-task run. The queue is ordered
+  Design System first, and DS is 13 of the 24, so all 10 plans the budget paid
+  for were DS. People, Strategic and Processes got nothing at all, and every one
+  of the 14 that went unplanned is in those three. The ledger carries them, so
+  the second night is all non-DS, which is the opposite imbalance rather than a
+  fix. What it probably wants is the picker interleaving buckets rather than
+  draining them in order, so a short night is a thin spread instead of one
+  bucket done and three untouched. This is also the night's spread the handover
+  said would settle whether DS wants splitting into its five streams: it does,
+  or the ordering does.
+
+- **A plan whose agent wrote no `summary:` lists as `[fill in]`.** Found 5 Sep
+  2026; 2 of 10 agents did it. `write_plan` in `nightly/plan.py` falls back to
+  the literal `[fill in]` when the agent's own frontmatter carries no summary
+  line, and that string is what `index.md` and the Plans view then show as the
+  plan's whole description. The fallback is right to be visible rather than
+  silent, but it should not be the placeholder text the brief uses for a fact
+  the agent could not establish — those two meanings are now the same string.
+  Either take the plan's first sentence, or say plainly that the agent wrote no
+  summary.
+
+- **The nightly budget is set from figures four times too low.** `NIGHTLY_BUDGET`
+  in `nightly/plan.py` is $12, chosen against two runs that cost $0.29 and
+  $0.67. The first full batch averaged $1.23 across 10 plans and stopped on
+  budget with 14 left. The whole 24 is around $30. $12 is a defensible ceiling,
+  but it should be set against $1.23 rather than against $0.48.
+
 - ~~Message suggestions and Prompt suggestions disappeared when empty.~~
   **Done, 4 Sep 2026.** `suggestionSection` in `kanban/index.html` no longer
   returns `''` for an empty list — it renders the section with a one-line
