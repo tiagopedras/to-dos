@@ -4278,6 +4278,14 @@ function renderFlight(n){
       '</dl>';
   }
   if (n.stopped) html += '<p class="fstop">' + esc(n.stopped) + '</p>';
+
+  /* Only when nothing is going. run.sh holds a lock and would refuse a second
+     batch anyway, but it refuses by logging and exiting cleanly, which from a
+     button looks exactly like starting — so the button is not offered rather
+     than offered and quietly ignored. */
+  if (!n.live) {
+    html += '<button class="btn frun" id="runNight">Run the agent now</button>';
+  }
   if (n.done.length) {
     const spent = n.done.reduce((a, d) => a + d.cost, 0);
     html += '<h4 class="fhead">Written this run — $' + spent.toFixed(2) + '</h4>' +
@@ -4292,6 +4300,46 @@ function renderFlight(n){
       'A wake that found no window logs its reason and stops without starting one.</p>';
   }
   out.innerHTML = html;
+  const btn = $('#runNight');
+  if (btn) btn.onclick = () => confirmNightlyRun();
+}
+
+/* Spending money is a deliberate press and then a second one. The confirm says
+   what it will cost and what it will do, because "run the agent" does not
+   convey either — and the one thing worth being clear about is that it plans
+   and never executes, which is true of the agent whatever hour it runs at. */
+function confirmNightlyRun(){
+  const n = queueRows.length;
+  showModal('Run the nightly agent now?', 'It normally waits for the small hours',
+    '<div class="repdoc">' +
+      '<p>' + (n ? 'It will work through the <strong>' + n + '</strong> task' +
+        (n === 1 ? '' : 's') + ' in the queue, in that order, one agent each'
+        : 'There is nothing in the queue, so it will start and stop') +
+      ', and write a plan for each into the Written plans column.</p>' +
+      '<p>Up to <strong>$12</strong> across the batch and <strong>$2</strong> a task, ' +
+      'stopping early if either runs out. It ignores the clock and the usage window, ' +
+      'so it will spend in whatever window is open now — including the one you are ' +
+      'working in.</p>' +
+      '<p>Nothing it writes is carried out. Every plan waits for you.</p>' +
+    '</div>',
+    [{ label:'Run it', primary:true, run: startNightlyRun },
+     { label:'Cancel' }]);
+}
+
+async function startNightlyRun(){
+  try {
+    const res = await fetch('/nightly/run', {
+      method:'POST', headers: { 'Content-Type':'application/json', 'X-Board':'1' }
+    });
+    const got = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(got.error || res.status);
+    showToast('The agent is running. Watch it here.', 'good');
+    // The log gets its first line within a second or two; the poll's own ten
+    // seconds is too long to wait when you have just pressed the button.
+    setTimeout(renderNightly, 1200);
+  } catch (err) {
+    showToast('Could not start it: ' + (err.message || err), 'bad');
+  }
 }
 
 /* Polls while the tab is on Plans and stops the moment it is not. Faster while

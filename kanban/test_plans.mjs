@@ -301,6 +301,43 @@ check('a run that died mid-task says so rather than looking live', await evalJS(
   document.querySelector('#flightOut .err').textContent.includes('never finished')
 `))
 
+// --- forcing a run by hand ------------------------------------------------
+// The button spends real money, so it confirms first and says what it will
+// cost. The post itself is recorded rather than sent, like every other write
+// in here.
+
+check('with nothing running, the agent can be started by hand', await evalJS(`
+  !!document.querySelector('#flightOut #runNight')
+`))
+await evalJS(`document.querySelector('#flightOut #runNight').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('pressing it asks first rather than spending', await evalJS(`
+  !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/nightly/run'))
+`))
+check('and the confirm says what it costs and that nothing is carried out', await evalJS(`
+  (() => { const m = document.querySelector('.mscrim .mid').textContent;
+    return m.includes('$12') && m.includes('$2') &&
+           m.includes('Nothing it writes is carried out') })()
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Run it').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('confirming posts the run', await evalJS(`
+  window.__blocked.some(b => b.startsWith('POST /nightly/run'))
+`))
+
+// A run already going must not offer to start a second one. run.sh would
+// refuse anyway, but it refuses by logging and exiting cleanly, which from a
+// button is indistinguishable from starting.
+await evalJS(`(async () => {
+  window.__nightly = Object.assign({}, window.__nightly, { live: true });
+  await renderNightly();
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('a run already going is not offered a second one', await evalJS(`
+  !document.querySelector('#flightOut #runNight')
+`))
+
 // Opening one: the body loads, and reading it is recorded as read — the one
 // write that happens without being asked for.
 await evalJS(`document.querySelector('#plansOut [data-plan-open]').click()`)
@@ -336,9 +373,10 @@ check('and the row moves into the actioned fold', await evalJS(`
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
 `))
-check('and every write was a plan status or a queue ordering', await evalJS(`
+check('and every write was a plan status, a queue ordering or a run', await evalJS(`
   window.__blocked.every(b =>
-    b.startsWith('POST /plan/status') || b.startsWith('POST /queue/order'))
+    b.startsWith('POST /plan/status') || b.startsWith('POST /queue/order') ||
+    b.startsWith('POST /nightly/run'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
 // The whole queue column writes to exactly one place, and it is not the list.
 check('the queue writes only its own ordering', await evalJS(`

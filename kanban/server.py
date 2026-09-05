@@ -829,6 +829,44 @@ _DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
 _FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
 
 
+def start_nightly_run():
+    """Kick off a batch now, from the board's button.
+
+    `--force`, which is the whole point: it skips the clock gate and the window
+    test, so it runs at eleven in the morning when neither would allow it. It
+    does not skip the lock, and it does not skip the ledger — a task planned
+    last night whose text has not moved is still skipped, so pressing this twice
+    in a row is cheap rather than a second full batch.
+
+    Detached with start_new_session, so the run outlives both this request and
+    this server. A batch is twenty-odd agents over half an hour and it must not
+    be tied to whether a board tab stays open.
+
+    The lock is checked here as well as in run.sh. run.sh would refuse anyway,
+    but it refuses by logging a line and exiting 0, which from here is
+    indistinguishable from a run that started — and a button that says it
+    started something it did not is worse than one that refuses.
+    """
+    import subprocess
+    if nightly_pick is None:
+        return None, {"error": "no nightly agent in this checkout"}
+    script = os.path.join(ROOT, "nightly", "run.sh")
+    if not os.path.isfile(script):
+        return None, {"error": "nightly/run.sh is not here"}
+    if os.path.isdir(NIGHTLY_LOCK):
+        return None, {"error": "a run is already going"}
+    try:
+        subprocess.Popen(
+            [script, "--force"], cwd=ROOT,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, start_new_session=True)
+    except OSError as exc:
+        return None, {"error": "could not start it: %s" % exc}
+    sys.stdout.write("nightly agent: forced a run from the board\n")
+    sys.stdout.flush()
+    return {"ok": True, "started": True}, None
+
+
 def nightly_run():
     """What the nightly agent is doing, or did last, from its lock and its log.
 
@@ -1430,6 +1468,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             got, err = mark_plan(payload.get("night"), payload.get("name"),
                                  payload.get("status"))
             return self._json(400 if err else 200, err or got)
+        if path == "/nightly/run":
+            # Spends real money, so it is guarded like every other write route
+            # and confirmed in the board before it gets here.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            got, err = start_nightly_run()
+            return self._json(409 if err else 200, err or got)
         if path == "/queue/order":
             # Same guard as every other write route: only the board asks.
             if self.headers.get("X-Board") != "1":

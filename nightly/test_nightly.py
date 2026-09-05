@@ -489,6 +489,22 @@ def test_queue_routes():
             n = server.nightly_run()
             check("a new run does not inherit the last one's tally", n["done"], [])
             check("nor its failures", n["failed"], [])
+
+            # The button. Only the refusals are checked here — the success path
+            # spends real money on real agents, which is not a thing a test
+            # suite gets to do.
+            _, err = server.start_nightly_run()
+            check("it will not start a second run on top of one going",
+                  (err or {}).get("error"), "a run is already going")
+            os.rmdir(server.NIGHTLY_LOCK)
+
+            real_root = server.ROOT
+            server.ROOT = tmp                 # no nightly/run.sh under here
+            try:
+                _, err = server.start_nightly_run()
+                check("nor one with no runner to start", bool(err), True)
+            finally:
+                server.ROOT = real_root
         finally:
             (server.plans_dir, server.current_dataset, server.todo_path,
              server.NIGHTLY_LOCK) = real

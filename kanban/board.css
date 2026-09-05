@@ -890,6 +890,9 @@
     flex:none; font-size:11.5px; color:var(--ink-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
+  /* Full width and at the bottom of the card. It spends money, so it should
+     not sit next to anything that does not. */
+  .frun{width:100%; margin:14px 0 0; justify-content:center}
   .frow.failed .fname{color:var(--red)}
   .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
 
@@ -1725,6 +1728,10 @@
     opacity:0; transform:translateY(6px); transition:opacity .15s, transform .15s;
   }
   .toast.blocked{background:var(--amber-bg); color:var(--amber); border:1px solid color-mix(in srgb, var(--amber) 35%, transparent)}
+  /* `bad` was in use before it had a style and fell back to the plain dark
+     toast, which reads as a confirmation. A failure should not. */
+  .toast.bad{background:var(--red-bg); color:var(--red); border:1px solid color-mix(in srgb, var(--red) 35%, transparent)}
+  .toast.good{background:var(--green-bg); color:var(--green); border:1px solid color-mix(in srgb, var(--green) 35%, transparent)}
   .toast.show{opacity:1; transform:translateY(0)}
 
   /* ---------------------------------------------------------------------

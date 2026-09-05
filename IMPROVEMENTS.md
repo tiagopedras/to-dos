@@ -284,7 +284,9 @@ they settled is written up in the README rather than left here:
   simply never matched, and there is nothing to prune.
 
 - ~~**No view can show a run that is happening right now.**~~ **Done, 5 Sep
-  2026**, as the **In flight** column in Plans, off a new `/nightly.json`.
+  2026**, as the **In flight** column in Plans, off a new `/nightly.json`, with
+  a **Run the agent now** button on the same card (`POST /nightly/run`, which is
+  `run.sh --force` started detached).
 
   It reads the lock and the log together, because neither is enough. The lock
   (`data/.nightly.lock`, held by `run.sh` for the length of a batch) is the only

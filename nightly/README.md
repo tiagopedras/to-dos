@@ -163,6 +163,15 @@ rather than showing it as live.
 
 One card, not a list, because `plan.py` runs its agents strictly one at a time.
 
+The same card carries **Run the agent now**, which is `run.sh --force` started
+detached from the board. Force means what it says: it skips the clock gate and
+the window test, so it will spend in whatever window is open, including the one
+being worked in. It does not skip the lock, and it does not skip the ledger — a
+task planned last night whose text has not moved is still skipped, so pressing
+it twice is cheap rather than a second full batch. The button is not offered
+while a run is going, because `run.sh` refuses a second one by logging a line
+and exiting cleanly, which from a button is indistinguishable from starting.
+
 ## The sub-agents
 
 One per bucket, in `.claude/agents/` **in this repo** rather than `~/.claude/`,
