@@ -1262,15 +1262,23 @@
      The handle's own resting spots at None and Full are pulled in by
      --ai-inset rather than sitting exactly on the track's tips: parked right
      on the tip, the handle is bigger than the track and hides both the
-     rounded end and that end's marker dot completely. Pulled in, the tip
-     stays visible past the handle at every position. Purely a display
+     rounded end and that end's marker dot completely. Purely a display
      offset — posToValue() still rounds the raw drag fraction across the full
-     track, so dragging all the way to either edge lands on None or Full. */
-  .aislider{--ai-inset:7px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
+     track, so dragging all the way to either edge lands on None or Full.
+
+     The track itself is drawn a bit longer than that same 0–100% coordinate
+     space, via ::before rather than by resizing .aitrack — extending .aitrack
+     would move where 100% actually is and break the drag math above it. The
+     extra --ai-cap px on each side is what makes a rounded end visible at
+     all: without it, the end dot sits exactly on the track's real tip and the
+     "rounded end" is just the dot. With it, the tip is past the dot, so a bit
+     of cap curves away beyond both. */
+  .aislider{--ai-inset:10px; --ai-cap:5px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
   .aislider.disabled{opacity:.5; pointer-events:none}
   .aislider:focus-visible{outline:none}
-  .aitrack{position:relative; height:6px; border-radius:999px; background:var(--line)}
-  .aitick{position:absolute; top:50%; width:4px; height:4px; border-radius:50%; background:var(--panel); transform:translate(-50%,-50%)}
+  .aitrack{position:relative; height:6px}
+  .aitrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--ai-cap)); right:calc(-1 * var(--ai-cap)); height:100%; border-radius:999px; background:var(--line)}
+  .aitick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
   .aitick[data-i="0"]{left:0} .aitick[data-i="1"]{left:50%} .aitick[data-i="2"]{left:100%}
   .aifill{position:absolute; top:0; left:0; height:100%; border-radius:999px; transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
   .aifill[data-v="none"]{width:0%; background:var(--ink-faint)}
