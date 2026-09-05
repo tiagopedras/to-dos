@@ -1280,10 +1280,13 @@
   .aitrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--ai-cap)); right:calc(-1 * var(--ai-cap)); height:100%; border-radius:999px; background:var(--line)}
   .aitick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
   .aitick[data-i="0"]{left:0} .aitick[data-i="1"]{left:50%} .aitick[data-i="2"]{left:100%}
-  .aifill{position:absolute; top:0; left:0; height:100%; border-radius:999px; transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
+  /* Left edge sits at -ai-cap, not 0, so the colour reaches into the same
+     stub of cap the track's own ::before draws — otherwise "filled so far"
+     stops short of the rounded end and leaves an uncoloured nub before it. */
+  .aifill{position:absolute; top:0; left:calc(-1 * var(--ai-cap)); height:100%; border-radius:999px; transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
   .aifill[data-v="none"]{width:0%; background:var(--ink-faint)}
-  .aifill[data-v="partial"]{width:50%; background:var(--amber)}
-  .aifill[data-v="full"]{width:calc(100% - var(--ai-inset)); background:var(--green)}
+  .aifill[data-v="partial"]{width:calc(50% + var(--ai-cap)); background:var(--amber)}
+  .aifill[data-v="full"]{width:calc(100% - var(--ai-inset) + var(--ai-cap)); background:var(--green)}
   .aihandle{
     position:absolute; top:50%; left:var(--ai-inset); width:20px; height:20px; border-radius:50%;
     background:var(--panel); border:2px solid var(--ink-faint); box-shadow:0 1px 3px rgba(16,20,28,.2);
