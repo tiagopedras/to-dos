@@ -594,14 +594,42 @@ function delegateSection(items){
 
 /* ---- Small shared renderers ---- */
 
+/* Three things that only make sense once the marks below have gone: a URL
+   written on its own, a `[key:: value]` tag, and a `[placeholder]` still
+   waiting to be filled in. One pass rather than three, with links, code spans
+   and `[[wikilinks]]` matched first and handed straight back — so nothing
+   here reaches inside a link that was already made, a span meant to read
+   literally, or the one bracket form the file format uses for something else.
+
+   Each match keeps every character it was written with, brackets included.
+   That is not only honest about what is in the file — clicking a rendered
+   note drops the caret into that exact text, and the arithmetic that finds
+   the spot (rawOffsetForVisible in the drawer) works by counting characters
+   that survive rendering. A chip that dropped its brackets would be two
+   characters the count could not see. */
+const MD_LATE_RE = new RegExp([
+  '<a\\b[^>]*>[\\s\\S]*?<\\/a>',                   // a link the pass below already made
+  '<code>[\\s\\S]*?<\\/code>',                     // meant to read literally
+  '\\[\\[[^\\]\\n]*\\]\\]',                        // a wikilink, which is not a placeholder
+  '(https?:\\/\\/[^\\s<>()]+[^\\s<>().,;:!?\'"])',  // 1: a URL on its own
+  '(\\[[A-Za-z][\\w-]*::[^\\]]*\\])',              // 2: [key:: value]
+  '(\\[[^\\[\\]\\n]+\\](?!\\())'                   // 3: [placeholder]
+].join('|'), 'g');
+
 function mdInline(s){
   return esc(s)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])_([^_]+)_/g, '$1<em>$2</em>')
     // A lone "[path]" placeholder — see claudeHref above — has no following
-    // (url), so it never matches this and stays literal.
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // (url), so it never matches this. MD_LATE_RE picks it up instead.
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(MD_LATE_RE, (whole, url, tag, hole) => {
+      if (url) return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+      if (tag) return '<em class="mdtag">' + tag + '</em>';
+      if (hole) return '<em class="mdhole">' + hole + '</em>';
+      return whole;
+    });
 }
 /* A prompt is written to be handed to Claude, so the board can do the handing
    rather than leaving it as a copy-and-paste. claude.ai/new?q= opens a fresh

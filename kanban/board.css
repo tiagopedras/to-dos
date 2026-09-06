@@ -1364,6 +1364,22 @@
      of the meta row, pinned to the right rather than wrapping in with it. */
   .meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
   .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
+  /* The two bracket forms that turn up inside prose rather than on a task
+     line — a `[key:: value]` tag and a `[placeholder]` — picked out by
+     mdInline wherever it renders, so a note, a report and a plan all mark
+     them the same way. Both keep the brackets they were written with; the
+     colour is the whole change.
+
+     A placeholder is amber because it is an open loop: something the writer
+     left for later and the reader has to fill in. A tag is quiet, because it
+     is already answered. Sized in em rather than px so they sit right in a
+     card title and in a note, which are two different type sizes. */
+  .mdtag, .mdhole{
+    font-style:normal; font-size:.92em; font-weight:600; padding:1px 4px;
+    border-radius:4px; white-space:nowrap;
+  }
+  .mdtag{background:var(--chip); color:var(--ink-faint)}
+  .mdhole{background:var(--amber-bg); color:var(--amber)}
   .tag.impact-high{color:var(--ink)}
   .tag.due{background:var(--chip)}
   /* A start date reads as a gate, not a warning: hollow rather than filled, so a
@@ -1447,14 +1463,38 @@
     border-radius:6px; padding:3px 8px;
   }
   .completeall:hover{border-color:var(--ink-faint); color:var(--ink)}
+  /* Expand/Collapse sits at the far end of the Description's own label, where
+     Complete all sits on Subtasks'. Pushed there rather than placed, so the
+     note beside the label can be as long or short as it wants to be. */
+  .notegrow{margin-left:auto}
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }
-  .field textarea{min-height:200px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
-  .notestabs{display:flex; gap:6px}
-  /* Same surface as the textarea it stands in for, since Preview replaces it
-     in place rather than sitting beside it — see the toggle in openDrawer. */
-  .field .repdoc{border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:9px 11px; min-height:200px}
+  .field textarea{min-height:120px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
+  /* Same surface as the textarea it stands in for, since the rendering
+     replaces it in place rather than sitting beside it — see the Description
+     field in openDrawer. The height that actually applies is set there, on
+     both of them at once; these two floors are what they fall back to before
+     that runs, and what a drag cannot go under. */
+  .field .repdoc{border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:9px 11px; min-height:120px}
+  /* Reads as text you can type into, because it is: clicking anywhere in it
+     swaps it for the textarea with the caret in the same place. The border
+     only warms on hover, so at rest it looks like the note rather than like
+     a control.
+
+     resize needs a non-visible overflow to do anything at all, which the
+     rendering wants regardless — at 120px most notes are taller than the
+     field and have to scroll inside it. */
+  .field .noteview{cursor:text; resize:vertical; overflow:auto}
+  .field .noteview:hover{border-color:var(--ink-faint)}
+  .drawer.readonly .field .noteview{cursor:default}
+  .drawer.readonly .field .noteview:hover{border-color:var(--line)}
+  .field .noteview .empty{font-size:13px; color:var(--ink-faint); margin:0}
+  /* A note is written in headings and bullets far more often than a report
+     is, and they sit closer together here than they do in a document read at
+     full modal width. */
+  .field .noteview h4{margin-top:12px}
+  .field .noteview a{color:var(--accent)}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 
   /* A fixed-stop slider — 2 or more positions, colour and count both set by

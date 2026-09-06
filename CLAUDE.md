@@ -152,6 +152,17 @@ anything, so the recording is also how the test asserts it posts only
 queue's ordering, both inside `plans/` — and never reaches `todo.md`. `kanban/test_schedule.mjs` is the
 same again for the Schedule view.
 
+`kanban/test_notes.mjs` covers the drawer's Description field, which renders
+Markdown at rest and swaps to the raw textarea when clicked. It is the one
+board test that has to unlock the tab and type for real, since that is the
+thing under test — so the `fetch` guard is doing the whole job on its own
+there, and the blocked list is asserted to hold nothing but the board's own
+`todo.md` save. It clicks at real coordinates rather than calling the handler
+with made-up ones, because the caret arithmetic starts from a hit test the
+browser does; that also means it has to wait out the drawer's slide-in
+transition before measuring anything, or the panel is still off the right-hand
+edge of the window and every hit test misses.
+
 A board test that throws before its `chrome.kill()` leaves a headless Chrome
 holding the debugging port and the page it had loaded. The next run finds the
 port taken, connects to that orphan, and asserts against a stale copy of

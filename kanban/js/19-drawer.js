@@ -9,6 +9,88 @@ function indent(text){
   return text.replace(/\s+$/,'').split('\n').map(l => l.trim() === '' ? '' : '  ' + l);
 }
 
+/* ---- Clicking rendered Markdown back into its source ----
+   The Description shows rendered and edits raw (see the field in openDrawer),
+   so a click on the rendering has to land on the same word in the Markdown
+   underneath. Two steps: which character of the rendered text was clicked,
+   and where that character is in the source.
+
+   The second step is the awkward one, because mdInline drops the marks —
+   backticks, asterisks, underscores, a link's URL — so the nth character you
+   can see is not the nth character in the source. This builds the whole
+   correspondence rather than counting up to the one it wants: one entry per
+   character that survives rendering, holding where that character sits in the
+   source, and a last entry for the end. Written out in full because the
+   counting version got the ends of a marked run wrong in both directions —
+   a click on the b of **bold** landed on an asterisk, and so did a click on
+   the space after it.
+
+   It knows exactly the marks mdInline knows and no others; anything else
+   counts as itself, which is the right answer for plain text. */
+function rawOffsetForVisible(src, want){
+  const map = [];
+  let i = 0;
+  while (i < src.length) {
+    const rest = src.slice(i);
+    let m, lead = 0, shown = null;
+    // A link shows its label and hides its URL. The rest are symmetric marks
+    // of one or two characters each side.
+    if ((m = /^\[([^\]]+)\]\([^)]+\)/.exec(rest))) { lead = 1; shown = m[1]; }
+    else if ((m = /^`([^`]+)`/.exec(rest))) { lead = 1; shown = m[1]; }
+    else if ((m = /^\*\*([^*]+)\*\*/.exec(rest))) { lead = 2; shown = m[1]; }
+    // _em_ only counts at a word boundary, the same condition mdInline uses.
+    else if ((i === 0 || /[\s(]/.test(src[i - 1])) && (m = /^_([^_]+)_/.exec(rest))) { lead = 1; shown = m[1]; }
+    if (shown === null) { map.push(i); i++; continue; }
+    for (let k = 0; k < shown.length; k++) map.push(i + lead + k);
+    i += m[0].length;
+  }
+  map.push(src.length);
+  return map[Math.max(0, Math.min(want, map.length - 1))];
+}
+
+/* How far into `root`'s text the point (x, y) falls. Firefox and the rest
+   spell the same thing two different ways, and either can miss entirely — a
+   click on the padding rather than on a glyph — in which case the end of the
+   text is the honest answer. */
+function textOffsetAtPoint(root, x, y){
+  let node = null, off = 0;
+  if (document.caretPositionFromPoint) {
+    const p = document.caretPositionFromPoint(x, y);
+    if (p) { node = p.offsetNode; off = p.offset; }
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (r) { node = r.startContainer; off = r.startOffset; }
+  }
+  if (!node || node.nodeType !== 3 || !root.contains(node)) return root.textContent.length;
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n = 0, t;
+  while ((t = walk.nextNode())) {
+    if (t === node) return n + off;
+    n += t.nodeValue.length;
+  }
+  return n;
+}
+
+/* Where in `value` a click on the rendered note should put the caret. The
+   block carries the lines it came from in data-src; within the block, a
+   heading's hashes and a bullet's dash are rendered away like any other mark,
+   so they are skipped before the count starts. A paragraph joins its lines
+   with a space where the source has a newline — one character either way, so
+   the count still lines up across a wrapped paragraph. */
+function noteCaret(view, value, e){
+  const blk = e.target.closest('[data-src]');
+  if (!blk) return value.length;
+  const [a, b] = blk.dataset.src.split(',').map(Number);
+  const lines = value.split('\n');
+  let start = 0;
+  for (let i = 0; i < a && i < lines.length; i++) start += lines[i].length + 1;
+  const block = lines.slice(a, b + 1).join('\n');
+  const pre = /^\s*(?:#{1,4}\s+|[-*]\s+)/.exec(block);
+  const prefix = pre ? pre[0].length : 0;
+  const vis = textOffsetAtPoint(blk, e.clientX, e.clientY);
+  return start + prefix + rawOffsetForVisible(block.slice(prefix), vis);
+}
+
 /* ---- Date picker ----
    A month grid rather than <input type="date">, which hides its calendar behind
    a small icon and draws a different control in every browser. It opens in the
@@ -471,20 +553,27 @@ function openDrawer(id, focusTitle){
   const mainFields =
     '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
     '<details class="field" data-collapse="notes"' + (sectionCollapsed('notes') ? '' : ' open') + '>' +
-      '<summary>Description</summary>' +
-      /* Edit is the raw text notePrompt et al. still parse scaffolding lines
-         out of — Preview is a read-only look at the same text rendered the
-         way a report or plan already is, through the same mdBlocks(). A
-         toggle rather than a live side-by-side: the drawer is not wide enough
-         for both, and a "Message (draft):" line reads as a bullet either way,
-         which is honest rather than wrong. */
-      '<div class="notestabs">' +
-        '<button type="button" class="btn mini on" data-notesview="edit">Edit</button>' +
-        '<button type="button" class="btn mini" data-notesview="preview">Preview</button>' +
-      '</div>' +
-      '<textarea id="f-body" spellcheck="false"' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
-      '<div id="f-body-preview" class="repdoc" hidden></div>' +
-      '<span class="help">Subtasks live in the list below. Anything you type here is a note on the task.</span>' +
+      /* The label carries the note about subtasks and the Expand button, the
+         way Subtasks' own label already carries Complete all. Under the field
+         they were a line of small print between the note and the next thing,
+         read once and in the way ever after. */
+      '<summary>Description' +
+        '<em class="sublabel">Subtasks are in the list below.</em>' +
+        '<button type="button" class="completeall notegrow" id="f-body-grow"></button>' +
+      '</summary>' +
+      /* Rendered by default, raw while you are in it. There used to be an
+         Edit/Preview pair of tabs here and reading a note meant pressing one
+         of them, which is a click to do the thing the panel is open for. Now
+         the note reads as a note, and clicking it swaps the whole field for
+         the textarea with the caret where you clicked (see noteCaret) —
+         blur or Escape puts the rendering back. Not a live side-by-side:
+         the drawer is not wide enough for two columns.
+
+         Raw is still the truth. notePrompt and the other scaffolding readers
+         parse the same text this renders, and a "Message (draft):" line reads
+         as a bullet either way, which is honest rather than wrong. */
+      '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
+      '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
     '</details>' +
     '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
       state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
@@ -552,7 +641,11 @@ function openDrawer(id, focusTitle){
         return '<div class="sub' + (s.done ? ' checked' : '') + '"' + (ro ? '' : ' draggable="true"') + ' data-i="' + i + '">' +
           '<span class="grip" title="Drag to reorder">⠿</span>' +
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
-          '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + esc(s.clean) +
+          /* Rendered, like the Description above it and like the card titles
+             on the board, and edited raw by editSubtext the moment it is
+             clicked. A subtask is one line, so this is mdInline rather than
+             the block renderer. */
+          '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + mdInline(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
           (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
           '</div>';
@@ -656,7 +749,13 @@ function openDrawer(id, focusTitle){
       };
     });
     subsEl.querySelectorAll('.subtext').forEach(span => {
-      span.onclick = () => editSubtext(span, t, +span.dataset.line, id);
+      span.onclick = e => {
+        // A link in a rendered subtask is there to be followed. Opening the
+        // editor on top of it would make it the one bit of text you cannot
+        // click, so the click goes to the link and the editor stays shut.
+        if (e.target.closest('a')) return;
+        editSubtext(span, t, +span.dataset.line, id);
+      };
     });
     subsEl.querySelectorAll('.subdel').forEach(btn => {
       btn.onclick = e => {
@@ -730,27 +829,104 @@ function openDrawer(id, focusTitle){
      "Add" click that still left a blank, unlabelled row would just be a second
      click waiting to happen. */
   $('#f-addsub').onclick = () => addStepAndEdit(t, id);
-  $('#f-body').onchange = e => {
-    const p = bodyParts(t);
-    rebuildBody(t, indent(e.target.value), p.subs, p.subsAt);
-    markDirty(); refreshView();
-  };
   }
 
-  // Reading is not editing: the Preview toggle works the same whether or not
-  // this is a backup preview, unlike everything wired above.
-  $('#drawer').querySelectorAll('[data-notesview]').forEach(btn => {
-    btn.onclick = () => {
-      const preview = btn.dataset.notesview === 'preview';
-      $('#drawer').querySelectorAll('[data-notesview]').forEach(b => b.classList.toggle('on', b === btn));
-      if (preview) {
-        $('#f-body-preview').innerHTML = mdBlocks($('#f-body').value) ||
-          '<p class="empty">Nothing written yet.</p>';
-      }
-      $('#f-body').hidden = preview;
-      $('#f-body-preview').hidden = !preview;
+  /* ---- Description: rendered, click to edit ----
+     Drawn before the wiring below so a backup preview gets the rendering too —
+     reading is not editing, and a note is easier to read rendered whether or
+     not this panel is allowed to change anything. */
+  const bodyTa = $('#f-body'), bodyView = $('#f-body-view'), bodyGrow = $('#f-body-grow');
+  let bodySaved = bodyTa.value;
+  const renderBody = () => {
+    bodyView.innerHTML = mdBlocks(bodyTa.value, { srcmap:true, keepH1:true }) ||
+      '<p class="empty">' + (ro ? 'Nothing written.' : 'Nothing written yet. Click to add a note.') + '</p>';
+  };
+  renderBody();
+
+  /* One height on both halves, so the panel below the field does not move
+     when the field changes state. Expand is the only button, and it reads
+     Collapse whenever the field is standing taller than its floor — which is
+     true after a drag as much as after a press, so the two ways of resizing
+     it cannot disagree about what the button now does. */
+  let bodyH = noteHeight();
+  const showBodyHeight = h => {
+    bodyH = Math.max(NOTE_H_MIN, Math.round(h));
+    bodyView.style.height = bodyH + 'px';
+    bodyTa.style.height = bodyH + 'px';
+    bodyGrow.textContent = bodyH > NOTE_H_MIN ? 'Collapse' : 'Expand';
+    bodyGrow.title = bodyH > NOTE_H_MIN
+      ? 'Put the note back to its short height'
+      : 'Show the whole note, as much of it as fits';
+  };
+  showBodyHeight(bodyH);
+
+  bodyGrow.onclick = e => {
+    // Inside a <summary>, so a plain click would put the section away as well.
+    e.preventDefault(); e.stopPropagation();
+    if (bodyH > NOTE_H_MIN) showBodyHeight(NOTE_H_MIN);
+    else {
+      // As much of the note as fits, rather than a fixed second stop: a two
+      // line note has nothing to gain from a field 400px tall.
+      const want = (bodyTa.hidden ? bodyView : bodyTa).scrollHeight + 4;
+      showBodyHeight(Math.max(260, Math.min(want, Math.round(window.innerHeight * 0.6))));
+    }
+    setNoteHeight(bodyH);
+  };
+
+  /* Dragging the field's own corner is a browser control with no event of its
+     own, and a ResizeObserver is the only way to hear it. A height that is
+     not the one just applied came from his drag, so it becomes the height —
+     on both halves, and on the next task he opens. The comparison is also
+     what stops this from feeding itself: applying the new height fires the
+     observer again, and the second pass matches and stops. */
+  if (noteResizeObs) noteResizeObs.disconnect();
+  if (window.ResizeObserver) {
+    noteResizeObs = new ResizeObserver(() => {
+      const h = (bodyTa.hidden ? bodyView : bodyTa).offsetHeight;
+      if (!h || Math.abs(h - bodyH) < 2) return;
+      showBodyHeight(h);
+      setNoteHeight(bodyH);
+    });
+    noteResizeObs.observe(bodyTa);
+    noteResizeObs.observe(bodyView);
+  }
+
+  if (!ro) {
+    /* onchange rather than oninput: rebuildBody rewrites the task's lines and
+       refreshView redraws the board behind the drawer, which is not something
+       to do on every keystroke. Both ways out of the editor go through here,
+       and bodySaved keeps a second call with the same text from marking the
+       document dirty for nothing. */
+    const commitBody = () => {
+      if (bodyTa.value === bodySaved) return;
+      bodySaved = bodyTa.value;
+      const p = bodyParts(t);
+      rebuildBody(t, indent(bodyTa.value), p.subs, p.subsAt);
+      markDirty(); refreshView();
     };
-  });
+    const stopEditing = () => {
+      commitBody();
+      renderBody();
+      bodyTa.hidden = true;
+      bodyView.hidden = false;
+    };
+    bodyView.onclick = e => {
+      // A link in a rendered note is there to be followed, the same as one in
+      // a subtask — the editor opens on everything except that.
+      if (e.target.closest('a')) return;
+      const caret = noteCaret(bodyView, bodyTa.value, e);
+      bodyView.hidden = true;
+      bodyTa.hidden = false;
+      bodyTa.focus();
+      bodyTa.setSelectionRange(caret, caret);
+    };
+    bodyTa.onblur = stopEditing;
+    bodyTa.onkeydown = e => {
+      // Escape leaves the field rather than the drawer, and keeps what was
+      // typed — there is no draft here to throw away, the text is the task's.
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); bodyTa.blur(); }
+    };
+  }
 
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
@@ -792,7 +968,8 @@ function openProjectDrawer(name){
     const di = dueInfo(r.task.due);
     return '<button type="button" class="projrow' + (r.task.done ? ' done' : '') +
         '" data-open="' + r.task.id + '">' +
-      '<span class="pt">' + esc(r.task.title) + '</span>' +
+      // Rendered, like the same title on a card and in every other list.
+      '<span class="pt">' + mdInline(r.task.title) + '</span>' +
       '<span class="pw">' + esc(r.bucket + ' · ' + r.tier) +
         (di ? '<em class="tag due ' + di.cls + '">' + esc(di.label) + '</em>' : '') +
         (r.task.headline ? '<em class="tag">the one thing</em>' : '') +
@@ -829,6 +1006,32 @@ function openProjectDrawer(name){
    one task, so closing Chats once keeps it closed on every task after.
    Absent means open, so a fresh clone or a section invented after this
    shipped both default to shown. */
+/* How tall the Description stands, remembered the same way and for the same
+   reason: it is a preference about the drawer's shape, not about one task.
+   One number covers both halves of the field — the rendering and the textarea
+   are the same box in two states, and a note that changed height the moment
+   you clicked into it would drag every field under it out from under the
+   pointer.
+
+   The default is short on purpose. Most notes are two lines, and a field
+   sized for the long ones pushed Bucket, Column and the dates below the fold
+   on every task that wasn't. Expand is there for the long ones, and the
+   field's own corner drags to anything in between. */
+const NOTE_H_KEY = 'todo-board-note-height';
+const NOTE_H_MIN = 120;
+function noteHeight(){
+  let n;
+  try { n = parseInt(localStorage.getItem(NOTE_H_KEY), 10); } catch (e) { return NOTE_H_MIN; }
+  return Number.isFinite(n) ? Math.max(NOTE_H_MIN, Math.min(n, 2000)) : NOTE_H_MIN;
+}
+function setNoteHeight(px){
+  try { localStorage.setItem(NOTE_H_KEY, String(Math.round(px))); } catch (e) {}
+}
+/* The one watching the current field. openDrawer redraws the whole panel on
+   every edit, so without disconnecting the last one there would be an
+   observer per redraw, all of them still writing the same preference. */
+let noteResizeObs = null;
+
 const SECTION_KEY = 'todo-board-collapsed';
 function sectionCollapsed(key){
   try { return !!(JSON.parse(localStorage.getItem(SECTION_KEY) || '{}') || {})[key]; }

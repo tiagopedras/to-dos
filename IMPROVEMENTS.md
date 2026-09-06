@@ -524,6 +524,53 @@ they settled is written up in the README rather than left here:
   prompts already rely on staying literal, is unaffected — the pattern only
   fires with a `(url)` immediately after.
 
+- ~~**The Edit/Preview toggle was a click in the way of reading.**~~ **Done,
+  6 Sep 2026.** The toggle above shipped rendering but left it behind a
+  button, so a note read as raw Markdown until you pressed Preview — a click
+  to do the thing the panel is open for. The tabs are gone. The Description
+  now renders at rest and swaps to the raw textarea when it is clicked, with
+  the caret on the character that was clicked; blur or Escape puts the
+  rendering back. Not a live side-by-side, for the reason the entry above
+  gives: the drawer is not wide enough for two columns.
+
+  The caret is the only part of this that is arithmetic. `mdBlocks()` gained
+  a `srcmap` option that stamps every block with the lines of the source it
+  came from, and `rawOffsetForVisible()` in the drawer inverts `mdInline()`
+  for the marks it knows — so a click on the `b` of `**bold**` lands on the
+  `b` and not on an asterisk, which is what the first two attempts got wrong
+  in both directions. `kanban/test_notes.mjs` is the cover for it, and drives
+  real clicks at real coordinates because the arithmetic starts from a hit
+  test the browser does.
+
+  Two smaller things went with it, both making the drawer agree with the rest
+  of the board: a subtask's text and a task's title in the project view now
+  render inline Markdown, the way card titles everywhere else already did. A
+  link in either is followed rather than opening the editor on top of it.
+
+  Followed the same day by the field's height, which the rendering had made
+  worse: at 200px, Bucket, Column and both dates sat below the fold on every
+  task whose note was two lines. It now stands at 120px, with an **Expand**
+  button in the label that grows it to as much of the note as fits, and a
+  corner that drags to anything in between. One stored height drives the
+  rendering and the textarea together, so nothing moves when the field swaps
+  between them, and the button reads Collapse whenever the field is above its
+  floor — after a drag as much as after a press, so the two ways of resizing
+  it cannot disagree. A drag has no event of its own; it is heard through a
+  `ResizeObserver`. The line about subtasks moved out from under the field and
+  up beside the label, where Subtasks' own Complete all already sits.
+
+  And then what the rendering should pick out, which is three things
+  `mdInline()` was walking straight past: a URL written on its own is now a
+  link, the same as one already in brackets; a `[key:: value]` tag gets a
+  quiet chip; and a `[placeholder]` — `[path]`, `[fill in]`, `[name]` — gets
+  an amber one, because it is an open loop rather than an answer. All three
+  keep every character they were written with, brackets included. That is
+  honest about what is in the file, and it is also what lets the caret
+  arithmetic stay as simple as it is: a chip that dropped its brackets would
+  be two characters the count could not see, and every click after it would
+  land two early. Because this is `mdInline()`, reports and plans get the
+  same treatment, which is where `[fill in]` comes from in the first place.
+
 - ~~**A desktop widget holding message suggestions, ready to copy.**~~
   **Where it lives is decided, 5 Sep 2026: the companion.** The open question
   was whether this was its own thing or part of the companion, and the nightly

@@ -512,27 +512,44 @@ const reportBodies = {};
 
 /* Enough Markdown for a report and no more: headings, paragraphs, bullets and
    the inline marks mdInline already handles. Anything fancier is not something
-   these files are allowed to contain. */
-function mdBlocks(text){
+   these files are allowed to contain.
+
+   Two options, both off by default so a report renders exactly as it always
+   did. The drawer's Description turns both on: `srcmap` stamps every block
+   with the lines of `text` it came from, which is how a click on the rendered
+   note finds its place in the Markdown behind it (see noteCaret in the
+   drawer), and `keepH1` keeps a single-hash heading, which is a real heading
+   in a note where in a report it is only the title repeated. */
+function mdBlocks(text, opts){
+  const o = opts || {};
   // Frontmatter is metadata for the list, not part of the report.
-  const body = text.replace(/^---\n[\s\S]*?\n---\n/, '');
+  const fm = /^---\n[\s\S]*?\n---\n/.exec(text);
+  const body = fm ? text.slice(fm[0].length) : text;
+  // data-src counts lines of `text`, not of `body`, so a caller mapping back
+  // into what it passed in does not have to know frontmatter was dropped.
+  const base = fm ? fm[0].split('\n').length - 1 : 0;
+  const at = (a, b) => o.srcmap ? ' data-src="' + (base + a) + ',' + (base + b) + '"' : '';
   const out = [];
-  let para = [], list = null;
-  const flushPara = () => { if (para.length) { out.push('<p>' + mdInline(para.join(' ')) + '</p>'); para = []; } };
+  let para = [], paraAt = 0, list = null;
+  const flushPara = () => { if (para.length) {
+    out.push('<p' + at(paraAt, paraAt + para.length - 1) + '>' + mdInline(para.join(' ')) + '</p>');
+    para = [];
+  } };
   const flushList = () => { if (list) { out.push('<ul class="repbul">' + list.join('') + '</ul>'); list = null; } };
-  body.split('\n').forEach(raw => {
+  body.split('\n').forEach((raw, i) => {
     const line = raw.trim();
     if (!line) { flushPara(); flushList(); return; }
     const h = /^(#{1,4})\s+(.*)$/.exec(line);
     if (h) {
       flushPara(); flushList();
       // The h1 is the report's own title, which the list already shows above it.
-      if (h[1].length > 1) out.push('<h4>' + mdInline(h[2]) + '</h4>');
+      if (h[1].length > 1 || o.keepH1) out.push('<h4' + at(i, i) + '>' + mdInline(h[2]) + '</h4>');
       return;
     }
     const b = /^[-*]\s+(.*)$/.exec(line);
-    if (b) { flushPara(); (list = list || []).push('<li>' + mdInline(b[1]) + '</li>'); return; }
+    if (b) { flushPara(); (list = list || []).push('<li' + at(i, i) + '>' + mdInline(b[1]) + '</li>'); return; }
     flushList();
+    if (!para.length) paraAt = i;
     para.push(line);
   });
   flushPara(); flushList();
