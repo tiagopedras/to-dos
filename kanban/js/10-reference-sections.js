@@ -157,7 +157,7 @@ function readJiraRun(lines, where){
 function allItems(){
   const out = [];
   state.doc.buckets.forEach((b, bi) => {
-    const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
+    const color = bucketColor(b.name, bi);
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
       const parts = splitBody(t);
       const own = noteMeta(parts.notes);
@@ -661,7 +661,7 @@ function claudeLink(text){
    be worth resuming. */
 
 // The stub below is the no-engine case, not a parked feature: on this machine
-// server.py's AI_CHAT_DIR resolves to ../ai_chat_engine and /claude.json
+// server.py's AI_CHAT_DIR resolves to ../PACKAGES/ai_chat_engine and /claude.json
 // answers, so the real AIChat loads and the buttons draw. Where that sibling
 // folder is missing — a checkout of this repo on its own, or the board served
 // statically — /ai-chat/chat.js 404s and AIChat is never defined. Falling

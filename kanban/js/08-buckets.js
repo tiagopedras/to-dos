@@ -165,12 +165,25 @@ function openBucketEditor(){
   const draw = () => {
     const list = state.doc.buckets;
     const rows = list.map((b, i) => {
-      const n = bucketTaskCount(b);
+      const color = bucketColor(b.name, i);
+      /* The dot opens a palette of the board's own ten swatches rather than a
+         free colour input — a bucket picks from the same set every other
+         bucket colour on the board is drawn from, so two of them can never
+         land on a colour close enough to be mistaken for one another. Picking
+         one writes state.bucketColors straight away (see setBucketColor
+         below); nothing about a colour waits for Done. */
+      const palette = BUCKET_COLOR.map(c =>
+        '<button type="button" class="bkswatch' + (c === color ? ' on' : '') + '" data-pick="' + i +
+          '" data-swatch="' + esc(c) + '" style="background:' + c + '" aria-label="Use this colour"></button>'
+      ).join('');
       return '<div class="bkrow">' +
         '<span class="bknum">' + (i + 1) + '</span>' +
-        '<i class="bkdot" style="background:' + BUCKET_COLOR[i % BUCKET_COLOR.length] + '"></i>' +
+        '<span class="bkcolor">' +
+          '<button type="button" class="bkpick" data-palette="' + i + '" style="background:' + color +
+            '" title="Change this bucket’s colour" aria-label="Change this bucket’s colour"></button>' +
+          '<div class="bkpalette hidden" data-palette-for="' + i + '">' + palette + '</div>' +
+        '</span>' +
         '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
-        '<span class="bkn" title="tasks in it, finished ones included">' + n + '</span>' +
         moveDeleteButtonsHTML(i, list.length, {
           upAttr: 'data-up', downAttr: 'data-down', delAttr: 'data-del',
           upTitle: 'Move up', downTitle: 'Move down', noun: 'bucket'
@@ -180,9 +193,10 @@ function openBucketEditor(){
 
     showModal('Buckets',
       'The headings your list is organised under. A rename rewrites that one heading in ' +
-      esc(state.fileName) + ' and leaves every task under it alone. The number and the colour ' +
-      'follow the order, so moving a bucket renumbers the ones it passes. Nothing reaches the ' +
-      'file until you save.',
+      esc(state.fileName) + ' and leaves every task under it alone. The number follows the ' +
+      'order, so moving a bucket renumbers the ones it passes — the colour follows the dot ' +
+      'instead, so reordering never reshuffles it. Nothing reaches the file until you save; ' +
+      'a colour saves itself the moment you pick it.',
       '<div class="bklist">' + rows + '</div>' +
       '<div class="bkadd">' +
         '<input type="text" id="bkNew" placeholder="New bucket name" aria-label="New bucket name">' +
@@ -216,6 +230,30 @@ function openBucketEditor(){
     modalEl.querySelectorAll('[data-del]').forEach(el => {
       el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
     });
+    modalEl.querySelectorAll('[data-palette]').forEach(dot => {
+      dot.onclick = e => {
+        e.stopPropagation();
+        const pal = modalEl.querySelector('[data-palette-for="' + dot.dataset.palette + '"]');
+        const already = !pal.classList.contains('hidden');
+        modalEl.querySelectorAll('.bkpalette').forEach(p => p.classList.add('hidden'));
+        pal.classList.toggle('hidden', already);
+      };
+    });
+    modalEl.querySelectorAll('[data-pick]').forEach(sw => {
+      sw.onclick = e => {
+        e.stopPropagation();
+        setBucketColor(list[+sw.dataset.pick], sw.dataset.swatch);
+        draw();
+      };
+    });
+    // Anywhere else in the sheet closes whichever palette is open — the same
+    // click-away a native <select> gets for free. modalEl's own onclick
+    // already closes the whole modal on a backdrop click (23-conflict-modal.js)
+    // and is a single assignment, so this listens on the sheet inside it
+    // rather than overwriting that.
+    modalEl.querySelector('.sheet').addEventListener('click', () => {
+      modalEl.querySelectorAll('.bkpalette').forEach(p => p.classList.add('hidden'));
+    });
     const add = () => {
       const inp = modalEl.querySelector('#bkNew');
       const msg = addBucket(inp.value);
@@ -226,6 +264,34 @@ function openBucketEditor(){
   };
 
   draw();
+}
+
+/* The one write a colour makes — straight to bucket-colors.json, independent
+   of Done and of todo.md entirely. Optimistic: the swatch and every other
+   colour on the board update immediately, and a failed save says so rather
+   than silently reverting, since state.bucketColors already has the pick in
+   it either way and a second attempt is just picking it again. */
+async function setBucketColor(b, swatch){
+  state.bucketColors[b.name] = swatch;
+  refreshView();
+  try {
+    await postJSON('/bucket-colors', state.bucketColors);
+  } catch (err) {
+    showToast('Could not save that colour: ' + (err.message || err), 'bad');
+  }
+}
+
+/* Loaded once, alongside the other per-dataset side files (see boot.js) — a
+   colour with nothing chosen for it just falls back to its position in the
+   list, so a server too old to know this route, or a first run with no file
+   yet, costs nothing. */
+async function loadBucketColors(){
+  try {
+    state.bucketColors = await getJSON('/bucket-colors.json');
+  } catch (err) {
+    state.bucketColors = {};
+  }
+  if (state.doc) refreshView();
 }
 
 function moveBucket(b, dir){

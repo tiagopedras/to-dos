@@ -17,7 +17,7 @@
   mistake is the right number for something that spends money unattended.
 
   Install:
-    ln -s ~/Code/to-dos/night_agent/com.tiagopedras.todos-night-agent.plist \
+    ln -s ~/Code/to-dos/agents/night_agent/com.tiagopedras.todos-night-agent.plist \
           ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
     launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
 
@@ -31,7 +31,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/tiagopedras/Code/to-dos/night_agent/run.sh</string>
+    <string>/Users/tiagopedras/Code/to-dos/agents/night_agent/run.sh</string>
   </array>
 
   <key>WorkingDirectory</key>

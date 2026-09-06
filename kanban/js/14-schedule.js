@@ -7,10 +7,13 @@
    night agent's twelve launchd wakes, the companion's morning briefing,
    and the weekly backup thread inside this server. Used to be a view of its
    own; both halves now live on the Plans tab instead, since that is where
-   the question "would it even run tonight" actually comes up — both folded
-   into the Token windows column (renderSched() for the jobs, rarely worth a
-   glance, renderUsage() for the chart). Nothing here holds a view id or a
-   route any more, just the two render functions Plans calls.
+   the question "would it even run tonight" actually comes up —
+   renderSched() draws the jobs into their own card, stacked under Token
+   Session (rarely worth a glance, so it sits below the chart rather than
+   beside it), and renderUsage() draws the token chart itself. Nothing here
+   holds a view id or a route any more, just the render functions Plans
+   calls — renderUsage() also feeds the Status line on the Queue/Doing card,
+   see renderStatus() below.
 
    A list rather than a calendar, deliberately. Twelve wakes a night render as
    noise on a grid and as one line in a list.
@@ -237,11 +240,28 @@ function usageRow(w, peak){
   '</div>';
 }
 
+/* The decision — would the agent spend right now, and why not — used to lead
+   this card, but it answers a question about the Queue/Doing card in
+   13-plans.js, not about token history, so it's drawn there now under its
+   own "Status" heading. Still fetched here, since /usage.json is the only
+   route that knows it: written into #statusOut as a side effect of the same
+   call that draws the chart, rather than fetched twice. */
+function renderStatus(u){
+  const out = $('#statusOut');
+  if (!out) return;
+  out.innerHTML = u.decision
+    ? '<div class="udecide ' + esc(u.decision.action) + '">' +
+        '<strong>' + esc(u.decision.action.toUpperCase()) + '</strong> — ' + esc(u.decision.why) +
+      '</div>'
+    : '<p class="help">Nothing to judge tonight against yet.</p>';
+}
+
 async function renderUsage(){
   const out = $('#usageOut');
   if (!out) return;
   try {
     const u = await getJSON('/usage.json?days=' + usageDays);
+    renderStatus(u);
     if (!u.available) {
       out.innerHTML = '<div class="empty">No <code>core/windows.py</code> in this checkout, ' +
         'so there is nothing to read the usage windows with.</div>';
@@ -251,21 +271,16 @@ async function renderUsage(){
     const peak = Math.max(1, ...wins.map(w => w.tok));
     const nights = u.windows.filter(w => w.night).length;
 
-    /* The decision line first, because it is the one thing here that answers a
-       question about tonight rather than about the past: would the agent spend
-       right now, and why not. */
     out.innerHTML =
-      '<div class="udecide ' + esc(u.decision.action) + '">' +
-        '<strong>' + esc(u.decision.action.toUpperCase()) + '</strong> — ' + esc(u.decision.why) +
-      '</div>' +
       '<div class="uranges">' +
         USAGE_RANGES.map(r => '<button type="button" class="urange' +
           (r.days === usageDays ? ' on' : '') + '" data-days="' + r.days + '">' +
           r.label + '</button>').join('') +
       '</div>' +
       /* The five-hour rule, the 07:00 boundary and the 02:00 cutoff used to be
-         spelled out here in a paragraph. They are in night_agent/README.md, and the
-         decision line above already says what they add up to tonight. */
+         spelled out here in a paragraph. They are in agents/night_agent/README.md, and the
+         Status line on the Queue/Doing card already says what they add up to
+         tonight. */
       usageChart(u) +
       '<div class="ustats">' +
         '<span><b>' + u.windows.length + '</b> windows in ' +

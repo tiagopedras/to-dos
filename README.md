@@ -30,7 +30,7 @@ buckets/people/people.md        the brief
 buckets/people/skills/          the skills that bucket's work runs on
 ```
 
-The night agent's planners and `pa-execute` both read the brief, and so do I.
+The night agent's planners and `execution-agent` both read the brief, and so do I.
 [BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is
 found, and the template to start from — so a fresh clone can rebuild the shape
 without carrying any of the content.
@@ -440,7 +440,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 ### Plans
 
 A separate tab, beside Reports, and a separate folder. Plans are written
-overnight by the night agent in `night_agent/` — one per task tagged
+overnight by the night agent in `agents/night_agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
@@ -467,7 +467,7 @@ task afresh rather than skipping it for looking unchanged, which is how a task h
 has moved on from gets a new plan.
 
 The full account of how the night agent decides what to plan and when it is
-allowed to spend is in [night_agent/README.md](night_agent/README.md). The short version
+allowed to spend is in [agents/night_agent/README.md](agents/night_agent/README.md). The short version
 of the part that matters: it only ever spends inside a usage window that expires
 before 07:00, so the morning is never eaten by work done overnight.
 
@@ -1248,7 +1248,7 @@ plans is one line at the end, not one line a plan.
 
 ## The skills
 
-`pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
+`agents/pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
 verify.
 
@@ -1260,7 +1260,7 @@ under it, and a queried tag written in a form Dataview cannot read. Run it
 directly:
 
 ```bash
-python3 pa_agent/skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
+python3 agents/pa_agent/skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 It does not carry its own copy of the `repeat:` grammar or the bank holidays any
@@ -1270,11 +1270,11 @@ where there is no repo to reach, it imports the copy the build step staged besid
 it. The repo wins when both exist, so editing the original is always what takes
 effect and a stale staged copy cannot mask it.
 
-`pa_agent/skills/pa-mobile/` is the same list read from a phone, over Remote Control from
+`agents/pa_agent/skills/pa-mobile/` is the same list read from a phone, over Remote Control from
 the Claude app. It reads and writes the real file like any other session, so what
 makes it a separate skill is the surface rather than the data: every question is
 asked as multiple choice instead of as something to type, and every report is
-rendered from a template in `pa_agent/skills/pa-mobile/templates/` instead of being written
+rendered from a template in `agents/pa_agent/skills/pa-mobile/templates/` instead of being written
 freehand. The templates are Tiago's, one file per kind of report, and adding a
 file to that folder is the whole of adding a report shape. A status that comes out
 in the same shape every morning can be scanned in the four seconds a phone screen
@@ -1293,7 +1293,7 @@ script cannot.
 Symlink, and nothing else:
 
 ```sh
-ln -s ~/Code/to-dos/pa_agent/skills/<name> ~/.claude/skills/<name>
+ln -s ~/Code/to-dos/agents/pa_agent/skills/<name> ~/.claude/skills/<name>
 ```
 
 The folder is the installed skill, so an edit takes effect the next time it

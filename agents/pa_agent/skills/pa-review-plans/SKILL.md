@@ -7,7 +7,7 @@ description: Go through the plans the night agent wrote against the owner's mast
 
 **Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
-Read `~/Code/to-dos/night_agent/README.md` too, at least the part describing what a
+Read `~/Code/to-dos/agents/night_agent/README.md` too, at least the part describing what a
 plan is. A plan proposes and never executes, so nothing in this session is a
 status report on work that happened — it is a review of suggestions, and the
 only thing that changes as a result is what the list says.
@@ -17,8 +17,8 @@ only thing that changes as a result is what the list says.
 The obvious reading of this skill is that it helps him get through a folder of
 plans. That is the smaller half.
 
-`night_agent/pick.py` hashes each task **including its notes**, and re-plans anything
-whose hash has moved. `night_agent/plan.py` pastes the task's title line and its
+`agents/night_agent/pick.py` hashes each task **including its notes**, and re-plans anything
+whose hash has moved. `agents/night_agent/plan.py` pastes the task's title line and its
 notes into the agent's prompt verbatim, because that is where the reasoning
 lives. Put those two together and a note written here does three things in one
 move:

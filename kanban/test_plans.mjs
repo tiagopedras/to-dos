@@ -120,11 +120,14 @@ await evalJS(`(() => {
             'Arabic theme as a new token mode'],
     hold: ['Arabic theme as a new token mode']
   };
+  // Not live to start with — the Queue/Doing card shows Queue while this is
+  // the fixture, which is what the backlog/queue drag section below needs:
+  // a live run hides #queueOut, and a hidden element has no bounding box for
+  // a drag to land in. Switched to live further down, right before the
+  // section that tests Doing itself.
   window.__nightAgent = {
-    live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
-    current: { title:'Rename the text styles', agent:'pa-plan-design-system',
-               since:'2026-09-05 02:11:40' },
-    orphan: null,
+    live: false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
+    current: null, orphan: null,
     done: [{ title:'Review the objectives', took: 214, cost: 0.83, at:'2026-09-05 02:11:38' }],
     failed: [{ title:'A task that blew up', why:'the run failed', at:'2026-09-05 02:09:00' }],
     stopped: '', left: 3
@@ -191,15 +194,25 @@ check('the summary is what the closed row shows', await evalJS(`
 // What tonight would plan, in the order it would plan it, and the two ways to
 // change that: drag to reorder, hold to take one out entirely.
 
-check('all five columns are drawn', await evalJS(`
+check('all five cards are drawn', await evalJS(`
   !!document.querySelector('#backlogOut') && !!document.querySelector('#queueOut') &&
-  !!document.querySelector('#flightOut') && !!document.querySelector('#plansOut') &&
-  !!document.querySelector('#usageOut')
+  !!document.querySelector('#doingOut') && !!document.querySelector('#plansOut') &&
+  !!document.querySelector('#usageOut') && !!document.querySelector('#schedOut')
 `))
-check('the backlog sits left of the queue', await evalJS(`
-  [...document.querySelectorAll('.lists.pview > .listcard')]
+check('the queue shows while nothing is running, not Doing', await evalJS(`
+  document.querySelector('#qdTitle').textContent === 'Queue' &&
+  !document.querySelector('#queueOut').classList.contains('hidden') &&
+  document.querySelector('#doingOut').classList.contains('hidden')
+`))
+check('Backlog, Queue, Done, Token Session and the clock read left to right, top to bottom', await evalJS(`
+  [...document.querySelectorAll('.lists.pview .listcard')]
     .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Backlog | Queue for tonight | Next run | Plans | Token windows')
+`) === 'Backlog | Queue | Done | Token Session | What runs on a clock')
+check('Token Session and the clock share the last track, stacked', await evalJS(`
+  document.querySelector('.pvcol').children.length === 2 &&
+  document.querySelector('.pvcol').children[0].querySelector('h3').textContent === 'Token Session' &&
+  document.querySelector('.pvcol').children[1].querySelector('h3').textContent === 'What runs on a clock'
+`))
 
 check('every queued task is listed', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length
@@ -339,32 +352,68 @@ check('and the post names both held titles', await evalJS(`
     return hold.includes('Rename the text styles') && hold.includes('Adoption and usage report') })()
 `))
 
-// --- the in-flight column --------------------------------------------------
+// --- Doing --------------------------------------------------------------
+// A live run takes over the card: the title swaps to Doing, the queue list
+// hides (so a hidden #queueOut is not what the drag tests above ran
+// against — this is why the fixture starts not-live), and the Run button
+// goes with it.
 
+await evalJS(`(async () => {
+  window.__nightAgent = {
+    live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
+    current: { title:'Rename the text styles', agent:'pa-plan-design-system',
+               since:'2026-09-05 02:11:40' },
+    orphan: null,
+    done: [{ title:'Review the objectives', took: 214, cost: 0.83, at:'2026-09-05 02:11:38' }],
+    failed: [{ title:'A task that blew up', why:'the run failed', at:'2026-09-05 02:09:00' }],
+    stopped: '', left: 3
+  };
+  await renderNightAgent();
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('the card becomes Doing, and the queue steps aside', await evalJS(`
+  document.querySelector('#qdTitle').textContent === 'Doing' &&
+  document.querySelector('#queueOut').classList.contains('hidden') &&
+  !document.querySelector('#doingOut').classList.contains('hidden')
+`))
 check('the task in flight is named', await evalJS(`
-  document.querySelector('#flightOut .fnow strong').textContent === 'Rename the text styles'
+  document.querySelector('#doingOut .fnow strong').textContent === 'Rename the text styles'
 `))
 check('with the agent working on it', await evalJS(`
-  document.querySelector('#flightOut .fnow .repmeta').textContent.includes('pa-plan-design-system')
+  document.querySelector('#doingOut .fnow .repmeta').textContent.includes('pa-plan-design-system')
 `))
-check('progress through the batch is shown', await evalJS(`
-  document.querySelector('#flightOut .schedmeta').textContent.includes('1 of 4')
+// Run started / Planned / Left sit in Done now — a record of the batch, the
+// same kind of fact "Latest run costs" is, not a description of what's
+// happening this second.
+check('progress through the batch is shown in Done', await evalJS(`
+  document.querySelector('#doneStatsOut .schedmeta').textContent.includes('1 of 4')
 `))
-// The results of the run itself sit in the Token windows column, not here —
-// this column is only what's happening right now.
-check('what the run has written is listed in Token windows, with what it cost', await evalJS(`
-  document.querySelector('#runResultsOut .fhead').textContent.includes('Latest run costs') &&
+// The results of the run itself sit in Token Session, not here — this card
+// is only what's happening right now. Folded shut like "What runs on a
+// clock", with the cost on the fold's own summary line rather than a
+// heading inside it.
+check('what the run has written is listed in Token Session, with what it cost', await evalJS(`
+  document.querySelector('#runResultsSummary').textContent.includes('Latest run costs') &&
   document.querySelector('#runResultsOut .frow.done .fmeta').textContent === '214s · $0.83'
 `))
-check('and the heading carries the date the run started', await evalJS(`
-  (() => { const h = document.querySelector('#runResultsOut .fhead').textContent;
+check('and the summary carries the date the run started', await evalJS(`
+  (() => { const h = document.querySelector('#runResultsSummary').textContent;
     return h !== 'Latest run costs · $0.83' && h.includes('$0.83') })()
+`))
+check('and the fold is not hidden when there is something to show', await evalJS(`
+  !document.querySelector('#runResultsFold').classList.contains('hidden')
 `))
 check('and a failure is separated from a success', await evalJS(`
   document.querySelector('#runResultsOut .frow.failed .fname').textContent === 'A task that blew up'
 `))
+check('a run already going is not offered a second one', await evalJS(`
+  document.querySelector('#runQueueBtn').classList.contains('hidden')
+`))
 
-// A dead run must not read as a live one. The lock is what says which.
+// A dead run must not read as a live one. The lock is what says which — and
+// it is not "actively running", so the card falls back to Queue rather than
+// staying on Doing, with the dead run named in a banner above the list.
 await evalJS(`(async () => {
   window.__nightAgent = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
     current: null,
@@ -376,8 +425,10 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('a run that died mid-task says so rather than looking live', await evalJS(`
-  !document.querySelector('#flightOut .fnow') &&
-  document.querySelector('#flightOut .err').textContent.includes('never finished')
+  document.querySelector('#qdTitle').textContent === 'Queue' &&
+  document.querySelector('#doingOut').classList.contains('hidden') &&
+  !document.querySelector('#qdOrphan').classList.contains('hidden') &&
+  document.querySelector('#qdOrphan .err').textContent.includes('never finished')
 `))
 
 // --- forcing a run by hand ------------------------------------------------
@@ -386,9 +437,9 @@ check('a run that died mid-task says so rather than looking live', await evalJS(
 // in here.
 
 check('with nothing running, the agent can be started by hand', await evalJS(`
-  !!document.querySelector('#flightOut #runNight')
+  !!document.querySelector('#runQueueBtn') && !document.querySelector('#runQueueBtn').classList.contains('hidden')
 `))
-await evalJS(`document.querySelector('#flightOut #runNight').click()`)
+await evalJS(`document.querySelector('#runQueueBtn').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('pressing it asks first rather than spending', await evalJS(`
   !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/night_agent/run'))
@@ -402,19 +453,6 @@ await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.t
 await new Promise(r => setTimeout(r, 400))
 check('confirming posts the run', await evalJS(`
   window.__blocked.some(b => b.startsWith('POST /night_agent/run'))
-`))
-
-// A run already going must not offer to start a second one. run.sh would
-// refuse anyway, but it refuses by logging and exiting cleanly, which from a
-// button is indistinguishable from starting.
-await evalJS(`(async () => {
-  window.__nightAgent = Object.assign({}, window.__nightAgent, { live: true });
-  await renderNightAgent();
-  return 1;
-})()`)
-await new Promise(r => setTimeout(r, 300))
-check('a run already going is not offered a second one', await evalJS(`
-  !document.querySelector('#flightOut #runNight')
 `))
 
 // Opening one: the body loads, and reading it is recorded as read — the one

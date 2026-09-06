@@ -5,7 +5,7 @@ The board's own reader is the JavaScript in kanban/index.html, and it stays the
 authority on writing the file: only the board and the pa-* skills ever change a
 task. This module is the read-only half of the same knowledge, for the things
 that are not a browser tab — the desktop companion in companion/, the nightly
-agent in night_agent/, the pa-checkin consistency checker, and anything else later
+agent in agents/night_agent/, the pa-checkin consistency checker, and anything else later
 that needs to know what is due without opening the board.
 
 It lives in core/ rather than beside the board because of that list. It sat in
@@ -414,7 +414,7 @@ def occurrence_after(rep, date):
 # Tier one: impact against effort
 #
 # The port of the same three names in core/todo.js. They lived in
-# kanban/index.html until 5 Sep 2026, when night_agent/pick.py needed the same
+# kanban/index.html until 5 Sep 2026, when agents/night_agent/pick.py needed the same
 # answer to order its queue and a second copy of "high is 3" became the drift
 # this pair of files exists to stop.
 # ---------------------------------------------------------------------------

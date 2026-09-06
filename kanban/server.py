@@ -55,7 +55,7 @@ except ImportError:
 # queue column is that decision rendered rather than a second guess at it —
 # there is one selection rule and this is it. `plan` comes along for the bucket
 # mapping alone, so the queue can name the agent each task would go to.
-sys.path.insert(0, os.path.join(ROOT, "night_agent"))
+sys.path.insert(0, os.path.join(ROOT, "agents", "night_agent"))
 try:
     import pick as night_agent_pick
     import plan as night_agent_plan
@@ -151,6 +151,24 @@ def canvas_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "canvas.json")
 
 
+def bucket_colors_path(name=None):
+    """Where a bucket's own chosen colour lives: name -> one of the board's
+    ten preset swatches (var(--b1) .. var(--b10) — see BUCKET_COLOR in
+    kanban/js/02-state.js).
+
+    A separate file for the same reason canvas.json is one: a colour is a
+    preference about looking at the list, not a fact the list itself carries,
+    and todo.md has exactly one writer. Keyed by name rather than position, on
+    purpose — reordering the buckets must not reshuffle which colour each one
+    wears, which is what deriving it from the array index always did before.
+    Renaming a bucket does orphan its entry here, same as a renamed bucket
+    already drops out of anything else keyed by name in this app; picking a
+    colour again after a rename costs one click, and losing it silently would
+    be a worse failure than that.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
+
+
 def attach_queue_path(name=None):
     """Where /pa-attach leaves what it could not write itself.
 
@@ -175,6 +193,69 @@ def reports_dir(name=None):
     # same reasons todo.md itself never leaves data/. One per dataset, same
     # as backups.
     return os.path.join(dataset_dir(name or current_dataset()), "reports")
+
+
+def projects_dir(name=None):
+    # Where a task's own "- Project: data/projects/<name>" note points.
+    # Nothing here is a fact todo.md tracks — a folder appears the moment
+    # someone creates it and vanishes the moment someone deletes it, with no
+    # signal from the list either way. project_listing() below is what lets a
+    # folder be seen before, or after, any task happens to mention it.
+    return os.path.join(dataset_dir(name or current_dataset()), "projects")
+
+
+def project_meta(path, name):
+    """One project folder, described without opening every file inside it.
+
+    Nothing on disk declares a title or a status for one of these folders —
+    CLAUDE.md's presence is the only signal, and the folder name and its own
+    modified time are the rest. Whether it is "live" (a task currently points
+    at it) is left to the board: it already holds every task in memory and
+    already knows how to scan one for a project note, so repeating that scan
+    here would be a second copy of the same rule.
+    """
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    if not os.path.isdir(path):
+        return None
+    entries = [e for e in os.listdir(path) if not e.startswith(".")]
+    latest = st.st_mtime
+    for entry in entries:
+        try:
+            latest = max(latest, os.stat(os.path.join(path, entry)).st_mtime)
+        except OSError:
+            pass
+    return {
+        "name": name,
+        "has_claude_md": "CLAUDE.md" in entries,
+        "file_count": len(entries),
+        "modified": datetime.datetime.fromtimestamp(latest).isoformat(timespec="seconds"),
+        # No dataset name in this, deliberately — see the same note on plan_meta.
+        "url": "/" + DATA + "/projects/" + name + "/",
+    }
+
+
+def project_listing():
+    """Every project folder on disk, alphabetically — live or not.
+
+    taskProject() (kanban/js/06-dates-substeps.js) only ever finds a folder
+    some task's own body happens to mention. This walks projects_dir()
+    directly, so a folder nothing on the list points at yet, or any more,
+    still shows up.
+    """
+    pdir = projects_dir()
+    if not os.path.isdir(pdir):
+        return []
+    out = []
+    for name in sorted(os.listdir(pdir)):
+        if name.startswith("."):
+            continue
+        meta = project_meta(os.path.join(pdir, name), name)
+        if meta:
+            out.append(meta)
+    return out
 
 
 # Same four states every other data set starts with, so a brand new list's
@@ -329,7 +410,7 @@ def _tail(path, n=12):
 
 def _night_agent_job():
     """The night agent: twelve launchd wakes, 19:00 to 06:00."""
-    plist = os.path.join(ROOT, "night_agent", "com.tiagopedras.todos-night-agent.plist")
+    plist = os.path.join(ROOT, "agents", "night_agent", "com.tiagopedras.todos-night-agent.plist")
     installed = os.path.exists(os.path.expanduser(
         "~/Library/LaunchAgents/%s.plist" % NIGHTLY_LABEL))
     printed = _launchctl(["print", "gui/%d/%s" % (os.getuid(), NIGHTLY_LABEL)])
@@ -375,7 +456,7 @@ def _night_agent_job():
         "last": last_done,
         "recent": ran[-6:],
         "hint": ("" if loaded else
-                 "ln -s night_agent/%s.plist ~/Library/LaunchAgents/ && "
+                 "ln -s agents/night_agent/%s.plist ~/Library/LaunchAgents/ && "
                  "launchctl load ~/Library/LaunchAgents/%s.plist"
                  % (NIGHTLY_LABEL, NIGHTLY_LABEL)),
     }
@@ -677,10 +758,16 @@ def plan_meta(path, name, night):
         "agent": fields.get("agent", ""),
         "slug": fields.get("slug", ""),
         "date": fields.get("date", night),
+        # When the file was actually written, to the second. Missing on any
+        # plan from before this field existed — the board falls back to
+        # `modified` for those, which is the file's mtime and moves whenever
+        # mark_plan flips the status, so it is only a fallback and not what
+        # this field is for.
+        "generated": fields.get("generated", ""),
         "status": fields.get("status", "unread"),
         # An agent that decided the task could not be planned without a
         # decision only he can make writes `outcome: folded`. See the folding
-        # rule in night_agent/PLAN-BRIEF.md. Passed through as written rather than
+        # rule in agents/night_agent/PLAN-BRIEF.md. Passed through as written rather than
         # reduced to a boolean, so a value this server has never heard of
         # reaches the board instead of being swallowed here.
         "outcome": fields.get("outcome", ""),
@@ -727,14 +814,14 @@ def plan_listing():
 #
 #   unread    nobody has looked at it
 #   read      looked at, doing nothing about it yet
-#   agreed    approved to be carried out. pa-execute picks these up, the picker
+#   agreed    approved to be carried out. execution-agent picks these up, the picker
 #             leaves the task alone until the work is done, and prune keeps it.
 #   redo      rejected, with `redo_note:` saying why. The picker plans the task
 #             again on the next run and the reason is fed to the agent, so the
 #             next plan is not the same plan.
 #   actioned  acted on, so it no longer describes outstanding work
 #
-# Kept in step with is_stale() in night_agent/pick.py, which is the other half of
+# Kept in step with is_stale() in agents/night_agent/pick.py, which is the other half of
 # what these mean. A value this list does not know is refused rather than
 # written, since the picker would read it as "unchanged" and quietly stop
 # planning the task.
@@ -773,7 +860,7 @@ def mark_plan(night, name, status, note=None):
     if not n:
         new = text.replace("---\n", "---\nstatus: " + status + "\n", 1)
     # The reason he rejected it, written into the plan's own frontmatter rather
-    # than a store of its own. night_agent/plan.py reads it back through the ledger
+    # than a store of its own. agents/night_agent/plan.py reads it back through the ledger
     # row, which already records which file this is, and a person opening the
     # plan sees it in the same place. Flattened to one line, since frontmatter
     # here is one key per line and a newline would end the block.
@@ -955,9 +1042,9 @@ def start_night_agent_run():
     import subprocess
     if night_agent_pick is None:
         return None, {"error": "no night agent in this checkout"}
-    script = os.path.join(ROOT, "night_agent", "run.sh")
+    script = os.path.join(ROOT, "agents", "night_agent", "run.sh")
     if not os.path.isfile(script):
-        return None, {"error": "night_agent/run.sh is not here"}
+        return None, {"error": "agents/night_agent/run.sh is not here"}
     if os.path.isdir(NIGHTLY_LOCK):
         return None, {"error": "a run is already going"}
     try:
@@ -1232,7 +1319,7 @@ def backup_listing():
 # has never seen this machine. AI_CHAT_DIR below is where the module that
 # fixes that lives; STATIC_PREFIX is where its own JS and CSS are served from.
 
-AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "ai_chat_engine"))
+AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "ai_chat_engine"))
 STATIC_PREFIX = "/ai-chat/"
 
 Engine = ChatEndpoints = None
@@ -1350,13 +1437,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way an
                 # empty queue is the honest answer.
                 return self._json(200, [])
+        if path == "/bucket-colors.json":
+            try:
+                with open(bucket_colors_path(), encoding="utf-8") as fh:
+                    colors = json.load(fh)
+                    return self._json(200, colors if isinstance(colors, dict) else {})
+            except (OSError, ValueError):
+                # No file yet, or one written by hand and broken. Either way
+                # every bucket falls back to its position in the list.
+                return self._json(200, {})
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
+        if path == "/projects.json":
+            return self._json(200, {"projects": project_listing()})
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
         # Three routes rather than one, and split by how long each takes: the
         # queue is a parse of todo.md, the run is a tail of a log, and both are
-        # instant. A checkout with no night_agent/ answers 404 on the queue and the
+        # instant. A checkout with no agents/night_agent/ answers 404 on the queue and the
         # board simply draws one fewer column.
         if path == "/queue.json":
             got = queue_listing()
@@ -1507,6 +1605,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             tmp = path_out + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="") as fh:
                 json.dump(payload, fh, indent=2)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path_out)
+            return self._json(200, {"ok": True})
+        if path == "/bucket-colors":
+            # Same guard, same shape as /canvas: the whole map is sent and
+            # written back whole, and nothing here is dangerous to get wrong —
+            # worst case is a bucket in the wrong colour.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, dict) or len(payload) > 200:
+                return self._json(400, {"error": "expected a name -> colour map"})
+            for k, v in payload.items():
+                if not isinstance(k, str) or not isinstance(v, str) or len(k) > 200 or len(v) > 40:
+                    return self._json(400, {"error": "bad name or colour"})
+            path_out = bucket_colors_path()
+            os.makedirs(os.path.dirname(path_out), exist_ok=True)
+            tmp = path_out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
                 fh.flush()
                 os.fsync(fh.fileno())
             os.replace(tmp, path_out)

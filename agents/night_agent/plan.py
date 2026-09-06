@@ -14,9 +14,9 @@ given read-only tools and told not to write todo.md, and then the file is hashed
 before the batch and checked after every single task anyway. Belt and braces is
 warranted when the failure is silent and the file is irreplaceable.
 
-    python3 night_agent/plan.py --dry-run       what it would do, no spend
-    python3 night_agent/plan.py                 the batch
-    python3 night_agent/plan.py --task "..."    one task, by hand
+    python3 agents/night_agent/plan.py --dry-run       what it would do, no spend
+    python3 agents/night_agent/plan.py                 the batch
+    python3 agents/night_agent/plan.py --task "..."    one task, by hand
 """
 
 import argparse
@@ -30,8 +30,8 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "core"))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
@@ -209,7 +209,7 @@ def build_prompt(task, prior=None):
     """
     block = "\n".join([task.raw] + list(task.body))
     parts = [
-        "Plan this one task from the to-do list. Read night_agent/PLAN-BRIEF.md first "
+        "Plan this one task from the to-do list. Read agents/night_agent/PLAN-BRIEF.md first "
         "for the format and the rules, then your own agent definition applies on "
         "top of it.\n\n"
         "The task, exactly as it stands in %s:\n\n"
@@ -416,6 +416,12 @@ def write_plan(task, text, session, day):
         "ai: %s" % (task.ai or ""),
         "agent: %s" % bucket_agent(task.bucket),
         "date: %s" % day.isoformat(),
+        # The moment this file was actually written, to the second — `date:`
+        # only carries the night's own day, and the file's own mtime moves
+        # every time mark_plan (kanban/server.py) flips its status, so neither
+        # can answer "when was this generated" once a plan has been agreed or
+        # sent back.
+        "generated: %s" % dt.datetime.now().isoformat(timespec="seconds"),
         "status: unread",
     ]
     if task.slug:
@@ -446,7 +452,8 @@ def queue_attach(task, session):
     """
     if not session:
         return
-    script = os.path.join(paths.ROOT, "skills", "pa-attach", "scripts", "attach_session.py")
+    script = os.path.join(paths.ROOT, "agents", "pa_agent", "skills", "pa-attach",
+                           "scripts", "attach_session.py")
     if not os.path.exists(script):
         return
     try:
@@ -610,7 +617,7 @@ def run(argv=None):
         orphans = sorted({t.bucket for t in plan if bucket_agent(t.bucket) == FALLBACK_AGENT})
         if orphans:
             print("\n%d bucket(s) have no agent: %s" % (len(orphans), ", ".join(orphans)))
-            print("Either add an alias to AGENTS in night_agent/plan.py, or write the agent.")
+            print("Either add an alias to AGENTS in agents/night_agent/plan.py, or write the agent.")
         for title, why in skipped:
             print("  skip  %-58s %s" % (title[:58], why))
         return 0
@@ -640,7 +647,7 @@ def run(argv=None):
         agent = bucket_agent(task.bucket)
         if agent == FALLBACK_AGENT:
             log("  NO AGENT for bucket %r — planning %r with the fallback. Add an "
-                "alias to AGENTS in night_agent/plan.py." % (task.bucket, task.title[:50]))
+                "alias to AGENTS in agents/night_agent/plan.py." % (task.bucket, task.title[:50]))
         # Logged before the run, not only after. An agent takes minutes, so
         # without this the log — and the board's Schedule view, which reads it —
         # says nothing at all about the one currently in flight, which is the

@@ -1,7 +1,7 @@
 /**
  * Drives the Plans view in headless Chrome and asserts on the two cards that
- * used to be the Schedule view — "What runs on a clock", folded inside In
- * flight, and the Token windows chart, its own column.
+ * used to be the Schedule view — "What runs on a clock", its own card
+ * stacked under Token Session, and the Token Session chart itself.
  *
  *   BOARD_PORT=8799 node kanban/test_schedule.mjs
  *
@@ -84,7 +84,7 @@ await evalJS(`(() => {
     { id:'night-agent', name:'Night agent', armed:false, state:'not installed',
       what:'Plans every task tagged ai:full or ai:partial, one agent each.',
       schedule:'12 wakes, 19:00–06:00', next:'', last:'',
-      recent:[], hint:'ln -s night_agent/x.plist ~/Library/LaunchAgents/' },
+      recent:[], hint:'ln -s agents/night_agent/x.plist ~/Library/LaunchAgents/' },
     { id:'companion', name:'Desktop companion', armed:true, state:'running',
       what:'One briefing each working morning.',
       schedule:'08:30 on a working day', next:iso(now + 864e5),
@@ -142,10 +142,11 @@ check('Schedule is gone as a header button', await evalJS(`!document.getElementB
 await evalJS(`state.view = 'plans'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
 
-check('the clock card is folded under In flight, not a column of its own', await evalJS(`
-  (() => { const d = document.querySelector('#schedOut').closest('details');
-    return d && d.parentElement.classList.contains('flightview') &&
-      d.querySelector('summary').textContent === 'What runs on a clock' && !d.open })()
+check('the clock card is its own card, stacked under Token Session', await evalJS(`
+  (() => { const card = document.querySelector('#schedOut').closest('.listcard');
+    return card && card.parentElement.classList.contains('pvcol') &&
+      card.querySelector('h3').textContent === 'What runs on a clock' &&
+      card.previousElementSibling.querySelector('h3').textContent === 'Token Session' })()
 `))
 const jobs = await evalJS(`document.querySelectorAll('#schedOut .schedjob').length`)
 check('one row per scheduled job', jobs === 3, `${jobs} rows`)
@@ -162,13 +163,18 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
   !document.querySelectorAll('#schedOut .schedjob')[1].querySelector('.schedmeta').textContent.includes('T0')
 `))
 
-check('the decision leads the usage card', await evalJS(`
-  document.querySelector('#usageOut .udecide strong').textContent === 'RIDE' &&
-  document.querySelector('#usageOut .udecide').textContent.includes('23:40')
+// The decision now leads the Queue/Doing card (#statusOut, under its own
+// "Status" heading), not the usage chart it used to sit on top of — see
+// renderStatus() in 14-schedule.js.
+check('the decision leads the Queue/Doing card, under a Status heading', await evalJS(`
+  document.querySelector('#queueDoingCard .fhead').textContent === 'Status' &&
+  document.querySelector('#statusOut .udecide strong').textContent === 'RIDE' &&
+  document.querySelector('#statusOut .udecide').textContent.includes('23:40')
 `))
-// The card carries no explanatory prose any more: the decision line says what
-// tonight looks like and night_agent/README.md holds the reasoning.
-check('the card explains itself with the decision, not a paragraph', await evalJS(`
+// The usage card itself carries no explanatory prose: the decision line
+// (elsewhere now) says what tonight looks like and
+// agents/night_agent/README.md holds the reasoning.
+check('the usage card explains itself with the chart, not a paragraph', await evalJS(`
   !document.querySelector('#usageOut .help')
 `))
 const rows = await evalJS(`document.querySelectorAll('#usageOut .urow').length`)
@@ -328,7 +334,7 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('no windows draws no chart rather than a broken one', await evalJS(`
-  !document.querySelector('#usageOut .uchart') && !!document.querySelector('#usageOut .udecide')
+  !document.querySelector('#usageOut .uchart') && !!document.querySelector('#statusOut .udecide')
 `))
 await evalJS(`renderUsage()`)
 await new Promise(r => setTimeout(r, 300))

@@ -4,6 +4,7 @@
     --red:#c8322f; --red-bg:#fdecec; --amber:#9a6100; --amber-bg:#fff4e0;
     --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
     --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f; --b5:#b1306b; --b6:#0f7d93;
+    --b7:#8a5a2f; --b8:#4550c9; --b9:#c23b3b; --b10:#55606e;
     --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
   }
   @media (prefers-color-scheme: dark){
@@ -13,6 +14,7 @@
       --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
       --green:#6fd398; --green-bg:#16301f;
       --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
+      --b7:#d1a06c; --b8:#9aa3ff; --b9:#f28080; --b10:#aab4c0;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
     }
   }
@@ -148,14 +150,34 @@
   .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-soft)}
   .bkrow:last-child{border-bottom:0}
   .bknum{flex:0 0 auto; width:14px; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
-  .bkdot{flex:0 0 auto; width:8px; height:8px; border-radius:50%; background:var(--bc)}
+  /* The dot itself, and the popover of ten presets it opens — a picker rather
+     than a free colour input, so every bucket colour on the board still comes
+     from the one set of ten. Position:relative on the wrapper rather than the
+     button, so the popover's own absolute positioning has one fixed thing to
+     hang off regardless of which is clicked. */
+  .bkcolor{position:relative; flex:0 0 auto}
+  .bkpick{
+    width:16px; height:16px; border-radius:50%; padding:0; border:1px solid rgba(0,0,0,.12);
+    cursor:pointer;
+  }
+  .bkpick:hover, .bkpick:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .bkpalette{
+    position:absolute; z-index:5; top:calc(100% + 6px); left:0;
+    display:grid; grid-template-columns:repeat(5, 20px); gap:6px; padding:8px;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
+  }
+  .bkswatch{
+    width:20px; height:20px; border-radius:50%; padding:0; border:1px solid rgba(0,0,0,.12);
+    cursor:pointer;
+  }
+  .bkswatch:hover{transform:scale(1.12)}
+  /* The one already worn by this bucket, so the popover reads as a picker
+     rather than ten identical dots asking to be told apart by eye. */
+  .bkswatch.on{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--ink)}
   .bkrow input[type="text"]{
     flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
     border-radius:7px; padding:5px 8px; font-size:13px;
-  }
-  .bkn{
-    flex:0 0 auto; min-width:22px; text-align:center; font-size:11px; font-weight:650;
-    color:var(--ink-faint); background:var(--chip); border-radius:5px; padding:2px 6px;
   }
   .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
   .bkadd input{
@@ -835,12 +857,40 @@
      what came back, and what any of it costs. Narrower than the two-column
      views because five of them have to fit, and scrolling sideways is what a
      board does anyway. */
+  /* Four tracks now, not five: Queue and Doing used to be separate cards and
+     are one now (see .queueview below), and the clock card stacks under
+     Token Session instead of taking a track of its own — see .pvcol. */
   .lists.pview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:repeat(4, minmax(330px,1fr)) minmax(320px,420px);
-    min-width:1704px;
+    grid-template-columns:repeat(3, minmax(330px,1fr)) minmax(320px,420px);
+    min-width:1452px;
   }
   .lists.pview .listcard{margin:0}
+  /* Token Session and "What runs on a clock" share a track, stacked, rather
+     than each getting one — the clock card is rarely worth a glance, so it
+     reads as an appendix under the chart instead of competing with it for
+     width. A plain flex column: grid's own auto-placement would start a new
+     row across every track, not just this one, if these were direct grid
+     children instead of wrapped together. */
+  .pvcol{display:flex; flex-direction:column; gap:14px; min-width:0}
+  /* A boxed empty state — dashed border, var(--bg) fill — rather than the
+     plain grey text every other list view falls back to. Scoped to Plans
+     specifically: .reportsview .empty is shared with the Reports view,
+     which keeps its plain text. */
+  .lists.pview .reportsview .empty{
+    padding:11px 13px; background:var(--bg); border:1px dashed var(--line);
+    border-radius:10px; font-size:13px; color:var(--ink-faint);
+  }
+  /* Run now, beside the column it actually acts on. Hidden the moment a run
+     is live (see renderQueueDoingHead in 13-plans.js) — offering a second
+     run while one is going would look like it queued another rather than
+     being silently refused, which is what run.sh actually does. A sibling of
+     the h3 rather than inside it, so the heading's own text stays just its
+     own text — it swaps between "Queue" and "Doing", and a button word
+     glued onto that would swap with it. */
+  .queueview .cardhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px}
+  .queueview .cardhead h3{margin:0}
+  .qrun{flex:none}
 
   /* The queue and the Backlog beside it share this card — a card here is a
      proposal about tonight (or about not-tonight), so it is lighter than a
@@ -888,7 +938,11 @@
     outline:2px dashed var(--accent); outline-offset:-4px; border-radius:10px;
   }
 
-  /* Next run. One card, because the runner runs one agent at a time. */
+  /* Doing. One card, because the runner runs one agent at a time — drawn
+     into #doingOut only while renderQueueDoingHead has it showing; idle is
+     the Queue half of the same card, not a state drawn in here any more,
+     which is what retired .fidle (the old "nothing running" box) along with
+     it. */
   .fnow{
     display:flex; gap:10px; align-items:flex-start; padding:11px 13px;
     background:var(--green-bg); border:1px solid color-mix(in srgb, var(--green) 25%, transparent);
@@ -900,10 +954,6 @@
   }
   @keyframes fpulse{ 0%,100%{opacity:1} 50%{opacity:.25} }
   @media (prefers-reduced-motion: reduce){ .fspin{animation:none} }
-  .fidle{
-    padding:11px 13px; background:var(--bg); border:1px dashed var(--line);
-    border-radius:10px; font-size:13px; color:var(--ink-faint);
-  }
   .fstop{
     margin:10px 0 0; padding:8px 11px; background:var(--amber-bg); border-radius:8px;
     font-size:12.5px; color:var(--amber);
@@ -920,15 +970,16 @@
     flex:none; font-size:11.5px; color:var(--ink-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  /* Full width and at the bottom of the card. It spends money, so it should
-     not sit next to anything that does not. */
-  .frun{width:100%; margin:14px 0 0; justify-content:center}
   .frow.failed .fname{color:var(--red)}
   .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
+  /* The Status heading and its line, and the dead-run banner beneath them —
+     all sit above whichever of Queue or Doing is currently showing. */
+  #statusOut{margin:0 0 10px}
+  #qdOrphan .err{margin-top:0}
 
   /* ---------- schedule ----------
-     What runs on a clock (folded inside Plans' Token windows card, alongside
-     the usage windows) and what those windows have been doing. Not
+     What runs on a clock, its own card now (used to fold inside Plans'
+     Token windows card, alongside the usage windows). Not
      scoped under any view class — Plans uses these classes directly rather
      than through a wrapper the way .reportsview and .backupsview are. */
   .schedjob{
@@ -965,8 +1016,9 @@
     margin:7px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
     font-size:11px; line-height:1.55; overflow-x:auto; color:var(--ink-soft);
   }
-  /* The decision line: would it spend right now, and why not. The one thing
-     here about tonight rather than about the past, so it leads. */
+  /* The decision line: would it spend right now, and why not — drawn into
+     #statusOut on the Queue/Doing card, under its own "Status" heading, not
+     into this chart's own #usageOut (see renderStatus() in 14-schedule.js). */
   .udecide{
     padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.5;
     background:var(--chip); color:var(--ink-soft); margin:0 0 10px;
@@ -1133,6 +1185,21 @@
     font-size:12px; line-height:1.45;
   }
   .planredo b{color:var(--ink)}
+  /* Plan cards get a top border rather than the left accent task cards carry
+     (.card{border-left:...}), and it's a fixed red rather than the bucket's
+     own colour — a plan is not the bucket, it's a proposal about one task in
+     it. Set after every .repitem.<status> rule above, on purpose: those set
+     border-color on every edge, and border-top here needs to win on that one
+     edge regardless of which status a card is in. */
+  .repitem.planitem{border-top:3px solid var(--red)}
+  /* The way back to the card a plan is about. Text, not a button chrome — it
+     reads as part of the meta line rather than a second action competing with
+     Agree/Send back/Mark actioned below. */
+  .plangoto{
+    background:transparent; border:0; padding:0; margin:0; font:inherit; font-size:inherit;
+    color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  }
+  .plangoto:hover{color:var(--ink)}
   .planagreed{margin:0 0 14px}
   .planagreed h4{margin:0 0 2px; font-size:12.5px}
   .planagreed .help{margin:0 0 8px}
@@ -1502,6 +1569,12 @@
   .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
   .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
   .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
+  /* Live vs orphaned on a project card — a soft green nod rather than the
+     amber this file uses elsewhere for "needs an answer" (.repitem.folded,
+     .tag.needsscore): an orphaned folder is not urgent, it's just
+     unreferenced, so it gets the same neutral treatment as .tag.ai instead. */
+  .tag.projlive{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
+  .tag.projorphan{color:var(--ink-faint)}
   /* Delegated to a person. Its own colour, because "someone else has this" is a
      different fact from every other chip on the card, all of which describe the
      work rather than who holds it. */

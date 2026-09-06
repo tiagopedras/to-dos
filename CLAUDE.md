@@ -8,9 +8,9 @@ update it when something lands or something new turns up.
 
 ## The skills index
 
-The `pa-*` skills in `pa_agent/skills/` are indexed, along with every other skill I have
+The `pa-*` skills in `agents/pa_agent/skills/` are indexed, along with every other skill I have
 written, in `~/Code/SKILLS.md`. Add a new one there in the same session it is
-created; see [pa_agent/CLAUDE.md](pa_agent/CLAUDE.md).
+created; see [agents/pa_agent/CLAUDE.md](agents/pa_agent/CLAUDE.md).
 
 ## Writing a report
 
@@ -63,9 +63,9 @@ with none of them.
 
 ## The night agent
 
-`night_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
+`agents/night_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
 `[ai:: partial]`, and writes a plan for each into `data/<dataset>/plans/`. It
-proposes and never executes. Read [night_agent/README.md](night_agent/README.md) before
+proposes and never executes. Read [agents/night_agent/README.md](agents/night_agent/README.md) before
 changing any of it — particularly the window rule, which is the part that looks
 arbitrary and is not.
 
@@ -79,15 +79,19 @@ Two things to keep true:
   `plans/queue-order.json` and nothing else.
 - **It spends only in a usage window that expires before 07:00.** The morning is
   his. `core/windows.py` owns that arithmetic and `python3
-  night_agent/test_night_agent.py` covers it — run that after touching the rule, since
+  agents/night_agent/test_night_agent.py` covers it — run that after touching the rule, since
   it is the only way to test 02:00 without waiting for 02:00.
 
-Its per-bucket agents live in `.claude/agents/` in this repo rather than in
+Its per-bucket agents live in `agents/` in this repo rather than in
 `~/.claude/agents/`, so they version with the runner that invokes them.
+Claude Code only reads agent definitions from inside `.claude/agents/`, so
+each file there is a symlink back to its real copy in `agents/` — one per
+file, not a folder symlink, so `agents/` stays free to be organised however
+it needs to be without changing what Claude Code sees.
 
 ## The acting agent
 
-`pa-execute` is the other half, added 6 Sep 2026. The planners propose; this one
+`execution-agent` is the other half, added 6 Sep 2026. The planners propose; this one
 carries out a plan he has already agreed to. Three things about it are
 load-bearing:
 
@@ -100,15 +104,18 @@ load-bearing:
 - **It only ever runs from a session he is in**, through the `pa-do` skill.
   Never on a schedule, never in the background. The whole reason it can act at
   all is that it can stop and ask, which is what the planners cannot do.
-- **It is the only agent allowed to write `todo.md`**, and it has to ask first,
-  show the before and after, hash the file either side, and tell him to press
-  Reload rather than save. Everything else in this repo still writes through a
-  queue file or not at all.
+- **It does not write `todo.md`.** That file belongs to the PA agent, meaning the
+  session running the `pa-*` skills with him in it. `execution-agent` carries out a
+  plan; where the work means the task itself should change, it asks for the change
+  in its report, precisely enough to be applied, and the PA agent makes it. One
+  writer is the only rule the board's autosave survives, and the acting agent is
+  the wrong one to be it because it is the one running unattended stretches.
+  Everything else in this repo still writes through a queue file or not at all.
 
 A plan reaches it by carrying `status: agreed`, set by him on the Plans view.
 The five statuses are documented in `kanban/js/13-plans.js` and known in two
 other places — `PLAN_STATUS` in `kanban/server.py` and `is_stale()` in
-`night_agent/pick.py`. Change one and change all three.
+`agents/night_agent/pick.py`. Change one and change all three.
 
 ## After changing `kanban/server.py`
 
@@ -212,7 +219,7 @@ which ones it reached:
 ```
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
-python3 night_agent/test_night_agent.py    # the window rule, the picker, the runner
+python3 agents/night_agent/test_night_agent.py    # the window rule, the picker, the runner
 python3 companion/test_companion.py
 node kanban/test_plans.mjs         # the three below need the board running
 node kanban/test_schedule.mjs

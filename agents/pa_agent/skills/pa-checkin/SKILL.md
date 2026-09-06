@@ -79,7 +79,7 @@ That line is written by this skill and by `pa-retrieve-tasks`, never by him, and
 Read todo.md, including the `## Context` section at the bottom, which holds who is who, who is on leave and whose contract runs out when. It also holds `### How I want messages and prompts written`, his own rules for that, and those override the conventions file wherever the two disagree. He can edit that section on the board and cannot see the conventions file, so his copy is always the current one. Then run the checker:
 
 ```bash
-python3 ~/Code/to-dos/pa_agent/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
+python3 ~/Code/to-dos/agents/pa_agent/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
 ```
 
 Then open with a short status. **Lead with the headline in one line**, since that is the answer to "what am I doing today". Then what is time-critical, because that is what he is scanning for next:

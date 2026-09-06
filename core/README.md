@@ -26,7 +26,7 @@ Every file here started inside the thing that first needed it, and outgrew it.
 `todo.py` lived in `kanban/` while the board was its only caller. That stopped
 being true when the companion imported it, and by the time the pa-checkin checker
 and the night agent did too, four things depended on a module filed inside one
-of them. `windows.py` lived in `night_agent/` for about six hours, until the board
+of them. `windows.py` lived in `agents/night_agent/` for about six hours, until the board
 wanted the same window history for its Schedule view. `todo.js` was 440 lines in
 the middle of `kanban/index.html`, which is a 9,500-line file — one caller, so by
 the rule above it had every right to stay there, except that it is the half of
@@ -45,12 +45,12 @@ problem. A reader that cannot write also cannot corrupt the file, which is worth
 more than the symmetry.
 
 **Policy.** Which tasks are *owed* is `companion/digest.py`'s question, which are
-worth *planning* is `night_agent/pick.py`'s, and both are answered on top of this
+worth *planning* is `agents/night_agent/pick.py`'s, and both are answered on top of this
 rather than inside it. The test is whether two callers would want the same
 answer: the `repeat:` grammar yes, "is this due today" no.
 
 **Anything about a dataset.** These modules take text and return facts. Where
-`todo.md` lives is the caller's problem — `night_agent/paths.py` for the agent,
+`todo.md` lives is the caller's problem — `agents/night_agent/paths.py` for the agent,
 `digest.todo_path()` for the companion, `server.py`'s own resolution for the
 board — because they genuinely disagree. The companion pins itself to `twinkl` so
 switching the board for ten minutes does not change what gets notified tomorrow;
@@ -96,12 +96,12 @@ documents in `parse.json` were missing: both of them started at `## 1. People`,
 so neither had a preamble to get wrong. The third one does.
 
 There used to be a third copy, hand-transcribed inside
-`pa_agent/skills/pa-checkin/scripts/check_todo.py`. It is gone: the checker imports
+`agents/pa_agent/skills/pa-checkin/scripts/check_todo.py`. It is gone: the checker imports
 this file directly, five folders up. It used to have a second route as well, for a
 skill installed from a packed archive with no repo to reach, and that went with the
 archives on 6 Sep 2026 — skills are symlinked now, so the link resolves back into
 the repo and `core/todo.py` is always there. **Do not commit a copy of `todo.py`
-under `pa_agent/skills/`** — one copy in git is the point.
+under `agents/pa_agent/skills/`** — one copy in git is the point.
 
 So: after changing either file, run both suites. There is nothing to rebuild.
 

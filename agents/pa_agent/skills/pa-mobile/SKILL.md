@@ -79,7 +79,7 @@ Read `data/.current`, then that dataset's `todo.md`, including `## Context`.
 Then run the checker:
 
 ```bash
-python3 ~/Code/to-dos/pa_agent/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
+python3 ~/Code/to-dos/agents/pa_agent/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
 ```
 
 Hold what it says. Do not report a flag that was already there when you arrived,

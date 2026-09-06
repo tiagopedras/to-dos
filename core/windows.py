@@ -264,7 +264,7 @@ def main(argv):
     # sideways for it. The module itself has no opinion about where that is —
     # every caller passes the state in — and this is only for the command line.
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, os.path.join(root, "night_agent"))
+    sys.path.insert(0, os.path.join(root, "agents", "night_agent"))
     import paths  # noqa: E402
 
     state = read_state(paths.window_path())

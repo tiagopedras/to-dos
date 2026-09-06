@@ -227,7 +227,7 @@ function renderCanvas(){
     const rect = placed.boxes[group.key];
     if (!rect) return;
     const loc = locate(group.task.id);
-    const bc = loc ? BUCKET_COLOR[loc.bi % BUCKET_COLOR.length] : 'var(--ink-faint)';
+    const bc = loc ? bucketColor(loc.bucket.name, loc.bi) : 'var(--ink-faint)';
     html += '<section class="cvbox" data-box="' + esc(group.key) + '"' +
         ' style="left:' + rect.x + 'px; top:' + rect.y + 'px;' +
         ' width:' + rect.width + 'px; height:' + rect.height + 'px">' +
@@ -786,7 +786,8 @@ function viewDefs(){
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
     { id:'sep2', sep:true },
-    { id:'reports',  label:'Reports' }
+    { id:'reports',  label:'Reports' },
+    { id:'projects', label:'Projects' }
   ];
   // Canvas only exists where there is an engine behind it. Same rule the Ask
   // Claude buttons follow: no CLI, no helper, or a host serving these files
