@@ -9,7 +9,7 @@
    ========================================================================= */
 
 /* IMPACT_N, EFFORT_N, unscored and priorityScore moved to core/todo.js on
-   5 Sep 2026, when nightly/pick.py needed the same answer to order its queue
+   5 Sep 2026, when night_agent/pick.py needed the same answer to order its queue
    and a second copy of "high is 3" became a thing that could drift. That file
    is loaded as a classic script above this one, so all four are already in
    scope here. Only the emoji stayed: the picker has no use for them and the

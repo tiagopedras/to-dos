@@ -16,7 +16,7 @@
  * also the assertion that it posts what it should, to the route it should,
  * without a single byte reaching a file.
  *
- * /plans.json, /queue.json and /nightly.json are all stubbed rather than read
+ * /plans.json, /queue.json and /night-agent.json are all stubbed rather than read
  * from disk, so this needs no plans, no queue and no run log to exist, and it
  * never touches data/.
  *
@@ -120,7 +120,7 @@ await evalJS(`(() => {
             'Arabic theme as a new token mode'],
     hold: ['Arabic theme as a new token mode']
   };
-  window.__nightly = {
+  window.__nightAgent = {
     live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
     current: { title:'Rename the text styles', agent:'pa-plan-design-system',
                since:'2026-09-05 02:11:40' },
@@ -141,8 +141,8 @@ await evalJS(`(() => {
     if (String(url).startsWith('/queue.json')) {
       return Promise.resolve(new Response(JSON.stringify(window.__queue), {status:200}));
     }
-    if (String(url).startsWith('/nightly.json')) {
-      return Promise.resolve(new Response(JSON.stringify(window.__nightly), {status:200}));
+    if (String(url).startsWith('/night-agent.json')) {
+      return Promise.resolve(new Response(JSON.stringify(window.__nightAgent), {status:200}));
     }
     // The usage half is a second of work on the real server and nothing here
     // asserts on it; an empty answer keeps the fourth column quiet.
@@ -191,14 +191,15 @@ check('the summary is what the closed row shows', await evalJS(`
 // What tonight would plan, in the order it would plan it, and the two ways to
 // change that: drag to reorder, hold to take one out entirely.
 
-check('all four columns are drawn', await evalJS(`
-  !!document.querySelector('#queueOut') && !!document.querySelector('#flightOut') &&
-  !!document.querySelector('#plansOut') && !!document.querySelector('#usageOut')
+check('all five columns are drawn', await evalJS(`
+  !!document.querySelector('#backlogOut') && !!document.querySelector('#queueOut') &&
+  !!document.querySelector('#flightOut') && !!document.querySelector('#plansOut') &&
+  !!document.querySelector('#usageOut')
 `))
-check('the queue is the leftmost column', await evalJS(`
+check('the backlog sits left of the queue', await evalJS(`
   [...document.querySelectorAll('.lists.pview > .listcard')]
     .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Queue for tonight | In flight | Written plans | Token windows')
+`) === 'Backlog | Queue for tonight | Next run | Plans | Token windows')
 
 check('every queued task is listed', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length
@@ -209,16 +210,23 @@ check('numbered by the order it will be worked through', await evalJS(`
 check('each says why it is being planned again', await evalJS(`
   document.querySelectorAll('#queueOut .qwhy')[1].textContent.includes('changed since 2026-09-03')
 `))
-check('held cards are shown, not hidden', await evalJS(`
-  document.querySelector('#queueOut .qfold summary').textContent.trim() === '1 held back'
+
+// --- the backlog column -----------------------------------------------------
+// Held cards and not-eligible cards both live here, and only the first kind
+// can be dragged back into the queue.
+
+check('a held card is shown in the backlog, not the queue', await evalJS(`
+  !document.querySelector('#queueOut .qitem.held') &&
+  !!document.querySelector('#backlogOut .qitem.held')
 `))
-check('and a held card cannot be dragged', await evalJS(`
-  !document.querySelector('#queueOut .qitem.held').getAttribute('draggable')
+check('and it can be dragged', await evalJS(`
+  document.querySelector('#backlogOut .qitem.held').getAttribute('draggable') === 'true'
 `))
-check('what a rule dropped is folded away with its reason', await evalJS(`
-  [...document.querySelectorAll('#queueOut .qfold summary')].some(s =>
-    s.textContent.trim() === '1 not eligible') &&
-  document.querySelector('#queueOut .qskip em').textContent.includes('unchanged')
+check('what a rule dropped is shown with its reason', await evalJS(`
+  document.querySelector('#backlogOut .qskip em').textContent.includes('unchanged')
+`))
+check('and it cannot be dragged, unlike a held card', await evalJS(`
+  !document.querySelector('#backlogOut .qskip').closest('[draggable="true"]')
 `))
 
 // Dragging the third card above the first. The board reorders locally and then
@@ -267,6 +275,70 @@ check('and names it in the hold list', await evalJS(`
     .split(' ').slice(2).join(' ')).hold.includes('Adoption and usage report')
 `))
 
+// Two cards sit held in the backlog now — the original fixture's and the one
+// just held above. Dragging the first of them back onto the queue puts it
+// back in play, at the position dropped, and only that title leaves the hold
+// list — the second held card stays held.
+await evalJS(`(() => {
+  const from = document.querySelector('#backlogOut .qitem.held');
+  const to = document.querySelectorAll('#queueOut > .qitem')[0];
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const box = to.getBoundingClientRect();
+  const opts = { dataTransfer: dt, bubbles:true, clientY: box.top + 2 };
+  to.dispatchEvent(new DragEvent('dragover', opts));
+  to.dispatchEvent(new DragEvent('drop', opts));
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('dragging a held card into the queue un-holds it', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem')].length === 3
+`))
+check('dropped at the top of the queue', await evalJS(`
+  document.querySelector('#queueOut > .qitem .qtitle').textContent
+`) === 'Arabic theme as a new token mode')
+check('the other held card stays behind', await evalJS(`
+  document.querySelector('#backlogOut .qitem.held .qtitle').textContent
+`) === 'Adoption and usage report')
+check('and the hold list drops only the one released', await evalJS(`
+  (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
+    .split(' ').slice(2).join(' ')).hold;
+    return !hold.includes('Arabic theme as a new token mode') &&
+           hold.includes('Adoption and usage report') })()
+`))
+
+// The reverse drag — a queue card dropped onto the backlog holds it back,
+// the same as pressing Hold. There is nothing to drop it against, so the
+// whole column is the target rather than one row within it.
+await evalJS(`(() => {
+  const rows = document.querySelectorAll('#queueOut > .qitem');
+  const from = rows[rows.length - 1];
+  const to = document.querySelector('#backlogOut');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const opts = { dataTransfer: dt, bubbles:true };
+  to.dispatchEvent(new DragEvent('dragover', opts));
+  to.dispatchEvent(new DragEvent('drop', opts));
+  return 1;
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('dragging a queue card onto the backlog holds it', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem')].length === 2
+`))
+check('and it shows up there, held', await evalJS(`
+  [...document.querySelectorAll('#backlogOut .qitem.held .qtitle')].map(e => e.textContent)
+    .includes('Rename the text styles')
+`))
+check('without disturbing the card held earlier', await evalJS(`
+  [...document.querySelectorAll('#backlogOut .qitem.held .qtitle')].map(e => e.textContent)
+    .includes('Adoption and usage report')
+`))
+check('and the post names both held titles', await evalJS(`
+  (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
+    .split(' ').slice(2).join(' ')).hold;
+    return hold.includes('Rename the text styles') && hold.includes('Adoption and usage report') })()
+`))
+
 // --- the in-flight column --------------------------------------------------
 
 check('the task in flight is named', await evalJS(`
@@ -278,21 +350,28 @@ check('with the agent working on it', await evalJS(`
 check('progress through the batch is shown', await evalJS(`
   document.querySelector('#flightOut .schedmeta').textContent.includes('1 of 4')
 `))
-check('what the run has written is listed with what it cost', await evalJS(`
-  document.querySelector('#flightOut .frow.done .fmeta').textContent === '214s · $0.83'
+// The results of the run itself sit in the Token windows column, not here —
+// this column is only what's happening right now.
+check('what the run has written is listed in Token windows, with what it cost', await evalJS(`
+  document.querySelector('#runResultsOut .fhead').textContent.includes('Latest run costs') &&
+  document.querySelector('#runResultsOut .frow.done .fmeta').textContent === '214s · $0.83'
+`))
+check('and the heading carries the date the run started', await evalJS(`
+  (() => { const h = document.querySelector('#runResultsOut .fhead').textContent;
+    return h !== 'Latest run costs · $0.83' && h.includes('$0.83') })()
 `))
 check('and a failure is separated from a success', await evalJS(`
-  document.querySelector('#flightOut .frow.failed .fname').textContent === 'A task that blew up'
+  document.querySelector('#runResultsOut .frow.failed .fname').textContent === 'A task that blew up'
 `))
 
 // A dead run must not read as a live one. The lock is what says which.
 await evalJS(`(async () => {
-  window.__nightly = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
+  window.__nightAgent = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
     current: null,
     orphan: { title:'Rename the text styles', agent:'pa-plan-design-system',
               since:'2026-09-05 02:11:40' },
     done: [], failed: [], stopped:'', left: 4 };
-  await renderNightly();
+  await renderNightAgent();
   return 1;
 })()`)
 await new Promise(r => setTimeout(r, 300))
@@ -312,7 +391,7 @@ check('with nothing running, the agent can be started by hand', await evalJS(`
 await evalJS(`document.querySelector('#flightOut #runNight').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('pressing it asks first rather than spending', await evalJS(`
-  !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/nightly/run'))
+  !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/night_agent/run'))
 `))
 check('and the confirm says what it costs and that nothing is carried out', await evalJS(`
   (() => { const m = document.querySelector('.mscrim .mid').textContent;
@@ -322,15 +401,15 @@ check('and the confirm says what it costs and that nothing is carried out', awai
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Run it').click()`)
 await new Promise(r => setTimeout(r, 400))
 check('confirming posts the run', await evalJS(`
-  window.__blocked.some(b => b.startsWith('POST /nightly/run'))
+  window.__blocked.some(b => b.startsWith('POST /night_agent/run'))
 `))
 
 // A run already going must not offer to start a second one. run.sh would
 // refuse anyway, but it refuses by logging and exiting cleanly, which from a
 // button is indistinguishable from starting.
 await evalJS(`(async () => {
-  window.__nightly = Object.assign({}, window.__nightly, { live: true });
-  await renderNightly();
+  window.__nightAgent = Object.assign({}, window.__nightAgent, { live: true });
+  await renderNightAgent();
   return 1;
 })()`)
 await new Promise(r => setTimeout(r, 300))
@@ -369,6 +448,56 @@ check('and the row moves into the actioned fold', await evalJS(`
   document.querySelector('#plansOut details summary').textContent.trim() === '2 actioned'
 `))
 
+// Agree and Send back, the two statuses the execution half runs on. Both go
+// through a confirm, and Send back refuses to post without a reason — which is
+// the whole feature, since the reason is what the next night's agent is given.
+await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await new Promise(r => setTimeout(r, 400))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await new Promise(r => setTimeout(r, 200))
+check('Send it back asks for a reason first', await evalJS(`!!document.querySelector('#redoWhy')`))
+const beforeEmpty = (await evalJS(`String(window.__blocked.length)`)) | 0
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('and posts nothing when it is empty',
+  ((await evalJS(`String(window.__blocked.length)`)) | 0) === beforeEmpty)
+
+await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await new Promise(r => setTimeout(r, 400))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await new Promise(r => setTimeout(r, 200))
+await evalJS(`(() => {
+  const box = document.querySelector('#redoWhy');
+  box.value = 'Wrong scope, this is the Foundations file only.';
+  box.dispatchEvent(new Event('input'));
+  return 1;
+})()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await new Promise(r => setTimeout(r, 400))
+const sentBack = await evalJS(`window.__blocked.join(' | ')`)
+check('with a reason it posts redo', sentBack.includes('"status":"redo"'))
+check('and carries the reason with it', sentBack.includes('Wrong scope'))
+check('the reason is shown on the card without opening it', await evalJS(`
+  !!document.querySelector('#plansOut .repitem.redo .planredo')
+`))
+
+await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await new Promise(r => setTimeout(r, 400))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree, hand it over').click()`)
+await new Promise(r => setTimeout(r, 200))
+check('Agree confirms before it commits anything', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('Nothing runs now')
+`))
+check('and says how it actually gets run', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('/pa-do')
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree it').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('agreeing posts agreed', (await evalJS(`window.__blocked.join(' | ')`)).includes('"status":"agreed"'))
+check('and the agreed plan is lifted out of the reading list', await evalJS(`
+  !!document.querySelector('#plansOut .planagreed .repitem.agreed')
+`))
+
 // The whole point of the second guard.
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
@@ -376,7 +505,7 @@ check('nothing reached todo.md', await evalJS(`
 check('and every write was a plan status, a queue ordering or a run', await evalJS(`
   window.__blocked.every(b =>
     b.startsWith('POST /plan/status') || b.startsWith('POST /queue/order') ||
-    b.startsWith('POST /nightly/run'))
+    b.startsWith('POST /night_agent/run'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
 // The whole queue column writes to exactly one place, and it is not the list.
 check('the queue writes only its own ordering', await evalJS(`

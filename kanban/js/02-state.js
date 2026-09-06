@@ -216,6 +216,9 @@ const WAIT_COL = 'Waiting review';
    task is moved into it (see ensureTier), and the board hides it again once
    nothing is left there (see the filter in renderBoard). */
 const BLOCKED_TIER = 'Blocked';
+/* Same story as WAIT_COL: a tier name the board fades on sight, not a status
+   field of its own. A renamed Backlog just stops matching. */
+const BACKLOG_TIER = 'Backlog';
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
    needs a name no heading in the file could ever produce. */
 const ALL_BUCKETS = '__all__';

@@ -18,38 +18,35 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **The nightly agent's first full batch spent the whole night on one bucket.**
-  Found 5 Sep 2026, on the first real 24-task run. The queue is ordered
-  Design System first, and DS is 13 of the 24, so all 10 plans the budget paid
-  for were DS. People, Strategic and Processes got nothing at all, and every one
-  of the 14 that went unplanned is in those three. The ledger carries them, so
-  the second night is all non-DS, which is the opposite imbalance rather than a
-  fix. What it probably wants is the picker interleaving buckets rather than
-  draining them in order, so a short night is a thin spread instead of one
-  bucket done and three untouched. This is also the night's spread the handover
-  said would settle whether DS wants splitting into its five streams: it does,
-  or the ordering does.
+- ~~**The night agent's first full batch spent the whole night on one
+  bucket.**~~ **Done, 5 Sep 2026** (`dcbc109`). Found on the first real
+  24-task run — Design System is 13 of the 24 and sorted first, so all 10
+  plans the budget paid for were DS and three buckets got nothing. `in_order`
+  in `night_agent/pick.py` now sorts on the board's own order, headline, date, then
+  impact against effort — bucket is not a key at any level, so a short night
+  interleaves instead of draining one bucket before the next starts. Also
+  settles the open question of whether DS wants splitting into five streams:
+  the ordering was the real cause, not the bucket's size.
 
-- **A plan whose agent wrote no `summary:` lists as `[fill in]`, and the file
-  itself is worse than the symptom shows.** Found 5 Sep 2026; 2 of 10 agents did
-  it: `assess-the-need-for-component-tokens-and-how-they-map-to-the.md` and
-  `document-component-layout-and-grid-usage-rules-for-the-desig.md`. Both files
-  hold two frontmatter blocks back to back — a first one with a `session:` and
-  `summary: [fill in]`, immediately followed by a second, complete frontmatter
-  (proper `summary:`, no `session:`) and the real body. `write_plan` in
-  `nightly/plan.py` is writing a placeholder header, then appending the agent's
-  actual output underneath rather than replacing it, not genuinely falling back
-  because the agent wrote nothing. `index.md` and the Plans view read the first
-  block, so they show `[fill in]` over a plan that in fact has a perfectly good
-  summary two blocks down. Fix the write path so the real content replaces the
-  placeholder rather than following it, then decide separately what a plan with
-  a genuinely missing summary should show.
+- ~~**A plan whose agent wrote no `summary:` lists as `[fill in]`, and the
+  file itself is worse than the symptom shows.**~~ **Done**, alongside the
+  fold/hold work in `f540acd`. `write_plan` in `night_agent/plan.py` now strips the
+  agent's own frontmatter entirely and writes one rebuilt block, so there is
+  never a placeholder header sitting in front of a real summary two blocks
+  down. A missing summary now reads plainly as "The agent wrote no summary
+  line" rather than reusing `[fill in]`, which used to mean two different
+  things.
 
-- **The nightly budget is set from figures four times too low.** `NIGHTLY_BUDGET`
-  in `nightly/plan.py` is $12, chosen against two runs that cost $0.29 and
+- **The nightly budget is set from figures four times too low.** `NIGHT_AGENT_BUDGET`
+  in `night_agent/plan.py` is $12, chosen against two runs that cost $0.29 and
   $0.67. The first full batch averaged $1.23 across 10 plans and stopped on
   budget with 14 left. The whole 24 is around $30. $12 is a defensible ceiling,
   but it should be set against $1.23 rather than against $0.48.
+
+  **Decided, 5 Sep 2026: leave it at $12.** Cost is already logged per plan and
+  per night in `data/<dataset>/plans/night-agent.log` (`night_agent/plan.py`'s own
+  `log()` calls), so there's a real record to assess the ceiling against once
+  more nights have run, rather than resetting it on two nights' figures.
 
 - ~~Message suggestions and Prompt suggestions disappeared when empty.~~
   **Done, 4 Sep 2026.** `suggestionSection` in `kanban/index.html` no longer
@@ -74,39 +71,63 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `companion/notify.py` appends to `data/<dataset>/notify-queue.json` and the
   companion drains it on its next tick. Same shape as `attach-queue.json` — a
   JSON array anything appends to, drained by the one thing that can act on it.
-  It holds anything queued outside 08:30–20:00, so the nightly agent finishing at
+  It holds anything queued outside 08:30–20:00, so the night agent finishing at
   02:00 is heard about in the morning instead of at 02:00. It does *not* hold for
   weekends and holidays, unlike the morning briefing: that one is a scheduled
   interruption about a working day, this one answers something that just
-  happened. The nightly agent is its first caller.
+  happened. The night agent is its first caller.
 
-- **A card limit per column, with a "load more" at the bottom.** Long columns
-  (Backlog especially) render every card at once. Capping the initial render
-  and revealing the rest on demand would help scroll and layout on the busier
-  lists.
+- ~~A card limit per column, with a "load more" at the bottom.~~ **Dropped,
+  5 Sep 2026.** Would have interacted badly with drag-and-drop — dropping past
+  a hidden tail card doesn't land where the board's own drop-position logic
+  says it should. Not worth the risk on a view that autosaves in seconds.
 
-- **Schedule should be part of Plans, not a view of its own.** Half done, 5 Sep
-  2026: Plans now ends in a **Token windows** column, the same `renderUsage()`
-  the Schedule view calls, so the question "would it even run tonight" is
-  answered beside the queue it would run on. What is left is the other card,
-  "What runs on a clock", and then retiring the view — the `schedule` view id,
-  the `#schedule` fragment, `renderScheduleView()` and the header button, which
-  also takes one item out of the crowded row below.
+- ~~**Schedule should be part of Plans, not a view of its own.**~~ **Done,
+  6 Sep 2026.** Token windows landed as its own column on 5 Sep; "What runs on
+  a clock" was the piece left, and the open question was where — a fifth
+  column, or folded under something that already exists. Decided: folded under
+  **In flight**, since it changes only when the plist itself changes, which is
+  rarely, and five columns was a lot for a view whose middle three are usually
+  short.
 
-  Only `schedRow()` and `schedule_listing()` still need to move, and neither
-  reads anything Plans does not already have. The layout question the entry
-  used to raise is settled: Plans is a four-column `.lists.pview`, and a fifth
-  card is a column rather than a rearrangement.
+  `renderScheduleView()` in `kanban/js/14-schedule.js` is gone, replaced by
+  `renderSched()` — the same job-list rendering, minus the wrapper it used to
+  build a whole view out of. `kanban/js/13-plans.js` calls it alongside
+  `renderQueue()`/`renderNightAgent()`/`renderUsage()` and nests its output in a
+  `<details class="ufold">` under the In flight card. The `schedule` view id,
+  the `#schedule` fragment, and the Schedule button all came out of
+  `kanban/js/18-timeline.js`, `25-archiving.js` and `index.html` — nothing
+  routes to a standalone Schedule any more. `kanban/test_schedule.mjs` now
+  drives Plans instead and asserts on the two migrated cards directly.
 
-  One thing to decide before finishing it. Five columns is a lot for a view
-  whose middle three are usually short, and "What runs on a clock" is the least
-  urgent of them — it changes when a plist changes, which is rarely. It may
-  belong under the in-flight column rather than beside it.
+  **Except the card is not under In flight yet.** The view retired, the button
+  went and `renderSched()` replaced `renderScheduleView()`, but the `<details>`
+  holding "What runs on a clock" is still nested in the **Token windows** card
+  in `kanban/js/13-plans.js` rather than the In flight one. The test was written
+  against the decision rather than the markup, so it fails on exactly this and
+  nothing else — which is the right way round, and the one check left to make
+  pass. Moving the `<details>` between the two card strings is the whole fix.
 
-- **The top-right header is a flat row of buttons and dropdowns** — Undo,
-  Download copy, Backups, the dataset switcher, AI filter, Urgent/due, search —
-  crowded together with no grouping. Sort into themed menus or a sectioned
-  dropdown (data actions, filters, list switching) rather than one long row.
+- ~~**The top-right header is a flat row of buttons and dropdowns**~~ **Done,
+  5 Sep 2026.** Undo, Download copy, Backups, Schedule and the dataset switcher
+  were five always-visible controls under two separate labels ("Data", "List");
+  they're now one `Data ▾` button opening a small panel (`.dropdown` /
+  `.dropdown-panel` in `board.css`, wired in `kanban/js/25-archiving.js`) that
+  closes on picking an item, clicking elsewhere, or Escape. The dataset
+  `<select>` sits inside the same panel under its own divider row rather than
+  as one more item — it's a pick, not an action. Same ids throughout, so
+  nothing else that reads `#undo` / `#download` / `#backupsBtn` /
+  `#scheduleBtn` / `#datasetSelect` had to change. Schedule's entry in this
+  menu goes away on its own once the Schedule view retires (see the entry
+  above).
+
+  The filters row (AI can do, Urgent/due, search) moved too, off the header
+  entirely and down onto the bucket strip's own row, alongside the bucket tabs
+  and the column/bucket edit icons — one row doing view-scoping instead of two.
+  The header itself is now just the title, the view tabs, status and the Data
+  menu. `.filters` as a header-only section is gone; the bucket strip
+  (`.bucketbar`) already had the same flex layout, so the same markup just
+  moved down a level.
 
 Otherwise nothing standing. The three entries that were here are done, and what
 they settled is written up in the README rather than left here:
@@ -121,10 +142,9 @@ they settled is written up in the README rather than left here:
   silent. They are generated from the rules rather than kept as a table, so
   there is no year for the list to run out in, and `test_todo.py --online`
   re-checks them against gov.uk and Nager.Date.
-- One `repeat:` grammar, in `core/todo.py`. `check_todo.py` imports it — the
-  original from the repo, or the copy `skills/build.command` stages into the zip
-  — and `core/test_todo.py` still holds the board's own answers as a frozen
-  table, so the JavaScript third copy cannot drift either.
+- One `repeat:` grammar, in `core/todo.py`. `check_todo.py` imports it straight
+  from the repo, and `core/test_todo.py` still holds the board's own answers as a
+  frozen table, so the JavaScript third copy cannot drift either.
 
 - ~~**`index.html` is 9,600 lines and the format has no test of its own.**~~
   **Done, 5 Sep 2026.** Two lifts, and the page is 7,500 lines:
@@ -152,114 +172,97 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **A dedicated agent to act on a plan once it's been agreed, not just write it.**
-  Raised 5 Sep 2026, during a `pa-plans` review. Right now "accept" is only a
-  note on the task — nothing marks a plan as approved-to-run, and nothing reads
-  that mark if it existed. The gap gets wider as the nightly agent's plans get
-  good: reading and agreeing with ten of them and then still having to open a
-  session and delegate each one by hand is most of the friction this was meant
-  to remove.
+- ~~**A dedicated agent to act on a plan once it's been agreed, not just write
+  it.**~~ **Built, 6 Sep 2026,** together with the two entries below, which were
+  always one feature. What landed:
 
-  Needs deciding before it gets built, not after:
+  - **`agreed` and `redo`, two new plan statuses**, alongside
+    `unread`/`read`/`actioned`. A status rather than a flag, because a plan is
+    in one state at a time. Known in three places that have to stay in step:
+    `PLAN_STATUS` in `kanban/server.py`, the modal buttons in
+    `kanban/js/13-plans.js`, and `is_stale()` in `night_agent/pick.py`. `agreed`
+    deliberately does **not** make a task stale — a plan waiting to be carried
+    out must not be replaced overnight by a second opinion, which would put two
+    live plans on one task.
+  - **The rejection reason**, the question this entry left open. It goes in the
+    plan's own frontmatter as `redo_note:`, written by the same route that
+    already rewrites `status:`. `plan.py` follows the ledger row's existing
+    `file`/`night` pointer to read it back and pastes it into the next run's
+    prompt, so a rejected plan comes back different rather than identical. The
+    server refuses a `redo` with no reason, since a reason is the entire point.
+  - **One acting agent, `pa-execute`**, not one per bucket. The entry said
+    "scoped per bucket"; that was reconsidered on 6 Sep and the per-bucket
+    knowledge went into brief files both halves read instead. Six agents with
+    write tools is six copies of one set of guard rails, and the first one
+    edited without the others is the one that does damage.
+  - **`pa-do`**, the skill that finds agreed plans and hands them over one at a
+    time. On demand only, in a session he is sitting in, as decided. No cron and
+    no background mode. The Plans view's Agree button says so in its confirm
+    rather than implying anything runs.
+  - **`prune()` keeps agreed plans**, which it would otherwise have deleted on
+    their thirtieth day — silently dropping work he had already approved.
 
-  - **What "agreed" looks like as a signal.** A fourth plan `status` alongside
-    `unread` / `read` / `actioned`, or a separate flag, that a review session
-    (or Tiago on the board) can set once a plan is accepted rather than just
-    read.
-  - **Whether it still never writes `todo.md`.** The nightly planner's hardest
-    rule is that it proposes and never executes, checked by hashing the file
-    before and after. An execution agent is the opposite by design — it has to
-    change things — so it needs its own version of that guard: what it's
-    allowed to touch (probably: do the work a plan describes, write its output
-    to disk, leave a report), and what stays off limits (`todo.md` itself,
-    which stays a `pa-checkin` edit even when the work behind it is done).
-  - **Whether it runs unattended at all, or only on demand.** The nightly
-    agent's whole design is riding a usage window nobody's sitting in front of.
-    Executing real changes unattended, overnight, with nobody watching what
-    lands, is a different risk profile from writing a markdown file nobody has
-    to act on until morning. Worth asking whether this one only ever runs when
-    Tiago says "yes, do it" in a live session, at least at first.
+  Still open, and deliberately not built: raising a Jira ticket, and writing
+  into the design system directly. Both named in the entry below as TBD, both
+  still TBD.
 
-- **Three changes to what the nightly agent plans and what a plan is for,**
-  raised 5 Sep 2026 during a `pa-plans` review.
+- ~~**Three changes to what the night agent plans and what a plan is for,**~~
+  **All three done.** Raised 5 Sep 2026 during a `pa-review-plans` review.
 
-  - **Drop `partial` from the picker.** `PLANNABLE` in `nightly/pick.py:53` is
-    `{"full", "partial"}`. Tiago only wants `[ai:: full]` considered — a task he
-    has not judged fit to run mostly autonomously should not queue for a plan
-    at all. Narrowing `PLANNABLE` to `{"full"}` is the change; the queue
-    ordering and window-budget work already done in Plans does not need to
-    change alongside it.
-  - **A plan that hits an open question should stop there, not paper over it.**
-    If the agent's research turns up something it cannot resolve on its own —
-    a missing decision, a fact only Tiago has — the plan should say so and end,
-    rather than guess an answer and build a full actionable plan on top of the
-    guess. An assessment that says "blocked on X" is a legitimate, worthwhile
-    output of a run; a confident-sounding plan built on an invented answer is
-    not, and it is not worth the credits either way if it is not standing on
-    solid ground. This needs a shape decision: probably a plan `status` (or a
-    field on the existing frontmatter) distinct from a completed plan, so the
-    Plans view and `pa-plans` can tell "here's what to do" apart from "here's
-    what's blocking it" at a glance rather than by reading the body.
-  - **Plans should be actionable, not descriptive** — closer to the seed of a
-    background chat than a report. Once a plan is agreed, it should be able to
-    change the task's own subtasks to match what it proposes, the same way a
-    review session already edits a task from a conversation. And the work the
-    plan describes should be doable past the plan itself: agreeing a plan is
-    the point where it can be handed to a background agent to actually build
-    or do, not just a document that sits there until Tiago manually starts a
-    session from it. This is the same territory as the "dedicated agent to act
-    on a plan once it's been agreed" entry above and should be designed
-    alongside it rather than separately — an actionable plan and an execution
-    agent are two halves of one feature.
+  - **Drop `partial` from the picker.** Done 6 Sep. `PLANNABLE` in
+    `night_agent/pick.py` is `{"full"}`. A task passed over for its tag is named in
+    the board's "not eligible" fold with the reason, rather than silently
+    dropped — `ai:: none` is not, since that is his own statement that the task
+    is his and the card already says it.
+  - **A plan that hits an open question should stop there.** This was already
+    built when the entry was re-read on 6 Sep: `outcome: folded` is written by
+    `plan.py`, the rule is `night_agent/PLAN-BRIEF.md`, and the Plans list badges a
+    folded plan "needs you". Landed in `f540acd` alongside the hold work.
+  - **Plans should be actionable, not descriptive.** Done 6 Sep as the entry
+    above. Agreeing a plan is now a real signal, and `pa-execute` is what reads
+    it. The decision that the execution agent does not edit `todo.md` itself was
+    reconsidered in the same session: `pa-execute` **is** the writer, and the
+    only one, rather than handing off to a second agent. One writer with the
+    guard rails written down beat two agents each holding half of them.
 
 - **The bucket agents need to be bound to their buckets more closely than they
-  are, and given somewhere to grow.** Raised 5 Sep 2026, same conversation as
-  the entry above, and read together with it.
+  are, and given somewhere to grow.** Raised 5 Sep 2026. **The somewhere to grow
+  was built on 6 Sep; the content is his and is a task on the list now.**
 
-  The standing shape of this app: the board and its skills (`pa-checkin`,
-  `pa-checkout`, `pa-plans`, `pa-attach`, `pa-focus`, `pa-mobile`,
-  `pa-retrieve-tasks`) are Tiago's own on-ramps for managing the list himself —
-  that stays the main way in. The agents exist to move tasks forward and
-  produce actual outcomes on top of that, and today that means six nightly
-  planners, one per bucket plus a general fallback
-  (`.claude/agents/pa-plan-design-system.md`, `-people`, `-processes`,
-  `-strategic`, `-work-oversight`, `-general`), each running once per task and
-  writing a report. That is a start, not the end state.
+  Two corrections to this entry as it was written. It said the agents "know that
+  [their bucket] only at the level of a one-line description in their
+  frontmatter" — that was true when it was written and is not now. The six
+  definitions run 41 to 76 lines, and `pa-plan-people.md` already carries the
+  back-planning rules, the five hiring skills and the two confusable name pairs.
+  And it proposed that each agent "should get its own skills"; what was built
+  instead is one file per bucket that every agent reads, for the reason in the
+  entry above.
 
-  What is missing is context and specificity, not more agents. Each bucket
-  covers a real, different kind of work — Design oversight is not Strategic is
-  not People — and the agents currently know that only at the level of a
-  one-line description in their frontmatter. Getting them properly useful
-  means Tiago feeding each one more of what he actually does in that bucket:
-  the kind of decision, the kind of document, the people and processes
-  involved, so the agent's research and its output are grounded in his actual
-  work rather than a generic reading of the task title. That is ongoing input
-  from him, not a one-off spec, and it is the blocker on everything else in
-  this entry.
+  **What exists now:** `buckets/<stream>/<stream>.md`, one per stream plus the
+  fallback, found by `bucket_stream()` in `night_agent/plan.py` — the same table
+  that names the agent, so there is one mapping rather than two. Both the
+  planners and `pa-execute` are pointed at it. Each ships with a
+  `<!-- NOT FILLED IN YET -->` marker, and `bucket_brief()` treats a file
+  carrying that line as absent, so an unwritten brief costs nothing and no agent
+  spends its attention on a page of empty headings.
 
-  Once an agent has that grounding, it should get its own skills, tailored to
-  the processes it actually needs to run in its bucket, the way `pa-checkin` or
-  `probation-review` are tailored to a process Tiago already does — rather than
-  the same generic research-and-write-a-plan loop for every bucket.
+  **What is left is the part only he can do**, which is what this entry always
+  said was the blocker: the processes he actually runs in each bucket, what each
+  produces, which skill already does it, and who is involved. That is now a task
+  in Processes with a sub-step per bucket, DS and BAU first. `pa-plan-people.md`
+  is the worked example to copy from.
 
-  Two things fall out of that:
+  Two things from the original entry that still stand:
 
-  - **Output should vary by bucket and by task, not be one shape.** A message
-    (Slack, email — this already exists as a suggestion type in the drawer), a
-    further action on the board itself (subtasks, status, a note), or a
-    starting point for a background AI session on a specific piece of work.
-    Later, and explicitly not now: raising a Jira ticket (started once before
-    and not finished) and writing something back into the design system
-    directly. Both TBD, do not build either yet.
-  - **The nightly planners and the bucket agents that execute are not the same
-    agents, and should not become the same agents.** The nightly run
-    (`pa-plan-*`) exists to expand a problem and surface possible solutions
-    overnight, and its contract — proposes, never executes, never touches
-    `todo.md` — is load-bearing and stays exactly as it is. A plan being agreed
-    is what hands the work to the bucket's own agent, the one carrying the
-    fuller context above, to actually act on it. That agent is the "dedicated
-    agent to act on a plan" from the entry above, scoped per bucket rather than
-    generic — the two entries are one feature, decided together.
+  - **Output should vary by bucket and by task, not be one shape.** A message, a
+    change on the board, a starting point for a background session. The "what
+    finished looks like" heading in each brief is where that gets said. Raising
+    a Jira ticket and writing into the design system directly are still TBD and
+    still not to be built.
+  - **The planners and the acting agent are not the same agents.** Held. The
+    `pa-plan-*` contract — proposes, never executes, never touches `todo.md` —
+    is unchanged, and `pa-execute` is a separate definition with a separate tool
+    list.
 
 - ~~**Token windows should be a line chart, not a list of rows.**~~ **Done, 5 Sep
   2026.** One chart, both series as a share of their ceiling on a single 0-100%
@@ -284,6 +287,31 @@ they settled is written up in the README rather than left here:
   What that means in practice: the chart answers whether today is unusual, not
   how much is left, and it will start answering the second question the first
   time a nightly run hits a limit.
+
+- ~~**Eighty-three hairlines in a 380px column is a barcode.**~~ **Done, 6 Sep
+  2026.** The chart above was right about what to draw and wrong about how much
+  of it to draw at once. Thirty days of five-hour sessions rendered as
+  one-pixel lines two and a half pixels apart, and the answer to "what happened
+  last night" was somewhere in the smear on the right.
+
+  A session is a box now, covering the five hours it ran rather than standing
+  at the minute it opened — so windows that butt up against each other read as
+  the run of work they were, and the box is wide enough to draw inside. What is
+  drawn inside is how the spend arrived across those five hours:
+  `reconstruct()` in `core/windows.py` keeps the running total after each turn,
+  `window_shape()` in the server thins it to fourteen points as fractions of
+  the window's own span and total, and the chart fills the box in with it. A
+  window that emptied itself in twenty minutes and one that ticked along for
+  five hours reach the same height, and the fill is the only thing that tells
+  them apart.
+
+  And four range buttons — 24h, 3d, 7d, 30d — defaulting to three days, which
+  is the span the card is actually read at. They buy legibility rather than
+  speed: `usage_summary()` still reconstructs the full thirty days whichever
+  one is pressed, because 100% is the heaviest session seen and a three-day
+  view that worked out its own ceiling would call its own busiest window 100%.
+  Every range has to mean the same thing on the axis or the card stops
+  answering "is today unusual", which is the only question it is for.
 
 - **Making the code shorter is a different job from splitting it, and mostly
   there is nothing to cut.** Surveyed on 5 Sep 2026, after the split, because
@@ -439,20 +467,20 @@ they settled is written up in the README rather than left here:
 - ~~**A list view of every cronned task tied to this app.**~~ **Done, 5 Sep
   2026.** A **Schedule** button beside Backups in the Data group, opening a
   full-pane view — a header button rather than a nav tab, as the entry asked.
-  Three jobs today: the nightly agent's twelve launchd wakes, the companion's
+  Three jobs today: the night agent's twelve launchd wakes, the companion's
   morning check, and the weekly backup thread inside the server.
 
   It needed both sources rather than one. Live (`launchctl print`, the plist's
   own wake times, the companion's lock) says whether a job is armed and when it
   fires next, which no log can know — a log will happily describe a job that was
-  unloaded a week ago. The ledger (`plans/nightly.log`, `companion.json`,
+  unloaded a week ago. The ledger (`plans/night-agent.log`, `companion.json`,
   `backup_listing()`) says what actually happened, which `launchctl` cannot. A
   job that is not installed says so and gives the command to install it, which
   is the most useful thing the view says right now.
 
   The second card is the usage windows, which had no home outside
   `core/windows.py --history`: the last 30 days, night windows picked out, and
-  the nightly agent's own ride/open/stop decision as it stands this second. That
+  the night agent's own ride/open/stop decision as it stands this second. That
   last line is the useful one, because it answers "would it run tonight" without
   waiting for tonight.
 
@@ -483,12 +511,12 @@ they settled is written up in the README rather than left here:
   simply never matched, and there is nothing to prune.
 
 - ~~**No view can show a run that is happening right now.**~~ **Done, 5 Sep
-  2026**, as the **In flight** column in Plans, off a new `/nightly.json`, with
-  a **Run the agent now** button on the same card (`POST /nightly/run`, which is
+  2026**, as the **In flight** column in Plans, off a new `/night-agent.json`, with
+  a **Run the agent now** button on the same card (`POST /night_agent/run`, which is
   `run.sh --force` started detached).
 
   It reads the lock and the log together, because neither is enough. The lock
-  (`data/.nightly.lock`, held by `run.sh` for the length of a batch) is the only
+  (`data/.night-agent.lock`, held by `run.sh` for the length of a batch) is the only
   thing that separates "still going" from "died half way" — the log looks
   identical either way, and a log with a task in flight and no lock now says so
   in as many words rather than showing a dead run as live. The log gives the
@@ -504,7 +532,7 @@ they settled is written up in the README rather than left here:
   purpose. That log is read at a terminal far more often than it is parsed, and
   pinning its wording to a format string the board depends on would stop it
   being edited freely. When a line stops matching, the column goes quiet rather
-  than lying, and `test_queue_routes` in `nightly/test_nightly.py` holds
+  than lying, and `test_queue_routes` in `night_agent/test_night_agent.py` holds
   `plan.py`'s own format strings filled in, so a change to the wording fails
   there rather than in the morning.
 
@@ -660,3 +688,86 @@ they settled is written up in the README rather than left here:
   entry: the checker and the skills could call `todo.effective_due()` and roll in
   memory the way the companion does. That is a small change and needs no second
   writer. Do not re-propose the writing version.
+
+- **Clicking a queued plan on the Plans page should take you to the card it
+  came from.** Right now it opens the plan; there is no way from there to jump
+  to the task itself.
+
+- **The Plans token graph needs rework.** It currently plots a much larger
+  timeframe than useful — narrow it to a 24-48h window. Add a vertical axis
+  line marking where each 5-hour usage window starts/ends on the x axis (this
+  is what "5h window lines" meant, not the bars themselves). Work out what the
+  orange line is even showing, since it's unclear. And swap the bars for a
+  line to show consumption over time.
+
+- **Drop the descriptions on the bucket columns in the board.** He didn't
+  write them.
+
+- ~~**On the Plans page, make "Held back" its own column on the far left**
+  rather than a section within the queue.~~ **Done, 6 Sep 2026**, as the
+  **Backlog** column, first in Plans — held-back and not-eligible tasks both
+  live there now, off the same `/queue.json`.
+
+  Held cards drag both ways — into the queue at whatever position dropped, or
+  out of it by dropping a queue card anywhere on the Backlog column, since a
+  held card has no rank to drop it against. Both are the drag equivalent of the
+  Hold/Release buttons, which stay for a click rather than a drag. Not-eligible
+  cards are shown with their reason but not draggable: they are excluded by a
+  real rule in `pick.py` (blocked, parked, tagged short of `ai:full`, or waiting
+  on a `start:` date), and a drag cannot fix any of those, so offering one
+  would just fail silently on the next load.
+
+  The columns are five now rather than four. In flight is renamed **Next
+  run**, and Written plans is renamed **Plans**. What the run has actually
+  cost lives in **Token windows** now, as **Latest run costs** (with the date
+  the run started), alongside the usage chart and the job schedule that used
+  to be folded into Next run — all three are cost-and-schedule information,
+  which Next run itself no longer carries; it shows only what is happening
+  right now.
+
+  Still open: a "Run now" button on top of the queue column.
+
+- **Plans page follow-ups, raised 6 Sep 2026, none started yet.**
+
+  - **Simplify the column descriptions.** The `help listlead` paragraph under
+    Backlog, Queue for tonight, Next run and Plans (`renderPlansView()` in
+    `kanban/js/13-plans.js`) each carry a how-it-works explanation. Cut each to
+    one plain sentence saying what the column holds, or drop it — no drag/click
+    instructions in there.
+  - **Give every column a boxed empty state**, matching `.fidle` (dashed
+    border, `var(--bg)` fill) rather than the plain `.empty` text style. Queue,
+    Backlog and Plans all fall back to plain `.empty` today. `.reportsview
+    .empty` is shared with the Reports view, so scope the new look to Plans
+    specifically (e.g. `.lists.pview .empty`) rather than restyling it
+    everywhere.
+  - **Collapse "Not eligible" in Backlog** into a closed `<details>`/`<summary>`
+    fold (`renderBacklogList()`), the way "What runs on a clock" already folds.
+  - **Collapse "Latest run costs"** the same way, and **move it to sit after
+    the usage chart** rather than above it, inside the Token windows column.
+    Doing this without losing it on a range-button click needs care:
+    `renderUsage()` fully replaces `#usageOut`'s contents on every range
+    change, so a `#runResultsOut` placeholder moved inside that markup goes
+    blank until the next nightly poll unless the last-seen `/night-agent.json`
+    payload is cached (e.g. a module-level `lastNightAgent`) and re-applied via
+    `renderRunResults()` right after each `renderUsage()` redraw.
+  - **Give plan cards their own look.** `.repitem` is shared between the Plans
+    list and the Reports view's written-reports list (`.repitem` in
+    `kanban/board.css`, built by both `planItemHTML()` in `13-plans.js` and the
+    report card builder in `12-reports.js`). Task cards carry a left accent
+    border (`.card{border-left:3px solid var(--bc,...)}`); give plan cards a
+    top border instead, in a fixed red rather than a bucket colour — scoped so
+    it lands on plan cards only, not report cards (a dedicated class such as
+    `.repitem.planitem`, added in `planItemHTML()`, rather than restyling
+    `.repitem` itself).
+
+- **Bring the board's bucket filters to the Plans page.** Most plans are
+  attached to a parent card that already has a bucket, so the same filter
+  should work there too.
+
+- **Add different ways to sort "Quick wins" and "Delegate to Claude."**
+
+- **Rework the bucket editor.** Drop the task count column — it's not useful
+  there. Replace the auto-assigned colour (currently just index into
+  `BUCKET_COLOR`) with a picker of 10 preset colours, stored on the bucket
+  itself rather than derived from its position, so reordering buckets doesn't
+  reshuffle their colours.

@@ -30,52 +30,60 @@
   <span class="spacer"></span>
   <span class="status" id="status">read only</span>
   <button class="btn hidden" id="archiveBtn"></button>
-  <span class="menugroup" id="dataMenu">
-    <span class="menulabel">Data</span>
-    <button class="btn" id="undo" disabled title="Undo the last change (⌘Z)">Undo</button>
-    <button class="btn" id="download">Download copy</button>
-    <button class="btn" id="backupsBtn">Backups</button>
-    <button class="btn" id="scheduleBtn" title="What runs on a clock, and what the usage windows have been doing">Schedule</button>
+  <span class="menugroup dropdown" id="dataMenu">
+    <button class="btn" id="dataMenuBtn" aria-haspopup="true" aria-expanded="false">Data ▾</button>
+    <div class="dropdown-panel hidden" id="dataMenuPanel" role="menu" aria-label="Data actions">
+      <button class="dropdown-item" id="undo" disabled role="menuitem" title="Undo the last change (⌘Z)">Undo</button>
+      <button class="dropdown-item" id="download" role="menuitem">Download copy</button>
+      <button class="dropdown-item" id="backupsBtn" role="menuitem">Backups</button>
+      <!-- Which private folder under data/ the board is pointed at. Hidden
+           until loadDatasets() hears back from /datasets.json — an older
+           server with no such route leaves the board exactly as it was
+           before this existed. -->
+      <div class="dropdown-divider hidden" id="datasetMenu">
+        <label class="dropdown-label" for="datasetSelect">Switch list</label>
+        <select id="datasetSelect" title="Switch to-do lists"></select>
+      </div>
+    </div>
   </span>
-  <!-- Which private folder under data/ the board is pointed at. Hidden until
-       loadDatasets() hears back from /datasets.json — an older server with no
-       such route leaves the board exactly as it was before this existed. -->
-  <span class="menugroup hidden" id="datasetMenu">
-    <span class="menulabel">List</span>
-    <select id="datasetSelect" title="Switch to-do lists"></select>
-  </span>
-
-  <div class="filters">
-    <span class="tabs" id="bucketFilters"></span>
-    <button class="iconbtn" id="editBuckets" aria-label="Edit buckets"
-            title="Rename, reorder, add or remove the buckets">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-    </button>
-    <button class="iconbtn" id="editTiers" aria-label="Edit columns"
-            title="Rename, reorder, add or remove the columns (states) tasks move through">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
-    </button>
-    <span class="allbuckets hidden" id="allBuckets">All buckets</span>
-    <button class="scorechip hidden" id="scoreChip"></button>
-    <span class="spacer"></span>
-    <span id="aiWrap">
-      <label class="toggle" for="aiFilter" title="How much of the task AI can take on">AI can do</label>
-      <select id="aiFilter">
-        <option value="">Any amount</option>
-        <option value="ai">All or part of it</option>
-        <option value="full">All of it</option>
-        <option value="partial">Part of it</option>
-        <option value="none">None of it</option>
-      </select>
-    </span>
-    <span id="urgentWrap">
-      <label class="toggle" for="urgentFilter" title="Tasks marked urgent, or with a deadline set">
-        <input type="checkbox" id="urgentFilter"> Urgent or due
-      </label>
-    </span>
-    <input type="search" id="q" placeholder="Search tasks…">
-  </div>
 </header>
+
+<!-- Which bucket the board is showing, and the two editors for the headings the
+     board is built out of. Out of the header and down here because it is a
+     choice about the columns underneath it rather than one more control in the
+     top bar, and a sibling of <main> rather than a child of it because main is
+     a horizontal scroll container — anything sticky inside it measures its top
+     against main and never tracks the page (see .tlscroll in board.css). -->
+<div class="bucketbar hidden" id="bucketBar">
+  <span class="tabs" id="bucketFilters"></span>
+  <button class="iconbtn" id="editBuckets" aria-label="Edit buckets"
+          title="Rename, reorder, add or remove the buckets">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+  </button>
+  <button class="iconbtn" id="editTiers" aria-label="Edit columns"
+          title="Rename, reorder, add or remove the columns (states) tasks move through">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
+  </button>
+  <span class="allbuckets hidden" id="allBuckets">All buckets</span>
+  <button class="scorechip hidden" id="scoreChip"></button>
+  <span class="spacer"></span>
+  <span id="aiWrap">
+    <label class="toggle" for="aiFilter" title="How much of the task AI can take on">AI can do</label>
+    <select id="aiFilter">
+      <option value="">Any amount</option>
+      <option value="ai">All or part of it</option>
+      <option value="full">All of it</option>
+      <option value="partial">Part of it</option>
+      <option value="none">None of it</option>
+    </select>
+  </span>
+  <span id="urgentWrap">
+    <label class="toggle" for="urgentFilter" title="Tasks marked urgent, or with a deadline set">
+      <input type="checkbox" id="urgentFilter"> Urgent or due
+    </label>
+  </span>
+  <input type="search" id="q" placeholder="Search tasks…">
+</div>
 
 <main id="main">
   <div class="headline hidden" id="headline"></div>

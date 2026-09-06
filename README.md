@@ -21,6 +21,20 @@ data/twinkl/projects/      that data set's own project folders, see below
 data/personal/todo.md      a second, unrelated list, shaped the same way
 ```
 
+`buckets/` beside it is the second private folder, and gitignored for the same
+reason. One folder per bucket of the board, holding the brief that says what work
+I actually do in it, and that bucket's own skills:
+
+```
+buckets/people/people.md        the brief
+buckets/people/skills/          the skills that bucket's work runs on
+```
+
+The night agent's planners and `pa-execute` both read the brief, and so do I.
+[BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is
+found, and the template to start from — so a fresh clone can rebuild the shape
+without carrying any of the content.
+
 Nothing else in the repo holds a task, a name or a date. `data/` used to be one
 list flat inside it, before the dropdown existed to hold more than one — moving
 the old files into `data/twinkl/` is the whole of what that change did to disk,
@@ -426,7 +440,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 ### Plans
 
 A separate tab, beside Reports, and a separate folder. Plans are written
-overnight by the nightly prep agent in `nightly/` — one per task tagged
+overnight by the night agent in `night_agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
@@ -452,8 +466,8 @@ else — in particular it never touches `todo.md`. The next night then plans tha
 task afresh rather than skipping it for looking unchanged, which is how a task he
 has moved on from gets a new plan.
 
-The full account of how the nightly agent decides what to plan and when it is
-allowed to spend is in [nightly/README.md](nightly/README.md). The short version
+The full account of how the night agent decides what to plan and when it is
+allowed to spend is in [night_agent/README.md](night_agent/README.md). The short version
 of the part that matters: it only ever spends inside a usage window that expires
 before 07:00, so the morning is never eaten by work done overnight.
 
@@ -471,7 +485,7 @@ look, and "did the nightly job actually run" had no answer short of reading a lo
 It reads two sources, and they are not alternatives. **Live** — `launchctl print`,
 the plist's own wake times, the companion's lock file — says whether a job is
 armed and when it fires next, which no log can know, since a log will happily
-describe a job that was unloaded a week ago. **The ledger** — `plans/nightly.log`,
+describe a job that was unloaded a week ago. **The ledger** — `plans/night-agent.log`,
 `companion.json`, the backup listing — says what it actually did, which
 `launchctl` cannot. A job that is not installed says so and gives the command to
 install it.
@@ -479,7 +493,7 @@ install it.
 The second card is the usage windows, which had no home outside running
 `core/windows.py --history` at a terminal. The last 30 days, one row a window,
 with the ones that started in the night picked out — those are the ones the
-nightly agent could have spent in. Above them is the agent's own decision as it
+night agent could have spent in. Above them is the agent's own decision as it
 stands this second, ride, open or stop, with its reasoning: that line answers
 "would it run tonight" without waiting for tonight.
 
@@ -1099,7 +1113,7 @@ belongs to no one app: a Python port of the parsing, the suggested messages and
 the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
 tab that needs to know what is due asks one shared reader rather than inventing a
 second one. It sat in `kanban/` while the board was its only caller, and moved to
-`core/` on 5 Sep 2026 once the companion, the nightly agent and the pa-checkin
+`core/` on 5 Sep 2026 once the companion, the night agent and the pa-checkin
 checker all depended on a module filed inside one of them. The JavaScript
 followed it there the same day, out of the middle of `index.html`, so the two
 copies of one grammar now sit next to each other. `core/README.md` says what
@@ -1186,20 +1200,20 @@ and a view in its `userInfo`, and clicking it opens the board there — the same
 banner and a menu row behave identically and neither can give you a second tab.
 The morning briefing points at the one thing when there is one, and at the board
 itself when the line names several tasks, since picking one of three to open
-would be a guess. The nightly agent's line points at the Plans tab. Only the
+would be a guess. The night agent's line points at the Plans tab. Only the
 NSUserNotification route can carry a target: the `osascript` fallback posts a
 banner that does nothing when pressed, which is one more reason it is a fallback.
 
 ### Asking the companion to say something
 
 The companion is the only thing here that can put a desktop notification on
-screen. The nightly agent has no interface at all, the board is a browser tab
+screen. The night agent has no interface at all, the board is a browser tab
 that is usually shut, and a skill is a conversation that has already ended by the
 time its result matters. So rather than each growing its own way to speak, they
 append to one file and the companion drains it on its next tick:
 
 ```
-python3 companion/notify.py --view plans "Nightly agent" "3 plans waiting"
+python3 companion/notify.py --view plans "Night agent" "3 plans waiting"
 python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
 ```
 
@@ -1217,14 +1231,14 @@ on twice.
 
 What the queue does not get to override: nothing is posted outside 08:30 to
 20:00, and no more than three at a time. A line queued at 02:00 waits for the
-morning, which is the whole point — the nightly agent finishes in the middle of
+morning, which is the whole point — the night agent finishes in the middle of
 the night and there is no version of being woken by it that is useful.
 
 Weekends and public holidays are the one rule the queue does **not** inherit from
 the morning briefing, and the difference is deliberate. The briefing is a
 scheduled interruption about a working day, so a Saturday rightly gets none. A
 queued line is the opposite: it answers something that has just happened, put
-there by something you set running yourself. Running the nightly agent on a
+there by something you set running yourself. Running the night agent on a
 Saturday and hearing about it on Monday helps nobody. The time window is the
 guard that matters, because that one is about not being woken, and it applies
 every day.
@@ -1234,9 +1248,9 @@ plans is one line at the end, not one line a plan.
 
 ## The skills
 
-`skills/pa-checkin/` is a Claude skill that runs the review session: read
+`pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
-verify. It is packaged as `skills/dist/pa-checkin.skill` for installing.
+verify.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -1246,7 +1260,7 @@ under it, and a queried tag written in a form Dataview cannot read. Run it
 directly:
 
 ```bash
-python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
+python3 pa_agent/skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 It does not carry its own copy of the `repeat:` grammar or the bank holidays any
@@ -1256,11 +1270,11 @@ where there is no repo to reach, it imports the copy the build step staged besid
 it. The repo wins when both exist, so editing the original is always what takes
 effect and a stale staged copy cannot mask it.
 
-`skills/pa-mobile/` is the same list read from a phone, over Remote Control from
+`pa_agent/skills/pa-mobile/` is the same list read from a phone, over Remote Control from
 the Claude app. It reads and writes the real file like any other session, so what
 makes it a separate skill is the surface rather than the data: every question is
 asked as multiple choice instead of as something to type, and every report is
-rendered from a template in `skills/pa-mobile/templates/` instead of being written
+rendered from a template in `pa_agent/skills/pa-mobile/templates/` instead of being written
 freehand. The templates are Tiago's, one file per kind of report, and adding a
 file to that folder is the whole of adding a report shape. A status that comes out
 in the same shape every morning can be scanned in the four seconds a phone screen
@@ -1274,18 +1288,24 @@ reads both before it does anything, which is why none of them restate either.
 `pa-checkin/references/audit-checklist.md` is what to check by hand that the
 script cannot.
 
-### Packaging them
+### Installing them
 
-`skills/build.command` writes every skill in `skills/` to
-`skills/dist/<name>.skill`. Double-click it, or run it from a terminal. A
-`.skill` file is a plain zip with `SKILL.md` at its root, so most of the job is
-copy, prune and zip; the reason it is a script rather than a `zip` line typed
-when needed is the staging in the middle. An installed skill has to stand alone,
-and `pa-checkin` needs the board's reader, which lives outside it. That file used
-to be transcribed in by hand, which meant two Python ports of one set of rules
-with nothing keeping them in step; now it is copied in at build time and there is
-still only one copy in git. The `.skill` files themselves are committed, so a
-machine that only wants to install them never needs to run this.
+Symlink, and nothing else:
+
+```sh
+ln -s ~/Code/to-dos/pa_agent/skills/<name> ~/.claude/skills/<name>
+```
+
+The folder is the installed skill, so an edit takes effect the next time it
+fires. There was a `build.command` here that packed each one into a
+`dist/<name>.skill` zip; it went on 6 Sep 2026, with every archive in every skill
+folder, because an archive beside a folder is a second copy that goes stale the
+moment the folder is edited and several of them had.
+
+The one thing the build did that was not just zipping was staging `core/todo.py`
+next to `pa-checkin`'s checker, since an installed skill had no repo to reach.
+A symlinked one does: `check_todo.py` resolves through the link and imports
+`core/todo.py` five folders up. One copy in git, and no build to forget.
 
 ### Two dates, not one
 

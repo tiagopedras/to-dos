@@ -93,7 +93,7 @@ function showMatrixPreview(dot){
   const el = matrixPreview();
   const color = BUCKET_COLOR[state.doc.buckets.indexOf(loc.bucket) % BUCKET_COLOR.length];
   const where = loc.bucket.name + ' · ' + (loc.task.done ? DONE_COL : loc.tier.name);
-  el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL });
+  el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL, tier: loc.tier.name });
   el.classList.add('on');
   placeMatrixPreview(dot);
 }

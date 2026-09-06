@@ -50,17 +50,17 @@ try:
     import windows
 except ImportError:
     windows = None
-# The nightly agent's own two modules, imported the same way and for the same
+# The night agent's own two modules, imported the same way and for the same
 # reason. `pick` is what decides which tasks tonight would plan, and the board's
 # queue column is that decision rendered rather than a second guess at it —
 # there is one selection rule and this is it. `plan` comes along for the bucket
 # mapping alone, so the queue can name the agent each task would go to.
-sys.path.insert(0, os.path.join(ROOT, "nightly"))
+sys.path.insert(0, os.path.join(ROOT, "night_agent"))
 try:
-    import pick as nightly_pick
-    import plan as nightly_plan
+    import pick as night_agent_pick
+    import plan as night_agent_plan
 except ImportError:
-    nightly_pick = nightly_plan = None
+    night_agent_pick = night_agent_plan = None
 # The list and everything derived from it live in one folder, and that folder is
 # the only thing git ignores. Before this, the private half of the repo was four
 # separate ignore rules — todo.md, backups/, todo-backup-*.md, views.md — and
@@ -298,7 +298,7 @@ def weekly_backup_watcher(every=1800):
 #   Live   whether a job is installed and armed, and when it fires next. Only
 #          the system knows that, and a log will happily describe a job that was
 #          unloaded a week ago.
-#   Ledger what actually happened. launchctl cannot tell you the nightly agent
+#   Ledger what actually happened. launchctl cannot tell you the night agent
 #          wrote three plans and stopped on a usage limit.
 #
 # Everything here is read-only and local. `launchctl` is shelled out to with a
@@ -306,7 +306,7 @@ def weekly_backup_watcher(every=1800):
 # error: an uninstalled job is exactly the thing this view is most useful for
 # saying out loud.
 
-NIGHTLY_LABEL = "com.tiagopedras.todos-nightly"
+NIGHTLY_LABEL = "com.tiagopedras.todos-night-agent"
 
 
 def _launchctl(args, timeout=3):
@@ -327,9 +327,9 @@ def _tail(path, n=12):
         return []
 
 
-def _nightly_job():
-    """The nightly prep agent: twelve launchd wakes, 19:00 to 06:00."""
-    plist = os.path.join(ROOT, "nightly", "com.tiagopedras.todos-nightly.plist")
+def _night_agent_job():
+    """The night agent: twelve launchd wakes, 19:00 to 06:00."""
+    plist = os.path.join(ROOT, "night_agent", "com.tiagopedras.todos-night-agent.plist")
     installed = os.path.exists(os.path.expanduser(
         "~/Library/LaunchAgents/%s.plist" % NIGHTLY_LABEL))
     printed = _launchctl(["print", "gui/%d/%s" % (os.getuid(), NIGHTLY_LABEL)])
@@ -360,12 +360,12 @@ def _nightly_job():
         last = next((h for h in hours if (h + 1) % 24 not in hs), hours[-1])
         span = "%d wakes, %02d:00–%02d:00" % (len(hours), first, last)
 
-    log = _tail(os.path.join(plans_dir(), "nightly.log"), 40)
+    log = _tail(os.path.join(plans_dir(), "night-agent.log"), 40)
     ran = [l for l in log if " start:" in l or " done:" in l or " wake" in l]
     last_done = next((l for l in reversed(log) if " done:" in l), "")
     return {
-        "id": "nightly",
-        "name": "Nightly prep agent",
+        "id": "night-agent",
+        "name": "Night agent",
         "what": "Plans every task tagged ai:full or ai:partial, one agent each.",
         "schedule": span or "not configured",
         "armed": loaded,
@@ -375,7 +375,7 @@ def _nightly_job():
         "last": last_done,
         "recent": ran[-6:],
         "hint": ("" if loaded else
-                 "ln -s nightly/%s.plist ~/Library/LaunchAgents/ && "
+                 "ln -s night_agent/%s.plist ~/Library/LaunchAgents/ && "
                  "launchctl load ~/Library/LaunchAgents/%s.plist"
                  % (NIGHTLY_LABEL, NIGHTLY_LABEL)),
     }
@@ -442,7 +442,7 @@ def _weekly_job():
 
 def schedule_listing():
     out = []
-    for fn in (_nightly_job, _companion_job, _weekly_job):
+    for fn in (_night_agent_job, _companion_job, _weekly_job):
         try:
             out.append(fn())
         except Exception as exc:                     # noqa: BLE001
@@ -523,27 +523,86 @@ def rolling_week(wins, days):
     return out
 
 
+def window_shape(w, steps=14):
+    """A window's spend curve, thinned to something worth sending.
+
+    `shape` off reconstruct() is one point per turn, and a busy window holds
+    several hundred — thirty days of them is megabytes of JSON to draw a box
+    two hundred pixels wide. Sampled at even points across the window's own
+    five hours rather than every nth turn, because the chart plots it against
+    time: a window with four hundred turns in its first ten minutes and none
+    after should draw as a step, and taking every nth turn would draw it as a
+    ramp. The last point is the window's total, always, so the curve ends
+    where the box's top edge is.
+
+    Each point is (fraction of the window elapsed, fraction of its spend), both
+    0 to 1, so the client needs neither the window's clock nor its total to
+    draw it.
+    """
+    pts = w.get("shape") or []
+    if not pts or not w["tok"]:
+        return []
+    span = (w["end"] - w["start"]).total_seconds() or 1
+    out, i = [], 0
+    for s in range(1, steps + 1):
+        at = s / steps
+        cutoff = w["start"] + datetime.timedelta(seconds=span * at)
+        while i < len(pts) and pts[i][0] <= cutoff:
+            i += 1
+        # i is now the first turn after the cutoff, so i-1 is the running total
+        # as at the cutoff. Nothing yet spent reads as a flat 0, which is right.
+        run = pts[i - 1][1] if i else 0
+        out.append([round(at, 4), round(run / w["tok"], 4)])
+    return out
+
+
+BASELINE_DAYS = 30
+
+
 def usage_summary(days=30, ttl=60):
     """The rolling 5-hour usage windows, from core/windows.py.
 
     Cached, because reconstructing a month is about forty thousand transcript
-    lines and a second or so — fine on demand, not fine on every render.
+    lines and a second or so — fine on demand, not fine on every render. Keyed
+    on `days`, since the card's range buttons ask for four different spans and
+    a cache that ignored which one was asked for would answer the wrong one.
+
+    Always reconstructs the full baseline and then narrows, rather than
+    reconstructing only what is being looked at. The reason is the axis: 100%
+    is the heaviest session seen, so a three-day view that worked out its own
+    ceiling would call its own busiest window 100% and every range would mean
+    something different. The chart is there to answer "is today unusual", and
+    the comparison has to be against the month either way. The rolling
+    seven-day line needs the same — seven days of history behind each point.
+
+    So the range buttons buy legibility, not speed. That was always the
+    complaint: eighty-three windows in a 380px column is a barcode.
     """
     if windows is None:
         return {"available": False}
     now = time.time()
-    if _usage_cache["data"] and now - _usage_cache["at"] < ttl:
+    if _usage_cache.get("days") == days and _usage_cache["data"] and now - _usage_cache["at"] < ttl:
         return _usage_cache["data"]
 
-    since = datetime.datetime.now().astimezone() - datetime.timedelta(days=days)
-    wins = windows.reconstruct(windows.turns(since=since))
+    span = max(days, BASELINE_DAYS)
+    since = datetime.datetime.now().astimezone() - datetime.timedelta(days=span)
+    every = windows.reconstruct(windows.turns(since=since))
     state = windows.read_state(os.path.join(plans_dir(), "window.json"))
     decision = windows.decide(state=state)
+    # The ceiling and the weekly line are worked out over the whole baseline;
+    # only what is drawn is cut back to the range asked for.
+    roll = rolling_week(every, span)
+    cap = ceiling(every, roll, state)
+
+    cut = datetime.datetime.now().astimezone() - datetime.timedelta(days=days)
+    wins = [w for w in every if w["end"] > cut]
+    firstDay = cut.date().isoformat()
+    roll = [r for r in roll if r["day"] >= firstDay]
     toks = sorted(w["tok"] for w in wins) or [0]
-    roll = rolling_week(wins, days)
     data = {
         "rolling": roll,
-        "ceiling": ceiling(wins, roll, state),
+        "ceiling": cap,
+        "baseline": span,
         "available": True,
         "days": days,
         "morning": windows.MORNING.strftime("%H:%M"),
@@ -560,16 +619,18 @@ def usage_summary(days=30, ttl=60):
             "turns": w["turns"],
             "open": w["end"] > datetime.datetime.now().astimezone(),
             # A window that both starts and ends inside the night is one the
-            # nightly agent could have spent in without touching the morning.
+            # night agent could have spent in without touching the morning.
             "night": w["start"].hour >= 19 or w["start"].hour < 7,
+            # How the spend arrived across the five hours — see window_shape.
+            "shape": window_shape(w),
         } for w in wins],
     }
-    _usage_cache.update(at=now, data=data)
+    _usage_cache.update(at=now, data=data, days=days)
     return data
 
 
 def plans_dir(name=None):
-    """Where the nightly agent leaves what it worked out overnight.
+    """Where the night agent leaves what it worked out overnight.
 
     A different folder from reports/ on purpose, and not a candidate for being
     merged into it. A report is Tiago's own record of what happened, written in
@@ -619,10 +680,13 @@ def plan_meta(path, name, night):
         "status": fields.get("status", "unread"),
         # An agent that decided the task could not be planned without a
         # decision only he can make writes `outcome: folded`. See the folding
-        # rule in nightly/PLAN-BRIEF.md. Passed through as written rather than
+        # rule in night_agent/PLAN-BRIEF.md. Passed through as written rather than
         # reduced to a boolean, so a value this server has never heard of
         # reaches the board instead of being swallowed here.
         "outcome": fields.get("outcome", ""),
+        # Why he sent it back, on a plan he sent back. Shown on the card so the
+        # reason is visible without opening it, and read by the next run.
+        "redo_note": fields.get("redo_note", ""),
         "summary": fields.get("summary", ""),
         "bytes": st.st_size,
         "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
@@ -635,7 +699,7 @@ def plan_meta(path, name, night):
 
 
 def plan_listing():
-    """Every plan the nightly agent has written, newest night first.
+    """Every plan the night agent has written, newest night first.
 
     index.md is skipped: it is the night's own contents page, useful to read on
     disk and noise in a list that already shows every plan it points at.
@@ -658,7 +722,26 @@ def plan_listing():
     return out
 
 
-def mark_plan(night, name, status):
+# What a plan's `status:` is allowed to say, and what each one means to the
+# thing that reads it.
+#
+#   unread    nobody has looked at it
+#   read      looked at, doing nothing about it yet
+#   agreed    approved to be carried out. pa-execute picks these up, the picker
+#             leaves the task alone until the work is done, and prune keeps it.
+#   redo      rejected, with `redo_note:` saying why. The picker plans the task
+#             again on the next run and the reason is fed to the agent, so the
+#             next plan is not the same plan.
+#   actioned  acted on, so it no longer describes outstanding work
+#
+# Kept in step with is_stale() in night_agent/pick.py, which is the other half of
+# what these mean. A value this list does not know is refused rather than
+# written, since the picker would read it as "unchanged" and quietly stop
+# planning the task.
+PLAN_STATUS = ("unread", "read", "agreed", "redo", "actioned")
+
+
+def mark_plan(night, name, status, note=None):
     """Flip one plan's `status:` in its own frontmatter, and in the ledger.
 
     Both, because the two are read by different things and neither can be
@@ -671,8 +754,14 @@ def mark_plan(night, name, status):
     Between them they write a plan file and a preferences file, both inside
     plans/. Nothing here goes near todo.md.
     """
-    if status not in ("unread", "read", "actioned"):
+    if status not in PLAN_STATUS:
         return None, {"error": "unknown status"}
+    # A rejection with no reason is the one thing the redo loop cannot use: the
+    # next run would plan the task again with nothing to go on and write much
+    # the same plan, having spent the money twice.
+    note = (note or "").strip()
+    if status == "redo" and not note:
+        return None, {"error": "a plan sent back needs a reason"}
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or "") or "/" in (name or "") or not name.endswith(".md"):
         return None, {"error": "bad plan reference"}
     path = os.path.join(plans_dir(), night, name)
@@ -683,6 +772,16 @@ def mark_plan(night, name, status):
     new, n = re.subn(r"^status:.*$", "status: " + status, text, count=1, flags=re.M)
     if not n:
         new = text.replace("---\n", "---\nstatus: " + status + "\n", 1)
+    # The reason he rejected it, written into the plan's own frontmatter rather
+    # than a store of its own. night_agent/plan.py reads it back through the ledger
+    # row, which already records which file this is, and a person opening the
+    # plan sees it in the same place. Flattened to one line, since frontmatter
+    # here is one key per line and a newline would end the block.
+    new = re.sub(r"^redo_note:.*$\n?", "", new, count=1, flags=re.M)
+    if status == "redo":
+        flat = " ".join(note.split())[:500]
+        new = re.sub(r"^status: redo$", "status: redo\nredo_note: " + flat,
+                     new, count=1, flags=re.M)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="") as fh:
         fh.write(new)
@@ -733,13 +832,13 @@ def queue_order_path():
     return os.path.join(plans_dir(), "queue-order.json")
 
 
-NIGHTLY_LOCK = os.path.join(ROOT, DATA, ".nightly.lock")
+NIGHTLY_LOCK = os.path.join(ROOT, DATA, ".night-agent.lock")
 
 
 def _queue_row(task, ledger, position=0, state="queued", why=""):
     seen = ledger.get(task.title) if isinstance(ledger, dict) else None
-    if not why and nightly_pick:
-        _, why = nightly_pick.is_stale(task, ledger or {})
+    if not why and night_agent_pick:
+        _, why = night_agent_pick.is_stale(task, ledger or {})
     return {
         "title": task.title,
         "bucket": task.bucket,
@@ -748,7 +847,7 @@ def _queue_row(task, ledger, position=0, state="queued", why=""):
         "slug": task.slug or "",
         "impact": getattr(task, "impact", "") or "",
         "effort": getattr(task, "effort", "") or "",
-        "agent": nightly_plan.bucket_agent(task.bucket) if nightly_plan else "",
+        "agent": night_agent_plan.bucket_agent(task.bucket) if night_agent_plan else "",
         "position": position,
         "state": state,
         "why": why,
@@ -762,11 +861,11 @@ def _queue_row(task, ledger, position=0, state="queued", why=""):
 def queue_listing():
     """What tonight would plan, in the order it would plan it.
 
-    Returns None when the nightly agent is not in this checkout, which the route
+    Returns None when the night agent is not in this checkout, which the route
     answers as a 404 — the same shape the Ask Claude routes use, and the board
     draws no queue column rather than an error.
     """
-    if nightly_pick is None or todo is None:
+    if night_agent_pick is None or todo is None:
         return None
     try:
         with open(todo_path(), encoding="utf-8") as fh:
@@ -775,7 +874,7 @@ def queue_listing():
         return {"queue": [], "held": [], "skipped": [], "order": [], "hold": [],
                 "error": "no todo.md to read"}
 
-    order = nightly_pick.load_order(queue_order_path())
+    order = night_agent_pick.load_order(queue_order_path())
     try:
         with open(ledger_path(), encoding="utf-8") as fh:
             ledger = json.load(fh)
@@ -784,13 +883,13 @@ def queue_listing():
     if not isinstance(ledger, dict):
         ledger = {}
 
-    queue, skipped = nightly_pick.select(text, order=order, ledger=ledger)
-    holds = {nightly_pick.key(t) for t in order.get("hold") or []}
+    queue, skipped = night_agent_pick.select(text, order=order, ledger=ledger)
+    holds = {night_agent_pick.key(t) for t in order.get("hold") or []}
 
     rows = [_queue_row(t, ledger, i + 1) for i, t in enumerate(queue)]
     held, other = [], []
     for task, why in skipped:
-        if nightly_pick.key(task.title) in holds:
+        if night_agent_pick.key(task.title) in holds:
             held.append(_queue_row(task, ledger, 0, "held", why))
         else:
             other.append(_queue_row(task, ledger, 0, "skipped", why))
@@ -803,19 +902,19 @@ def queue_listing():
 def set_queue_order(order, hold):
     """Write the board's ordering. The second write either surface makes.
 
-    It writes a file the nightly agent owns and nothing else reads. Both lists
+    It writes a file the night agent owns and nothing else reads. Both lists
     are taken as given rather than validated against the current queue: a title
     in here that no longer exists is never matched and costs nothing, whereas
     dropping unknown titles would quietly lose the ordering of a task that is
     merely Blocked this week and back next.
     """
-    if nightly_pick is None:
-        return None, {"error": "no nightly agent in this checkout"}
+    if night_agent_pick is None:
+        return None, {"error": "no night agent in this checkout"}
     if not isinstance(order, list) or not isinstance(hold, list):
         return None, {"error": "order and hold must both be lists"}
     if len(order) + len(hold) > 500:
         return None, {"error": "too many titles"}
-    body = nightly_pick.save_order({"order": order, "hold": hold},
+    body = night_agent_pick.save_order({"order": order, "hold": hold},
                                    queue_order_path())
     return {"ok": True, "order": body["order"], "hold": body["hold"],
             "saved": body["saved"]}, None
@@ -835,7 +934,7 @@ _DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
 _FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
 
 
-def start_nightly_run():
+def start_night_agent_run():
     """Kick off a batch now, from the board's button.
 
     `--force`, which is the whole point: it skips the clock gate and the window
@@ -854,11 +953,11 @@ def start_nightly_run():
     started something it did not is worse than one that refuses.
     """
     import subprocess
-    if nightly_pick is None:
-        return None, {"error": "no nightly agent in this checkout"}
-    script = os.path.join(ROOT, "nightly", "run.sh")
+    if night_agent_pick is None:
+        return None, {"error": "no night agent in this checkout"}
+    script = os.path.join(ROOT, "night_agent", "run.sh")
     if not os.path.isfile(script):
-        return None, {"error": "nightly/run.sh is not here"}
+        return None, {"error": "night_agent/run.sh is not here"}
     if os.path.isdir(NIGHTLY_LOCK):
         return None, {"error": "a run is already going"}
     try:
@@ -868,13 +967,13 @@ def start_nightly_run():
             stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError as exc:
         return None, {"error": "could not start it: %s" % exc}
-    sys.stdout.write("nightly agent: forced a run from the board\n")
+    sys.stdout.write("night agent: forced a run from the board\n")
     sys.stdout.flush()
     return {"ok": True, "started": True}, None
 
 
-def nightly_run():
-    """What the nightly agent is doing, or did last, from its lock and its log.
+def night_agent_run():
+    """What the night agent is doing, or did last, from its lock and its log.
 
     Two sources again, and neither is enough alone. The lock directory says
     whether a run is going on right now — it is held for the life of the batch
@@ -895,7 +994,7 @@ def nightly_run():
             live = False
 
     lines = []
-    for raw in _tail(os.path.join(plans_dir(), "nightly.log"), 400):
+    for raw in _tail(os.path.join(plans_dir(), "night-agent.log"), 400):
         m = _LOG_RE.match(raw)
         if m:
             lines.append((m.group(1), m.group(2).strip()))
@@ -1257,21 +1356,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, {"plans": plan_listing()})
         # Three routes rather than one, and split by how long each takes: the
         # queue is a parse of todo.md, the run is a tail of a log, and both are
-        # instant. A checkout with no nightly/ answers 404 on the queue and the
+        # instant. A checkout with no night_agent/ answers 404 on the queue and the
         # board simply draws one fewer column.
         if path == "/queue.json":
             got = queue_listing()
             return self._json(404 if got is None else 200,
-                              got if got is not None else {"error": "no nightly agent here"})
-        if path == "/nightly.json":
-            return self._json(200, nightly_run())
+                              got if got is not None else {"error": "no night agent here"})
+        if path == "/night-agent.json":
+            return self._json(200, night_agent_run())
         # Two routes rather than one, because the jobs are instant and the
         # windows are a second: the view paints the jobs and fetches the usage
         # after, instead of waiting on both.
         if path == "/schedule.json":
             return self._json(200, {"jobs": schedule_listing()})
         if path == "/usage.json":
-            return self._json(200, usage_summary())
+            # ?days= is the card's range buttons. Clamped rather than trusted:
+            # this walks every transcript on disk, so an unbounded span is a
+            # way to make the board sit there for a minute.
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                days = int((q.get("days") or ["30"])[0])
+            except ValueError:
+                days = 30
+            return self._json(200, usage_summary(days=max(1, min(days, 90))))
         if path == "/backups.json":
             return self._json(200, {
                 "backups": backup_listing(),
@@ -1472,14 +1580,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             except (UnicodeDecodeError, ValueError):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = mark_plan(payload.get("night"), payload.get("name"),
-                                 payload.get("status"))
+                                 payload.get("status"), payload.get("note"))
             return self._json(400 if err else 200, err or got)
-        if path == "/nightly/run":
+        if path == "/night_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.
             if self.headers.get("X-Board") != "1":
                 return self._json(403, {"error": "not from the board"})
-            got, err = start_nightly_run()
+            got, err = start_night_agent_run()
             return self._json(409 if err else 200, err or got)
         if path == "/queue/order":
             # Same guard as every other write route: only the board asks.

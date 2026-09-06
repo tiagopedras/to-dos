@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""When the nightly agent is allowed to spend, and when it must keep its hands off.
+"""When the night agent is allowed to spend, and when it must keep its hands off.
 
 Usage runs in rolling 5-hour windows. A window opens on the first request after
 the previous one expired and lasts five hours, so windows are anchored to when
@@ -125,13 +125,22 @@ def reconstruct(events):
     Greedy and in one pass, which is exactly how the real thing behaves. Returns
     dicts rather than a class because the only consumers are this file's own
     reporting and one caller asking for the last one.
+
+    `shape` is the running total after each turn, as (when, cumulative). The
+    decision this module exists to make never looks at it — a window's total is
+    the only thing that matters to RIDE/OPEN/STOP — but the board's chart draws
+    each window as a box with the spend filling in across its five hours, and
+    that curve cannot be recovered from a total. It is the same numbers the
+    total is made of, kept rather than thrown away. Downsample it at the edge
+    that renders it; a busy window holds several hundred turns.
     """
     wins = []
     for when, tok in events:
         if not wins or when >= wins[-1]["end"]:
-            wins.append({"start": when, "end": when + WINDOW, "tok": 0, "turns": 0})
+            wins.append({"start": when, "end": when + WINDOW, "tok": 0, "turns": 0, "shape": []})
         wins[-1]["tok"] += tok
         wins[-1]["turns"] += 1
+        wins[-1]["shape"].append((when, wins[-1]["tok"]))
     return wins
 
 
@@ -251,11 +260,11 @@ def main(argv):
     if "--history" in argv:
         _history()
         return 0
-    # The state file lives with the nightly agent's other state, so this reaches
+    # The state file lives with the night agent's other state, so this reaches
     # sideways for it. The module itself has no opinion about where that is —
     # every caller passes the state in — and this is only for the command line.
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, os.path.join(root, "nightly"))
+    sys.path.insert(0, os.path.join(root, "night_agent"))
     import paths  # noqa: E402
 
     state = read_state(paths.window_path())

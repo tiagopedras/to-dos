@@ -22,6 +22,9 @@ function load(text, name, opts){
   $('#start').classList.add('hidden');
   $('#board').classList.remove('hidden');
   $('#hdr').classList.remove('hidden');
+  // The bucket strip is a second bar under the header now, so it comes and goes
+  // with it — there is nothing to filter before a document is loaded.
+  $('#bucketBar').classList.remove('hidden');
   // The URL's bucket slug can only be matched against a real bucket once the
   // file naming them has actually loaded — that's now, so it gets one shot
   // here and is cleared either way, so a later reload of a different dataset
@@ -87,6 +90,7 @@ function showErr(msg){
   $('#start').classList.remove('hidden');
   $('#board').classList.add('hidden');
   $('#hdr').classList.add('hidden');
+  $('#bucketBar').classList.add('hidden');
   $('#startErr').innerHTML = '<div class="err">' + msg + '</div>';
 }
 
