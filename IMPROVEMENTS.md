@@ -872,18 +872,22 @@ they settled is written up in the README rather than left here:
   actually asked for: a colour keyed by name survives a reorder, where one
   derived from array position never could.
 
-- **A place to see every project, not just the ones a task happens to name.**
-  Raised 6 Sep 2026. The board only knows a project exists once a task carries
-  a `- Project: data/projects/<name>` note pointing at it — `taskProject()` in
-  `kanban/js/06-dates-substeps.js` reads that note, and the project drawer it
-  opens (`openProjectDrawer` in `19-drawer.js`) only ever shows the tasks that
-  already point at the one name clicked. There's no index of what's actually
-  under `data/projects/` on disk, so a folder with no task pointing at it yet —
-  or any more — is invisible to the board, and there's no single view listing
-  every project at once. Needs a route that reads the `data/projects/`
-  directory listing itself rather than only inferring names from task notes,
-  and a view (or a fold in an existing one) that lists all of them, live vs.
-  orphaned.
+- ~~**A place to see every project, not just the ones a task happens to
+  name.**~~ **Done.** Raised 6 Sep 2026, built the same day. `/projects.json`
+  in `kanban/server.py` (`project_listing()`/`project_meta()`) reads the
+  `data/projects/` directory itself rather than inferring names from task
+  notes, so a folder nothing points at yet, or any more, still shows up.
+  `kanban/js/26-projects.js` is the Projects tab that reads it — one card per
+  folder, tagged Live or Orphaned by walking `projectTasks()` the same way the
+  drawer already does, clickable through the same `[data-project]` capture
+  handler `openProjectDrawer` already listens for. Checked 6 Sep 2026 against
+  the running server and the real `data/twinkl/projects/` folder: the route
+  returns all five folders on disk, the tab renders them with correct
+  live/orphaned tags, and clicking one opens the drawer, with the fetch guard
+  from `kanban/test_canvas.mjs` confirming nothing written. No dedicated test
+  file for this view yet — `kanban/test_canvas.mjs`, `test_plans.mjs` and
+  `test_schedule.mjs` don't touch it, so a `test_projects.mjs` on the same
+  pattern is still worth adding before this view is touched again.
 
 - **Find a way to run `execution-agent` automatically overnight**, raised
   6 Sep 2026. Right now it only runs from `pa-do`, inside a session he is
