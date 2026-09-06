@@ -15,11 +15,20 @@ skill folders. Any new skill added here goes into that file in the same session,
 under the to-do list section, with a one-line description and the folder it lives
 in. A skill that is not in the index is a skill I will forget I have.
 
-## Packaging
+## No packaging
 
-`./build.command` writes every skill here to `dist/<name>.skill`. Run it after
-changing any of them, and after changing `core/todo.py` — the build stages a
-copy of that file into `pa-checkin/scripts/`, because `check_todo.py` imports the
-`repeat:` grammar and the working calendar from it and an installed skill has no
-repo to reach. Do not commit a copy of `todo.py` under `pa-checkin/`: one copy in
-git, staged at build time, is the whole point.
+These are symlinked into `~/.claude/skills/`, not packed. There is no build step
+and no `dist/`, both dropped on 6 Sep 2026 — an archive beside a folder is a
+second copy that goes stale the moment the folder is edited, and every one of
+them had. Add a skill by linking it:
+
+```sh
+ln -s ~/Code/to-dos/pa_agent/skills/<name> ~/.claude/skills/<name>
+```
+
+The folder is the source, so an edit takes effect the next time the skill fires.
+
+That is also what lets `pa-checkin/scripts/check_todo.py` import `core/todo.py`
+directly, five folders up, rather than needing a copy staged next to it: the
+symlink resolves back here and the repo is always in reach. Do not commit a copy
+of `todo.py` under `pa-checkin/` — one copy is the whole point.

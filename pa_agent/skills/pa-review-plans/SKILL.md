@@ -1,5 +1,5 @@
 ---
-name: pa-plans
+name: pa-review-plans
 description: Go through the plans the night agent wrote against the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one plan at a time, and turn his reaction to each into a note on the task it belongs to. Use whenever he asks what the agent came up with overnight, what is waiting on the Plans tab, to go through, read, review, assess or triage the plans, or says something like "what did it plan", "any good plans this morning", "let's go through last night's", "review the overnight plans", "what's the agent suggesting", or names one task and asks what the plan for it says. Also use when he wants to tell the agent it got something wrong, since the way to do that is a note on the task and this is the skill that writes one. Do not use it to run the night agent, which is the board's own Run now button, and do not use it for a general status read or re-prioritisation of the list, which is pa-checkin.
 ---
 

@@ -3,9 +3,9 @@
 One folder per bucket in `buckets/`, holding the work I actually do in it and
 the skills that do it. Both halves of the night agent read the brief — the
 `pa-plan-*` agent that researches a task overnight, and `pa-execute`, the one
-agent allowed to act on a plan once I have agreed it — and so do I, which is
-why it sits at the root of the repo rather than inside the agent that happened
-to need it first.
+agent allowed to act on a plan once I have agreed it — and so do I, which is why
+it sits at the root of the repo rather than inside the agent that happened to
+need it first.
 
 ```
 buckets/people/people.md        the brief
@@ -39,7 +39,8 @@ a plan researched against one understanding gets carried out against another.
 every bucket.
 
 It also means the knowledge is mine to edit without opening an agent definition,
-which is the part that has to keep being true. This is a living file, not a spec.
+which is the part that has to keep being true. This is a living file, not a
+spec.
 
 ## Why the skills sit with the brief
 

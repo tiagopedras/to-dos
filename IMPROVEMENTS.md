@@ -142,10 +142,9 @@ they settled is written up in the README rather than left here:
   silent. They are generated from the rules rather than kept as a table, so
   there is no year for the list to run out in, and `test_todo.py --online`
   re-checks them against gov.uk and Nager.Date.
-- One `repeat:` grammar, in `core/todo.py`. `check_todo.py` imports it — the
-  original from the repo, or the copy `pa_agent/build.command` stages into the zip
-  — and `core/test_todo.py` still holds the board's own answers as a frozen
-  table, so the JavaScript third copy cannot drift either.
+- One `repeat:` grammar, in `core/todo.py`. `check_todo.py` imports it straight
+  from the repo, and `core/test_todo.py` still holds the board's own answers as a
+  frozen table, so the JavaScript third copy cannot drift either.
 
 - ~~**`index.html` is 9,600 lines and the format has no test of its own.**~~
   **Done, 5 Sep 2026.** Two lifts, and the page is 7,500 lines:
@@ -208,7 +207,7 @@ they settled is written up in the README rather than left here:
   still TBD.
 
 - ~~**Three changes to what the night agent plans and what a plan is for,**~~
-  **All three done.** Raised 5 Sep 2026 during a `pa-plans` review.
+  **All three done.** Raised 5 Sep 2026 during a `pa-review-plans` review.
 
   - **Drop `partial` from the picker.** Done 6 Sep. `PLANNABLE` in
     `night_agent/pick.py` is `{"full"}`. A task passed over for its tag is named in

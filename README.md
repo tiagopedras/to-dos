@@ -1250,7 +1250,7 @@ plans is one line at the end, not one line a plan.
 
 `pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
-verify. It is packaged as `pa_agent/dist/pa-checkin.skill` for installing.
+verify.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -1288,18 +1288,24 @@ reads both before it does anything, which is why none of them restate either.
 `pa-checkin/references/audit-checklist.md` is what to check by hand that the
 script cannot.
 
-### Packaging them
+### Installing them
 
-`pa_agent/build.command` writes every skill in `skills/` to
-`pa_agent/dist/<name>.skill`. Double-click it, or run it from a terminal. A
-`.skill` file is a plain zip with `SKILL.md` at its root, so most of the job is
-copy, prune and zip; the reason it is a script rather than a `zip` line typed
-when needed is the staging in the middle. An installed skill has to stand alone,
-and `pa-checkin` needs the board's reader, which lives outside it. That file used
-to be transcribed in by hand, which meant two Python ports of one set of rules
-with nothing keeping them in step; now it is copied in at build time and there is
-still only one copy in git. The `.skill` files themselves are committed, so a
-machine that only wants to install them never needs to run this.
+Symlink, and nothing else:
+
+```sh
+ln -s ~/Code/to-dos/pa_agent/skills/<name> ~/.claude/skills/<name>
+```
+
+The folder is the installed skill, so an edit takes effect the next time it
+fires. There was a `build.command` here that packed each one into a
+`dist/<name>.skill` zip; it went on 6 Sep 2026, with every archive in every skill
+folder, because an archive beside a folder is a second copy that goes stale the
+moment the folder is edited and several of them had.
+
+The one thing the build did that was not just zipping was staging `core/todo.py`
+next to `pa-checkin`'s checker, since an installed skill had no repo to reach.
+A symlinked one does: `check_todo.py` resolves through the link and imports
+`core/todo.py` five folders up. One copy in git, and no build to forget.
 
 ### Two dates, not one
 

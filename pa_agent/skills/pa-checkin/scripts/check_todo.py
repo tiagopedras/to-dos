@@ -34,13 +34,16 @@ from pathlib import Path
 # set of rules that must agree is drift waiting to happen, and drift here is
 # quiet — a meeting rolls to the wrong Thursday and nothing complains.
 #
-# So there is one copy, core/todo.py, and this script reaches it two ways.
-# Run from the repo, it imports the original four folders up. Run from an
-# installed skill, where there is no repo to reach, it imports the copy that
-# build.command staged beside it. The repo wins when both exist, so editing the
-# original is always what takes effect and a stale staged copy cannot mask it.
-_CORE = Path(__file__).resolve().parents[3] / "core"
-sys.path.insert(0, str(_CORE if (_CORE / "todo.py").is_file() else Path(__file__).resolve().parent))
+# So there is one copy, core/todo.py, and this script imports it five folders up:
+# scripts -> pa-checkin -> skills -> pa_agent -> the repo root.
+#
+# There used to be a second route, for a skill installed from a packed .skill
+# archive with no repo to reach — build.command staged a copy of todo.py beside
+# this file. Skills are symlinked rather than packed as of 6 Sep 2026, so the
+# archive is gone and so is the fallback: resolve() follows the symlink from
+# ~/.claude/skills/ back to this file's real home, and the repo is always there.
+_CORE = Path(__file__).resolve().parents[4] / "core"
+sys.path.insert(0, str(_CORE))
 import todo  # noqa: E402
 
 # Two syntaxes, one meaning. impact, effort, due and ai are written as Dataview

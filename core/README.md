@@ -96,14 +96,14 @@ documents in `parse.json` were missing: both of them started at `## 1. People`,
 so neither had a preamble to get wrong. The third one does.
 
 There used to be a third copy, hand-transcribed inside
-`pa_agent/skills/pa-checkin/scripts/check_todo.py`. It is gone: the checker imports this
-file from the repo, or the copy `pa_agent/build.command` stages beside it in the
-zip, whichever it can reach. **Do not commit a copy of `todo.py` under
-`pa_agent/skills/`** — one copy in git, staged at build time, is the point.
+`pa_agent/skills/pa-checkin/scripts/check_todo.py`. It is gone: the checker imports
+this file directly, five folders up. It used to have a second route as well, for a
+skill installed from a packed archive with no repo to reach, and that went with the
+archives on 6 Sep 2026 — skills are symlinked now, so the link resolves back into
+the repo and `core/todo.py` is always there. **Do not commit a copy of `todo.py`
+under `pa_agent/skills/`** — one copy in git is the point.
 
-So: after changing either file, run both suites, and after changing `todo.py` run
-`pa_agent/build.command` too, so the staged copy in `pa_agent/dist/pa-checkin.skill`
-is not left behind.
+So: after changing either file, run both suites. There is nothing to rebuild.
 
 ## One thing about todo.js in particular
 

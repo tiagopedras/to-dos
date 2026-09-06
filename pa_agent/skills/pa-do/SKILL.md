@@ -1,6 +1,6 @@
 ---
 name: pa-do
-description: Carry out the plans the owner has agreed on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the pa-execute agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-plans session where he agreed something, since agreeing a plan is what queues it for this. Do not use it to read or triage plans, which is pa-plans, and do not use it to run the night agent, which is the board's own Run now button.
+description: Carry out the plans the owner has agreed on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the pa-execute agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he agreed something, since agreeing a plan is what queues it for this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the night agent, which is the board's own Run now button.
 ---
 
 # Carrying out an agreed plan
@@ -34,7 +34,7 @@ Read `data/.current` for the dataset, then look through
 
 Report the count and list them: the task title, its bucket, the night it was
 written, and its `summary:` line. If there are none, say so and stop. Do not go
-looking for plans he might like to agree; that is a `pa-plans` session and it is
+looking for plans he might like to agree; that is a `pa-review-plans` session and it is
 his call, not yours.
 
 ## Move 2: one at a time, and he picks
