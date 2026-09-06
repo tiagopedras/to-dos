@@ -13,11 +13,11 @@ and working out that has to happen before the handover, and that half hour never
 has a good moment. This does it at two in the morning instead.
 
 ```
-night_agent/run.sh --dry-run          what it would do tonight, no spend, any hour
-python3 night_agent/pick.py           the queue, in the order it would be worked
-night_agent/run.sh --task "Some task" one task by hand, now
+agents/night_agent/run.sh --dry-run          what it would do tonight, no spend, any hour
+python3 agents/night_agent/pick.py           the queue, in the order it would be worked
+agents/night_agent/run.sh --task "Some task" one task by hand, now
 python3 core/windows.py --history the last 30 days of usage windows
-python3 night_agent/test_night_agent.py   the arithmetic that decides what gets spent
+python3 agents/night_agent/test_night_agent.py   the arithmetic that decides what gets spent
 ```
 
 ## The night is not empty, and that is the whole design
@@ -104,17 +104,18 @@ reading:
 | Status | What it means |
 | --- | --- |
 | `unread` / `read` | Nobody has looked at it, or has and is doing nothing yet |
-| `agreed` | Approved to be carried out. `pa-execute` picks these up, and the picker leaves the task alone until the work is done |
+| `agreed` | Approved to be carried out. `execution-agent` picks these up, and the picker leaves the task alone until the work is done |
 | `redo` | Rejected, with `redo_note:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
 | `actioned` | Acted on, so it no longer describes outstanding work |
 
 These are known in three places and all three have to stay in step:
 `PLAN_STATUS` in `kanban/server.py`, the buttons in `kanban/js/13-plans.js`, and
-`is_stale()` in `night_agent/pick.py`.
+`is_stale()` in `agents/night_agent/pick.py`.
 
-The acting half is `pa-execute`, one agent for every bucket, run from a live
-session through the `pa-do` skill. It never runs on a schedule, and it is the
-only agent in this repo allowed to write `todo.md`. See `../CLAUDE.md`.
+The acting half is `execution-agent`, one agent for every bucket, run from a live
+session through the `pa-do` skill. It never runs on a schedule, and it never
+writes `todo.md`: a change to the list is asked for in its report and made by the
+PA agent, meaning the session running the `pa-*` skills. See `../CLAUDE.md`.
 
 ## The bucket briefs
 
@@ -365,7 +366,7 @@ task afresh instead of skipping it for looking unchanged.
 ## Installing the schedule
 
 ```bash
-ln -s ~/Code/to-dos/night_agent/com.tiagopedras.todos-night-agent.plist \
+ln -s ~/Code/to-dos/agents/night_agent/com.tiagopedras.todos-night-agent.plist \
       ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
 launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
 ```
@@ -397,11 +398,3 @@ agents can read the map and the folders it names. Narrowing it per agent is
 possible and was not done, because `~/Code/CLAUDE.md` describes a dozen folders
 and an agent that can read the map but not the territory is worse off than one
 with neither. Worth revisiting if it ever reads something it should not.
-
-## The other half
-
-There was one task for this, and it was split. The implementation agent — pick
-the next entry off `IMPROVEMENTS.md` and build it overnight — reuses this runner,
-this window clock and this landing place, and it is not built. Its picking rule
-and its commit behaviour are still open questions, and batching only becomes one
-there, where a night's work leaves a working tree behind rather than a proposal.

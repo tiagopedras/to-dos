@@ -13,10 +13,10 @@
 #   3. The window. core/windows.py decides ride, open or stop against the one test
 #      that matters: the window being spent in must expire by 07:00.
 #
-#   ./night_agent/run.sh              a real run, if all three gates pass
-#   ./night_agent/run.sh --dry-run    the decision and the batch, no spend, any hour
-#   ./night_agent/run.sh --task "..." one task by hand, skipping the clock and window
-#   ./night_agent/run.sh --force      ignore the clock and the window, spend anyway
+#   ./agents/night_agent/run.sh              a real run, if all three gates pass
+#   ./agents/night_agent/run.sh --dry-run    the decision and the batch, no spend, any hour
+#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the clock and window
+#   ./agents/night_agent/run.sh --force      ignore the clock and the window, spend anyway
 
 set -uo pipefail
 

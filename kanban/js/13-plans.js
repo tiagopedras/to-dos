@@ -28,29 +28,49 @@
    Why agreed is a status and not a flag: a plan is in exactly one of these
    states at a time, and a second field would let a plan be agreed and rejected
    at once, which means nothing. See PLAN_STATUS in kanban/server.py and
-   is_stale() in night_agent/pick.py, the two other places these are known.
+   is_stale() in agents/night_agent/pick.py, the two other places these are known.
    ========================================================================= */
 
 const planBodies = {};
 let planList = [];
 
 /* A folded plan is one whose agent stopped and asked rather than guessing —
-   see the folding rule in night_agent/PLAN-BRIEF.md. It is marked here rather than
+   see the folding rule in agents/night_agent/PLAN-BRIEF.md. It is marked here rather than
    left to read like any other, because the two want opposite things from him:
    a plan wants reading, a fold wants answering. */
 const PLAN_CLASS = { actioned:' actioned', read:' read', agreed:' agreed', redo:' redo' };
 
+/* When a plan was actually written, to the minute — `generated:` if the file
+   has one, falling back to the file's own mtime for a plan written before
+   this field existed. Both are naive local timestamps already, the same as
+   backupWhen's input, so it reads the same format the Backups list already
+   uses for "when did this actually happen". */
+function planGeneratedLabel(p){
+  const iso = p.generated || p.modified;
+  return iso ? backupWhen(iso) : (p.night || '');
+}
+
 function planItemHTML(p){
   const folded = p.outcome === 'folded';
-  const meta = [p.bucket, p.column, p.night].filter(Boolean).map(esc).join(' · ');
+  const meta = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' · ');
   const cls = (PLAN_CLASS[p.status] || '') + (folded ? ' folded' : '');
-  return '<article class="repitem' + cls + '" data-plan="' + esc(p.url) + '">' +
+  // The plan's own task, if the underlying card can still be found by slug or
+  // title — see findTaskByKey in 02-state.js. Not every plan resolves: the
+  // task might since have been renamed or deleted, so the button only shows
+  // up when there is somewhere for it to actually go.
+  const key = p.slug || p.task || '';
+  return '<article class="repitem planitem' + cls + '" data-plan="' + esc(p.url) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
       (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
       '<span class="repdate">' + esc(p.status === 'unread' ? 'new' : p.status) + '</span>' +
     '</button>' +
-    (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
+    (meta || key
+      ? '<div class="repmeta">' + meta +
+        (key ? (meta ? ' · ' : '') + '<button class="plangoto" data-plan-goto="' + esc(key) +
+          '" title="Open this task on the board">open the card ↗</button>' : '') +
+        '</div>'
+      : '') +
     (p.summary ? '<div class="repsum">' + mdInline(p.summary) + '</div>' : '') +
     /* On a rejected plan the reason is worth more than the summary: it is what
        he told the agent, and it is what tonight's run will be working from. */
@@ -63,7 +83,7 @@ function planItemHTML(p){
    read means. Actioned stays a deliberate press, because that is a claim about
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
-  const sub = [p.bucket, p.column, p.night, p.agent].filter(Boolean).map(esc).join(' · ');
+  const sub = [p.bucket, p.column, planGeneratedLabel(p), p.agent].filter(Boolean).map(esc).join(' · ');
   /* Four buttons and only two of them are decisions. Agree and Send back are
      the pair this view exists for; Mark actioned stays for the plans he
      carries out himself, which is still most of them. Agree is not the primary
@@ -141,15 +161,41 @@ async function setPlanStatus(p, status, quiet, note){
   }
 }
 
+/* Filters any of the queue/backlog/plan lists down to the one bucket the tabs
+   above this view are showing — All, the AI filter or the urgent/due filter
+   all widen it back to everything, the same as shownBuckets() does for the
+   board itself. Only a genuinely single bucket tab narrows it, and only by
+   an exact match on that bucket's own name — a widened view must never drop
+   a row just because its bucket string does not equal any one name, which is
+   what comparing against shownBuckets()'s own set would do. A row with no
+   bucket on it (should not happen in practice) is shown regardless, rather
+   than disappearing because of a field that was never set. */
+function plansShown(list, field){
+  field = field || 'bucket';
+  if (!state.doc || allMode() || state.aiFilter || state.urgentFilter) return list;
+  const name = activeBucket().name;
+  return list.filter(r => !r[field] || r[field] === name);
+}
+
+function goToPlanTask(key){
+  if (!key || !findTaskByKey(key)) {
+    showToast('That task is not on the board any more.', 'bad');
+    return;
+  }
+  state.view = 'board';
+  openTaskByKey(key);
+}
+
 function renderPlansList(){
   const out = $('#plansOut');
   if (!out) return;
+  const shown = plansShown(planList);
   /* Agreed plans sit above the rest rather than among them. They are the ones
      with work owed on them, and the question they answer is different: the
      others ask to be read, these ask to be run. */
-  const agreed = planList.filter(p => p.status === 'agreed');
-  const live = planList.filter(p => p.status !== 'actioned' && p.status !== 'agreed');
-  const done = planList.filter(p => p.status === 'actioned');
+  const agreed = shown.filter(p => p.status === 'agreed');
+  const live = shown.filter(p => p.status !== 'actioned' && p.status !== 'agreed');
+  const done = shown.filter(p => p.status === 'actioned');
   out.innerHTML =
     (agreed.length
       ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
@@ -164,6 +210,9 @@ function renderPlansList(){
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
     const p = planList.find(x => x.url === btn.dataset.planOpen);
     btn.onclick = () => openPlanModal(p);
+  });
+  out.querySelectorAll('[data-plan-goto]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
 }
 
@@ -184,7 +233,7 @@ function renderPlansList(){
    one" without editing todo.md, which this view must never do.
 
    Neither the order nor the hold list decides what the queue contains. Every
-   rule in night_agent/pick.py still does that. A title in the file that has since
+   rule in agents/night_agent/pick.py still does that. A title in the file that has since
    been ticked off, blocked or renamed is simply never matched, which is why
    nothing here ever needs pruning.
    ------------------------------------------------------------------------- */
@@ -195,8 +244,18 @@ let queueSkipped = [];   // dropped by a rule — lives in the Backlog column to
 let queueOrder = [];     // the stored ordering, so held ranks survive a save
 let queueDrag = null;    // { title, from: 'queue' | 'held' } while a card is being dragged
 
+/* The same "open the card ↗" link a plan's own meta line carries — see
+   goToPlanTask. A queue or Backlog row is the board's own task, not a plan
+   written about it, so it needs the same way back rather than a copy of it. */
+function gotoButtonHTML(r){
+  const key = r.slug || r.title || '';
+  return key ? '<button class="plangoto" data-plan-goto="' + esc(key) +
+    '" title="Open this task on the board">open the card ↗</button>' : '';
+}
+
 function queueRowHTML(r){
   const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  const goto = gotoButtonHTML(r);
   return '<article class="qitem" draggable="true" data-qtitle="' + esc(r.title) + '">' +
     '<div class="qhead">' +
       '<span class="qpos">' + r.position + '</span>' +
@@ -204,7 +263,9 @@ function queueRowHTML(r){
       '<button class="qhold" data-qhold="' + esc(r.title) + '" ' +
         'title="Hold it back from tonight">Hold</button>' +
     '</div>' +
-    (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
+    (meta || goto
+      ? '<div class="repmeta">' + meta + (goto ? (meta ? ' · ' : '') + goto : '') + '</div>'
+      : '') +
     '<div class="qwhy">' + esc(r.why || '') +
       (r.last ? ' · last planned ' + esc(r.last) : '') + '</div>' +
   '</article>';
@@ -213,8 +274,9 @@ function queueRowHTML(r){
 function renderQueueList(){
   const out = $('#queueOut');
   if (!out) return;
-  out.innerHTML = queueRows.length
-    ? queueRows.map(queueRowHTML).join('')
+  const shown = plansShown(queueRows);
+  out.innerHTML = shown.length
+    ? shown.map(queueRowHTML).join('')
     : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
       'plan already, and none of them have changed since.</div>';
   wireQueue();
@@ -225,6 +287,9 @@ function wireQueue(){
   if (!out) return;
   out.querySelectorAll('[data-qhold]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); holdTask(btn.dataset.qhold); };
+  });
+  out.querySelectorAll('[data-plan-goto]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
 
   /* The same reorder gesture the sub-steps in the drawer use: drop above or
@@ -328,7 +393,7 @@ function releaseHeld(title){
 
 /* -------------------------------------------------------------------------
    Backlog — everything the queue does not contain and why: held back from
-   the board on one hand, excluded by a rule in night_agent/pick.py on the other.
+   the board on one hand, excluded by a rule in agents/night_agent/pick.py on the other.
 
    Only the first half is draggable. Holding is a board-only preference, so
    dragging a held card back into the queue is exactly the reverse of the
@@ -341,6 +406,7 @@ function releaseHeld(title){
 
 function heldRowHTML(r){
   const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  const goto = gotoButtonHTML(r);
   return '<article class="qitem held" draggable="true" data-qtitle="' + esc(r.title) + '">' +
     '<div class="qhead">' +
       '<span class="qpos">—</span>' +
@@ -348,7 +414,9 @@ function heldRowHTML(r){
       '<button class="qhold" data-qrelease="' + esc(r.title) + '" ' +
         'title="Put it back in the queue">Release</button>' +
     '</div>' +
-    (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
+    (meta || goto
+      ? '<div class="repmeta">' + meta + (goto ? (meta ? ' · ' : '') + goto : '') + '</div>'
+      : '') +
     '<div class="qwhy">' + esc(r.why || '') + '</div>' +
   '</article>';
 }
@@ -356,23 +424,29 @@ function heldRowHTML(r){
 function renderBacklogList(){
   const out = $('#backlogOut');
   if (!out) return;
+  const held = plansShown(queueHeld);
+  const skipped = plansShown(queueSkipped);
   out.innerHTML =
-    (queueHeld.length
+    (held.length
       ? '<p class="help listlead">Drag back into the queue to plan it tonight.</p>' +
-        queueHeld.map(heldRowHTML).join('')
+        held.map(heldRowHTML).join('')
       : '') +
-    (queueSkipped.length
-      ? (queueHeld.length ? '<h4 class="fhead">Not eligible</h4>' : '') +
-        queueSkipped.map(r =>
-          '<div class="qskip"><span>' + esc(r.title) + '</span><em>' + esc(r.why) + '</em></div>'
-        ).join('')
+    (skipped.length
+      ? '<details class="ufold"><summary>Not eligible (' + skipped.length + ')</summary>' +
+        skipped.map(r =>
+          '<div class="qskip"><span>' + esc(r.title) + '</span>' + gotoButtonHTML(r) +
+          '<em>' + esc(r.why) + '</em></div>'
+        ).join('') + '</details>'
       : '') +
-    (!queueHeld.length && !queueSkipped.length
+    (!held.length && !skipped.length
       ? '<div class="empty">Nothing held back, and nothing excluded right now.</div>'
       : '');
   const wrap = $('#backlogOut');
   wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
+  });
+  wrap.querySelectorAll('[data-plan-goto]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
   wrap.querySelectorAll('.qitem.held').forEach(row => {
     row.ondragstart = e => {
@@ -472,12 +546,18 @@ async function renderQueue(){
 }
 
 /* -------------------------------------------------------------------------
-   Next run — the run happening right now, or the last one that happened.
+   Queue / Doing — one card asking whichever question is actually live: what
+   would tonight plan (Queue), or what the agent is doing this second (Doing).
+   Never both at once. A run in flight makes "what would tonight plan" a
+   description of the recent past rather than of right now, so the card
+   becomes the thing that's true instead of carrying two things that answer
+   the same underlying question — "is anything about to happen, or is it
+   happening" — at two different altitudes.
 
-   Read from the lock directory and the log, which is the only honest way: the
-   agents are subprocesses of a shell launchd started, and nothing here can ask
-   them anything. One card, because plan.py runs its agents strictly one at a
-   time, which is a deliberate choice rather than a limitation — a runaway
+   Read from the lock directory and the log, which is the only honest way to
+   answer either half: the agents are subprocesses of a shell launchd
+   started, and nothing here can ask them anything. One task in flight at a
+   time, because plan.py runs its agents strictly one at a time — a runaway
    agent then costs one timeout rather than the whole night.
    ------------------------------------------------------------------------- */
 
@@ -492,29 +572,71 @@ function flightRowHTML(r, kind){
   '</div>';
 }
 
-function renderFlight(n){
-  const out = $('#flightOut');
+/* The card's own identity — title, lead sentence, which of #queueOut /
+   #doingOut is showing, whether the Run button makes sense right now — all
+   follow the same one fact: is a run actually live. A dead run (the lock
+   gone, the last task never finished) doesn't count as "actively running",
+   so it surfaces as a banner over the queue rather than taking over the
+   Doing slot — the queue is still the true answer to "what happens next"
+   when nothing is going. */
+function renderQueueDoingHead(live, orphan){
+  const title = $('#qdTitle');
+  if (title) title.textContent = live ? 'Doing' : 'Queue';
+  const lead = $('#qdLead');
+  if (lead) lead.textContent = live
+    ? 'What the night agent is doing right now.'
+    : 'What tonight\'s run would plan, in order.';
+  const btn = $('#runQueueBtn');
+  // Only when nothing is going. run.sh holds a lock and would refuse a
+  // second batch anyway, but it refuses by logging and exiting cleanly,
+  // which from a button looks exactly like starting — so the button is not
+  // offered rather than offered and quietly ignored.
+  if (btn) btn.classList.toggle('hidden', live);
+  const doingOut = $('#doingOut');
+  const queueOut = $('#queueOut');
+  if (doingOut) doingOut.classList.toggle('hidden', !live);
+  if (queueOut) queueOut.classList.toggle('hidden', live);
+  const orphanOut = $('#qdOrphan');
+  if (!orphanOut) return;
+  if (!live && orphan) {
+    orphanOut.classList.remove('hidden');
+    orphanOut.innerHTML = '<div class="err">The last run stopped part way through <strong>' +
+      esc(orphan.title) + '</strong> and never finished. Its lock is gone, so nothing is ' +
+      'running now.</div>';
+  } else {
+    orphanOut.classList.add('hidden');
+    orphanOut.innerHTML = '';
+  }
+}
+
+/* Only ever drawn while #doingOut is actually showing — see
+   renderQueueDoingHead — so there is no idle or orphan case to handle here;
+   those are the queue's job now. */
+function renderDoing(n){
+  const out = $('#doingOut');
   if (!out) return;
   const when = s => s ? esc(s.slice(11, 16)) : '';
-  let html = '';
-
   if (n.live && n.current) {
-    html += '<div class="fnow"><i class="fspin"></i>' +
+    out.innerHTML = '<div class="fnow"><i class="fspin"></i>' +
       '<div><strong>' + esc(n.current.title) + '</strong>' +
       '<div class="repmeta">' + esc(n.current.agent) + ' · started ' +
       when(n.current.since) + '</div></div></div>';
   } else if (n.live) {
-    html += '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
+    out.innerHTML = '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
       '<div class="repmeta">between tasks — nothing in flight this second</div></div></div>';
-  } else if (n.orphan) {
-    html += '<div class="err">The last run stopped part way through <strong>' +
-      esc(n.orphan.title) + '</strong> and never finished. Its lock is gone, so ' +
-      'nothing is running now.</div>';
   } else {
-    html += '<div class="fidle">Nothing running. The next wake is on the hour, ' +
-      'and it plans only if a usage window allows it.</div>';
+    out.innerHTML = '';
   }
+}
 
+/* The batch's own numbers — when it started, how far through it is, what
+   made it stop early. Sits in Done rather than in the Queue/Doing card: this
+   is a record of the run, the same kind of fact "Latest run costs" is, not a
+   description of what's happening or about to. */
+function renderDoneStats(n){
+  const out = $('#doneStatsOut');
+  if (!out) return;
+  let html = '';
   if (n.started) {
     html += '<dl class="schedmeta"><dt>Run started</dt><dd>' +
       esc(n.started.slice(0, 16)) + '</dd>' +
@@ -524,31 +646,30 @@ function renderFlight(n){
       '</dl>';
   }
   if (n.stopped) html += '<p class="fstop">' + esc(n.stopped) + '</p>';
-
-  /* Only when nothing is going. run.sh holds a lock and would refuse a second
-     batch anyway, but it refuses by logging and exiting cleanly, which from a
-     button looks exactly like starting — so the button is not offered rather
-     than offered and quietly ignored. */
-  if (!n.live) {
-    html += '<button class="btn frun" id="runNight">Run the agent now</button>';
-  }
   if (!n.started) {
     html += '<p class="help">The log has nothing since the last run started. ' +
       'A wake that found no window logs its reason and stops without starting one.</p>';
   }
   out.innerHTML = html;
-  const btn = $('#runNight');
-  if (btn) btn.onclick = () => confirmNightAgentRun();
 }
 
-/* What the last run actually cost — sits in the Token windows column rather
-   than here, because it is a cost figure like everything else on that card,
-   not a report of what the run is doing right now, which is all Next run
-   shows. */
+/* What the last run actually cost — sits in Token Session rather than here,
+   because it is a cost figure like everything else on that card, not a
+   report of what the run is doing right now or what it planned, which are
+   Queue/Doing's and Done's jobs. Folded shut like "What runs on a clock" used
+   to be and moved below the usage chart, which is what's actually read first
+   on this card; the date and the total move onto the fold's own summary
+   line, so they're still readable without opening it. It sits outside
+   #usageOut's own markup (a sibling, not nested in it), so renderUsage()'s
+   full redraw on every range click never touches it and this needs no cache
+   of its own. */
 function renderRunResults(n){
   const out = $('#runResultsOut');
+  const fold = $('#runResultsFold');
+  const summary = $('#runResultsSummary');
   if (!out) return;
   let html = '';
+  let label = 'Latest run costs';
   if (n.done.length) {
     const spent = n.done.reduce((a, d) => a + d.cost, 0);
     // The date the batch started, not the date of any one task within it —
@@ -557,15 +678,16 @@ function renderRunResults(n){
     const date = when
       ? new Date(when.replace(' ', 'T')).toLocaleDateString(undefined, { day:'numeric', month:'short' })
       : '';
-    html += '<h4 class="fhead">Latest run costs' + (date ? ' — ' + esc(date) : '') +
-      ' · $' + spent.toFixed(2) + '</h4>' +
-      n.done.map(d => flightRowHTML(d, 'done')).join('');
+    label += (date ? ' — ' + date : '') + ' · $' + spent.toFixed(2);
+    html += n.done.map(d => flightRowHTML(d, 'done')).join('');
   }
   if (n.failed.length) {
     html += '<h4 class="fhead">Failed</h4>' +
       n.failed.map(d => flightRowHTML(d, 'failed')).join('');
   }
   out.innerHTML = html;
+  if (summary) summary.textContent = label;
+  if (fold) fold.classList.toggle('hidden', !n.done.length && !n.failed.length);
 }
 
 /* Spending money is a deliberate press and then a second one. The confirm says
@@ -608,20 +730,26 @@ async function startNightAgentRun(){
    ignore. */
 async function renderNightAgent(){
   clearTimeout(flightTimer);
-  const out = $('#flightOut');
-  if (!out) return;
+  if (!$('#queueDoingCard')) return;
   let live = false;
   try {
     const n = await getJSON('/night-agent.json');
     live = !!n.live;
-    renderFlight(n);
+    const errBox = $('#nightAgentErr');
+    if (errBox) errBox.classList.add('hidden');
+    renderQueueDoingHead(live, n.orphan);
+    renderDoing(n);
+    renderDoneStats(n);
     renderRunResults(n);
   } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the run log. ' +
-      esc(String(err.message || err)) + '</div>';
+    const errBox = $('#nightAgentErr');
+    if (errBox) {
+      errBox.classList.remove('hidden');
+      errBox.textContent = 'Could not read the run log. ' + String(err.message || err);
+    }
   }
   flightTimer = setTimeout(() => {
-    if (state.view === 'plans' && $('#flightOut')) renderNightAgent();
+    if (state.view === 'plans' && $('#queueDoingCard')) renderNightAgent();
   }, live ? 10000 : 60000);
 }
 
@@ -629,36 +757,38 @@ async function renderPlansView(){
   $('#lists').innerHTML =
     '<div class="lists pview">' +
       '<div class="listcard reportsview backlogview"><h3>Backlog</h3>' +
-        '<p class="help listlead">Held back from the board, or excluded by a rule. Drag a ' +
-        'card between here and the queue to hold it back or bring it in — the excluded ' +
-        'ones need the underlying reason fixed first, not a drag.</p>' +
+        '<p class="help listlead">Held back from the board, or excluded by a rule.</p>' +
         '<div id="backlogOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview queueview"><h3>Queue for tonight</h3>' +
-        '<p class="help listlead">Worked out from the list as it stands now, not booked ' +
-        'in advance. Drag to change what gets planned first — the run stops on a budget ' +
-        'or a usage limit, so the top of this list is the part that reliably happens.</p>' +
+      '<div class="listcard reportsview queueview" id="queueDoingCard">' +
+        '<div class="cardhead"><h3 id="qdTitle">Queue</h3>' +
+          '<button class="btn mini qrun" id="runQueueBtn" type="button">Run now</button></div>' +
+        '<div class="err hidden" id="nightAgentErr"></div>' +
+        '<h4 class="fhead">Status</h4>' +
+        '<div id="statusOut">Loading…</div>' +
+        '<div class="hidden" id="qdOrphan"></div>' +
+        '<p class="help listlead" id="qdLead">What tonight\'s run would plan, in order.</p>' +
         '<div id="queueOut">Loading…</div>' +
+        '<div class="hidden" id="doingOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview flightview"><h3>Next run</h3>' +
-        '<p class="help listlead">One task at a time, on purpose. Read from the run\'s own ' +
-        'lock and log, so this is what is happening rather than what was asked for.</p>' +
-        '<div id="flightOut">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview processed"><h3>Plans</h3>' +
-        '<p class="help listlead">One per task tagged <code>ai:full</code>, researched ' +
-        'overnight. Nothing here has been done: each one proposes a course of action ' +
-        'and waits for you to agree it, send it back, or do it yourself.</p>' +
+      '<div class="listcard reportsview processed"><h3>Done</h3>' +
+        '<div id="doneStatsOut"></div>' +
+        '<p class="help listlead">What the night agent has worked out, waiting to be read.</p>' +
         '<div id="plansOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard schedview usage"><h3>Token windows</h3>' +
-        '<div id="runResultsOut"></div>' +
-        '<div id="usageOut">Loading…</div>' +
-        '<details class="ufold"><summary>What runs on a clock</summary>' +
+      '<div class="pvcol">' +
+        '<div class="listcard schedview usage"><h3>Token Session</h3>' +
+          '<div id="usageOut">Loading…</div>' +
+          '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
+            '<div id="runResultsOut"></div>' +
+          '</details>' +
+        '</div>' +
+        '<div class="listcard reportsview clockview"><h3>What runs on a clock</h3>' +
           '<div id="schedOut">Loading…</div>' +
-        '</details>' +
+        '</div>' +
       '</div>' +
     '</div>';
+  $('#runQueueBtn').onclick = () => confirmNightAgentRun();
   const out = $('#plansOut');
   try {
     const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });

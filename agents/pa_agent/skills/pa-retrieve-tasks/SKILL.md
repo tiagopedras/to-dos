@@ -103,7 +103,7 @@ and the same holds for the Tuesday after a bank holiday Monday.
 Business day here means what it means everywhere else in this system: weekends
 are out and UK bank holidays are out, since the team is UK-based. The England and
 Wales dates for 2026 and 2027 are in
-`~/Code/to-dos/pa_agent/skills/pa-checkin/scripts/check_todo.py`, which is the
+`~/Code/to-dos/agents/pa_agent/skills/pa-checkin/scripts/check_todo.py`, which is the
 authority when a date is borderline.
 
 **When he names a window, his wins.** "This week" means Monday to today. "Go back

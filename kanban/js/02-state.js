@@ -26,6 +26,12 @@ const state = {
      rather than asking. The tidy-up runs again on the way back in. */
   migratedOnly: false,
   activeBucket: null,
+  /* name -> chosen swatch, one per dataset — see bucketColor() below and
+     loadBucketColors() in 08-buckets.js. Lives in its own small file rather
+     than in todo.md: a colour is a preference about looking at the list, not
+     a fact the list itself needs to carry, and todo.md has exactly one writer
+     already. */
+  bucketColors: {},
   /* The whole sessions index, owner key -> rows, handed over by chat.js's
      onSessionsChanged. The drawer only ever needs one owner's worth and asks
      for it directly; the canvas needs all of them at once, so this keeps the
@@ -202,11 +208,27 @@ function initViewFromHash(){
   state.pendingBucketSlug = h.bucketSlug || null;
 }
 
-/* Six, and the fifth used to be the accent blue — which is the first bucket's
+/* Ten, and the fifth used to be the accent blue — which is the first bucket's
    colour, so a fifth bucket came out looking like the first. Nothing could add
-   one before, so it never showed. Past six they repeat, which is honest: at that
-   point the list is not colour-coded any more whatever we do. */
-const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)'];
+   one before, so it never showed. Past ten they repeat, which is honest: at
+   that point the list is not colour-coded any more whatever we do.
+
+   This is the fallback only — bucketColor() below is what everything actually
+   calls. A bucket picked its own colour from these same ten swatches (see
+   openBucketEditor in 08-buckets.js) wins over its position in the list, which
+   is the whole point: reordering the buckets used to reshuffle every colour on
+   the board along with them, because position was the only thing a colour was
+   ever derived from. */
+const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)',
+                       'var(--b7)','var(--b8)','var(--b9)','var(--b10)'];
+/* state.bucketColors is name -> swatch (one of BUCKET_COLOR's own values),
+   loaded from bucket-colors.json alongside the document — see loadBucketColors
+   in 08-buckets.js. A name with nothing chosen for it falls through to its
+   position in the list, exactly as every bucket did before a picker existed. */
+function bucketColor(name, index){
+  return (state.bucketColors && state.bucketColors[name]) ||
+    BUCKET_COLOR[((index % BUCKET_COLOR.length) + BUCKET_COLOR.length) % BUCKET_COLOR.length];
+}
 const DONE_COL = 'Done';
 /* Not a special column the way Done is — just a tier the board tints, so a
    renamed section simply stops matching and goes back to looking normal. */

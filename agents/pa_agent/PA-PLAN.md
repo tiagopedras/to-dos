@@ -184,9 +184,9 @@ sub-step has no state of its own" rule. All three go in `PA.md`.
 
 ## What this costs, honestly
 
-The four skills live in `~/Code/to-dos/pa_agent/` today and are symlinked into
+The four skills live in `~/Code/to-dos/agents/pa_agent/` today and are symlinked into
 `~/.claude/skills/`. Moving them to `~/Code/agents/pa/` means the symlinks change,
-the `.skill` archives in `to-dos/pa_agent/dist/` move or go, and three files that name
+the `.skill` archives in `to-dos/agents/pa_agent/dist/` move or go, and three files that name
 the checker's path have to be updated: `to-dos/CLAUDE.md`, `Code/CLAUDE.md` and the
 skills themselves.
 
@@ -212,7 +212,7 @@ brief, with one agent added that can act and one skill that drives it.
 | `buckets/<stream>/<stream>.md` | One brief per bucket, holding the processes he runs in it, what each produces and which skill already does it. Read by the planners and by the acting agent. Templates only until he writes them. |
 | Plan status `agreed` | His approval, set on the Plans view. The only thing that queues work for the acting agent. |
 | Plan status `redo` | A rejection with a reason, written into the plan's own frontmatter. The next nightly run plans the task again and the agent is handed what was wrong with the last one. |
-| `pa-execute` | One agent, not one per bucket. The only agent allowed to write `todo.md`. |
+| `execution-agent` | One agent, not one per bucket. It never writes `todo.md`: a change to the list is asked for in its report and made by the PA agent. |
 | `pa-do` | The skill that finds agreed plans and hands them over, one at a time, in a session he is sitting in. |
 
 **Why one acting agent rather than six.** The six planners are safe to duplicate
@@ -234,11 +234,11 @@ separate approved flag would let a plan be agreed and rejected at once, which
 means nothing, and it would need its own reader in three places that already
 read `status:`. The five values are documented in `kanban/js/13-plans.js`,
 validated in `kanban/server.py` and acted on by `is_stale()` in
-`night_agent/pick.py`, and those three have to stay in step.
+`agents/night_agent/pick.py`, and those three have to stay in step.
 
 **The one writer rule survives, and is now written down.** The board autosaves
 `todo.md` within seconds of anything marking it dirty, and it has taken the real
-list twice. `pa-execute` may write it, and it is the only agent that may. Before
+list twice. `execution-agent` may write it, and it is the only agent that may. Before
 any write it asks, shows the before and after, hashes the file, edits only the
 lines it named, and tells him to press Reload rather than save. Nothing else in
 this system writes that file, including the planners, the companion and the
@@ -246,13 +246,13 @@ board's own queue column.
 
 ## Open questions
 
-- Does the PA move to `~/Code/agents/pa/` or stay in `to-dos/pa_agent/` with only the
+- Does the PA move to `~/Code/agents/pa/` or stay in `to-dos/agents/pa_agent/` with only the
   brief and references as new files. The migration above assumes it moves.
 - Does `pa-retrieve-tasks` get renamed. You called it intake, which is a better name
   for what it does, and renaming is cheapest before anything else moves.
 - Does `board-write` refuse a change it cannot express, or write it and flag it. The
   first is safer and will occasionally be annoying.
-- Whether `board-write`, if it is ever built, and `pa-execute` are the same
+- Whether `board-write`, if it is ever built, and `execution-agent` are the same
   writer. Both would own writing `todo.md`, and two owners of one file is the
-  arrangement this whole document exists to avoid. `pa-execute` holds that job
+  arrangement this whole document exists to avoid. `execution-agent` holds that job
   today because it was the one that needed it first.

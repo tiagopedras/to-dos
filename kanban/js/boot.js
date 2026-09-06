@@ -11,6 +11,7 @@ initViewFromHash();
 loadFile();
 loadJira();
 loadDatasets();
+loadBucketColors();
 // Is there a Claude Code CLI behind the helper, and what is it allowed to
 // do. Everything about this can fail and none of it matters: a 404 on a
 // static host, a helper too old to know the endpoint, a machine with no CLI

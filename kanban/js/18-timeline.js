@@ -43,7 +43,7 @@ function timelineTasks(){
   const shownNames = new Set(shownBuckets().map(b => b.name));
   state.doc.buckets.forEach((b, bi) => {
     if (!shownNames.has(b.name)) return;
-    const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
+    const color = bucketColor(b.name, bi);
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
       if (t.done || !matches(t)) return;
       const it = items.find(i => i.id === t.id && !i.sub);
@@ -570,6 +570,7 @@ function renderView(){
   // on every tab rather than popping in and out as he switches between them.
   $('#headline').classList.add('hidden');
   if (def.id === 'reports') { renderFilterBar(); renderReportsView(); return; }
+  if (def.id === 'projects') { renderFilterBar(); renderProjectsView(); return; }
   if (def.id === 'plans') { renderFilterBar(); renderPlansView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
@@ -582,6 +583,7 @@ function refreshView(){
   if (state.view === 'board') renderBoard();
   else if (state.view === 'canvas') renderCanvas();
   else if (state.view === 'reports') renderReportsView();
+  else if (state.view === 'projects') renderProjectsView();
   else if (state.view === 'plans') renderPlansView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
@@ -692,7 +694,7 @@ function renderBoard(){
     const mode = sortMode(name);
     let entries = [];
     shown.forEach(bucket => {
-      const color = BUCKET_COLOR[state.doc.buckets.indexOf(bucket) % BUCKET_COLOR.length];
+      const color = bucketColor(bucket.name, state.doc.buckets.indexOf(bucket));
       const label = many ? bucket.name : '';
       if (isDone) {
         bucket.tiers.forEach(tier => tier.tasks.forEach(t => {

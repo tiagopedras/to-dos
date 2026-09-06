@@ -68,7 +68,7 @@ function renderTabs(){
   wrap.innerHTML = all + state.doc.buckets.map((b, i) => {
     const on = !allMode() && b === activeBucket();
     return '<button class="tab' + (on ? ' on' : '') + '" data-bucket="' + esc(b.name) + '"' +
-      ' title="open tasks" aria-pressed="' + on + '" style="--bc:' + BUCKET_COLOR[i % BUCKET_COLOR.length] + '">' +
+      ' title="open tasks" aria-pressed="' + on + '" style="--bc:' + bucketColor(b.name, i) + '">' +
       '<i class="dot"></i>' + esc(b.name) + '<span class="n">' + openIn(b) + '</span></button>';
   }).join('');
   wrap.querySelectorAll('.tab').forEach(el => {

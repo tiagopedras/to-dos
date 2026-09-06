@@ -200,7 +200,7 @@ function completedByCategoryReport(){
   // at, groups the same way a task still in todo.md does.
   const rows = state.doc.buckets.map((b, i) => ({
     name: b.name,
-    color: BUCKET_COLOR[i % BUCKET_COLOR.length],
+    color: bucketColor(b.name, i),
     items: list.filter(it => it.bucketName === b.name)
   }));
   const total = list.length;
@@ -349,7 +349,7 @@ function weeklyTrendReport(){
   const bucketOrder = state.doc ? state.doc.buckets.map(b => b.name) : [];
   const colorOf = name => {
     const i = bucketOrder.indexOf(name);
-    return i > -1 ? BUCKET_COLOR[i % BUCKET_COLOR.length] : 'var(--ink-faint)';
+    return i > -1 ? bucketColor(name, i) : 'var(--ink-faint)';
   };
 
   const weekData = weeks.map(w => {

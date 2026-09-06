@@ -34,15 +34,15 @@ from pathlib import Path
 # set of rules that must agree is drift waiting to happen, and drift here is
 # quiet — a meeting rolls to the wrong Thursday and nothing complains.
 #
-# So there is one copy, core/todo.py, and this script imports it five folders up:
-# scripts -> pa-checkin -> skills -> pa_agent -> the repo root.
+# So there is one copy, core/todo.py, and this script imports it six folders up:
+# scripts -> pa-checkin -> skills -> pa_agent -> agents -> the repo root.
 #
 # There used to be a second route, for a skill installed from a packed .skill
 # archive with no repo to reach — build.command staged a copy of todo.py beside
 # this file. Skills are symlinked rather than packed as of 6 Sep 2026, so the
 # archive is gone and so is the fallback: resolve() follows the symlink from
 # ~/.claude/skills/ back to this file's real home, and the repo is always there.
-_CORE = Path(__file__).resolve().parents[4] / "core"
+_CORE = Path(__file__).resolve().parents[5] / "core"
 sys.path.insert(0, str(_CORE))
 import todo  # noqa: E402
 

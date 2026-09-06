@@ -7,7 +7,7 @@ are tested against fabricated nights rather than against whatever happens to be
 in ~/.claude today, which is the only way to check the 02:00 cutoff without
 waiting until 02:00.
 
-    python3 night_agent/test_night_agent.py
+    python3 agents/night_agent/test_night_agent.py
 """
 
 import datetime as dt
@@ -18,7 +18,8 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "core"))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 sys.path.insert(0, HERE)
 
 import pick  # noqa: E402
@@ -389,16 +390,15 @@ def test_agents():
     ]:
         check("bucket %r maps" % bucket, plan.bucket_agent(bucket), want)
 
-    root = os.path.dirname(HERE)
     for bucket in list(plan.STREAMS) + ["x"]:
         agent = plan.bucket_agent(bucket)
-        path = os.path.join(root, ".claude", "agents", agent + ".md")
+        path = os.path.join(ROOT, "agents", agent + ".md")
         check("%s exists on disk" % agent, os.path.exists(path), True)
 
     # The acting half. One agent, not one per bucket — see the note at the top
     # of its own definition for why.
-    check("pa-execute exists on disk",
-          os.path.exists(os.path.join(root, ".claude", "agents", "pa-execute.md")), True)
+    check("execution-agent exists on disk",
+          os.path.exists(os.path.join(ROOT, "agents", "execution-agent.md")), True)
 
     # A brief is offered only when it has actually been written. This is built
     # against a temporary tree rather than the real `buckets/`, because that
@@ -481,7 +481,7 @@ def test_server():
     import json
     import shutil
     import tempfile
-    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "kanban"))
+    sys.path.insert(0, os.path.join(ROOT, "kanban"))
     import server
 
     tmp = tempfile.mkdtemp(prefix="plans-test-")
@@ -557,7 +557,7 @@ def test_queue_routes():
     import json
     import shutil
     import tempfile
-    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "kanban"))
+    sys.path.insert(0, os.path.join(ROOT, "kanban"))
     import server
 
     tmp = tempfile.mkdtemp(prefix="queue-test-")
@@ -669,7 +669,7 @@ def test_queue_routes():
             os.rmdir(server.NIGHTLY_LOCK)
 
             real_root = server.ROOT
-            server.ROOT = tmp                 # no night_agent/run.sh under here
+            server.ROOT = tmp                 # no agents/night_agent/run.sh under here
             try:
                 _, err = server.start_night_agent_run()
                 check("nor one with no runner to start", bool(err), True)
@@ -690,7 +690,7 @@ def test_usage_chart():
     the same reason the window rule is tested that way: the real ones change
     every time anybody uses Claude.
     """
-    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "kanban"))
+    sys.path.insert(0, os.path.join(ROOT, "kanban"))
     import server
 
     today = dt.date.today()
@@ -816,10 +816,10 @@ def test_runner():
     # definition — a definition is a request, the flag is what holds.
     check("and pins the tools on the command line", "--allowedTools" in src, True)
     check("with no Bash among them", "\"Bash\"" in src, False)
-    for p in sorted(os.listdir(os.path.join(os.path.dirname(HERE), ".claude", "agents"))):
+    for p in sorted(os.listdir(os.path.join(ROOT, "agents"))):
         if not p.startswith("pa-plan-"):
             continue
-        head = open(os.path.join(os.path.dirname(HERE), ".claude", "agents", p),
+        head = open(os.path.join(ROOT, "agents", p),
                     encoding="utf-8").read()[:400]
         check("%s claims no Bash either" % p, "Bash" in head, False)
 

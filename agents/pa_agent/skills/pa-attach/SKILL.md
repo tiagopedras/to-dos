@@ -36,7 +36,7 @@ If that comes back empty, say so plainly and stop — this only works run from i
 4. **Write the queue entry:**
 
    ```bash
-   python3 ~/Code/to-dos/pa_agent/skills/pa-attach/scripts/attach_session.py \
+   python3 ~/Code/to-dos/agents/pa_agent/skills/pa-attach/scripts/attach_session.py \
      ~/Code/to-dos/data/<dataset>/attach-queue.json \
      --title "<the task's exact title, copied from the file>" \
      --cwd "$(pwd)"

@@ -91,7 +91,7 @@ function showMatrixPreview(dot){
   const loc = locate(dot.dataset.open);
   if (!loc) return;
   const el = matrixPreview();
-  const color = BUCKET_COLOR[state.doc.buckets.indexOf(loc.bucket) % BUCKET_COLOR.length];
+  const color = bucketColor(loc.bucket.name, state.doc.buckets.indexOf(loc.bucket));
   const where = loc.bucket.name + ' · ' + (loc.task.done ? DONE_COL : loc.tier.name);
   el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL, tier: loc.tier.name });
   el.classList.add('on');
@@ -174,7 +174,7 @@ function matrixTasks(){
   const shownNames = new Set(shownBuckets().map(b => b.name));
   state.doc.buckets.forEach((b, bi) => {
     if (!shownNames.has(b.name)) return;
-    const color = BUCKET_COLOR[bi % BUCKET_COLOR.length];
+    const color = bucketColor(b.name, bi);
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
       if (t.done || !matches(t)) return;
       const it = items.find(i => i.id === t.id && !i.sub);

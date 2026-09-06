@@ -2,7 +2,7 @@
 
 One folder per bucket in `buckets/`, holding the work I actually do in it and
 the skills that do it. Both halves of the night agent read the brief — the
-`pa-plan-*` agent that researches a task overnight, and `pa-execute`, the one
+`pa-plan-*` agent that researches a task overnight, and `execution-agent`, the one
 agent allowed to act on a plan once I have agreed it — and so do I, which is why
 it sits at the root of the repo rather than inside the agent that happened to
 need it first.
@@ -35,7 +35,7 @@ carrying any of the content.
 Because two different agents need the same knowledge. Put it in the planner and
 the acting agent has to be told it again; write it twice and the two drift, and
 a plan researched against one understanding gets carried out against another.
-`night_agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
+`agents/night_agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
 every bucket.
 
 It also means the knowledge is mine to edit without opening an agent definition,
@@ -57,13 +57,16 @@ repointing its link:
 ln -sfn ~/Code/to-dos/buckets/<stream>/skills/<name> ~/.claude/skills/<name>
 ```
 
-Skills that are not a bucket's own stay where they are. `twinkl-deck`,
-`twinkl-deck-outline` and `twinkl-diagram` are listed in `~/Code/SKILLS.md` as
-generic to any bucket, and they remain in `skills/twinkl/`.
+Skills that are not a bucket's own stay where they are. Five are generic to any
+bucket and listed that way in `~/Code/SKILLS.md`: `twinkl-deck-outline`,
+`twinkl-deck` and `twinkl-diagram` in `skills/twinkl/`, `tiago-writing-voice` and
+`tldr` in `skills/personal/`. They are the output end of a task rather than the
+work itself, which is why they belong to no bucket. Every brief names them once so
+an agent knows they are there, and says where in that bucket they actually apply.
 
 ## How a brief is found
 
-`bucket_stream()` in `night_agent/plan.py` maps a bucket heading to a stream
+`bucket_stream()` in `agents/night_agent/plan.py` maps a bucket heading to a stream
 name, and the agent, the folder and the brief are all named off it. `## 3. DS`
 becomes `design-system`, so the agent is `pa-plan-design-system` and the brief
 is `buckets/design-system/design-system.md`. A heading that matches nothing
@@ -126,13 +129,18 @@ ticket on a named board, a message to one person.
 
 Which of my skills covers which process, and where a gap is real. The most
 valuable thing a night can come back with is that the work is already
-automated, and it can only find that out if it is told where to look.
+automated, and it can only find that out if it is told where to look. Name the
+gaps too, with the task slug for each, since building one of those is a fair
+thing for a plan to propose and rebuilding an existing skill is not. Close with
+one line on the five generic skills and where they apply in this bucket.
 
 ## Who is involved
 
-Names, and what each person is to this bucket. The list's own Context section
-is the source of truth for who is on leave and what dates cannot move; this is
-for who owns what.
+Names, and what each person owns **in this bucket**. Not their role, not their
+team, not who they report to: `data/<dataset>/people.md` is the one copy of that
+and a brief that restates it is a second copy waiting to go stale. The list's own
+Context section holds what changes weekly, leave and immovable dates. Surnames are
+one initial.
 
 ## What good looks like here
 

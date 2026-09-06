@@ -31,9 +31,9 @@ plans only what changed.
 No format knowledge lives here. Everything about how todo.md is written comes
 from core/todo.py, which every reader of the list shares.
 
-    python3 night_agent/pick.py            what tonight would plan, in order
-    python3 night_agent/pick.py --all      ignore the ledger
-    python3 night_agent/pick.py --json     the same, for the runner
+    python3 agents/night_agent/pick.py            what tonight would plan, in order
+    python3 agents/night_agent/pick.py --all      ignore the ledger
+    python3 agents/night_agent/pick.py --json     the same, for the runner
 """
 
 import datetime as dt
@@ -43,7 +43,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "core"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(HERE)), "core"))
 sys.path.insert(0, HERE)
 
 import todo  # noqa: E402
