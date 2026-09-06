@@ -72,12 +72,49 @@
   .btn.danger{color:var(--red); border-color:var(--line)}
   .btn.on{background:var(--chip); border-color:var(--line); font-weight:640}
   .menugroup{display:inline-flex; align-items:center; gap:9px}
-  .menulabel{
-    font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--ink-faint);
+  /* A themed cluster of header actions (Data: Undo, Download copy, Backups,
+     Schedule, switch list) behind one button rather than five always-visible
+     controls under a bare label — the row was crowded with no grouping to
+     read it by. Positioned relative so the panel below can anchor to the
+     button rather than the header. */
+  .dropdown{position:relative}
+  .dropdown-panel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:25;
+    display:flex; flex-direction:column; min-width:170px; padding:5px;
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    box-shadow:var(--shadow);
   }
+  .dropdown-item{
+    display:block; width:100%; text-align:left; border:none; background:none;
+    color:var(--ink); border-radius:6px; padding:7px 9px; font-size:13px; font-weight:520;
+  }
+  .dropdown-item:hover{background:var(--chip)}
+  .dropdown-item:disabled{color:var(--ink-faint); cursor:default}
+  .dropdown-item:disabled:hover{background:none}
+  /* The dataset switcher sits under its own rule inside the same panel —
+     picking from a select, not firing an action, so it reads as a distinct
+     row rather than one more item in the list above it. */
+  .dropdown-divider{
+    margin-top:5px; padding:8px 9px 0; border-top:1px solid var(--line-soft);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .dropdown-label{font-size:12px; font-weight:520; color:var(--ink-soft)}
 
-  .filters{display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%}
+  /* ---------- the bucket strip ----------
+     Its own bar between the header and the board, lined up with the columns it
+     filters and sitting above the one thing. Sticky like the header rather than
+     scrolling away with the page: which bucket you are in is the answer to
+     "what am I looking at", and that question is still live three screens down
+     a long column. The offset is --header-h, the header's real measured bottom
+     (syncHeaderHeight), because the header wraps to two rows on a narrow window
+     and grows by the lock bar's height in a backup preview — no single number
+     is right for all three. Opaque, so cards pass underneath it rather than
+     through it. */
+  .bucketbar{
+    position:sticky; top:var(--header-h, 68px); z-index:15;
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+    padding:12px 16px 2px; background:var(--bg);
+  }
   .tabs{display:inline-flex; gap:3px; background:var(--chip); padding:3px; border-radius:9px}
   .tab{
     border:1px solid transparent; background:transparent; border-radius:7px;
@@ -298,7 +335,7 @@
     cursor:default; border-color:var(--ink-faint);
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
-  .mpreview .card.done{opacity:1}      /* a preview is for reading, not for dimming */
+  .mpreview .card{opacity:1}      /* a preview is for reading, not for dimming */
   @media (prefers-reduced-motion:reduce){
     .mpreview{transition:none}
   }
@@ -503,17 +540,8 @@
      narrow — wrapping them would break the left-to-right order of the flow. */
   .col.donecol{background:transparent; border-style:dashed}
   .col.donecol h2{color:var(--ink-faint)}
-  /* Done work should recede far enough that the eye skips it, but stay readable
-     on hover so the column is still a record you can check. */
-  .col.donecol .card{opacity:.38}
-  .col.donecol .card:hover{opacity:1}
-  /* Work waiting on someone else is finished but not filed away, so it sits
-     halfway between a live card and a done one — dimmed enough to read as
-     off your plate, present enough to keep chasing. */
   .col.waitcol{background:transparent}
   .col.waitcol h2{color:var(--ink-soft)}
-  .col.waitcol .card{opacity:.69}
-  .col.waitcol .card:hover{opacity:1}
   .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
   .col h2{
     margin:0; padding:11px 13px 9px; font-size:12.5px; font-weight:680; letter-spacing:.02em; text-transform:uppercase;
@@ -802,20 +830,22 @@
   .lists.rview .listcard{margin:0}
 
   /* ---------- plans ----------
-     Four columns, read left to right as the life of one task through the
-     nightly agent: what is queued, what is being worked on, what came back,
-     and what any of it costs. Narrower than the two-column views because four
-     of them have to fit, and scrolling sideways is what a board does anyway. */
+     Five columns, read left to right as the life of one task through the
+     nightly agent: what is excluded, what is queued, what is being worked on,
+     what came back, and what any of it costs. Narrower than the two-column
+     views because five of them have to fit, and scrolling sideways is what a
+     board does anyway. */
   .lists.pview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:repeat(3, minmax(330px,1fr)) minmax(320px,420px);
-    min-width:1360px;
+    grid-template-columns:repeat(4, minmax(330px,1fr)) minmax(320px,420px);
+    min-width:1704px;
   }
   .lists.pview .listcard{margin:0}
 
-  /* The queue. A card here is a proposal about tonight, so it is lighter than
-     a board card and carries its position rather than its state — the position
-     is the thing being edited. */
+  /* The queue and the Backlog beside it share this card — a card here is a
+     proposal about tonight (or about not-tonight), so it is lighter than a
+     board card and carries its position rather than its state, the position
+     being the thing a drag edits. */
   .qitem{
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
     padding:9px 11px; margin:0 0 7px; cursor:grab;
@@ -838,22 +868,27 @@
   .qitem:hover .qhold, .qitem:focus-within .qhold{opacity:1}
   .qhold:hover{border-color:var(--accent); color:var(--accent)}
   .qwhy{margin:4px 0 0; font-size:11.5px; color:var(--ink-faint)}
-  /* Held cards keep their shape but lose their position, because that is
-     exactly what holding one does. */
-  .qitem.held{cursor:default; border-style:dashed; opacity:.72}
+  /* A held card lives in the Backlog column, not the queue, so it keeps its
+     shape but loses its position — the dashed border marks it as waiting
+     rather than ranked, not as inert; it still drags like any other. */
+  .qitem.held{border-style:dashed; opacity:.72}
   .qitem.held .qhold{opacity:1}
-  .qfold{margin:10px 0 0; border-top:1px solid var(--line-soft); padding-top:8px}
-  .qfold summary{
-    font-size:12px; color:var(--ink-faint); cursor:pointer; margin:0 0 8px;
-  }
+  /* Not-eligible cards, the other half of Backlog: shown, not dragged — see
+     the comment above pick.eligible() for why a drag cannot fix what excludes
+     them. */
   .qskip{
     display:flex; gap:10px; align-items:baseline; padding:4px 2px; font-size:12px;
     color:var(--ink-faint);
   }
   .qskip span{flex:1; min-width:0; color:var(--ink-soft)}
   .qskip em{flex:none; font-style:normal}
+  /* Dragging a queue card over the whole column, not any one row within it —
+     a held card has no rank to drop it against. */
+  #backlogOut.backlogdrop{
+    outline:2px dashed var(--accent); outline-offset:-4px; border-radius:10px;
+  }
 
-  /* In flight. One card, because the runner runs one agent at a time. */
+  /* Next run. One card, because the runner runs one agent at a time. */
   .fnow{
     display:flex; gap:10px; align-items:flex-start; padding:11px 13px;
     background:var(--green-bg); border:1px solid color-mix(in srgb, var(--green) 25%, transparent);
@@ -892,9 +927,10 @@
   .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
 
   /* ---------- schedule ----------
-     Two cards side by side: what runs on a clock, and what the usage windows
-     have been doing. Scoped under .schedview the way .reportsview and
-     .backupsview are, so nothing here reaches the board. */
+     What runs on a clock (folded inside Plans' Token windows card, alongside
+     the usage windows) and what those windows have been doing. Not
+     scoped under any view class — Plans uses these classes directly rather
+     than through a wrapper the way .reportsview and .backupsview are. */
   .schedjob{
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
     padding:12px 14px; margin:0 0 10px;
@@ -965,18 +1001,50 @@
      session, the accent for one opened in the night, which is the half that
      carries meaning — those are the windows the nightly agent could have spent
      in without touching the morning. */
-  .ubarv{stroke:var(--ink-faint); stroke-width:1.8; opacity:1; shape-rendering:crispEdges}
-  .ubarv.night{stroke:var(--accent)}
-  .ubarv.live{stroke:var(--green); stroke-width:2.4}
+  /* A session is a box as wide as the five hours it ran, outlined, with the
+     spend filling in across it — see the bars in usageChart. The outline
+     carries the colour and the fill takes it from currentColor, so the
+     day/night split is set once per box rather than on each of its two
+     pieces. currentColor is also why the <g> carries the class and not the
+     shapes: colour set on the group is what both children inherit. */
+  .ubox{color:var(--ink-faint)}
+  .ubox.night{color:var(--accent)}
+  .ubox.live{color:var(--green)}
+  .uboxline{fill:none; stroke:currentColor; stroke-width:1.2; shape-rendering:crispEdges}
+  /* Filled rather than outlined, and quiet: the box's own edge is the figure
+     to read against the axis, and this says how it got there. */
+  .ufill{fill:currentColor; opacity:.3; stroke:none}
+  .ubox.live .ufill{opacity:.4}
   .unow{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2 3; opacity:.6}
   .uaxl{font-size:9px; fill:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .uaxl.y{text-anchor:end}
   .uaxl.d{text-anchor:middle}
   .ukey{display:flex; flex-wrap:wrap; gap:12px; margin:6px 0 0; font-size:11.5px; color:var(--ink-faint)}
   .ukey .k{display:flex; align-items:center; gap:5px}
-  .ukey .k::before{content:''; width:3px; height:11px; border-radius:1px; background:var(--ink-faint)}
-  .ukey .k.n::before{background:var(--accent)}
-  .ukey .k.r::before{width:12px; height:3px; background:var(--b2); opacity:1}
+  /* Each swatch is the mark it stands for, at the size it is drawn: the two
+     session keys are hollow boxes because a session is a hollow box now, and
+     the fill key is the wash that goes inside one. They were all 3px bars
+     back when a session was a 3px bar. */
+  .ukey .k::before{
+    content:''; width:10px; height:11px; border-radius:2px;
+    border:1.2px solid var(--ink-faint); background:transparent;
+  }
+  .ukey .k.n::before{border-color:var(--accent)}
+  .ukey .k.f::before{border-color:transparent; background:var(--ink-faint); opacity:.3}
+  .ukey .k.r::before{width:12px; height:0; border:none; border-top:3px solid var(--b2); border-radius:0}
+  /* How far back the chart looks. Segmented rather than a dropdown: four
+     stops, and which one is on is the thing to read at a glance. */
+  .uranges{display:flex; gap:3px; margin:10px 0 0}
+  .urange{
+    flex:1; border:1px solid var(--line); background:transparent; color:var(--ink-faint);
+    border-radius:6px; padding:3px 0; font-size:11px; font-weight:640;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .urange:hover{color:var(--ink-soft); border-color:var(--ink-faint)}
+  .urange.on{
+    background:color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color:color-mix(in srgb, var(--accent) 45%, transparent); color:var(--accent);
+  }
   .ucap{margin:7px 0 0; font-size:11px; line-height:1.5; color:var(--ink-faint)}
   .ucap b{color:var(--ink-soft); font-weight:640}
   .ucap em{font-style:normal; opacity:.8}
@@ -1013,7 +1081,7 @@
   /* ---------- written reports ----------
      A list of standfirsts that opens into the report itself. Closed, it should
      read like a contents page. */
-  .reportsview.written .empty code{
+  .reportsview.written .empty code, .reportsview.processed .empty code{
     background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
@@ -1052,7 +1120,32 @@
     border:1px solid currentColor; border-radius:999px; padding:1px 7px;
   }
   .repitem.actioned{opacity:.6; border-style:dashed}
-  .repitem:not(.read):not(.actioned) .repdate{
+  /* Agreed: work is owed on this one. Green rather than the accent, which means
+     "new", and rather than amber, which means "answer me". Three states on one
+     row and each has to be tellable from the other two at a glance. */
+  .repitem.agreed{border-color:var(--green); background:var(--green-bg)}
+  /* Sent back. Red would read as an error and this is a normal answer, so it
+     recedes the way a read plan does and says why in .planredo instead. */
+  .repitem.redo{opacity:.82; border-style:dashed}
+  .planredo{
+    margin:6px 0 0; padding:6px 8px; border-radius:6px;
+    background:var(--chip); color:var(--ink-soft);
+    font-size:12px; line-height:1.45;
+  }
+  .planredo b{color:var(--ink)}
+  .planagreed{margin:0 0 14px}
+  .planagreed h4{margin:0 0 2px; font-size:12.5px}
+  .planagreed .help{margin:0 0 8px}
+  /* The reason box on Send it back. Full width, and it inherits the sheet's
+     own type rather than the browser's textarea default. */
+  .redowhy{
+    width:100%; box-sizing:border-box; margin:8px 0 0; padding:8px 10px;
+    font:inherit; font-size:13px; color:var(--ink);
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    resize:vertical;
+  }
+  .redowhy:focus{outline:2px solid var(--accent); outline-offset:1px}
+  .repitem:not(.read):not(.actioned):not(.agreed):not(.redo) .repdate{
     color:var(--accent); font-weight:640; font-family:inherit;
   }
   /* The standfirst is the whole point of the closed state: it should say what the
@@ -1352,9 +1445,25 @@
   }
   .card.onething:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
   .tag.onething{background:transparent; border:1px solid var(--accent); color:var(--accent)}
-  .card.done{opacity:.34}
+  /* Fading is a fact about the task's own status, not about which column
+     happens to be rendering it — these classes come from cardHTML off t.done
+     and the task's real tier, so a card fades the same way in the board, the
+     matrix hover preview or anywhere else cardHTML is used. */
+  .card.done{opacity:.3}
   .card.done:hover{opacity:1}
   .card.done .title{text-decoration:line-through}
+  /* Work waiting on someone else is finished but not filed away, so it sits
+     halfway between a live card and a done one — dimmed enough to read as
+     off your plate, present enough to keep chasing. */
+  .card.waiting{opacity:.6}
+  .card.waiting:hover{opacity:1}
+  /* Blocked and Backlog fade the most: neither is something to act on right
+     now, one because it can't move and the other because there's no pressure
+     to. */
+  .card.blocked{opacity:.9}
+  .card.blocked:hover{opacity:1}
+  .card.backlog{opacity:.9}
+  .card.backlog:hover{opacity:1}
   .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
   .bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
   .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}

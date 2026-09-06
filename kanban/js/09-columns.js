@@ -216,7 +216,12 @@ function openTierEditor(){
 
 /* opts.static drops the drag and focus attributes. The matrix hover preview is
    the same card, but it is a picture of one rather than one you can act on, so
-   it must not be draggable or land in the tab order. */
+   it must not be draggable or land in the tab order.
+
+   opts.tier is the task's real column name, used only to fade the card by its
+   own status (done/waiting/blocked/backlog — see board.css) rather than by
+   which DOM section happens to be rendering it. Pass it whether or not the
+   card is done: t.done wins regardless. */
 function cardHTML(t, color, bucketLabel, opts){
   opts = opts || {};
   const subs = subSteps(t);
@@ -277,7 +282,12 @@ function cardHTML(t, color, bucketLabel, opts){
     prog = '<div class="notecount">' + notes + ' note' + (notes > 1 ? 's' : '') + '</div>';
   }
 
-  return '<article class="card' + (t.done ? ' done' : '') + (t.headline ? ' onething' : '') + '"' +
+  const statusClass = t.done ? ' done' :
+    opts.tier === WAIT_COL ? ' waiting' :
+    opts.tier === BLOCKED_TIER ? ' blocked' :
+    opts.tier === BACKLOG_TIER ? ' backlog' : '';
+
+  return '<article class="card' + statusClass + (t.headline ? ' onething' : '') + '"' +
     (opts.static ? '' : ' tabindex="0" role="button"' + (opts.noDrag ? '' : ' draggable="true"')) +
     ' data-id="' + t.id + '" style="--bc:' + color + '">' +
     (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +

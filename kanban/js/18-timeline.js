@@ -524,10 +524,6 @@ function renderView(){
   // #quick or #delegate link lands where its content actually lives.
   if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
   const isBackups = state.view === 'backups';
-  // Schedule sits beside Backups for the same reason: it is about the machinery
-  // around the list rather than about the list, so it is a header button and
-  // not a tab on the main nav.
-  const isSchedule = state.view === 'schedule';
   // Canvas is gated behind onChatStatusChanged's async answer, which hasn't
   // arrived yet on the very first render — load() calls this before that
   // fetch resolves. Without this exception a refresh onto #canvas loses the
@@ -535,9 +531,8 @@ function renderView(){
   // with it, at the replaceState below) before chatsOn ever gets the chance
   // to say yes, and nothing afterwards remembers canvas was ever wanted.
   const isPendingCanvas = state.view === 'canvas' && !state.chatsChecked;
-  if (!isBackups && !isSchedule && !isPendingCanvas && !defs.some(d => d.id === state.view)) state.view = 'board';
+  if (!isBackups && !isPendingCanvas && !defs.some(d => d.id === state.view)) state.view = 'board';
   const def = isBackups ? { id:'backups', label:'Backups' }
-    : isSchedule ? { id:'schedule', label:'Schedule' }
     : isPendingCanvas ? { id:'board', label:'Board' }
     : defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
@@ -561,7 +556,6 @@ function renderView(){
   $('#canvas').classList.toggle('hidden', !isCanvas);
   $('#lists').classList.toggle('hidden', isBoard || isCanvas);
   $('#backupsBtn').classList.toggle('on', isBackups);
-  $('#scheduleBtn').classList.toggle('on', isSchedule);
 
   if (isBoard) { renderBoard(); return; }
   // Same reasoning as the board's early return: the canvas draws itself and
@@ -578,7 +572,6 @@ function renderView(){
   if (def.id === 'reports') { renderFilterBar(); renderReportsView(); return; }
   if (def.id === 'plans') { renderFilterBar(); renderPlansView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
-  if (def.id === 'schedule') { renderFilterBar(); renderScheduleView(); return; }
   renderSections(def.id);
 }
 
@@ -591,7 +584,6 @@ function refreshView(){
   else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'plans') renderPlansView();
   else if (state.view === 'backups') renderBackupsView();
-  else if (state.view === 'schedule') renderScheduleView();
   else renderSections(state.view);
   updateArchiveChip();
 }
@@ -719,7 +711,7 @@ function renderBoard(){
         .map(x => x.e);
     }
     const n = entries.length;
-    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked, muted: name === WAIT_COL })).join('');
+    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked, muted: name === WAIT_COL, tier: name })).join('');
 
     const sortBtn = isDone ? '' :
       '<button class="sortbtn' + (mode === 'priority' ? ' on' : '') + '" data-sort="' + esc(name) + '"' +

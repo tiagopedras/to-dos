@@ -426,7 +426,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 ### Plans
 
 A separate tab, beside Reports, and a separate folder. Plans are written
-overnight by the nightly prep agent in `nightly/` — one per task tagged
+overnight by the night agent in `night_agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
@@ -452,8 +452,8 @@ else — in particular it never touches `todo.md`. The next night then plans tha
 task afresh rather than skipping it for looking unchanged, which is how a task he
 has moved on from gets a new plan.
 
-The full account of how the nightly agent decides what to plan and when it is
-allowed to spend is in [nightly/README.md](nightly/README.md). The short version
+The full account of how the night agent decides what to plan and when it is
+allowed to spend is in [night_agent/README.md](night_agent/README.md). The short version
 of the part that matters: it only ever spends inside a usage window that expires
 before 07:00, so the morning is never eaten by work done overnight.
 
@@ -471,7 +471,7 @@ look, and "did the nightly job actually run" had no answer short of reading a lo
 It reads two sources, and they are not alternatives. **Live** — `launchctl print`,
 the plist's own wake times, the companion's lock file — says whether a job is
 armed and when it fires next, which no log can know, since a log will happily
-describe a job that was unloaded a week ago. **The ledger** — `plans/nightly.log`,
+describe a job that was unloaded a week ago. **The ledger** — `plans/night-agent.log`,
 `companion.json`, the backup listing — says what it actually did, which
 `launchctl` cannot. A job that is not installed says so and gives the command to
 install it.
@@ -479,7 +479,7 @@ install it.
 The second card is the usage windows, which had no home outside running
 `core/windows.py --history` at a terminal. The last 30 days, one row a window,
 with the ones that started in the night picked out — those are the ones the
-nightly agent could have spent in. Above them is the agent's own decision as it
+night agent could have spent in. Above them is the agent's own decision as it
 stands this second, ride, open or stop, with its reasoning: that line answers
 "would it run tonight" without waiting for tonight.
 
@@ -1099,7 +1099,7 @@ belongs to no one app: a Python port of the parsing, the suggested messages and
 the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
 tab that needs to know what is due asks one shared reader rather than inventing a
 second one. It sat in `kanban/` while the board was its only caller, and moved to
-`core/` on 5 Sep 2026 once the companion, the nightly agent and the pa-checkin
+`core/` on 5 Sep 2026 once the companion, the night agent and the pa-checkin
 checker all depended on a module filed inside one of them. The JavaScript
 followed it there the same day, out of the middle of `index.html`, so the two
 copies of one grammar now sit next to each other. `core/README.md` says what
@@ -1186,20 +1186,20 @@ and a view in its `userInfo`, and clicking it opens the board there — the same
 banner and a menu row behave identically and neither can give you a second tab.
 The morning briefing points at the one thing when there is one, and at the board
 itself when the line names several tasks, since picking one of three to open
-would be a guess. The nightly agent's line points at the Plans tab. Only the
+would be a guess. The night agent's line points at the Plans tab. Only the
 NSUserNotification route can carry a target: the `osascript` fallback posts a
 banner that does nothing when pressed, which is one more reason it is a fallback.
 
 ### Asking the companion to say something
 
 The companion is the only thing here that can put a desktop notification on
-screen. The nightly agent has no interface at all, the board is a browser tab
+screen. The night agent has no interface at all, the board is a browser tab
 that is usually shut, and a skill is a conversation that has already ended by the
 time its result matters. So rather than each growing its own way to speak, they
 append to one file and the companion drains it on its next tick:
 
 ```
-python3 companion/notify.py --view plans "Nightly agent" "3 plans waiting"
+python3 companion/notify.py --view plans "Night agent" "3 plans waiting"
 python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
 ```
 
@@ -1217,14 +1217,14 @@ on twice.
 
 What the queue does not get to override: nothing is posted outside 08:30 to
 20:00, and no more than three at a time. A line queued at 02:00 waits for the
-morning, which is the whole point — the nightly agent finishes in the middle of
+morning, which is the whole point — the night agent finishes in the middle of
 the night and there is no version of being woken by it that is useful.
 
 Weekends and public holidays are the one rule the queue does **not** inherit from
 the morning briefing, and the difference is deliberate. The briefing is a
 scheduled interruption about a working day, so a Saturday rightly gets none. A
 queued line is the opposite: it answers something that has just happened, put
-there by something you set running yourself. Running the nightly agent on a
+there by something you set running yourself. Running the night agent on a
 Saturday and hearing about it on Monday helps nobody. The time window is the
 guard that matters, because that one is about not being woken, and it applies
 every day.
@@ -1234,9 +1234,9 @@ plans is one line at the end, not one line a plan.
 
 ## The skills
 
-`skills/pa-checkin/` is a Claude skill that runs the review session: read
+`pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
 and report, ask what changed, apply updates, optimise, check the one thing,
-verify. It is packaged as `skills/dist/pa-checkin.skill` for installing.
+verify. It is packaged as `pa_agent/dist/pa-checkin.skill` for installing.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -1246,7 +1246,7 @@ under it, and a queried tag written in a form Dataview cannot read. Run it
 directly:
 
 ```bash
-python3 skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
+python3 pa_agent/skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 It does not carry its own copy of the `repeat:` grammar or the bank holidays any
@@ -1256,11 +1256,11 @@ where there is no repo to reach, it imports the copy the build step staged besid
 it. The repo wins when both exist, so editing the original is always what takes
 effect and a stale staged copy cannot mask it.
 
-`skills/pa-mobile/` is the same list read from a phone, over Remote Control from
+`pa_agent/skills/pa-mobile/` is the same list read from a phone, over Remote Control from
 the Claude app. It reads and writes the real file like any other session, so what
 makes it a separate skill is the surface rather than the data: every question is
 asked as multiple choice instead of as something to type, and every report is
-rendered from a template in `skills/pa-mobile/templates/` instead of being written
+rendered from a template in `pa_agent/skills/pa-mobile/templates/` instead of being written
 freehand. The templates are Tiago's, one file per kind of report, and adding a
 file to that folder is the whole of adding a report shape. A status that comes out
 in the same shape every morning can be scanned in the four seconds a phone screen
@@ -1276,8 +1276,8 @@ script cannot.
 
 ### Packaging them
 
-`skills/build.command` writes every skill in `skills/` to
-`skills/dist/<name>.skill`. Double-click it, or run it from a terminal. A
+`pa_agent/build.command` writes every skill in `skills/` to
+`pa_agent/dist/<name>.skill`. Double-click it, or run it from a terminal. A
 `.skill` file is a plain zip with `SKILL.md` at its root, so most of the job is
 copy, prune and zip; the reason it is a script rather than a `zip` line typed
 when needed is the staging in the middle. An installed skill has to stand alone,

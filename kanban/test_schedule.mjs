@@ -1,21 +1,24 @@
 /**
- * Drives the Schedule view in headless Chrome and asserts on what it draws.
+ * Drives the Plans view in headless Chrome and asserts on the two cards that
+ * used to be the Schedule view — "What runs on a clock", folded inside In
+ * flight, and the Token windows chart, its own column.
  *
  *   BOARD_PORT=8799 node kanban/test_schedule.mjs
  *
- * Same two guards as the other two board tests, for the same reason — this repo
+ * Same two guards as the other board tests, for the same reason — this repo
  * has lost the real todo.md to a test twice:
  *
  *   1. The tab is locked before anything else happens. A locked tab cannot save.
  *   2. Every non-GET is torn out of `fetch` and recorded instead of sent.
  *
- * The Schedule view is read-only, so the second guard is also the assertion: a
- * view about the machinery has no business writing anything at all, and the
- * recording proves it does not.
+ * Neither card writes anything, so the second guard is also the assertion:
+ * this test never drags a queue card or marks a plan actioned, so the
+ * recording staying empty proves these two are still read-only.
  *
- * Both routes are stubbed, so this needs no launchd job installed and no
- * transcripts on disk, and it can assert on states — a job that is not
- * installed, a window still open — that are awkward to arrange for real.
+ * Every route Plans reads is stubbed, so this needs no plans, no queue, no
+ * run log, no launchd job installed and no transcripts on disk, and it can
+ * assert on states — a job that is not installed, a window still open — that
+ * are awkward to arrange for real.
  */
 
 import { spawn } from 'node:child_process'
@@ -66,7 +69,7 @@ async function evalJS (expr) {
 }
 
 await new Promise(r => setTimeout(r, 2500))
-check('the board loaded', await evalJS(`typeof renderScheduleView === 'function'`))
+check('the board loaded', await evalJS(`typeof renderPlansView === 'function' && typeof renderSched === 'function'`))
 
 // LOCK FIRST. Nothing below can write anything.
 await evalJS(`(() => {
@@ -78,10 +81,10 @@ await evalJS(`(() => {
   const iso = ms => new Date(ms).toISOString();
   const day = ms => new Date(ms).toISOString().slice(0, 10);
   window.__jobs = [
-    { id:'nightly', name:'Nightly prep agent', armed:false, state:'not installed',
+    { id:'night-agent', name:'Night agent', armed:false, state:'not installed',
       what:'Plans every task tagged ai:full or ai:partial, one agent each.',
       schedule:'12 wakes, 19:00–06:00', next:'', last:'',
-      recent:[], hint:'ln -s nightly/x.plist ~/Library/LaunchAgents/' },
+      recent:[], hint:'ln -s night_agent/x.plist ~/Library/LaunchAgents/' },
     { id:'companion', name:'Desktop companion', armed:true, state:'running',
       what:'One briefing each working morning.',
       schedule:'08:30 on a working day', next:iso(now + 864e5),
@@ -92,13 +95,19 @@ await evalJS(`(() => {
       recent:['todo-backup-week-2026-W36.md'], hint:'' }
   ];
   window.__usage = {
-    available:true, days:30, morning:'07:00', cutoff:'02:00',
+    available:true, days:30, baseline:30, morning:'07:00', cutoff:'02:00',
     decision:{ action:'ride', why:'a window is open until 23:40, estimated from transcripts' },
     median: 71e6, p90: 197e6, max: 430e6,
     windows: [
-      { start:iso(now - 3*864e5), end:iso(now - 3*864e5 + 18e6), tok: 71e6, turns:300, open:false, night:false },
-      { start:iso(now - 864e5),   end:iso(now - 864e5 + 18e6),   tok:430e6, turns:1700, open:false, night:true },
-      { start:iso(now - 36e5),    end:iso(now + 144e5),          tok: 12e6, turns:60,  open:true,  night:true }
+      // shape is the running total across the window, as fractions of its own
+      // span and its own total — what the box is filled in with. The first
+      // spends evenly, the second front-loads: same height, different fill.
+      { start:iso(now - 3*864e5), end:iso(now - 3*864e5 + 18e6), tok: 71e6, turns:300, open:false, night:false,
+        shape: [[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]] },
+      { start:iso(now - 864e5),   end:iso(now - 864e5 + 18e6),   tok:430e6, turns:1700, open:false, night:true,
+        shape: [[0.25,0.9],[0.5,1],[0.75,1],[1,1]] },
+      { start:iso(now - 36e5),    end:iso(now + 144e5),          tok: 12e6, turns:60,  open:true,  night:true,
+        shape: [[0.25,0.4],[0.5,0.8],[0.75,1],[1,1]] }
     ],
     rolling: [
       { day: day(now - 2*864e5), tok: 320e6 },
@@ -107,26 +116,37 @@ await evalJS(`(() => {
     ],
     ceiling: { session: 430e6, week: 640e6, source:'observed', measuredAt:'' }
   };
+  // Plans reads three more routes on the way to painting the cards this test
+  // does not touch. Empty-but-valid, so those columns render their own empty
+  // states instead of erroring, and this stays about the two cards that moved.
+  window.__plans = [];
+  window.__queue = {};
+  window.__nightAgent = { live:false, done:[], failed:[] };
   window.fetch = (url, opts) => {
     const method = (opts && opts.method) || 'GET';
     if (method !== 'GET') { window.__blocked.push(method + ' ' + url); return Promise.resolve(new Response('{}', {status:200})); }
     const u = String(url);
     if (u.startsWith('/schedule.json')) return Promise.resolve(new Response(JSON.stringify({jobs: window.__jobs}), {status:200}));
     if (u.startsWith('/usage.json')) return Promise.resolve(new Response(JSON.stringify(window.__usage), {status:200}));
+    if (u.startsWith('/plans.json')) return Promise.resolve(new Response(JSON.stringify({plans: window.__plans}), {status:200}));
+    if (u.startsWith('/queue.json')) return Promise.resolve(new Response(JSON.stringify(window.__queue), {status:200}));
+    if (u.startsWith('/night-agent.json')) return Promise.resolve(new Response(JSON.stringify(window.__nightAgent), {status:200}));
     return real(url, opts);
   };
   return 'locked and stubbed';
 })()`)
 check('tab is locked before anything is drawn', await evalJS(`state.locked === true`))
 
-check('Schedule is a header button, not a nav tab', await evalJS(`
-  !!document.getElementById('scheduleBtn') && !viewDefs().some(d => d.id === 'schedule')
-`))
+check('Schedule is gone as a header button', await evalJS(`!document.getElementById('scheduleBtn')`))
 
-await evalJS(`document.getElementById('scheduleBtn').click()`)
+await evalJS(`state.view = 'plans'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
 
-check('the button reads as on', await evalJS(`document.getElementById('scheduleBtn').classList.contains('on')`))
+check('the clock card is folded under In flight, not a column of its own', await evalJS(`
+  (() => { const d = document.querySelector('#schedOut').closest('details');
+    return d && d.parentElement.classList.contains('flightview') &&
+      d.querySelector('summary').textContent === 'What runs on a clock' && !d.open })()
+`))
 const jobs = await evalJS(`document.querySelectorAll('#schedOut .schedjob').length`)
 check('one row per scheduled job', jobs === 3, `${jobs} rows`)
 
@@ -147,7 +167,7 @@ check('the decision leads the usage card', await evalJS(`
   document.querySelector('#usageOut .udecide').textContent.includes('23:40')
 `))
 // The card carries no explanatory prose any more: the decision line says what
-// tonight looks like and nightly/README.md holds the reasoning.
+// tonight looks like and night_agent/README.md holds the reasoning.
 check('the card explains itself with the decision, not a paragraph', await evalJS(`
   !document.querySelector('#usageOut .help')
 `))
@@ -184,20 +204,80 @@ check('the axis is a percentage, not a token count', await evalJS(`
 check('and there is only one of them', await evalJS(`
   !document.querySelector('#usageOut .uaxl.s') && !document.querySelector('#usageOut .uaxl.r')
 `))
-check('each five-hour session is its own vertical line', await evalJS(`
-  document.querySelectorAll('#usageOut .uchart .ubarv').length === 3
+check('each five-hour session is its own box', await evalJS(`
+  document.querySelectorAll('#usageOut .uchart .ubox').length === 3
 `))
 // 430M against a 430M ceiling is the full height of the plot; 71M is a sixth
 // of it. Checked as a ratio so the geometry can move without breaking this.
 check('a session stands at its share of the ceiling', await evalJS(`
-  (() => { const bars = [...document.querySelectorAll('#usageOut .ubarv')];
-    const h = b => +b.getAttribute('y1') - +b.getAttribute('y2');
-    return Math.abs(h(bars[1]) / h(bars[0]) - 430 / 71) < 0.02 })()
+  (() => { const r = [...document.querySelectorAll('#usageOut .uboxline')];
+    const h = b => +b.getAttribute('height');
+    return Math.abs(h(r[1]) / h(r[0]) - 430 / 71) < 0.02 })()
+`))
+/* The box covers the five hours the window ran, which is the whole reason it
+   is a box rather than the line it used to be — a window that opened at 22:00
+   and one that opened at 02:00 are the same event five hours apart, and the
+   old mark said nothing about the second one being inside the first's reach.
+   Every window is exactly five hours by construction (reconstruct() sets end
+   to start + WINDOW), so the assertion is that a box measures five hours on
+   the axis it is drawn against, not that the three differ. */
+check('and covers the five hours the window ran', await evalJS(`
+  (() => { const r = [...document.querySelectorAll('#usageOut .uboxline')];
+    const w = b => +b.getAttribute('width');
+    // The plot is 400 wide with 30 and 12 cut off each side; the range is 30 days.
+    const want = 5 / (30 * 24) * (400 - 30 - 12);
+    return r.every(b => Math.abs(w(b) - want) < 0.15) })()
+`), await evalJS(`[...document.querySelectorAll('#usageOut .uboxline')].map(b => b.getAttribute('width')).join(' / ')`))
+/* The fill is how the spend arrived across those hours. Two windows the same
+   height and a different shape is exactly what it exists to tell apart, so
+   the check is that they differ rather than that either has some value. */
+check('the spend is drawn filling in across the box', await evalJS(`
+  document.querySelectorAll('#usageOut .ubox .ufill').length === 3
+`))
+check('and a front-loaded window fills differently from an even one', await evalJS(`
+  (() => { const f = [...document.querySelectorAll('#usageOut .ufill')].map(p => p.getAttribute('d'));
+    return f[0] !== f[1] && f.every(d => /^M[\\d.]+,[\\d.]+ L/.test(d) && d.endsWith('Z')) })()
+`))
+check('a window with no shape still draws its box', await evalJS(`
+  (async () => {
+    const keep = window.__usage;
+    window.__usage = Object.assign({}, keep, { windows: keep.windows.map(w =>
+      Object.assign({}, w, { shape: [] })) });
+    await renderUsage();
+    const ok = document.querySelectorAll('#usageOut .ubox').length === 3 &&
+               document.querySelectorAll('#usageOut .ufill').length === 0;
+    window.__usage = keep; await renderUsage();
+    return ok;
+  })()
 `))
 check('night sessions are picked out from the rest', await evalJS(`
-  document.querySelectorAll('#usageOut .ubarv.night').length === 2 &&
-  document.querySelectorAll('#usageOut .ubarv.live').length === 1
+  document.querySelectorAll('#usageOut .ubox.night').length === 2 &&
+  document.querySelectorAll('#usageOut .ubox.live').length === 1
 `))
+/* The range buttons. Four stops, three days on by default, and pressing one
+   redraws the whole card rather than only the chart — every figure under it
+   is about the range too. */
+check('the card offers four ranges', await evalJS(`
+  [...document.querySelectorAll('#usageOut .urange')].map(b => b.textContent).join(',')
+`) === '24h,3d,7d,30d')
+check('and three days is the one on', await evalJS(`
+  document.querySelector('#usageOut .urange.on').textContent === '3d' && usageDays === 3
+`))
+check('pressing one asks the server for that range', await evalJS(`
+  (async () => {
+    window.__asked = [];
+    const inner = window.fetch;
+    window.fetch = (u, o) => { if (String(u).startsWith('/usage.json')) window.__asked.push(String(u)); return inner(u, o); };
+    document.querySelector('[data-days="7"]').click();
+    await new Promise(r => setTimeout(r, 120));
+    // getJSON hangs a cache-buster off the end of every URL it fetches.
+    const ok = window.__asked.length === 1 && window.__asked[0].startsWith('/usage.json?days=7') &&
+               document.querySelector('#usageOut .urange.on').textContent === '7d';
+    document.querySelector('[data-days="3"]').click();
+    await new Promise(r => setTimeout(r, 120));
+    return ok;
+  })()
+`), await evalJS(`JSON.stringify(window.__asked)`))
 check('the weekly total is a line across them', await evalJS(`
   document.querySelector('#usageOut .uline.r').getAttribute('points').trim().split(/\\s+/).length === 3
 `))
@@ -253,20 +333,23 @@ check('no windows draws no chart rather than a broken one', await evalJS(`
 await evalJS(`renderUsage()`)
 await new Promise(r => setTimeout(r, 300))
 
-// Leaving and coming back must work, since the button is a toggle into a view
-// that is not in the registry.
+// Leaving and coming back must work — Plans is a real tab in the registry now,
+// not a button toggling into a view outside it, but the same round trip is
+// still worth proving for the two cards that moved here.
 await evalJS(`state.view = 'board'; renderView()`)
 await new Promise(r => setTimeout(r, 300))
-check('leaving the view goes back to the board', await evalJS(`
-  !document.getElementById('scheduleBtn').classList.contains('on')
+check('leaving the tab clears the plans nav highlight', await evalJS(`
+  !document.querySelector('#viewToggle .tab.on') ||
+  document.querySelector('#viewToggle .tab.on').textContent !== 'Plans'
 `))
-await evalJS(`document.getElementById('scheduleBtn').click()`)
+await evalJS(`state.view = 'plans'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
-check('and coming back redraws it', await evalJS(`
-  document.querySelectorAll('#schedOut .schedjob').length === 3
+check('and coming back redraws both cards', await evalJS(`
+  document.querySelectorAll('#schedOut .schedjob').length === 3 &&
+  !!document.querySelector('#usageOut .uchart')
 `))
 
-check('the whole view wrote nothing', await evalJS(`window.__blocked.length === 0`),
+check('none of it wrote anything', await evalJS(`window.__blocked.length === 0`),
   await evalJS(`window.__blocked.join(', ') || 'no writes attempted'`))
 
 ws.close()

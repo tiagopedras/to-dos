@@ -1,13 +1,16 @@
 'use strict';
 
 /* =========================================================================
-   4b2c. Schedule — what runs on a clock, and what the usage windows are doing.
+   4b2c. What runs on a clock, and what the usage windows are doing.
 
    Three things around this app run on a schedule rather than on demand: the
-   nightly prep agent's twelve launchd wakes, the companion's morning briefing,
-   and the weekly backup thread inside this server. Until this view they were
-   three separate places to go and look, and "did the nightly job actually run"
-   had no answer short of reading a log.
+   night agent's twelve launchd wakes, the companion's morning briefing,
+   and the weekly backup thread inside this server. Used to be a view of its
+   own; both halves now live on the Plans tab instead, since that is where
+   the question "would it even run tonight" actually comes up — both folded
+   into the Token windows column (renderSched() for the jobs, rarely worth a
+   glance, renderUsage() for the chart). Nothing here holds a view id or a
+   route any more, just the two render functions Plans calls.
 
    A list rather than a calendar, deliberately. Twelve wakes a night render as
    noise on a grid and as one line in a list.
@@ -98,8 +101,11 @@ function usageChart(u){
   // than on the boundary between two.
   const dayT = s => new Date(s + 'T12:00:00').getTime();
 
-  const tMin = t(wins[0].start);
+  /* The range asked for, not the range the data happens to cover. A quiet
+     three days should read as three quiet days, and a scale that shrank to
+     the one window in them would draw that window filling the card. */
   const tMax = Math.max(Date.now(), t(wins[wins.length - 1].end));
+  const tMin = Math.min(t(wins[0].start), tMax - u.days * 864e5);
   const px = ms => x0 + (ms - tMin) / (tMax - tMin || 1) * (x1 - x0);
 
   /* One axis, 0 to 100, and a session can exceed its own ceiling only when the
@@ -119,24 +125,56 @@ function usageChart(u){
         v + '%</text>';
   }
 
-  /* Each session is its own vertical line, standing where it opened. They are
-     discrete five-hour events rather than a continuous quantity, and joining
-     them into a curve draws slopes between windows that never existed. */
-  const bars = wins.map(w =>
-    '<line class="ubarv' + (w.night ? ' night' : '') + (w.open ? ' live' : '') +
-      '" x1="' + px(t(w.start)).toFixed(1) + '" y1="' + py(0).toFixed(1) +
-      '" x2="' + px(t(w.start)).toFixed(1) + '" y2="' + py(pctS(w)).toFixed(1) + '"/>'
-  ).join('');
+  /* Each session is a box standing on the axis, as wide as the five hours it
+     actually ran and as tall as it spent. Discrete events rather than a
+     continuous quantity, so they are never joined into a curve — a slope
+     between two windows is a slope that never happened.
+
+     Used to be a one-pixel line at the opening time, which lost the two
+     things the box carries: how long the window covered, so windows that
+     butt up against each other read as the run of work they were, and a
+     width big enough to draw inside.
+
+     What is drawn inside is how the spend arrived across those five hours —
+     `shape` off the server, as fractions of the window's own span and total.
+     A window that emptied itself in the first twenty minutes and one that
+     ticked along for five hours reach the same height, and the fill is the
+     only thing that tells them apart. */
+  const bars = wins.map(w => {
+    const bx = px(t(w.start)), bw = Math.max(1.6, px(t(w.end)) - bx);
+    const topY = py(pctS(w)), baseY = py(0), bh = baseY - topY;
+    const cls = 'ubox' + (w.night ? ' night' : '') + (w.open ? ' live' : '');
+    // Down the left edge, across the curve, then back along the floor.
+    const fill = (w.shape || []).length
+      ? '<path class="ufill" d="M' + bx.toFixed(1) + ',' + baseY.toFixed(1) + ' ' +
+          w.shape.map(p => 'L' + (bx + p[0] * bw).toFixed(1) + ',' + (baseY - p[1] * bh).toFixed(1)).join(' ') +
+          ' L' + (bx + bw).toFixed(1) + ',' + baseY.toFixed(1) + ' Z"/>'
+      : '';
+    return '<g class="' + cls + '">' +
+      fill +
+      '<rect class="uboxline" x="' + bx.toFixed(1) + '" y="' + topY.toFixed(1) +
+        '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.6, bh).toFixed(1) + '"/>' +
+      '<title>' + esc(new Date(w.start).toLocaleString([], {
+          weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })) +
+        ' · ' + esc(tokM(w.tok)) + ' · ' + w.turns + ' turns' +
+        (w.night ? ' · opened in the night' : '') + '</title>' +
+    '</g>';
+  }).join('');
 
   const rPts = roll.map(r => px(dayT(r.day)).toFixed(1) + ',' + py(pctR(r)).toFixed(1));
 
-  // Four date ticks, evenly spaced across the range rather than on round
-  // dates — the range is thirty days and never starts on a Monday.
+  /* Four ticks, evenly spaced across the range rather than on round dates —
+     the range never starts on a Monday or at midnight. What they say depends
+     on how much is being shown: four copies of "6 Sep" is no axis at all on
+     a day's worth, and a clock time is no axis on a month's. */
+  const short = u.days <= 3;
   let ticks = '';
   for (let i = 0; i <= 3; i++) {
     const ms = tMin + (tMax - tMin) * i / 3;
     ticks += '<text class="uaxl d" x="' + px(ms).toFixed(1) + '" y="' + (y1 + 13) + '">' +
-      esc(new Date(ms).toLocaleDateString([], { day:'numeric', month:'short' })) + '</text>';
+      esc(new Date(ms).toLocaleString([], short
+        ? { weekday:'short', hour:'2-digit', minute:'2-digit' }
+        : { day:'numeric', month:'short' })) + '</text>';
   }
 
   const nowX = px(Date.now()).toFixed(1);
@@ -153,6 +191,7 @@ function usageChart(u){
     '<div class="ukey">' +
       '<span class="k s">Five-hour session</span>' +
       '<span class="k n">Opened in the night</span>' +
+      '<span class="k f">Spend across the window</span>' +
       (rPts.length > 1 ? '<span class="k r">Rolling seven days</span>' : '') +
     '</div>' +
     /* One line, not a paragraph. A percentage axis with an unstated denominator
@@ -163,10 +202,29 @@ function usageChart(u){
       (measured ? ' <em>measured at a limit' +
         (cap.measuredAt ? ', ' + esc(cap.measuredAt) : '') + '</em>' : '') +
       ' · <b>' + esc(tokBig(cap.week)) + '</b> week' +
-      (measured ? '' : ' <em>heaviest in ' + u.days + ' days</em>') +
+      /* The baseline, not the range. Narrowing to three days does not change
+         what 100% is — see usage_summary — and a card that said "heaviest in
+         3 days" while drawing a month's ceiling would be lying about both. */
+      (measured ? '' : ' <em>heaviest in ' + (u.baseline || u.days) + ' days</em>') +
     '</p>' +
   '</div>';
 }
+
+/* How far back the chart looks. Four stops rather than a free number: these
+   are the four questions actually asked of it — what happened last night, the
+   last few nights, the week, the month — and a spinner for a value nobody
+   tunes is a control to ignore. Kept in the page rather than the URL or a
+   file: it is a way of looking at the card, not a fact about the list. */
+const USAGE_RANGES = [
+  { days: 1, label: '24h' },
+  { days: 3, label: '3d' },
+  { days: 7, label: '7d' },
+  { days: 30, label: '30d' },
+];
+/* Three days by default. A month is what this card used to show and it was
+   unreadable — eighty-three windows in a 380px column is a barcode — and one
+   day is too short to tell you whether last night was unusual. */
+let usageDays = 3;
 
 function usageRow(w, peak){
   const a = new Date(w.start), b = new Date(w.end);
@@ -183,7 +241,7 @@ async function renderUsage(){
   const out = $('#usageOut');
   if (!out) return;
   try {
-    const u = await getJSON('/usage.json');
+    const u = await getJSON('/usage.json?days=' + usageDays);
     if (!u.available) {
       out.innerHTML = '<div class="empty">No <code>core/windows.py</code> in this checkout, ' +
         'so there is nothing to read the usage windows with.</div>';
@@ -200,12 +258,18 @@ async function renderUsage(){
       '<div class="udecide ' + esc(u.decision.action) + '">' +
         '<strong>' + esc(u.decision.action.toUpperCase()) + '</strong> — ' + esc(u.decision.why) +
       '</div>' +
+      '<div class="uranges">' +
+        USAGE_RANGES.map(r => '<button type="button" class="urange' +
+          (r.days === usageDays ? ' on' : '') + '" data-days="' + r.days + '">' +
+          r.label + '</button>').join('') +
+      '</div>' +
       /* The five-hour rule, the 07:00 boundary and the 02:00 cutoff used to be
-         spelled out here in a paragraph. They are in nightly/README.md, and the
+         spelled out here in a paragraph. They are in night_agent/README.md, and the
          decision line above already says what they add up to tonight. */
       usageChart(u) +
       '<div class="ustats">' +
-        '<span><b>' + u.windows.length + '</b> windows in ' + u.days + ' days</span>' +
+        '<span><b>' + u.windows.length + '</b> windows in ' +
+          (u.days === 1 ? '24 hours' : u.days + ' days') + '</span>' +
         '<span><b>' + tokM(u.median) + '</b> median</span>' +
         '<span><b>' + tokM(u.p90) + '</b> p90</span>' +
         '<span><b>' + nights + '</b> started in the night</span>' +
@@ -216,42 +280,43 @@ async function renderUsage(){
       '<details class="ufold"><summary>Every window, newest first</summary>' +
         '<div class="ulist">' + wins.map(w => usageRow(w, peak)).join('') + '</div>' +
       '</details>';
+
+    /* The whole card is redrawn rather than only the chart. Every figure on it
+       — the window count, the median, the p90, the fold below — is about the
+       range, so a chart that changed while the numbers under it did not would
+       be the worse half of a working control. */
+    out.querySelectorAll('.urange').forEach(btn => {
+      btn.onclick = () => {
+        usageDays = +btn.dataset.days;
+        renderUsage();
+      };
+    });
   } catch (err) {
     out.innerHTML = '<div class="err">Could not read the usage windows. ' +
       esc(String(err.message || err)) + '</div>';
   }
 }
 
-async function renderScheduleView(){
-  $('#lists').innerHTML =
-    '<div class="lists rview">' +
-      '<div class="listcard schedview"><h3>What runs on a clock</h3>' +
-        '<p class="help listlead">Everything around this list that fires on a schedule rather ' +
-        'than when you ask it to. Whether it is armed comes from the system; what it last did ' +
-        'comes from its own log.</p>' +
-        '<div id="schedOut">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard schedview usage"><h3>Token windows</h3>' +
-        '<div id="usageOut">Loading…</div>' +
-      '</div>' +
-    '</div>';
+/* The jobs half only — Plans supplies its own card and calls renderUsage()
+   itself for the other half, on its own schedule (after the plan list, same
+   as this used to defer to it). */
+async function renderSched(){
+  const out = $('#schedOut');
+  if (!out) return;
   try {
     const res = await fetch('/schedule.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) {
-      $('#schedOut').innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
+      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
         'It is running, but it is an older copy that does not know about the schedule yet.</div>';
       return;
     }
     const jobs = (await res.json()).jobs || [];
-    $('#schedOut').innerHTML = jobs.length
+    out.innerHTML = jobs.length
       ? jobs.map(schedRow).join('')
       : '<div class="empty">Nothing scheduled.</div>';
   } catch (err) {
-    $('#schedOut').innerHTML = '<div class="err">Could not read the schedule. ' +
+    out.innerHTML = '<div class="err">Could not read the schedule. ' +
       esc(String(err.message || err)) + '</div>';
   }
-  // After the jobs have painted: reconstructing a month of windows is about a
-  // second, and there is no reason for the instant half to wait on it.
-  renderUsage();
 }
 

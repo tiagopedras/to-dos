@@ -8,9 +8,9 @@ update it when something lands or something new turns up.
 
 ## The skills index
 
-The `pa-*` skills in `skills/` are indexed, along with every other skill I have
+The `pa-*` skills in `pa_agent/skills/` are indexed, along with every other skill I have
 written, in `~/Code/SKILLS.md`. Add a new one there in the same session it is
-created; see [skills/CLAUDE.md](skills/CLAUDE.md).
+created; see [pa_agent/CLAUDE.md](pa_agent/CLAUDE.md).
 
 ## Writing a report
 
@@ -61,16 +61,11 @@ be missing at the moment it is first needed — and keep it free of `window`,
 `document` and `state`, since `test_todo.mjs` runs it in a bare `vm` context
 with none of them.
 
-## The nightly prep agent
+## The night agent
 
-**Start with [night_agent_handover.md](night_agent_handover.md)** if you are
-picking this up rather than working in the session that built it. It holds what
-is done, what is uncommitted, what is deliberately not installed yet, and the
-traps — most of which were found the hard way.
-
-`nightly/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
+`night_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
 `[ai:: partial]`, and writes a plan for each into `data/<dataset>/plans/`. It
-proposes and never executes. Read [nightly/README.md](nightly/README.md) before
+proposes and never executes. Read [night_agent/README.md](night_agent/README.md) before
 changing any of it — particularly the window rule, which is the part that looks
 arbitrary and is not.
 
@@ -84,11 +79,33 @@ Two things to keep true:
   `plans/queue-order.json` and nothing else.
 - **It spends only in a usage window that expires before 07:00.** The morning is
   his. `core/windows.py` owns that arithmetic and `python3
-  nightly/test_nightly.py` covers it — run that after touching the rule, since
+  night_agent/test_night_agent.py` covers it — run that after touching the rule, since
   it is the only way to test 02:00 without waiting for 02:00.
 
 Its per-bucket agents live in `.claude/agents/` in this repo rather than in
 `~/.claude/agents/`, so they version with the runner that invokes them.
+
+## The acting agent
+
+`pa-execute` is the other half, added 6 Sep 2026. The planners propose; this one
+carries out a plan he has already agreed to. Three things about it are
+load-bearing:
+
+- **There is one of it.** Not one per bucket. The per-bucket knowledge lives in
+  `night_agent/buckets/<stream>.md`, which the planners read too, so it is written
+  once. Six agents holding write tools is six copies of one set of guard rails.
+- **It only ever runs from a session he is in**, through the `pa-do` skill.
+  Never on a schedule, never in the background. The whole reason it can act at
+  all is that it can stop and ask, which is what the planners cannot do.
+- **It is the only agent allowed to write `todo.md`**, and it has to ask first,
+  show the before and after, hash the file either side, and tell him to press
+  Reload rather than save. Everything else in this repo still writes through a
+  queue file or not at all.
+
+A plan reaches it by carrying `status: agreed`, set by him on the Plans view.
+The five statuses are documented in `kanban/js/13-plans.js` and known in two
+other places — `PLAN_STATUS` in `kanban/server.py` and `is_stale()` in
+`night_agent/pick.py`. Change one and change all three.
 
 ## After changing `kanban/server.py`
 
@@ -182,6 +199,23 @@ the same fixtures.
 Never write into `data/twinkl/` or `data/personal/` from a test, not even a
 small, temporary one — that is real content, private and irreplaceable in a
 way `data/_test/` deliberately isn't.
+
+## Every suite, in one place
+
+The sections above each name the one or two that matter to what they describe.
+This is all of them, for when the change was broad enough that it is not obvious
+which ones it reached:
+
+```
+python3 core/test_todo.py          # the fixtures, and the working calendars
+node core/test_todo.mjs            # the same fixtures, the other language
+python3 night_agent/test_night_agent.py    # the window rule, the picker, the runner
+python3 companion/test_companion.py
+node kanban/test_plans.mjs         # the three below need the board running
+node kanban/test_schedule.mjs
+node kanban/test_canvas.mjs
+node kanban/test_notes.mjs
+```
 
 ## Pushing
 

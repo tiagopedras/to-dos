@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================================
-   4b2b. Plans — what the nightly agent worked out while nobody was watching.
+   4b2b. Plans — what the night agent worked out while nobody was watching.
 
    Files in data/<dataset>/plans/<night>/, listed by the server at /plans.json,
    read exactly the way written reports are. They are a separate view rather
@@ -9,30 +9,41 @@
    report says what happened, a plan proposes what to do, and a plan stops being
    true the moment it is acted on.
 
-   Three states, and the difference between the last two matters:
+   Five states, and the three at the end are decisions rather than reading:
 
      unread    nobody has looked at it
      read      looked at, doing nothing about it yet
+     agreed    approved to be carried out. This is what hands the work to the
+               acting agent, and it is the only status that says "yes, do it".
+     redo      rejected, with a reason. The next nightly run plans the task
+               again and the agent is told what was wrong with the last one,
+               so the second plan is not the first plan.
      actioned  acted on, so it no longer describes outstanding work
 
-   Marking one actioned is the only write in here, and it writes the plan file.
-   The runner's ledger picks it up and plans that task afresh on the next run,
-   which is how a task he has moved on gets a new plan instead of being skipped
-   for looking unchanged. Nothing in this view goes near todo.md.
+   Setting a status is the only write in here, and it writes the plan file. The
+   runner's ledger picks it up: actioned and redo both make the task worth
+   planning again, agreed holds it back until the work is done. Nothing in this
+   view goes near todo.md.
+
+   Why agreed is a status and not a flag: a plan is in exactly one of these
+   states at a time, and a second field would let a plan be agreed and rejected
+   at once, which means nothing. See PLAN_STATUS in kanban/server.py and
+   is_stale() in night_agent/pick.py, the two other places these are known.
    ========================================================================= */
 
 const planBodies = {};
 let planList = [];
 
 /* A folded plan is one whose agent stopped and asked rather than guessing —
-   see the folding rule in nightly/PLAN-BRIEF.md. It is marked here rather than
+   see the folding rule in night_agent/PLAN-BRIEF.md. It is marked here rather than
    left to read like any other, because the two want opposite things from him:
    a plan wants reading, a fold wants answering. */
+const PLAN_CLASS = { actioned:' actioned', read:' read', agreed:' agreed', redo:' redo' };
+
 function planItemHTML(p){
   const folded = p.outcome === 'folded';
   const meta = [p.bucket, p.column, p.night].filter(Boolean).map(esc).join(' · ');
-  const cls = (p.status === 'actioned' ? ' actioned' : (p.status === 'read' ? ' read' : ''))
-    + (folded ? ' folded' : '');
+  const cls = (PLAN_CLASS[p.status] || '') + (folded ? ' folded' : '');
   return '<article class="repitem' + cls + '" data-plan="' + esc(p.url) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
@@ -41,6 +52,10 @@ function planItemHTML(p){
     '</button>' +
     (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
     (p.summary ? '<div class="repsum">' + mdInline(p.summary) + '</div>' : '') +
+    /* On a rejected plan the reason is worth more than the summary: it is what
+       he told the agent, and it is what tonight's run will be working from. */
+    (p.status === 'redo' && p.redo_note
+      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.redo_note) + '</div>' : '') +
   '</article>';
 }
 
@@ -49,22 +64,77 @@ function planItemHTML(p){
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
   const sub = [p.bucket, p.column, p.night, p.agent].filter(Boolean).map(esc).join(' · ');
+  /* Four buttons and only two of them are decisions. Agree and Send back are
+     the pair this view exists for; Mark actioned stays for the plans he
+     carries out himself, which is still most of them. Agree is not the primary
+     button — the primary is the one pressed by reflex on the way out, and
+     approving work to run should not be reachable by reflex. */
   openDocModal({
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    buttons: [{ label:'Mark actioned', run: () => setPlanStatus(p, 'actioned') },
+    buttons: [{ label:'Agree, hand it over', run: () => agreePlan(p) },
+              { label:'Send it back', run: () => rejectPlan(p) },
+              { label:'Mark actioned', run: () => setPlanStatus(p, 'actioned') },
               { label:'Close', primary:true }]
   });
   if (p.status === 'unread') setPlanStatus(p, 'read', true);
+}
+
+/* Agreeing is a claim that the work should happen, so it says what happens
+   next rather than flipping a label silently. Nothing runs from here: the
+   acting agent is invoked from a session, on purpose, so that a run he has not
+   asked for cannot start from a stray click on a board tab left open. */
+function agreePlan(p){
+  showModal('Agree this plan?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>It moves to <strong>agreed</strong> and waits. Nothing runs now.</p>' +
+      '<p>The night agent stops re-planning this task while it sits here, so ' +
+      'the plan you approved is the one that gets carried out rather than being ' +
+      'replaced by tonight\'s second opinion.</p>' +
+      '<p>To actually run it, start a session and use <code>/pa-do</code>.</p>' +
+    '</div>',
+    [{ label:'Agree it', primary:true, run: () => setPlanStatus(p, 'agreed') },
+     { label:'Cancel' }]);
+}
+
+/* A rejection has to carry a reason, because the reason is the whole feature:
+   it goes into the plan's frontmatter and the next run's agent is handed it,
+   which is what stops tomorrow night writing the same plan again. The server
+   refuses an empty one, and so does this, so the message about why arrives
+   before the press rather than after it. */
+let redoText = '';
+function rejectPlan(p){
+  redoText = '';
+  showModal('Send this plan back?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>It gets planned again on the next run, and the agent is told what was ' +
+      'wrong with this one. Say what it got wrong, in a sentence.</p>' +
+      '<textarea id="redoWhy" class="redowhy" rows="3" ' +
+        'placeholder="Wrong scope: this is about the Foundations file, not the whole library."></textarea>' +
+    '</div>',
+    [{ label:'Send it back', primary:true, run: () => {
+        const why = redoText.trim();
+        if (!why) return showToast('A plan sent back needs a reason.', 'bad');
+        setPlanStatus(p, 'redo', false, why);
+      } },
+     { label:'Cancel' }]);
+  const box = $('#redoWhy');
+  if (box) {
+    // Read as he types rather than on press: showModal closes the sheet before
+    // running a button, so by then the textarea is gone.
+    box.oninput = () => { redoText = box.value; };
+    box.focus();
+  }
 }
 
 async function loadPlanBody(url){ return loadDocBody(url, planBodies, 'plan'); }
 
 /* `quiet` is the read-on-open case: it should not redraw the list underneath an
    open modal, which would be a card shuffling itself while he is reading it. */
-async function setPlanStatus(p, status, quiet){
+async function setPlanStatus(p, status, quiet, note){
   try {
-    await postJSON('/plan/status', { night: p.night, name: p.name, status });
+    await postJSON('/plan/status', { night: p.night, name: p.name, status, note });
     p.status = status;
+    if (status === 'redo') p.redo_note = note || '';
     if (!quiet) renderPlansList();
   } catch (err) {
     if (!quiet) showToast('Could not mark that plan: ' + (err.message || err), 'bad');
@@ -74,11 +144,21 @@ async function setPlanStatus(p, status, quiet){
 function renderPlansList(){
   const out = $('#plansOut');
   if (!out) return;
-  const live = planList.filter(p => p.status !== 'actioned');
+  /* Agreed plans sit above the rest rather than among them. They are the ones
+     with work owed on them, and the question they answer is different: the
+     others ask to be read, these ask to be run. */
+  const agreed = planList.filter(p => p.status === 'agreed');
+  const live = planList.filter(p => p.status !== 'actioned' && p.status !== 'agreed');
   const done = planList.filter(p => p.status === 'actioned');
   out.innerHTML =
+    (agreed.length
+      ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
+        '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
+        agreed.map(planItemHTML).join('') + '</div>'
+      : '') +
     (live.length ? live.map(planItemHTML).join('')
-                 : '<div class="empty">Nothing waiting. Everything written has been actioned.</div>') +
+                 : (agreed.length ? ''
+                    : '<div class="empty">Nothing waiting. Everything written has been actioned.</div>')) +
     (done.length ? '<details><summary>' + done.length + ' actioned</summary>' +
                    done.map(planItemHTML).join('') + '</details>' : '');
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
@@ -104,28 +184,25 @@ function renderPlansList(){
    one" without editing todo.md, which this view must never do.
 
    Neither the order nor the hold list decides what the queue contains. Every
-   rule in nightly/pick.py still does that. A title in the file that has since
+   rule in night_agent/pick.py still does that. A title in the file that has since
    been ticked off, blocked or renamed is simply never matched, which is why
    nothing here ever needs pruning.
    ------------------------------------------------------------------------- */
 
 let queueRows = [];      // what tonight would plan, in order
-let queueHeld = [];      // deliberately held back
-let queueSkipped = [];   // dropped by a rule, with the reason
+let queueHeld = [];      // deliberately held back — lives in the Backlog column
+let queueSkipped = [];   // dropped by a rule — lives in the Backlog column too
 let queueOrder = [];     // the stored ordering, so held ranks survive a save
-let queueDrag = null;
+let queueDrag = null;    // { title, from: 'queue' | 'held' } while a card is being dragged
 
-function queueItemHTML(r, i){
+function queueRowHTML(r){
   const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
-  const held = r.state === 'held';
-  return '<article class="qitem' + (held ? ' held' : '') + '"' +
-      (held ? '' : ' draggable="true"') + ' data-qi="' + i + '">' +
+  return '<article class="qitem" draggable="true" data-qtitle="' + esc(r.title) + '">' +
     '<div class="qhead">' +
-      '<span class="qpos">' + (held ? '—' : r.position) + '</span>' +
+      '<span class="qpos">' + r.position + '</span>' +
       '<span class="qtitle">' + esc(r.title) + '</span>' +
-      '<button class="qhold" data-qhold="' + i + '" title="' +
-        (held ? 'Put it back in the queue' : 'Hold it back from tonight') + '">' +
-        (held ? 'Release' : 'Hold') + '</button>' +
+      '<button class="qhold" data-qhold="' + esc(r.title) + '" ' +
+        'title="Hold it back from tonight">Hold</button>' +
     '</div>' +
     (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
     '<div class="qwhy">' + esc(r.why || '') +
@@ -136,51 +213,36 @@ function queueItemHTML(r, i){
 function renderQueueList(){
   const out = $('#queueOut');
   if (!out) return;
-  out.innerHTML =
-    (queueRows.length
-      ? queueRows.map((r, i) => queueItemHTML(r, i)).join('')
-      : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
-        'plan already, and none of them have changed since.</div>') +
-    (queueHeld.length
-      ? '<details open class="qfold"><summary>' + queueHeld.length + ' held back</summary>' +
-        queueHeld.map((r, i) => queueItemHTML(r, queueRows.length + i)).join('') + '</details>'
-      : '') +
-    (queueSkipped.length
-      ? '<details class="qfold"><summary>' + queueSkipped.length + ' not eligible</summary>' +
-        queueSkipped.map(r =>
-          '<div class="qskip"><span>' + esc(r.title) + '</span><em>' + esc(r.why) + '</em></div>'
-        ).join('') + '</details>'
-      : '');
+  out.innerHTML = queueRows.length
+    ? queueRows.map(queueRowHTML).join('')
+    : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
+      'plan already, and none of them have changed since.</div>';
   wireQueue();
-}
-
-/* One list of rows across both arrays, indexed the way the DOM is, so a drag
-   and a hold press can name a card without caring which half it is in. */
-function queueAt(i){
-  return i < queueRows.length ? queueRows[i] : queueHeld[i - queueRows.length];
 }
 
 function wireQueue(){
   const out = $('#queueOut');
+  if (!out) return;
   out.querySelectorAll('[data-qhold]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); toggleHold(+btn.dataset.qhold); };
+    btn.onclick = e => { e.stopPropagation(); holdTask(btn.dataset.qhold); };
   });
 
   /* The same reorder gesture the sub-steps in the drawer use: drop above or
-     below whichever card the cursor is over, decided by its midpoint. Held
-     cards are not draggable — a held card has no position to hold. */
-  const rows = out.querySelectorAll('.qitem:not(.held)');
+     below whichever card the cursor is over, decided by its midpoint. A card
+     dragged in from the Backlog column lands the same way — the drop target
+     decides the position whichever list the card came from. */
+  const rows = out.querySelectorAll('.qitem');
   const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
   rows.forEach(row => {
     row.ondragstart = e => {
-      queueDrag = +row.dataset.qi;
+      queueDrag = { title: row.dataset.qtitle, from: 'queue' };
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', 'queue');
+      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
       row.classList.add('dragging');
     };
     row.ondragend = () => { queueDrag = null; clear(); };
     row.ondragover = e => {
-      if (queueDrag === null) return;
+      if (!queueDrag) return;
       e.preventDefault();
       const r = row.getBoundingClientRect();
       const after = e.clientY > r.top + r.height / 2;
@@ -189,38 +251,159 @@ function wireQueue(){
     };
     row.ondragleave = () => row.classList.remove('over-top','over-bottom');
     row.ondrop = e => {
-      if (queueDrag === null) return;
+      if (!queueDrag) return;
       e.preventDefault(); e.stopPropagation();
       const r = row.getBoundingClientRect();
-      let to = +row.dataset.qi + (e.clientY > r.top + r.height / 2 ? 1 : 0);
-      const from = queueDrag;
-      queueDrag = null; clear();
-      if (to > from) to--;
-      if (to === from) return;
-      queueRows.splice(to, 0, queueRows.splice(from, 1)[0]);
-      queueRows.forEach((row, i) => { row.position = i + 1; });
-      renderQueueList();
-      saveQueueOrder(true);
+      const at = queueRows.findIndex(x => x.title === row.dataset.qtitle);
+      const to = at + (e.clientY > r.top + r.height / 2 ? 1 : 0);
+      clear();
+      dropOnQueue(to);
     };
   });
+  // Dropping on the column itself rather than on any one card — an empty
+  // queue, or the gap below the last row — appends at the end.
+  out.ondragover = e => { if (queueDrag) e.preventDefault(); };
+  out.ondrop = e => {
+    if (!queueDrag) return;
+    e.preventDefault();
+    dropOnQueue(queueRows.length);
+  };
 }
 
-function toggleHold(i){
-  const row = queueAt(i);
-  if (!row) return;
-  if (row.state === 'held') {
+/* The single place a card's position in the queue actually changes, whichever
+   list it started in. `toIndex` is where it lands, in queueRows' own terms —
+   wireQueue works it out from the drop target before calling in. */
+function dropOnQueue(toIndex){
+  if (!queueDrag) return;
+  const { title, from } = queueDrag;
+  queueDrag = null;
+  if (from === 'queue') {
+    const at = queueRows.findIndex(r => r.title === title);
+    if (at < 0) return;
+    let to = toIndex;
+    if (to > at) to--;
+    if (to === at) return;
+    queueRows.splice(to, 0, queueRows.splice(at, 1)[0]);
+  } else if (from === 'held') {
+    const at = queueHeld.findIndex(r => r.title === title);
+    if (at < 0) return;
+    const [row] = queueHeld.splice(at, 1);
     row.state = 'queued';
-    queueHeld.splice(queueHeld.indexOf(row), 1);
-    queueRows.push(row);
+    row.why = '';
+    queueRows.splice(toIndex, 0, row);
   } else {
-    row.state = 'held';
-    row.why = 'held back from the board';
-    queueRows.splice(queueRows.indexOf(row), 1);
-    queueHeld.push(row);
+    return;
   }
-  queueRows.forEach((r, n) => { r.position = n + 1; });
+  queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
+  renderBacklogList();
+  saveQueueOrder(true);
+}
+
+function holdTask(title){
+  const at = queueRows.findIndex(r => r.title === title);
+  if (at < 0) return;
+  const [row] = queueRows.splice(at, 1);
+  row.state = 'held';
+  row.why = 'held back from the board';
+  queueHeld.push(row);
+  queueRows.forEach((r, i) => { r.position = i + 1; });
+  renderQueueList();
+  renderBacklogList();
   saveQueueOrder(false);
+}
+
+function releaseHeld(title){
+  const at = queueHeld.findIndex(r => r.title === title);
+  if (at < 0) return;
+  const [row] = queueHeld.splice(at, 1);
+  row.state = 'queued';
+  row.why = '';
+  queueRows.push(row);
+  queueRows.forEach((r, i) => { r.position = i + 1; });
+  renderQueueList();
+  renderBacklogList();
+  saveQueueOrder(false);
+}
+
+/* -------------------------------------------------------------------------
+   Backlog — everything the queue does not contain and why: held back from
+   the board on one hand, excluded by a rule in night_agent/pick.py on the other.
+
+   Only the first half is draggable. Holding is a board-only preference, so
+   dragging a held card back into the queue is exactly the reverse of the
+   Hold button and just as safe. A card excluded by a rule — blocked, parked,
+   tagged short of ai:full, or waiting on a `start:` date — is excluded for a
+   reason dragging cannot fix, so it is shown rather than offered: see the
+   comment above pick.eligible() and pick.select() for why the order and hold
+   files were deliberately never given a say over what the queue contains.
+   ------------------------------------------------------------------------- */
+
+function heldRowHTML(r){
+  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  return '<article class="qitem held" draggable="true" data-qtitle="' + esc(r.title) + '">' +
+    '<div class="qhead">' +
+      '<span class="qpos">—</span>' +
+      '<span class="qtitle">' + esc(r.title) + '</span>' +
+      '<button class="qhold" data-qrelease="' + esc(r.title) + '" ' +
+        'title="Put it back in the queue">Release</button>' +
+    '</div>' +
+    (meta ? '<div class="repmeta">' + meta + '</div>' : '') +
+    '<div class="qwhy">' + esc(r.why || '') + '</div>' +
+  '</article>';
+}
+
+function renderBacklogList(){
+  const out = $('#backlogOut');
+  if (!out) return;
+  out.innerHTML =
+    (queueHeld.length
+      ? '<p class="help listlead">Drag back into the queue to plan it tonight.</p>' +
+        queueHeld.map(heldRowHTML).join('')
+      : '') +
+    (queueSkipped.length
+      ? (queueHeld.length ? '<h4 class="fhead">Not eligible</h4>' : '') +
+        queueSkipped.map(r =>
+          '<div class="qskip"><span>' + esc(r.title) + '</span><em>' + esc(r.why) + '</em></div>'
+        ).join('')
+      : '') +
+    (!queueHeld.length && !queueSkipped.length
+      ? '<div class="empty">Nothing held back, and nothing excluded right now.</div>'
+      : '');
+  const wrap = $('#backlogOut');
+  wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
+  });
+  wrap.querySelectorAll('.qitem.held').forEach(row => {
+    row.ondragstart = e => {
+      queueDrag = { title: row.dataset.qtitle, from: 'held' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
+      row.classList.add('dragging');
+    };
+    row.ondragend = () => { queueDrag = null; row.classList.remove('dragging'); };
+  });
+
+  // Dropping a card from the queue anywhere on this column holds it back —
+  // the drag equivalent of pressing Hold. There is nothing to position it
+  // against, since a held card has no rank, so the whole column is the target
+  // rather than any one row within it.
+  wrap.ondragover = e => {
+    if (!queueDrag || queueDrag.from !== 'queue') return;
+    e.preventDefault();
+    wrap.classList.add('backlogdrop');
+  };
+  wrap.ondragleave = e => {
+    if (e.target === wrap) wrap.classList.remove('backlogdrop');
+  };
+  wrap.ondrop = e => {
+    if (!queueDrag || queueDrag.from !== 'queue') return;
+    e.preventDefault();
+    wrap.classList.remove('backlogdrop');
+    const title = queueDrag.title;
+    queueDrag = null;
+    holdTask(title);
+  };
 }
 
 /* `ranked` says whether this save is him ordering the queue, and only a drag
@@ -256,17 +439,21 @@ async function saveQueueOrder(ranked){
 
 async function renderQueue(){
   const out = $('#queueOut');
+  const back = $('#backlogOut');
   if (!out) return;
   try {
     const res = await fetch('/queue.json?t=' + Date.now(), { cache:'no-store' });
     if (res.status === 404) {
-      out.innerHTML = '<div class="empty">No nightly agent in this checkout, so there is ' +
+      out.innerHTML = '<div class="empty">No night agent in this checkout, so there is ' +
         'nothing queued and nothing to order.</div>';
+      if (back) back.innerHTML = '<div class="empty">Same here — nothing to hold back.</div>';
       return;
     }
     if (!res.ok) {
-      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
+      const msg = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
         'It is running, but it is an older copy that does not know about the queue yet.</div>';
+      out.innerHTML = msg;
+      if (back) back.innerHTML = msg;
       return;
     }
     const q = await res.json();
@@ -275,14 +462,17 @@ async function renderQueue(){
     queueSkipped = q.skipped || [];
     queueOrder = q.order || [];
     renderQueueList();
+    renderBacklogList();
   } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the queue. ' +
+    const msg = '<div class="err">Could not read the queue. ' +
       esc(String(err.message || err)) + '</div>';
+    out.innerHTML = msg;
+    if (back) back.innerHTML = msg;
   }
 }
 
 /* -------------------------------------------------------------------------
-   In flight — the run happening right now, or the last one that happened.
+   Next run — the run happening right now, or the last one that happened.
 
    Read from the lock directory and the log, which is the only honest way: the
    agents are subprocesses of a shell launchd started, and nothing here can ask
@@ -342,53 +532,71 @@ function renderFlight(n){
   if (!n.live) {
     html += '<button class="btn frun" id="runNight">Run the agent now</button>';
   }
-  if (n.done.length) {
-    const spent = n.done.reduce((a, d) => a + d.cost, 0);
-    html += '<h4 class="fhead">Written this run — $' + spent.toFixed(2) + '</h4>' +
-      n.done.map(d => flightRowHTML(d, 'done')).join('');
-  }
-  if (n.failed.length) {
-    html += '<h4 class="fhead">Failed</h4>' +
-      n.failed.map(d => flightRowHTML(d, 'failed')).join('');
-  }
   if (!n.started) {
     html += '<p class="help">The log has nothing since the last run started. ' +
       'A wake that found no window logs its reason and stops without starting one.</p>';
   }
   out.innerHTML = html;
   const btn = $('#runNight');
-  if (btn) btn.onclick = () => confirmNightlyRun();
+  if (btn) btn.onclick = () => confirmNightAgentRun();
+}
+
+/* What the last run actually cost — sits in the Token windows column rather
+   than here, because it is a cost figure like everything else on that card,
+   not a report of what the run is doing right now, which is all Next run
+   shows. */
+function renderRunResults(n){
+  const out = $('#runResultsOut');
+  if (!out) return;
+  let html = '';
+  if (n.done.length) {
+    const spent = n.done.reduce((a, d) => a + d.cost, 0);
+    // The date the batch started, not the date of any one task within it —
+    // a run that crosses midnight still reads as one night's work.
+    const when = n.started || (n.done[0] || {}).at;
+    const date = when
+      ? new Date(when.replace(' ', 'T')).toLocaleDateString(undefined, { day:'numeric', month:'short' })
+      : '';
+    html += '<h4 class="fhead">Latest run costs' + (date ? ' — ' + esc(date) : '') +
+      ' · $' + spent.toFixed(2) + '</h4>' +
+      n.done.map(d => flightRowHTML(d, 'done')).join('');
+  }
+  if (n.failed.length) {
+    html += '<h4 class="fhead">Failed</h4>' +
+      n.failed.map(d => flightRowHTML(d, 'failed')).join('');
+  }
+  out.innerHTML = html;
 }
 
 /* Spending money is a deliberate press and then a second one. The confirm says
    what it will cost and what it will do, because "run the agent" does not
    convey either — and the one thing worth being clear about is that it plans
    and never executes, which is true of the agent whatever hour it runs at. */
-function confirmNightlyRun(){
+function confirmNightAgentRun(){
   const n = queueRows.length;
-  showModal('Run the nightly agent now?', 'It normally waits for the small hours',
+  showModal('Run the night agent now?', 'It normally waits for the small hours',
     '<div class="repdoc">' +
       '<p>' + (n ? 'It will work through the <strong>' + n + '</strong> task' +
         (n === 1 ? '' : 's') + ' in the queue, in that order, one agent each'
         : 'There is nothing in the queue, so it will start and stop') +
-      ', and write a plan for each into the Written plans column.</p>' +
+      ', and write a plan for each into the Plans column.</p>' +
       '<p>Up to <strong>$12</strong> across the batch and <strong>$2</strong> a task, ' +
       'stopping early if either runs out. It ignores the clock and the usage window, ' +
       'so it will spend in whatever window is open now — including the one you are ' +
       'working in.</p>' +
       '<p>Nothing it writes is carried out. Every plan waits for you.</p>' +
     '</div>',
-    [{ label:'Run it', primary:true, run: startNightlyRun },
+    [{ label:'Run it', primary:true, run: startNightAgentRun },
      { label:'Cancel' }]);
 }
 
-async function startNightlyRun(){
+async function startNightAgentRun(){
   try {
-    await postJSON('/nightly/run');
+    await postJSON('/night_agent/run');
     showToast('The agent is running. Watch it here.', 'good');
     // The log gets its first line within a second or two; the poll's own ten
     // seconds is too long to wait when you have just pressed the button.
-    setTimeout(renderNightly, 1200);
+    setTimeout(renderNightAgent, 1200);
   } catch (err) {
     showToast('Could not start it: ' + (err.message || err), 'bad');
   }
@@ -398,46 +606,57 @@ async function startNightlyRun(){
    a run is live, because that is the only time anything moves; an agent takes
    minutes, so ten seconds is frequent enough to watch and rare enough to
    ignore. */
-async function renderNightly(){
+async function renderNightAgent(){
   clearTimeout(flightTimer);
   const out = $('#flightOut');
   if (!out) return;
   let live = false;
   try {
-    const n = await getJSON('/nightly.json');
+    const n = await getJSON('/night-agent.json');
     live = !!n.live;
     renderFlight(n);
+    renderRunResults(n);
   } catch (err) {
     out.innerHTML = '<div class="err">Could not read the run log. ' +
       esc(String(err.message || err)) + '</div>';
   }
   flightTimer = setTimeout(() => {
-    if (state.view === 'plans' && $('#flightOut')) renderNightly();
+    if (state.view === 'plans' && $('#flightOut')) renderNightAgent();
   }, live ? 10000 : 60000);
 }
 
 async function renderPlansView(){
   $('#lists').innerHTML =
     '<div class="lists pview">' +
+      '<div class="listcard reportsview backlogview"><h3>Backlog</h3>' +
+        '<p class="help listlead">Held back from the board, or excluded by a rule. Drag a ' +
+        'card between here and the queue to hold it back or bring it in — the excluded ' +
+        'ones need the underlying reason fixed first, not a drag.</p>' +
+        '<div id="backlogOut">Loading…</div>' +
+      '</div>' +
       '<div class="listcard reportsview queueview"><h3>Queue for tonight</h3>' +
         '<p class="help listlead">Worked out from the list as it stands now, not booked ' +
         'in advance. Drag to change what gets planned first — the run stops on a budget ' +
         'or a usage limit, so the top of this list is the part that reliably happens.</p>' +
         '<div id="queueOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview flightview"><h3>In flight</h3>' +
+      '<div class="listcard reportsview flightview"><h3>Next run</h3>' +
         '<p class="help listlead">One task at a time, on purpose. Read from the run\'s own ' +
         'lock and log, so this is what is happening rather than what was asked for.</p>' +
         '<div id="flightOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview written"><h3>Written plans</h3>' +
-        '<p class="help listlead">One per task tagged <code>ai:full</code> or ' +
-        '<code>ai:partial</code>, researched overnight. Nothing here has been done — ' +
-        'each one proposes a course of action and waits.</p>' +
+      '<div class="listcard reportsview processed"><h3>Plans</h3>' +
+        '<p class="help listlead">One per task tagged <code>ai:full</code>, researched ' +
+        'overnight. Nothing here has been done: each one proposes a course of action ' +
+        'and waits for you to agree it, send it back, or do it yourself.</p>' +
         '<div id="plansOut">Loading…</div>' +
       '</div>' +
       '<div class="listcard schedview usage"><h3>Token windows</h3>' +
+        '<div id="runResultsOut"></div>' +
         '<div id="usageOut">Loading…</div>' +
+        '<details class="ufold"><summary>What runs on a clock</summary>' +
+          '<div id="schedOut">Loading…</div>' +
+        '</details>' +
       '</div>' +
     '</div>';
   const out = $('#plansOut');
@@ -450,7 +669,7 @@ async function renderPlansView(){
     }
     planList = (await res.json()).plans || [];
     if (!planList.length) {
-      out.innerHTML = '<div class="empty">Nothing yet. The nightly agent writes into ' +
+      out.innerHTML = '<div class="empty">Nothing yet. The night agent writes into ' +
         '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
     } else {
       renderPlansList();
@@ -459,11 +678,11 @@ async function renderPlansView(){
     out.innerHTML = '<div class="err">Could not read the plan list. ' +
       esc(String(err.message || err)) + '</div>';
   }
-  // The other three after the plans have painted, for the same reason the
-  // Schedule view defers its usage half: reconstructing a month of windows is
-  // about a second, and nothing else should wait on it.
+  // The rest after the plans have painted: reconstructing a month of windows
+  // is about a second, and nothing else should wait on it.
   renderQueue();
-  renderNightly();
+  renderNightAgent();
+  renderSched();
   renderUsage();
 }
 

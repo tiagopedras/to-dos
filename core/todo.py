@@ -5,7 +5,7 @@ The board's own reader is the JavaScript in kanban/index.html, and it stays the
 authority on writing the file: only the board and the pa-* skills ever change a
 task. This module is the read-only half of the same knowledge, for the things
 that are not a browser tab — the desktop companion in companion/, the nightly
-agent in nightly/, the pa-checkin consistency checker, and anything else later
+agent in night_agent/, the pa-checkin consistency checker, and anything else later
 that needs to know what is due without opening the board.
 
 It lives in core/ rather than beside the board because of that list. It sat in
@@ -182,7 +182,7 @@ def parse_doc(text):
         # `in_buckets` is load-bearing and was missing for a few hours on 5 Sep
         # 2026. Without it this breaks on `## How this works`, the first heading
         # in the file, and every Python reader of the list — the companion, the
-        # nightly agent, the checker — quietly saw an empty document. The board
+        # night agent, the checker — quietly saw an empty document. The board
         # was never affected: parseDoc skips everything before the first
         # numbered bucket into doc.pre, and this is the line that ports that.
         if in_buckets and line.startswith("## "):
@@ -414,7 +414,7 @@ def occurrence_after(rep, date):
 # Tier one: impact against effort
 #
 # The port of the same three names in core/todo.js. They lived in
-# kanban/index.html until 5 Sep 2026, when nightly/pick.py needed the same
+# kanban/index.html until 5 Sep 2026, when night_agent/pick.py needed the same
 # answer to order its queue and a second copy of "high is 3" became the drift
 # this pair of files exists to stop.
 # ---------------------------------------------------------------------------

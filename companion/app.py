@@ -498,7 +498,7 @@ class Companion(AppKit.NSObject):
         """Post whatever anything else has asked to be said, and clear the queue.
 
         This app is the only thing here that can put a notification on screen.
-        The nightly agent has no UI at all, the board is a browser tab that is
+        The night agent has no UI at all, the board is a browser tab that is
         usually shut, and a skill is a conversation that has already ended by the
         time its result matters. So rather than each of them growing its own way
         to speak, they append to one file and this drains it on the next tick.
@@ -512,7 +512,7 @@ class Companion(AppKit.NSObject):
 
           - Nothing outside NOTIFY_AT..NOTIFY_UNTIL. A queued line waits for the
             morning rather than going off at 02:00, which is exactly when the
-            nightly agent finishes and exactly when he is asleep.
+            night agent finishes and exactly when he is asleep.
           - At most three at once, oldest first. Anything more is a bug in
             whatever wrote them, and a stack of eleven banners is worse than
             silence.
@@ -522,7 +522,7 @@ class Companion(AppKit.NSObject):
         scheduled interruption about a working day, so a Saturday rightly gets
         none. A queued line is the opposite: it answers something that has just
         happened, put there by something he set running himself. If he runs the
-        nightly agent on a Saturday, holding the result until Monday morning
+        night agent on a Saturday, holding the result until Monday morning
         helps nobody. The time window is the guard that matters, because that one
         is about not being woken, and it still applies every day.
 

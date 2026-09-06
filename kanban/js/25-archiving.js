@@ -110,10 +110,25 @@ async function archiveOldDone(){
 setInterval(autosaveTick, 2 * 1000);                // checked often, saves at most every 4 seconds
 setInterval(watchTick, WATCH_MS);
 
+/* The Data menu: one button standing in for the four it used to show at once.
+   Closes on a second click of the button, a click anywhere else, Escape, or
+   picking one of its own items — the last so the panel never sits open over
+   whatever the click just did (a Backups or Schedule view change, a download). */
+function closeDataMenu(){
+  $('#dataMenuPanel').classList.add('hidden');
+  $('#dataMenuBtn').setAttribute('aria-expanded', 'false');
+}
+$('#dataMenuBtn').onclick = () => {
+  const open = $('#dataMenuPanel').classList.toggle('hidden') === false;
+  $('#dataMenuBtn').setAttribute('aria-expanded', String(open));
+};
+$('#dataMenuPanel').addEventListener('click', e => { if (e.target.closest('.dropdown-item')) closeDataMenu(); });
+document.addEventListener('click', e => { if (!e.target.closest('#dataMenu')) closeDataMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDataMenu(); });
+
 /* wiring */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
 $('#backupsBtn').onclick = () => { state.view = 'backups'; renderView(); };
-$('#scheduleBtn').onclick = () => { state.view = 'schedule'; renderView(); };
 $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };

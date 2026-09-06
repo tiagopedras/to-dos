@@ -73,6 +73,10 @@ function updateLockUI(){
 function syncLockBarHeight(){
   const h = state.locked ? $('#lockBar').offsetHeight : 0;
   document.body.style.setProperty('--lockbar-h', h + 'px');
+  /* The bar pushes the header down without changing its height, so nothing else
+     remeasures — and the bucket strip sticks to the header's bottom edge, which
+     has just moved. */
+  syncHeaderHeight();
 }
 
 /* The bar changes height without the board re-rendering — the window is resized,

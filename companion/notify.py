@@ -2,25 +2,25 @@
 """Ask the companion to say something on screen.
 
 The companion is the only thing in this repo that can put a desktop notification
-up. The nightly agent has no UI at all, the board is a browser tab that is
+up. The night agent has no UI at all, the board is a browser tab that is
 usually shut, and a skill is a conversation that has already ended by the time
 its result matters. So rather than each growing its own way to speak, they all
 append here and the companion drains the queue on its next tick.
 
-    python3 companion/notify.py "Nightly agent" "3 plans written, 2 skipped"
-    python3 companion/notify.py --view plans "Nightly agent" "3 plans waiting"
+    python3 companion/notify.py "Night agent" "3 plans written, 2 skipped"
+    python3 companion/notify.py --view plans "Night agent" "3 plans waiting"
     python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
     python3 companion/notify.py --dataset _test "Title" "Body"
 
 Or from Python:
 
     sys.path.insert(0, ".../companion"); import notify
-    notify.queue("Nightly agent", "3 plans written", view="plans")
+    notify.queue("Night agent", "3 plans written", view="plans")
 
 `task` and `view` say where the banner goes when it is pressed. A task is a
 card's `#slug`, or its title where it has none — the two things in todo.md
 stable enough to point at. A view is one of the board's own tabs, `plans`,
-`schedule`, `board` and the rest. Give both and it opens the card on that view;
+`board` and the rest. Give both and it opens the card on that view;
 give neither and it opens the board's front page. Sending someone to a banner
 they cannot follow up is most of what makes a notification annoying, so name
 one wherever there is an obvious one to name.
