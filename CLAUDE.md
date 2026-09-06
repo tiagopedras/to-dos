@@ -92,8 +92,11 @@ carries out a plan he has already agreed to. Three things about it are
 load-bearing:
 
 - **There is one of it.** Not one per bucket. The per-bucket knowledge lives in
-  `night_agent/buckets/<stream>.md`, which the planners read too, so it is written
+  `buckets/<stream>/<stream>.md`, which the planners read too, so it is written
   once. Six agents holding write tools is six copies of one set of guard rails.
+  That folder sits at the root beside `data/` and is gitignored for the same
+  reason: the briefs name real people and real Twinkl processes, and the skills
+  beside them are Twinkl's own. [BUCKETS.md](BUCKETS.md) is the tracked half.
 - **It only ever runs from a session he is in**, through the `pa-do` skill.
   Never on a schedule, never in the background. The whole reason it can act at
   all is that it can stop and ask, which is what the planners cannot do.

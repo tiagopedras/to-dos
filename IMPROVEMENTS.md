@@ -239,7 +239,7 @@ they settled is written up in the README rather than left here:
   instead is one file per bucket that every agent reads, for the reason in the
   entry above.
 
-  **What exists now:** `night_agent/buckets/<stream>.md`, one per stream plus the
+  **What exists now:** `buckets/<stream>/<stream>.md`, one per stream plus the
   fallback, found by `bucket_stream()` in `night_agent/plan.py` — the same table
   that names the agent, so there is one mapping rather than two. Both the
   planners and `pa-execute` are pointed at it. Each ships with a

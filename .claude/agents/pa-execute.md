@@ -13,7 +13,7 @@ can write, almost all of this file is about what you do not do.
 
 Read `night_agent/PLAN-BRIEF.md` for the shape of the plan you are given and the
 tone. Read `PA.md` and `CONVENTIONS.md` at the repo root for who he is and how
-the file is written. Read `night_agent/buckets/<stream>.md` for the bucket this task
+the file is written. Read `buckets/<stream>/<stream>.md` for the bucket this task
 sits in: it says what the work in that bucket produces, which of his skills
 already does it, and what is his rather than yours. Where that brief and this
 file disagree about what you may touch, this file wins.

@@ -30,6 +30,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "core"))
 sys.path.insert(0, HERE)
 
@@ -44,7 +45,7 @@ import windows  # noqa: E402
 # rather than quietly planned by a generalist.
 # Bucket heading -> the stream it belongs to. One table rather than two,
 # because everything per-bucket is named off this: the planning agent is
-# `pa-plan-<stream>`, and the bucket brief is `night_agent/buckets/<stream>.md`.
+# `pa-plan-<stream>`, and the bucket brief is `buckets/<stream>/<stream>.md`.
 # A second table keyed the same way is a second thing to keep in step, and the
 # headings move — People, BAU, DS, Strategic and Processes are what the file
 # says today, and the four in CONVENTIONS.md are what it said in August.
@@ -63,7 +64,7 @@ FALLBACK_STREAM = "general"
 FALLBACK_AGENT = "pa-plan-general"
 
 # The line every bucket brief ships with, and the one line that has to come out
-# before the brief counts as written. See night_agent/buckets/README.md.
+# before the brief counts as written. See BUCKETS.md.
 BRIEF_EMPTY = "<!-- NOT FILLED IN YET -->"
 
 TASK_TIMEOUT = 10 * 60        # one agent's ceiling, seconds
@@ -108,17 +109,23 @@ def bucket_agent(bucket):
 def bucket_brief(bucket):
     """The path to this bucket's own brief, or None where it is still empty.
 
-    One file per stream under `night_agent/buckets/`, holding the processes Tiago
-    actually runs in that bucket, what each produces and which skill already
-    does it. Both the planners and the acting agent read it, which is the whole
-    reason it is a file rather than more prose in six agent definitions.
+    One folder per stream under `buckets/`, at the root of the repo rather than
+    inside this one, holding the processes Tiago actually runs in that bucket,
+    what each produces and which skill already does it, plus that bucket's own
+    skills. Both the planners and the acting agent read it, and he reaches for
+    it himself, which is the whole reason it sits beside `data/` rather than
+    under the agent that happened to need it first.
+
+    Gitignored for the same reason `data/` is: it names real people and real
+    Twinkl processes, and this repo is public. `BUCKETS.md` is the tracked half.
 
     A brief that exists but has never been filled in is treated as absent. The
     templates ship with a marker line and nothing else useful, and naming an
     empty file in the prompt would spend an agent's attention on a page of
     headings.
     """
-    path = os.path.join(HERE, "buckets", "%s.md" % bucket_stream(bucket))
+    stream = bucket_stream(bucket)
+    path = os.path.join(ROOT, "buckets", stream, "%s.md" % stream)
     try:
         with open(path, encoding="utf-8") as fh:
             body = fh.read()

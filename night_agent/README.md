@@ -118,7 +118,7 @@ only agent in this repo allowed to write `todo.md`. See `../CLAUDE.md`.
 
 ## The bucket briefs
 
-`buckets/<stream>.md`, one per bucket plus a fallback, holding the processes he
+`buckets/<stream>/<stream>.md`, one per bucket plus a fallback, holding the processes he
 actually runs there, what each produces and which of his skills already does it.
 `bucket_stream()` in `plan.py` maps a bucket heading to the stream, and both the
 agent name and the brief are derived from it, so there is one table rather than
@@ -129,7 +129,7 @@ acting agent need the same knowledge, and written twice the two would drift, so
 work researched against one understanding would be carried out against another.
 
 A brief still carrying its `<!-- NOT FILLED IN YET -->` marker is treated as
-absent by `bucket_brief()` and named to nobody. See `buckets/README.md`.
+absent by `bucket_brief()` and named to nobody. See `BUCKETS.md`.
 
 That is 25 of the 42 as this is written. Planning all of them is only affordable
 because of the **ledger**: `plans/ledger.json` records a hash of each task's own

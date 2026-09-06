@@ -209,7 +209,7 @@ brief, with one agent added that can act and one skill that drives it.
 
 | Piece | What it is |
 | --- | --- |
-| `night_agent/buckets/*.md` | One brief per bucket, holding the processes he runs in it, what each produces and which skill already does it. Read by the planners and by the acting agent. Templates only until he writes them. |
+| `buckets/<stream>/<stream>.md` | One brief per bucket, holding the processes he runs in it, what each produces and which skill already does it. Read by the planners and by the acting agent. Templates only until he writes them. |
 | Plan status `agreed` | His approval, set on the Plans view. The only thing that queues work for the acting agent. |
 | Plan status `redo` | A rejection with a reason, written into the plan's own frontmatter. The next nightly run plans the task again and the agent is handed what was wrong with the last one. |
 | `pa-execute` | One agent, not one per bucket. The only agent allowed to write `todo.md`. |

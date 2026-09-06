@@ -11,8 +11,11 @@ waiting until 02:00.
 """
 
 import datetime as dt
+import io
 import os
+import shutil
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "core"))
@@ -397,18 +400,32 @@ def test_agents():
     check("pa-execute exists on disk",
           os.path.exists(os.path.join(root, ".claude", "agents", "pa-execute.md")), True)
 
-    # Every stream has a brief file, and every brief is either written or
-    # honestly marked as not written. bucket_brief() returns None for the
-    # second, so no agent is ever pointed at a page of empty headings.
+    # A brief is offered only when it has actually been written. This is built
+    # against a temporary tree rather than the real `buckets/`, because that
+    # folder is gitignored for the same reason `data/` is — a fresh clone has
+    # none of it, and a test that asserts his own briefs exist would fail on
+    # any machine but this one.
+    tmp = tempfile.mkdtemp()
+    real_root = plan.ROOT
+    try:
+        plan.ROOT = tmp
+        for stream, body in (("people", "# People\n\nwritten out properly.\n"),
+                             ("design-system", "# DS\n\n%s\n" % plan.BRIEF_EMPTY)):
+            d = os.path.join(tmp, "buckets", stream)
+            os.makedirs(d)
+            io.open(os.path.join(d, "%s.md" % stream), "w", encoding="utf-8").write(body)
+        check("a written brief is offered", plan.bucket_brief("People") is not None, True)
+        check("one still carrying the marker is not",
+              plan.bucket_brief("3. DS"), None)
+        check("and a bucket with no folder at all is not",
+              plan.bucket_brief("Nothing like it"), None)
+    finally:
+        plan.ROOT = real_root
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # Every stream still resolves to a name, whether or not a brief is on disk.
     for stream in set(plan.STREAMS.values()) | {plan.FALLBACK_STREAM}:
-        path = os.path.join(HERE, "buckets", "%s.md" % stream)
-        check("brief for %s exists" % stream, os.path.exists(path), True)
-    for bucket in ("People", "3. DS", "Nothing like it"):
-        got = plan.bucket_brief(bucket)
-        body = open(os.path.join(HERE, "buckets", "%s.md" % plan.bucket_stream(bucket)),
-                    encoding="utf-8").read()
-        check("brief for %r is offered only when written" % bucket,
-              got is not None, plan.BRIEF_EMPTY not in body)
+        check("%s is a stream name" % stream, isinstance(stream, str) and bool(stream), True)
 
     check("a limit message is recognised",
           plan.is_limit("Claude usage limit reached, resets at 3:00pm"), True)

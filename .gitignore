@@ -13,6 +13,16 @@
 # mid-write.
 data/
 
+# The bucket briefs, and each bucket's own skills. Same reasoning as data/ above
+# and the same shape: what he actually does in People or Design System names the
+# people he does it with, and the skills that sit beside a brief are Twinkl's
+# process written down — probation forms, the interview question pool, the offer
+# justifications. This repo is public, so none of it is committed.
+#
+# `BUCKETS.md` at the root is the tracked half: what a brief is for, how one is
+# found, and the template to start from. The briefs themselves are his.
+buckets/
+
 # Obsidian's own state, wherever a vault is opened.
 .obsidian/
 .trash/

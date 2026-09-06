@@ -52,7 +52,7 @@ One `pa-execute` run per plan. Give it:
 
 - The full path to the plan file.
 - The task's title, bucket and column, and its `Project:` note if it has one.
-- The path to the bucket's brief, `night_agent/buckets/<stream>.md`, worked out the
+- The path to the bucket's brief, `buckets/<stream>/<stream>.md`, worked out the
   way `bucket_stream()` in `night_agent/plan.py` does it.
 
 Then stay out of its way. Do not do the work yourself alongside it, and do not

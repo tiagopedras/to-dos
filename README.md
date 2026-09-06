@@ -21,6 +21,20 @@ data/twinkl/projects/      that data set's own project folders, see below
 data/personal/todo.md      a second, unrelated list, shaped the same way
 ```
 
+`buckets/` beside it is the second private folder, and gitignored for the same
+reason. One folder per bucket of the board, holding the brief that says what work
+I actually do in it, and that bucket's own skills:
+
+```
+buckets/people/people.md        the brief
+buckets/people/skills/          the skills that bucket's work runs on
+```
+
+The night agent's planners and `pa-execute` both read the brief, and so do I.
+[BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is
+found, and the template to start from — so a fresh clone can rebuild the shape
+without carrying any of the content.
+
 Nothing else in the repo holds a task, a name or a date. `data/` used to be one
 list flat inside it, before the dropdown existed to hold more than one — moving
 the old files into `data/twinkl/` is the whole of what that change did to disk,
