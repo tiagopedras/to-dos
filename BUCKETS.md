@@ -58,7 +58,7 @@ ln -sfn ~/Code/to-dos/buckets/<stream>/skills/<name> ~/.claude/skills/<name>
 
 Skills that are not a bucket's own stay where they are. `twinkl-deck`,
 `twinkl-deck-outline` and `twinkl-diagram` are listed in `~/Code/SKILLS.md` as
-generic to any bucket, and they remain in `twinkl-skills/`.
+generic to any bucket, and they remain in `skills/twinkl/`.
 
 ## How a brief is found
 
