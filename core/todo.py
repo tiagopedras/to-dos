@@ -68,7 +68,7 @@ class Task:
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
                  "ai", "to", "urgent", "week", "slug", "blocked_by", "rank",
-                 "headline", "chat", "repeat", "extra", "body", "raw",
+                 "tlrank", "headline", "chat", "repeat", "extra", "body", "raw",
                  "bucket", "column")
 
     def __init__(self):
@@ -80,6 +80,7 @@ class Task:
         self.slug = self.headline = self.chat = self.repeat = ""
         self.blocked_by = []
         self.rank = None
+        self.tlrank = None
         self.extra = []
         self.body = []
         self.raw = ""
@@ -118,6 +119,11 @@ def parse_task(raw_lines):
             lead = re.match(r"[+-]?\d+", val)
             if lead:
                 task.rank = int(lead.group(0))
+        elif key == "tlrank":
+            # Same leading-integer handling as rank, above, for the same reason.
+            lead = re.match(r"[+-]?\d+", val)
+            if lead:
+                task.tlrank = int(lead.group(0))
         elif key == "headline":
             task.headline = val
         elif key == "chat":

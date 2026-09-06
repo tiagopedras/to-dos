@@ -82,7 +82,7 @@
   .dropdown{position:relative}
   .dropdown-panel{
     position:absolute; top:calc(100% + 6px); left:0; z-index:25;
-    display:flex; flex-direction:column; min-width:170px; padding:5px;
+    display:flex; flex-direction:column; min-width:200px; padding:5px;
     background:var(--panel); border:1px solid var(--line); border-radius:9px;
     box-shadow:var(--shadow);
   }
@@ -97,8 +97,8 @@
      picking from a select, not firing an action, so it reads as a distinct
      row rather than one more item in the list above it. */
   .dropdown-divider{
-    margin-top:5px; padding:8px 9px 0; border-top:1px solid var(--line-soft);
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-top:5px; padding:8px 9px 5px; border-top:1px solid var(--line-soft);
+    display:flex; flex-direction:column; align-items:stretch; gap:6px;
   }
   .dropdown-label{font-size:12px; font-weight:520; color:var(--ink-soft)}
 
@@ -445,6 +445,16 @@
   .tlchevron:hover{color:var(--ink)}
   .tlchevron.open{transform:rotate(90deg)}
   .tlchevron.ph{cursor:default}
+  /* The handle that drags a row up or down its own lane. Its own element
+     rather than the row or the label, so it never fights the label's
+     click-to-open or the bar's own horizontal drag over in .tltrack. */
+  .tlgrip{
+    flex:none; width:12px; height:16px; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-faint); font-size:10px; letter-spacing:-2px; cursor:grab; user-select:none;
+  }
+  .tlgrip:hover{color:var(--ink)}
+  .tlgrip:active{cursor:grabbing}
+  .tlgrip.ph{cursor:default}
 
   /* One <details> per bucket, so collapsing it is free — the browser hides
      the rows rather than this having to omit them from the render and redraw
@@ -1492,7 +1502,7 @@
     background:var(--chip); border-radius:7px; padding:6px 11px;
   }
   select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px}
-  select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); max-width:160px}
+  select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); width:100%}
   /* ---------- card ---------- */
   .card{
     background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--bc,var(--line));

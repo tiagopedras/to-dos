@@ -13,6 +13,12 @@
    with only `start:` draws as a bar out to today, since "started, no
    deadline yet" is still two real dates once today is one of them. A task
    with neither sits in the tray below the lanes rather than being dropped.
+
+   A lane's vertical order is its own thing, not the tier order the board
+   uses — a lane mixes tasks pulled from every tier, so there is no shared
+   position to read one off. Dragging a row's grip writes `tlrank`, and only
+   dragging ever does; a lane nobody has touched just keeps falling back to
+   board order (see timelineSection()).
    ========================================================================= */
 const TL_DAY_PX = 28;
 const TL_MIN_DAYS = 56;          // ~8 weeks, so a short list isn't a sliver
@@ -52,7 +58,7 @@ function timelineTasks(){
         .filter(s => !s.done && (s.due || s.start))
         .map(s => ({ id: t.id, title: s.clean, start: laterOf(s.start, t.start), due: s.due }));
       const row = { id: t.id, title: t.title, bucket: b.name, color,
-                    start: t.start, due: t.due, blocked, steps };
+                    start: t.start, due: t.due, blocked, steps, tlrank: t.tlrank };
       (t.start || t.due || steps.length ? dated : undated).push(row);
     }));
   });
@@ -158,8 +164,15 @@ function timelineRowHTML(row, scale, sub){
       row.id + '" title="' + (tlExpanded.has(row.id) ? 'Hide' : 'Show') + ' ' + row.steps.length +
       ' step' + (row.steps.length > 1 ? 's' : '') + '">›</button>'
     : (sub ? '' : '<span class="tlchevron ph"></span>');
-  return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '">' +
-    '<div class="tllabel">' + chevron +
+  // The row's vertical position in its lane, dragged by this handle alone —
+  // a step has no lane position of its own to drag (see the file banner), so
+  // it gets nothing here, same as it gets no chevron.
+  const grip = sub ? '' : (state.locked
+    ? '<span class="tlgrip ph"></span>'
+    : '<span class="tlgrip" draggable="true" title="Drag to reorder within ' + esc(row.bucket || '') + '">⋮⋮</span>');
+  return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '"' +
+    (sub ? '' : ' data-tlreorder="' + row.id + '"') + '>' +
+    '<div class="tllabel">' + grip + chevron +
       '<span class="tllabeltext" data-open="' + row.id + '" title="' + esc(row.title) + '">' + mdInline(row.title) + '</span>' +
     '</div>' +
     '<div class="tltrack" style="width:' + trackWidth + 'px">' + mark + '</div>' +
@@ -226,7 +239,13 @@ function timelineSection(){
     byBucket.get(row.bucket).push(row);
   });
   let lanes = '';
-  byBucket.forEach((rows, bucket) => { lanes += timelineLaneHTML(bucket, rows, scale); });
+  byBucket.forEach((rows, bucket) => {
+    // Dragged rows carry a `tlrank` and sort by it; everything else falls
+    // back to board order, same split Delegate uses for its own `rank`.
+    const ranked = rows.filter(r => r.tlrank != null).sort((a, b) => a.tlrank - b.tlrank);
+    const unranked = rows.filter(r => r.tlrank == null);
+    lanes += timelineLaneHTML(bucket, ranked.concat(unranked), scale);
+  });
   const body = dated.length
     ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px" data-daypx="' +
         scale.dayPx + '">' + timelineHeaderHTML(scale) + lanes + '</div></div>'
@@ -270,6 +289,76 @@ function wireTimelineDrag(){
 
   wireTlResize(scroll);
   wireTlBarDrag();
+  wireTlReorder();
+}
+
+/* Dragging a row's grip up or down writes a `tlrank` on every task in that
+   lane, renumbered 0.. in the row's new visual order — the dedicated order
+   timelineSection() reads back (see there). One lane at a time: rows outside
+   the dragged one's own `.tllanegroup` never see its dragover, so a task can
+   only be reordered against others in the same bucket, never moved to
+   another one's lane by dropping into it.
+
+   Reuses the board's own `dropLine`/`hideDropLine`, defined further down in
+   this file, rather than a second floating divider — a plain div is a plain
+   div whichever view asked for it, and the two views are never on screen at
+   once. */
+let tlReorderId = null;
+function tlReorderRows(group){
+  return Array.from(group.querySelectorAll(':scope > .tlrow[data-tlreorder]'));
+}
+function tlInsertAfterEl(group, clientY, skipId){
+  let after = null;
+  tlReorderRows(group).forEach(el => {
+    if (el.dataset.tlreorder === skipId) return;
+    const r = el.getBoundingClientRect();
+    if (clientY > r.top + r.height / 2) after = el;
+  });
+  return after;
+}
+function wireTlReorder(){
+  if (state.locked) return;
+  $('#lists').querySelectorAll('.tllanegroup').forEach(group => {
+    group.querySelectorAll('.tlgrip[draggable]').forEach(grip => {
+      grip.ondragstart = e => {
+        tlReorderId = grip.closest('.tlrow').dataset.tlreorder;
+        e.dataTransfer.setData('text/plain', tlReorderId);
+        e.dataTransfer.effectAllowed = 'move';
+      };
+      grip.ondragend = () => { tlReorderId = null; hideDropLine(); };
+    });
+    group.ondragover = e => {
+      if (!tlReorderId) return;
+      e.preventDefault();
+      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'dropline'; }
+      const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
+      if (after) after.after(dropLine);
+      else {
+        const summary = group.querySelector(':scope > summary');
+        if (summary) summary.after(dropLine); else group.prepend(dropLine);
+      }
+    };
+    group.ondragleave = e => { if (!group.contains(e.relatedTarget)) hideDropLine(); };
+    group.ondrop = e => {
+      if (!tlReorderId) return;
+      e.preventDefault();
+      const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
+      const before = tlReorderRows(group).map(el => el.dataset.tlreorder);
+      const ids = before.slice();
+      ids.splice(ids.indexOf(tlReorderId), 1);
+      const at = after ? ids.indexOf(after.dataset.tlreorder) + 1 : 0;
+      ids.splice(at, 0, tlReorderId);
+      hideDropLine();
+      tlReorderId = null;
+      if (ids.join() === before.join()) return;          // dropped back where it started
+      ids.forEach((id, i) => {
+        const loc = locate(id);
+        if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
+      });
+      markDirty();
+      refreshView();
+    };
+  });
 }
 
 /* A small fixed tooltip that follows the pointer — the live date(s) while a

@@ -86,7 +86,7 @@ function parseTask(rawLines){
   let rest = m[2];
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
-  let blockedBy = [], rank = null, slug = '', headline = '', chat = '', repeat = '';
+  let blockedBy = [], rank = null, tlrank = null, slug = '', headline = '', chat = '', repeat = '';
   /* Either syntax lands here, so a tag means the same thing whichever form it
      arrived in. `whole` is what goes into `extra`, which keeps an unrecognised
      tag exactly as it was written. */
@@ -97,6 +97,11 @@ function parseTask(rawLines){
         key === 'start' || key === 'done' || key === 'to') tags[key] = v.trim();
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
+    /* Where this task sits in its bucket's timeline lane — set by dragging a
+       row up or down there, never by hand. Separate from `rank` because the
+       two order different things: `rank` is Delegate's queue, this is one
+       bucket's vertical position on the Gantt, and a task can hold both. */
+    else if (key === 'tlrank') tlrank = parseInt(v.trim(), 10);
     else if (key === 'headline') headline = v.trim();
     /* Which conversations belong to this task. Six characters that mean nothing
        on their own — data/sessions.json is what turns them into a list. It sits
@@ -140,7 +145,7 @@ function parseTask(rawLines){
        one task can be delegated to someone and still be drafted by Claude.
        Optional, and blank on almost everything, so nothing shows when it is. */
     to: tags.to || '',
-    urgent, week, slug, blockedBy, rank, headline, chat, repeat, extra,
+    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, extra,
     body: rawLines.slice(1),
     raw: first,
     dirty: false
@@ -170,6 +175,7 @@ function serializeTask(t){
     if (t.to && t.to.trim()) tags.push('[to:: ' + t.to.trim() + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
+    if (t.tlrank != null && !isNaN(t.tlrank)) tags.push('`tlrank:' + t.tlrank + '`');
     if (t.headline) tags.push('`headline:' + t.headline + '`');
     if (t.chat)   tags.push('`chat:' + t.chat + '`');
     if (t.repeat) tags.push('`repeat:' + t.repeat + '`');
