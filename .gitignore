@@ -51,3 +51,9 @@ To-Do Board.app/
 # companion/build-app.command. Keeping the recipe is worth more than keeping the
 # build, and the stub is a signed binary that has no business in git.
 To-Do Companion.app/
+
+# Claude Code's own local state for this checkout: per-file agent symlinks (some
+# point into buckets/, which is already gitignored) and launch.json, which has
+# carried paths under data/. All of it is specific to this machine, not to the
+# project, so a clone should build its own rather than inherit ours.
+.claude/
