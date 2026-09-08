@@ -1,11 +1,11 @@
 ---
 name: pa-focus
-description: Question whether too much is sitting in To do and Doing on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), and go through both columns one task at a time to work out what is actually being worked, what hasn't started and is honestly still two to four weeks out, and what should go back to Backlog because it isn't really getting picked up any time soon. Opens with a count in each column, by bucket. Use whenever he asks something like "am I taking on too much", "let's do a focus check", "how much have I got in flight", "review my To do and Doing", "help me trim my WIP", "what should go back to Backlog", or "is this realistic". Top-level tasks only — a sub-step has no column of its own, it inherits its parent's. Do not use this for Waiting review or Blocked, which is pa-checkout, or for a general status read or re-prioritisation, which is pa-checkin. This skill only reviews and asks; pa-checkin does the actual writing.
+description: Question whether too much is sitting in To do and Doing on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), and go through both columns one task at a time to work out what is actually being worked, what hasn't started and is honestly still two to four weeks out, and what should go back to Backlog because it isn't really getting picked up any time soon. Opens with a count in each column, by bucket. Use whenever he asks something like "am I taking on too much", "let's do a focus check", "how much have I got in flight", "review my To do and Doing", "help me trim my WIP", "what should go back to Backlog", or "is this realistic". Top-level tasks only — a sub-step has no column of its own, it inherits its parent's. Do not use this for Waiting review or Blocked, which is pa-checkout, or for a general status read, which is pa-checkin, or a re-prioritisation, which is pa. This skill only reviews and asks; the pa skill does the actual writing.
 ---
 
 # Focus: trimming Doing and To do
 
-**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
 Doing and To do are not neutral holding areas. Doing is his own claim that
 something is live, roughly the next two weeks. To do is the claim that
@@ -81,12 +81,11 @@ invent more:
 Batch a few before writing if he answers quickly through several in a row, but
 do not let more than a handful pile up unwritten.
 
-### 3. Hand the writing to pa-checkin
+### 3. Hand the writing to pa
 
 This skill does not touch todo.md itself. Once he has answered for the ones he
-wants to act on, pass the list of changes to `pa-checkin` — column and bucket
-moves, ticks — and let it apply them, run the checker, and stamp
-`Last updated`.
+wants to act on, invoke `pa` with the list of changes — column and bucket moves,
+ticks — and let it apply them, run the checker, and stamp `Last updated`.
 
 ## Closing read
 
@@ -95,7 +94,7 @@ looks realistic — not a lecture, a single observation he can take or leave.
 "Doing's down to 3, that tracks" is as valid a close as "To do's still got 11
 in it across four buckets, worth another pass next week." Do not attach a
 number or a rule to it — capacity ceilings and `week` tagging are
-`pa-checkin`'s territory (see `~/Code/to-dos/CONVENTIONS.md`, "This week"),
+`pa`'s territory (see `~/Code/to-dos/CONVENTIONS.md`, "This week"),
 not this skill's to invent.
 
 ## Judgement calls that come up
@@ -122,6 +121,6 @@ the exception.
 
 ## Tone
 
-See `~/Code/to-dos/PA.md`.
+See `~/Code/to-dos/agents/pa_agent/PA.md`.
 
 The count in move 1 is a sentence, not a table, and the question for each task is one line. This is a conversation to move through quickly, not a form.

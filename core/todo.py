@@ -5,7 +5,7 @@ The board's own reader is the JavaScript in kanban/index.html, and it stays the
 authority on writing the file: only the board and the pa-* skills ever change a
 task. This module is the read-only half of the same knowledge, for the things
 that are not a browser tab — the desktop companion in companion/, the nightly
-agent in agents/night_agent/, the pa-checkin consistency checker, and anything else later
+agent in agents/night_agent/, the PA's consistency checker, and anything else later
 that needs to know what is due without opening the board.
 
 It lives in core/ rather than beside the board because of that list. It sat in
@@ -28,7 +28,7 @@ is worth more here than the symmetry.
 It also owns the UK working calendar — which days are weekends and which are
 bank holidays. That is not file format, so it sits here on sufferance rather than
 by right; it is here because three things need the same answer (the board, the
-companion and the pa-checkin consistency checker) and a second list of holidays
+companion and the PA's consistency checker) and a second list of holidays
 is a second list to keep in step. Everything that needs it can reach this file,
 either by importing it or by having the skill build step copy it in.
 
@@ -610,7 +610,7 @@ def is_blocked(task, slugs):
 #
 # This is not file format, so it sits in this module on sufferance. It is here
 # because three things need the same answer — the companion staying quiet on a
-# day off, the pa-checkin checker flagging a deadline that lands on one, and the
+# day off, the PA's checker flagging a deadline that lands on one, and the
 # board's own idea of a working day — and the alternative is a second list to
 # keep in step.
 

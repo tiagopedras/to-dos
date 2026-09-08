@@ -817,7 +817,6 @@ function chatSection(t){
   const rows = (key && state.chats[key] || [])
     .slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
   const cards = rows.map(row => cvCardHTML(row, key, t.title, false)).join('');
-  const labelHTML = 'AI processes' + (rows.length ? ' <em class="aic-sublabel">' + rows.length + '</em>' : '');
   const body =
     '<div class="cvstack">' + (cards || '<p class="aic-none">No conversations yet.</p>') + '</div>' +
     '<div class="aic-actions">' +
@@ -825,9 +824,12 @@ function chatSection(t){
       '<button type="button" class="aic-addsub aic-attach" data-owner="' + esc(t.id) +
         '">Attach a session…</button>' +
     '</div>';
-  const html = '<details class="aic-field aic-collapse"' + (sectionCollapsed('chats') ? '' : ' open') +
-    ' data-collapse="chats">' + '<summary>' + labelHTML + '</summary>' + body + '</details>';
-  return '<hr class="dsep">' + html;
+  // The cards inside are the shared package's and stay that way; the heading
+  // around them is the drawer's, drawn by sideSection() the same as every
+  // other section in that column — it used to come from chat.css instead and
+  // was a size down and a shade fainter than its neighbours for no reason
+  // anyone had chosen.
+  return sideSection('AI processes', 'chats', body, rows.length);
 }
 
 /* ---- Attaching a session that started elsewhere ----

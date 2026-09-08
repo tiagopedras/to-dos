@@ -2,7 +2,7 @@
 
 One folder per bucket in `buckets/`, holding the work I actually do in it and
 the skills that do it. Both halves of the night agent read the brief — the
-`pa-plan-*` agent that researches a task overnight, and `execution-agent`, the one
+`plan-*` agent that researches a task overnight, and `execution-agent`, the one
 agent allowed to act on a plan once I have agreed it — and so do I, which is why
 it sits at the root of the repo rather than inside the agent that happened to
 need it first.
@@ -68,7 +68,7 @@ an agent knows they are there, and says where in that bucket they actually apply
 
 `bucket_stream()` in `agents/night_agent/plan.py` maps a bucket heading to a stream
 name, and the agent, the folder and the brief are all named off it. `## 3. DS`
-becomes `design-system`, so the agent is `pa-plan-design-system` and the brief
+becomes `design-system`, so the agent is `plan-design-system` and the brief
 is `buckets/design-system/design-system.md`. A heading that matches nothing
 falls back to `general`.
 
@@ -97,7 +97,7 @@ The template lists the headings. The two that matter most:
   form, a deck in the Twinkl template, a Jira ticket on DSYS, a message to one
   person.
 - **Which skill already does it.** The most valuable thing a night can come back
-  with is that the work is already automated. `pa-plan-people` gets this right
+  with is that the work is already automated. `plan-people` gets this right
   today and is the model to copy: it names five skills and says which gap is
   real.
 

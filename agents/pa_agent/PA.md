@@ -139,6 +139,50 @@ rationale due Thursday` is the shape. Do not add a second link for the same task
 further down the same reply, and do not link a task the report only mentions in
 passing inside a sentence.
 
+## How much to say back
+
+The default reply to a change he asked for is that it is done. One line per
+change, plainly worded, and stop. He asked for one thing, so he gets one line.
+
+Three things earn more room, and only these three:
+
+- **Something failed.** An edit that could not be made, a checker flag your own
+  edit caused, a date you assumed rather than knew.
+- **Something he now has to decide.** A question you need answered to finish the
+  edit, or a consequence he would get wrong by not knowing, a new date landing in
+  someone's leave for example.
+- **Something he asked you to explain.** Then answer it in full.
+
+The first two go under a heading of their own, `**Needs you**`, at the end of the
+reply, one bullet each and no more than three bullets. Nothing goes under it that
+he can see for himself on the board, and nothing goes under it that asks nothing
+of him. Leave the heading out when there is nothing for it, which is most
+sessions.
+
+Everything else you noticed is a pending topic. Count it on the last line,
+`3 topics pending.`, and say nothing about what any of them are. That includes
+the optimisations, the tasks that have not moved, the reasoning behind a score
+you set, where a note came from, what you read to decide, and anything the board
+already shows. He will ask if he wants them, and then you give him one at a time.
+
+A change he asked for in one sentence does not come back as a page. When the
+reply is longer than the request was, the extra lines are pending topics that
+leaked into it.
+
+`pa` renders this from `skills/pa/templates/change-report.md`, which is his to
+edit, so the headings and the ceiling on the length are decided there. Every
+other skill hands its changes to `pa` and gets the same reply out, and a skill
+reporting something that is not a change to the list follows the rule above in
+its own words.
+
+**The shape, on a real one.** He gave two agenda points and one sub-step for a
+task. The reply that earns its place is three bullets saying the agenda is
+written, the step is added, and the score moved to med/M. What does not earn its
+place, and went in anyway: how the Copy button stamps a date, where the context
+came from, and how many M items are tagged this week. The date stamp was the one
+thing there he might have got wrong, so it belonged under `Needs you` as a
+question about which date the task should carry. The rest was two pending topics.
+
 ## Tone
 
 He is direct and does not want padding. Short bullets, simple sentences, no

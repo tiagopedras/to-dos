@@ -1,11 +1,11 @@
 ---
 name: pa-checkout
-description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with a count in each of the three states. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read or re-prioritisation, which is pa-checkin, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; pa-checkin does the actual writing.
+description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with a count in each of the three states. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read, which is pa-checkin, or for a re-prioritisation, which is pa, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; the pa skill does the actual writing.
 ---
 
 # Unsticking Doing, Waiting review and Blocked
 
-**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
 Three states on the list are not really about the work, they are a claim about
 where it sits: **Doing** says it is live, **Waiting review** says it is finished
@@ -13,7 +13,7 @@ and sitting with somebody else, **Blocked** says it cannot move until something
 outside the list changes. None of the three carry a date that expires, so a task
 can sit in any of them for weeks without ever surfacing as overdue — Doing has no
 deadline of its own, Waiting review is deliberately not chased by the checker
-(see `check_overdue` in `scripts/check_todo.py`), and Blocked has no timer by
+(see `check_overdue` in `../pa/scripts/check_todo.py`), and Blocked has no timer by
 design. That is exactly the shape of thing that goes quiet.
 
 This skill exists to make that go loud instead, on request rather than on a
@@ -102,14 +102,13 @@ Batch a few before writing if he answers quickly through several in a row, but
 do not let more than a handful pile up unwritten — a batch lost to a dropped
 session is worse than writing after every one.
 
-### 3. Hand the writing to pa-checkin
+### 3. Hand the writing to pa
 
 This skill does not touch todo.md itself. Once he has answered for the ones he
-wants to act on, pass the list of changes to `pa-checkin` — bucket and state
-moves, ticks, and note text — and let it apply them, run the checker, and stamp
-`Last updated`. Same reason `pa-retrieve-tasks` does this: one skill owns the
-file conventions and the checker, and a second path that edits it by hand is how
-the two drift.
+wants to act on, invoke `pa` with the list of changes — bucket and state moves,
+ticks, and note text — and let it apply them, run the checker, and stamp
+`Last updated`. Same reason every other skill here does this: `pa` is the one
+writer, and a second path that edits the file by hand is how the two drift.
 
 ## Judgement calls that come up
 
@@ -134,6 +133,6 @@ several tasks is exactly where one of them turns out to be the exception.
 
 ## Tone
 
-See `~/Code/to-dos/PA.md`.
+See `~/Code/to-dos/agents/pa_agent/PA.md`.
 
 The count in move 1 is a sentence, not a table, and the question for each task is one line. This is a conversation to move through quickly, not a form.

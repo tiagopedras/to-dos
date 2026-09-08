@@ -83,37 +83,37 @@ await evalJS(`(() => {
   window.__plans = [
     { name:'add-caveat.md', night:'2026-09-05', url:'/x/add-caveat.md', status:'unread',
       title:'Add Caveat to the design system type stack', task:'Add Caveat to the design system type stack',
-      bucket:'Design System', column:'To do', ai:'partial', agent:'pa-plan-design-system',
+      bucket:'Design System', column:'To do', ai:'partial', agent:'plan-design-system',
       date:'2026-09-05', summary:'Caveat is already in the Foundations file as a loose style.' },
     { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', status:'read',
       title:'Create an HR agent', task:'Create an HR agent', bucket:'Processes', column:'To do',
-      ai:'partial', agent:'pa-plan-processes', date:'2026-09-05',
+      ai:'partial', agent:'plan-processes', date:'2026-09-05',
       summary:'Five of the six pieces exist as skills already.' },
     { name:'old.md', night:'2026-09-04', url:'/x/old.md', status:'actioned',
       title:'Something already dealt with', task:'Something already dealt with',
-      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'pa-plan-strategic',
+      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'plan-strategic',
       date:'2026-09-04', summary:'Done and dusted.' }
   ];
   window.__queue = {
     queue: [
       { title:'Review the objectives', bucket:'People', column:'Doing', ai:'partial',
-        agent:'pa-plan-people', position:1, state:'queued', why:'never planned',
+        agent:'plan-people', position:1, state:'queued', why:'never planned',
         last:'', lastStatus:'' },
       { title:'Rename the text styles', bucket:'DS', column:'To do', ai:'full',
-        agent:'pa-plan-design-system', position:2, state:'queued',
+        agent:'plan-design-system', position:2, state:'queued',
         why:'changed since 2026-09-03', last:'2026-09-03', lastStatus:'read' },
       { title:'Adoption and usage report', bucket:'DS', column:'Backlog', ai:'full',
-        agent:'pa-plan-design-system', position:3, state:'queued', why:'never planned',
+        agent:'plan-design-system', position:3, state:'queued', why:'never planned',
         last:'', lastStatus:'' }
     ],
     held: [
       { title:'Arabic theme as a new token mode', bucket:'DS', column:'Backlog', ai:'full',
-        agent:'pa-plan-design-system', position:0, state:'held',
+        agent:'plan-design-system', position:0, state:'held',
         why:'held back from the board', last:'', lastStatus:'' }
     ],
     skipped: [
       { title:'Something parked', bucket:'People', column:'Blocked', ai:'partial',
-        agent:'pa-plan-people', position:0, state:'skipped',
+        agent:'plan-people', position:0, state:'skipped',
         why:'unchanged since 2026-09-04', last:'2026-09-04', lastStatus:'unread' }
     ],
     order: ['Review the objectives', 'Rename the text styles', 'Adoption and usage report',
@@ -361,7 +361,7 @@ check('and the post names both held titles', await evalJS(`
 await evalJS(`(async () => {
   window.__nightAgent = {
     live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
-    current: { title:'Rename the text styles', agent:'pa-plan-design-system',
+    current: { title:'Rename the text styles', agent:'plan-design-system',
                since:'2026-09-05 02:11:40' },
     orphan: null,
     done: [{ title:'Review the objectives', took: 214, cost: 0.83, at:'2026-09-05 02:11:38' }],
@@ -381,7 +381,7 @@ check('the task in flight is named', await evalJS(`
   document.querySelector('#doingOut .fnow strong').textContent === 'Rename the text styles'
 `))
 check('with the agent working on it', await evalJS(`
-  document.querySelector('#doingOut .fnow .repmeta').textContent.includes('pa-plan-design-system')
+  document.querySelector('#doingOut .fnow .repmeta').textContent.includes('plan-design-system')
 `))
 // Run started / Planned / Left sit in Done now — a record of the batch, the
 // same kind of fact "Latest run costs" is, not a description of what's
@@ -417,7 +417,7 @@ check('a run already going is not offered a second one', await evalJS(`
 await evalJS(`(async () => {
   window.__nightAgent = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
     current: null,
-    orphan: { title:'Rename the text styles', agent:'pa-plan-design-system',
+    orphan: { title:'Rename the text styles', agent:'plan-design-system',
               since:'2026-09-05 02:11:40' },
     done: [], failed: [], stopped:'', left: 4 };
   await renderNightAgent();
@@ -470,7 +470,7 @@ check('and the frontmatter is not part of it', await evalJS(`
   !document.querySelector('.mscrim .repdoc').textContent.includes('title: t')
 `))
 check('the subhead names the agent that wrote it', await evalJS(`
-  document.querySelector('.mscrim .msub').textContent.includes('pa-plan-design-system')
+  document.querySelector('.mscrim .msub').textContent.includes('plan-design-system')
 `))
 
 const marked = await evalJS(`window.__blocked.join(' | ')`)

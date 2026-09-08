@@ -18,6 +18,234 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A project whose every task is done still wears the same "Live" tag as one
+  with work outstanding.** `projectItemHTML()` (`kanban/js/26-projects.js:61`)
+  already computes both numbers it would need — `open`, the count of
+  not-done tasks, and `live`, whether any task points here at all — but the
+  tag on line 72 only ever reads `live`, so `open === 0` renders identically
+  to a project mid-flight. A third state, "Completed", would fire when
+  `live && open === 0`, alongside a new `.tag.projcompleted` rule next to
+  `.tag.projlive`/`.tag.projorphan` in `kanban/board.css:1693-1694`.
+  `kanban/test_projects.mjs:136-140` asserts `.projlive` on the first fixture
+  project and `.projorphan` on the last — whichever fixture project has all
+  its tasks done, if any, would need its own assertion added alongside them.
+
+- **Delegate to Claude prints `rank:` as the row number but offers no way to
+  change it, so the only way to reorder the list is to retype the tag on every
+  task by hand.** `delegateSection()` (`kanban/js/10-reference-sections.js:577`)
+  filters `ai:full`, sorts on `rank` ascending and renders the rank's own value
+  into `.refnum` — there is no `draggable` or `ondragstart` anywhere in that
+  file, so the numbers are read-only and the gaps show: the list currently runs
+  1..9, 11, 12 because rank 10 was ticked off and 20 came off a task that went
+  back to `ai:partial`. The pattern to copy is already built one view over —
+  `wireTlReorder()` (`kanban/js/18-timeline.js:387`) drags a row's grip and
+  renumbers every task in that lane 0..n through `locate(row.id)`
+  (`kanban/js/04-tier-two-the-one-thing.js:299`), setting `.dirty` and calling
+  `markDirty()`, and `sortTimelineLane()` (`18-timeline.js:348`) does the same
+  in one pass from a button. The one difference that matters: `tlrank` is scoped
+  to a bucket lane, `rank` is global across the file, so a single drag rewrites
+  every `ai:full` task line rather than one lane's worth — no extra cost, since
+  the board writes the whole document on save anyway, but it does mean a dense
+  renumber is the sensible behaviour rather than shuffling neighbours. Gaps are
+  cosmetic; duplicates are not, and nothing today stops two tasks sharing a
+  number, in which case their order against each other is whatever the sort
+  happens to do. Related but not the same as the open Big entry asking for
+  alternative sort orders on this section, which is about what to sort by rather
+  than about being able to reorder at all.
+
+- **Counted from the list weighs every finished task the same, so a bucket
+  that closes out three L tasks reads identically to one that closes out three
+  S ones.** `completedByCategoryReport()` (`kanban/js/12-reports.js:194`) already
+  groups `completedRecently()`'s output by bucket and shows a count, a bar and a
+  percentage per bucket — the count is task volume, not effort. `EFFORT_N`
+  (`core/todo.js:565`, S/M/L → 1/2/3) already exists for the Impact-against-effort
+  sort and would give each row a second number, effort points summed per bucket,
+  next to the task count. It isn't time — nothing in this codebase timestamps a
+  work session, so "how much time I spend per bucket" has no real data to answer
+  it, only "how much effort I closed out per bucket" as a proxy from the S/M/L
+  tag already on every task. Two threads have to carry the field before the report
+  can read it: `completedRecently()` (`kanban/js/12-reports.js:169`) pushes
+  `bucketName`/`tierName`/`title`/`doneOn`/`taskId` per live task but drops
+  `t.effort` on the floor, and `parseArchiveEntries()`
+  (`kanban/js/12-reports.js:130`) does the same for archived ones — `parseTask()`
+  already returns `.effort` in both places, it just isn't kept. Once both carry
+  it, a bucket with no effort tagged on any of its finished tasks should say so
+  rather than silently reading as zero.
+
+- **The companion's notifications vanish on their own because they're
+  Banners, and this code has no lever to make them Alerts.** `notify()`
+  (`companion/app.py:155`) delivers through `NSUserNotification`, and whether
+  the result sits on screen until dismissed or auto-hides after a few seconds
+  is macOS's own per-app "Alert Style" setting — System Settings → Notifications
+  → To-Do Companion → Banners/Alerts — not a property this code sets. There is
+  no `setAlertStyle_` or equivalent on `NSUserNotification`, and the
+  `UNUserNotificationCenter` API this deprecated one stands in for (see the
+  comment above `notify()` on why that one won't register for an unsigned
+  bundle) is governed by the same system setting either way. So "persistent"
+  here isn't a build: it's flipping that one toggle for the app, once, outside
+  this repo. Worth knowing separately — `deliverNotification_` already leaves
+  a banner listed in the Notification Center panel until `removeDeliveredNotification_`
+  fires on click (`userNotificationCenter_didActivateNotification_`,
+  `companion/app.py:125`), so an ignored one isn't actually gone, only off
+  screen.
+
+- **A recap he could paste into a status update means flattening the one
+  report that already lists titles, not building a new one.**
+  `completedByCategoryReport()` (`kanban/js/12-reports.js:194`) already has
+  every finished task's date and title, off the same `completedRecently()`
+  list `reportDefs()` (`kanban/js/12-reports.js:90`) feeds every report on the
+  tab — but it's grouped by bucket, and each bucket's tasks sit behind their
+  own closed `<details>`, so reading what got done means opening every
+  non-empty bucket in turn. A "Recent accomplishments" report would read the
+  same list sorted by `doneOn` instead of grouped by bucket, one flat `<ul>`
+  open by default, each row keeping `rowHTML()`'s existing
+  date/title/`mdInline()` shape with the bucket named as a chip rather than as
+  the grouping. One more `report*Report()` function, listed in `reportDefs()`
+  beside the two that exist already — no new data and no new fetch, since
+  `completedRecently()` and the Show-window picker are already shared across
+  the tab.
+
+- **The night agent's lock can sit held for a full day with nothing wrong,
+  because staleness is judged by age alone.** `run.sh`'s stale-lock check
+  (`agents/night_agent/run.sh:62`) only ever asks `find "$LOCK" -maxdepth 0
+  -mmin +120` — how old the directory is — never whether the process that
+  made it is still alive. That's fine for a crash, but a laptop put to sleep
+  mid-run suspends the holder rather than killing it: `plan.py`'s own
+  10-minute per-task ceiling (`TASK_TIMEOUT` at `agents/night_agent/plan.py:71`)
+  can't fire while the process isn't scheduled, so it comes back exactly
+  where it left off once the lid opens, and every hourly wake in between logs
+  "a run is already going" (`run.sh:66`) rather than ever clearing it — caught
+  8 Sep 2026, where the lock held from 06:05 on the 6th to the morning of the
+  8th with zero output in `night-agent.log` and nothing in either
+  `night-agent.err.log` or `.out.log`, across a stretch the log itself shows
+  the machine awake for on the hour throughout. The fix is to write the
+  holder's PID alongside the lock when `mkdir "$LOCK"` succeeds (`run.sh:59`)
+  and have the staleness branch test that PID with `kill -0` before trusting
+  the 2-hour window at all — a dead PID clears regardless of age, a live one
+  is left alone regardless of how old it looks, and the mtime check stays
+  only as the fallback for when no PID was recorded to check.
+
+- **Every plan comes back the same shape and the same length, whether the task
+  needed three sentences or three days.** `agents/night_agent/PLAN-BRIEF.md`
+  offers exactly two shapes under "What to write": four sections up to 400 words,
+  or a fold, whose bar it then sets "deliberately high" on purpose. A small task
+  has nowhere to land between them — it is plannable, so folding is ruled out,
+  and what is left is four sections of research about something that wanted a
+  paragraph. The same brief tells an agent short of a fact that folding "costs
+  him a night's capacity", which reads as a reason to write around the gap rather
+  than name it on the first pass. Two edits to that one file would cover both,
+  with no new outcome value and nothing to change in `write_plan()`
+  (`agents/night_agent/plan.py:394`) or the "needs you" badge
+  (`kanban/js/13-plans.js:65`): a third shape for a task whose whole answer is a
+  finding and a first step, and a fold bar phrased as ask early rather than as a
+  last resort.
+
+- **The Bucket field's dropdown button carries no chevron, so it doesn't
+  read as a dropdown at rest.** `.bucketbtn` (`kanban/js/19-drawer.js:588`,
+  styled in `board.css:1709`) is a coloured dot and the bucket name, nothing
+  else — no arrow, no `::after` marker, unlike a native `<select>` it
+  replaced. A small chevron on the right, the way `.dropdown-item`'s own
+  panel already implies direction by opening below the button, would be a
+  CSS-only addition: an `::after` on `.bucketbtn` or an inline `<i>` beside
+  the label, flipped via a class when `#f-bucket-menu` is open the same way
+  `.tlchevron.open` already rotates on click.
+
+- ~~**A task's Project field is buried below the fold, under eight fields it
+  has nothing to do with.**~~ **Done, 8 Sep 2026** — and not where this entry
+  said. The reasoning here was right about the cause and wrong about the
+  destination: the field is not an editable property of the task, so it does
+  not belong in the left-hand column at all, under Description or anywhere
+  else. It is now the first section of the drawer's *second* column, beside
+  the conversations and the dependencies, which are the other things that are
+  about the task rather than of it. `projectSection()` in
+  `kanban/js/19-drawer.js` draws it as a card — folder name, what the project
+  is, how many files it holds and when it was last touched, the last three
+  filled in by `loadTaskProject()` off the same `/project.json` the project
+  panel reads. Clicking it opens that panel, so a task card reached from a
+  project now has a way back.
+
+- ~~**Three different headings for one kind of section.**~~ **Done, 8 Sep
+  2026.** Everything in the drawer's second column is the same kind of thing —
+  a titled section about the task, collapsible, remembering whether it was
+  left shut — and the three of them drew that title three ways. AI processes
+  came with the shared package's `aic-field`, half a point smaller and a shade
+  fainter than its neighbours; Jira tickets was a plain `div` that could not be
+  collapsed at all; the rest were `field sugg`. `sideSection()` in
+  `kanban/js/19-drawer.js` is now the one shape all six go through — the rule
+  above, the summary that collapses and remembers, the count when there is more
+  than one — and what differs between them is what goes inside, which is the
+  part that should differ. The cards inside AI processes are still the shared
+  package's own; only the heading around them changed. Asserted in
+  `kanban/test_projects.mjs`: every child of `.dcol-side` is either the rule or
+  a `details.field.sugg` with its own summary.
+
+- ~~**The project drawer names a folder and then refuses to say what is in
+  it.**~~ **Done, 8 Sep 2026.** The open decision was settled the way it was
+  posed: **one level deep**. `project_entries()` in `kanban/server.py` lists
+  a folder's own children and stops, and a sub-folder comes back as a single
+  row carrying its own count — `sources/ · 3 items` — rather than its
+  contents, so a project filing its documents one level down shows one row
+  instead of ten and the row itself is the way in. It is served by a new
+  `/project.json?name=<folder>` rather than folded into `/projects.json`: the
+  Projects tab needs a count and nothing else, and shipping every folder's
+  file list to draw it would be the whole of `data/projects/` on every render.
+  `loadProjectFiles()` in `kanban/js/19-drawer.js` fetches it after the panel
+  is already up and paints the rows as links into `/data/projects/<name>/`,
+  which `translate_path()` was already serving; the folder path above them is
+  now a link to the folder itself, and the browser's own directory listing is
+  what answers for anything deeper. Two things fell out of building it: the
+  handler now serves `.md` as `text/plain`, since macOS has no mapping for it
+  and every link into a project folder was saving a file to Downloads instead
+  of opening it; and the view finally has the `kanban/test_projects.mjs` the
+  entry below it asked for, 31 checks over both halves, blocked list asserted
+  empty.
+
+  Reworked the same day, after seeing it: the border came off the folder path,
+  which was the one thing on screen with nothing inside it, and went round the
+  file list instead, where it says where the folder stops. The path is now the
+  caption under a "Files in this folder" heading, the task list got its own
+  ("Tasks on this project"), and the help line that had been floating between
+  them is gone. Above both, the panel now opens with what the project *is*:
+  `project_about()` in `kanban/server.py` reads the H1 and the lead paragraph
+  out of the folder's own `CLAUDE.md`, dropping the two sentences every one of
+  them ends on ("this folder is the context", "the tasks live in
+  ../../todo.md") because both are filing rather than description and the
+  drawer shows those tasks itself. No frontmatter was added to do it — every
+  project `CLAUDE.md` the PA has written already opens the same way, and that
+  shape is the metadata. It also picks up the "Opened 26 Aug 2026." line those
+  files carry, which is the only start date a project folder has.
+
+  Last edited needed nothing new either: `project_meta()` already took the
+  newest mtime across the folder and everything directly in it, so a file
+  edited two levels down still counts (writing it bumps its own folder, and
+  that folder is one of the entries). It now shows as "Edited yesterday" under
+  the description and on every card in the Projects tab, alongside the same
+  one-line description. Nothing has to be written or maintained for either to
+  stay true, which is why there is no "last edited" line in `CLAUDE.md` for
+  anyone to forget to update.
+
+- ~~**A task's bucket dropdown shows no colour.**~~ **Done, 7 Sep 2026.** The
+  drawer's "Bucket" field is a custom button-plus-popover dropdown now
+  (`#f-bucket-btn`/`#f-bucket-menu` in `kanban/js/19-drawer.js`, reusing the
+  header's own `.dropdown`/`.dropdown-panel`/`.dropdown-item`), each option
+  carrying the same coloured dot the bucket filter pills draw, from
+  `bucketColor()`. The "Move its tasks to" select in `08-buckets.js` was left
+  as a native select — it wasn't the one asked for, and it doesn't lead with
+  colour the way this field does.
+
+- ~~**Dragging an undated card onto the timeline shows no target line.**~~
+  **Done, 7 Sep 2026.** `scroll.ondragover` in `wireTimelineDrag()`
+  (`kanban/js/18-timeline.js`) now shows a dashed vertical line (`.tltarget`)
+  at the day under the pointer, plus the same `showTlPopover` date tooltip a
+  bar drag already uses, both cleared on drop, drag-leave or drag-end.
+
+- ~~**Timeline lanes have no sort control.**~~ **Done, 7 Sep 2026.** Each
+  lane header carries a "Sort by date" button (`sortTimelineLane()` in
+  `kanban/js/18-timeline.js`), writing `tlrank` in earliest-date order —
+  `start:` where it exists, else `due:` — the same field a grip drag already
+  sets one row at a time. A one-off sort, not a standing rule: a later drag
+  on any row overwrites its own rank same as before.
+
 - ~~**The night agent's first full batch spent the whole night on one
   bucket.**~~ **Done, 5 Sep 2026** (`dcbc109`). Found on the first real
   24-task run — Design System is 13 of the 24 and sorted first, so all 10
@@ -37,7 +265,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   line" rather than reusing `[fill in]`, which used to mean two different
   things.
 
-- **The nightly budget is set from figures four times too low.** `NIGHT_AGENT_BUDGET`
+- ~~**The nightly budget is set from figures four times too low.**~~
+  **Done — closed, 7 Sep 2026.** `NIGHT_AGENT_BUDGET`
   in `agents/night_agent/plan.py` is $12, chosen against two runs that cost $0.29 and
   $0.67. The first full batch averaged $1.23 across 10 plans and stopped on
   budget with 14 left. The whole 24 is around $30. $12 is a defensible ceiling,
@@ -172,6 +401,122 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Nothing the PA runs logs how long the sitting actually took, so there is
+  no way to say where his time with it actually goes bucket by bucket.** None
+  of the nine `pa-*` skills (`agents/pa_agent/skills/`) record a start or end
+  time for themselves anywhere — `pa-attach`'s own queue entry
+  (`agents/pa_agent/skills/pa-attach/scripts/attach_session.py`, written from
+  `SKILL.md:39`) carries a task title and a `cwd`, nothing about when the
+  conversation began or how long it ran. The one place a timestamp already
+  exists is `SessionStore` in `PACKAGES/ai_chat_engine/engine.py:103`, which
+  stamps `started`/`updated` on a session — but only for conversations launched
+  through the board's own canvas or Chats field, not the terminal sessions
+  `pa-checkin`, `pa-checkout` and `pa-focus` actually run in day to day, which
+  are never registered there at all. The real blocker is a decision, not a
+  missing timestamp: a task belongs to exactly one bucket, but a single sitting
+  — a `pa-checkin` sweep, a `pa-checkout` pass through Doing — routinely touches
+  several buckets in the same conversation, so "time per bucket" has no honest
+  answer until it's decided whether that whole sitting counts against every
+  bucket it touched, gets split some way across them, or only ever counts
+  toward a bucket when the conversation was about one task from the start (the
+  `pa-attach` case, which is also the only one with a task to point the number
+  at already). Once that's settled, the write side follows the shape
+  `attach-queue.json` and `notify-queue.json` already use — an append-only file
+  per dataset, drained by something with a reason to read it — rather than
+  inventing a new pattern.
+
+- **Every report the PA sends is rendered by hand, so the templates are
+  instructions rather than code.**
+  `agents/pa_agent/skills/pa-mobile/templates/` holds five report shapes and
+  `agents/pa_agent/skills/pa/references/templates.md` documents around thirty
+  fields and thirteen lists to fill them with, but nothing executes any of it.
+  The model reads `todo.md`, works out for itself which tasks are overdue,
+  which fall inside the week, how many days old the headline is and which
+  recurring meetings land tomorrow, then types the report out applying the
+  file's own conventions: a placeholder with nothing to fill it drops its line,
+  a heading above an empty block disappears with it, and `lines:` is a hard
+  ceiling that ends in `+N more`. Those conventions hold only as well as they
+  are followed, which is how the same brief comes out in a different shape two
+  mornings running, and why the ceiling is the first thing to go. A
+  `core/render.py` taking a template name, parsing through `core/todo.py` and
+  printing finished text would settle it, and most of the arithmetic exists
+  already: `effective_due` resolves dates including recurring ones,
+  `occurrence_after` finds the next instance of a standing meeting, and
+  `is_blocked`, `unscored`, `priority_score` and the working calendar are all
+  there. What is missing is the aggregation on top, the code that turns parsed
+  tasks into `overdue`, `due_this_week`, `quick_wins` and the rest, and it is
+  already written twice in partial form, in `check_overdue`
+  (`agents/pa_agent/skills/pa/scripts/check_todo.py:638`) and in `pick.py`'s
+  headline-first ranking (`agents/night_agent/pick.py:242`), agreeing with each
+  other by hand rather than by sharing code. Two decisions come before any of
+  it. That aggregation is format knowledge, so it belongs in `core/` beside
+  `todo.py` with fixtures of its own, or the rule that the format lives in
+  exactly two places quietly stops being true. And the engine is a choice
+  between Jinja2, already installed at 3.1.3 but requiring all five templates
+  rewritten into `{% for %}`, and a small Mustache such as `chevron`, whose
+  inverted section `{{^overdue}}` is precisely the existing `{{#none}}` and
+  would leave the files as they are.
+
+- **The board has no column for work handed to AI, so a delegated task sits in
+  Doing looking exactly like something he is doing himself.** The `ai:` tag is
+  the only marker (`AI_STOPS` in `kanban/js/19-drawer.js:148`) and it is
+  orthogonal to the column, which is a `###` heading inside each bucket read off
+  by `allTiers()`/`boardColumns()` (`kanban/js/02-state.js:268`). Everything
+  that shows delegated work today is a derived list rather than a place on the
+  board: `delegateSection()` (`kanban/js/10-reference-sections.js:577`) is an
+  Overview column of `ai:full` tasks in `rank:` order, and the Plans view's
+  Queue for tonight is what the night agent will pick. The decision to take
+  first is whether this is a real column, added to every bucket by
+  `syncTierShapes()` and written into `todo.md` as a heading, or a synthetic one
+  like `DONE_COL` (`kanban/js/02-state.js:237`) that the board draws from the
+  `ai:` tag without the file knowing. A real column makes "handed over" a state
+  a card can be dragged into and drops the tag's third value; a synthetic one
+  keeps the tag as the single source and costs nothing in the format, but
+  nothing can be dragged into it. Either way `quickSection()` already excludes
+  `ai:full` (`kanban/js/10-reference-sections.js:400`) and `stripDelegation()`
+  (`kanban/js/18-timeline.js`) already handles work taken back off Claude, so
+  the rules around the edges exist — what is missing is the place.
+
+- **No way to filter by status (tier/column), only by bucket — half done.**
+  **Board/Matrix/Timeline done, 7 Sep 2026.** Status pills now sit beside the
+  bucket tabs (`renderStatusFilters()` in `kanban/js/07-render-board.js`,
+  `#statusFilters` in `kanban/index.html`), one per name from `boardColumns()`,
+  multi-select into `state.statusFilter` (a `Set`, empty means no narrowing —
+  same rule `aiFilter`/`urgentFilter` already follow). `matches()` took an
+  optional second argument, the tier name, checked against that set; every
+  call site that already knew which tier it was looping over (the board's own
+  render, Matrix, Timeline — all three pass it now) needed nothing else
+  changed.
+
+  **[needs you] Canvas and Projects were never wired in, and it turns out
+  that isn't just unfinished work — it's an open question.** Re-surveyed
+  7 Sep 2026: this entry's "Schedule" reference is stale — that view folded
+  into Plans on 6 Sep and `renderSched()` now lists launchd jobs, not
+  filterable task cards, so there is nothing there to wire. Canvas
+  (`renderCanvas()`, `kanban/js/11-canvas.js`) shows conversation cards
+  grouped by the task that owns them, and Projects (`renderProjectsView()`,
+  `kanban/js/26-projects.js`) shows one card per *folder* with a rolled-up
+  open-task count — neither is a flat per-tier task list the way Board,
+  Matrix and Timeline are, so "filtered by status" doesn't have an obvious
+  meaning yet: hide a project entirely if none of its tasks are in the
+  selected columns? Narrow its open-task count the way a bucket tab's count
+  already narrows? Hide a conversation card whose owning task falls outside
+  the filter, even though the conversation itself has no column of its own?
+  Needs an answer before either gets touched, not just an implementation.
+
+- ~~**The timeline draws weekends as real space, so five working days can
+  look like a sliver next to two wasted ones.**~~ **Done, 7 Sep 2026 — decided
+  to keep the seam rather than collapse the axis.** `timelineScale()` and
+  `tlOffset()` in `kanban/js/18-timeline.js` still map calendar days straight
+  to pixels, untouched — Saturday and Sunday still get their own `dayPx`
+  width, so a bar spanning a weekend (Fri to Mon) shows as adjacent real
+  days, not a skip. What changed is only the visual mark: `tlWeekends()`
+  finds every Saturday–Sunday pair in the scale's range, and `.tlweekend` in
+  `board.css` draws a diagonal-striped seam across each one (the same idiom
+  `.tlbar.tltrail` already uses), so five working days next to two off ones
+  reads as what it is without the day math, the drag math in
+  `wireTimelineDrag()`, or the header builders having to change at all.
+
 - ~~**A dedicated agent to act on a plan once it's been agreed, not just write
   it.**~~ **Built, 6 Sep 2026,** together with the two entries below, which were
   always one feature. What landed:
@@ -220,10 +565,12 @@ they settled is written up in the README rather than left here:
     folded plan "needs you". Landed in `f540acd` alongside the hold work.
   - **Plans should be actionable, not descriptive.** Done 6 Sep as the entry
     above. Agreeing a plan is now a real signal, and `execution-agent` is what reads
-    it. The decision that the execution agent does not edit `todo.md` itself was
-    reconsidered in the same session: `execution-agent` **is** the writer, and the
-    only one, rather than handing off to a second agent. One writer with the
-    guard rails written down beat two agents each holding half of them.
+    it. Whether that agent may also edit `todo.md` was argued both ways on 6 Sep
+    and settled the other way since: **it may not.** It carries out the plan and
+    asks for the list change in its report, and the `pa` skill makes it, in a
+    session Tiago is sitting in. One writer still beat two agents each holding
+    half the guard rails; the writer is just the skill rather than the agent,
+    because the agent is the one that runs unattended stretches.
 
 - **The bucket agents need to be bound to their buckets more closely than they
   are, and given somewhere to grow.** Raised 5 Sep 2026. **The somewhere to grow
@@ -232,7 +579,7 @@ they settled is written up in the README rather than left here:
   Two corrections to this entry as it was written. It said the agents "know that
   [their bucket] only at the level of a one-line description in their
   frontmatter" — that was true when it was written and is not now. The six
-  definitions run 41 to 76 lines, and `pa-plan-people.md` already carries the
+  definitions run 41 to 76 lines, and `agents/night_agent/plan-people.md` already carries the
   back-planning rules, the five hiring skills and the two confusable name pairs.
   And it proposed that each agent "should get its own skills"; what was built
   instead is one file per bucket that every agent reads, for the reason in the
@@ -249,7 +596,7 @@ they settled is written up in the README rather than left here:
   **What is left is the part only he can do**, which is what this entry always
   said was the blocker: the processes he actually runs in each bucket, what each
   produces, which skill already does it, and who is involved. That is now a task
-  in Processes with a sub-step per bucket, DS and BAU first. `pa-plan-people.md`
+  in Processes with a sub-step per bucket, DS and BAU first. `plan-people.md`
   is the worked example to copy from.
 
   Two things from the original entry that still stand:
@@ -260,7 +607,7 @@ they settled is written up in the README rather than left here:
     a Jira ticket and writing into the design system directly are still TBD and
     still not to be built.
   - **The planners and the acting agent are not the same agents.** Held. The
-    `pa-plan-*` contract — proposes, never executes, never touches `todo.md` —
+    `plan-*` contract — proposes, never executes, never touches `todo.md` —
     is unchanged, and `execution-agent` is a separate definition with a separate tool
     list.
 
@@ -313,8 +660,15 @@ they settled is written up in the README rather than left here:
   Every range has to mean the same thing on the axis or the card stops
   answering "is today unusual", which is the only question it is for.
 
-- **Making the code shorter is a different job from splitting it, and mostly
-  there is nothing to cut.** Surveyed on 5 Sep 2026, after the split, because
+- ~~**Making the code shorter is a different job from splitting it, and mostly
+  there is nothing to cut.**~~ **Done, confirmed 7 Sep 2026.** Never struck
+  through despite the body already saying "done 5 Sep 2026" for every item in
+  its own ordered list. Re-checked directly against the running code:
+  `getJSON`/`postJSON` (`kanban/js/04-tier-two-the-one-thing.js`),
+  `makePreviewEl` (`kanban/js/17-matrix.js`), `confirmDeleteHeading`
+  (`kanban/js/08-buckets.js`), and `openDocModal`/`loadDocBody`
+  (`kanban/js/12-reports.js`) all exist as described. Surveyed on 5 Sep 2026,
+  after the split, because
   "9,500 lines" and "9,500 lines of waste" are not the same claim and only one
   of them was ever checked. The result, honestly: the file is not bloated.
 
@@ -673,8 +1027,9 @@ they settled is written up in the README rather than left here:
   better: the drop-in is not a strict Thursday/Friday alternation, it is a weekly
   session that gets rebooked, which is what `~` was added for. A rigid
   alternation would confidently roll it to the wrong day.
-- The roll writes to `todo.md` on load, so a day the board is never opened is a
-  day nothing rolls. Harmless — the next load catches up in one go — but it does
+- ~~The roll writes to `todo.md` on load, so a day the board is never opened is
+  a day nothing rolls.~~ **Closed, 7 Sep 2026.** Harmless — the next load
+  catches up in one go — but it does
   mean the dates are only as current as the last time the board ran.
 
   **Decided on 4 Sep 2026: leave it.** What it costs is that the file on disk
@@ -699,7 +1054,12 @@ they settled is written up in the README rather than left here:
   `openTaskByKey()` always did; a plan whose task has since been renamed or
   deleted says so in a toast rather than opening an empty board.
 
-- **The Plans token graph needs rework.** Superseded rather than done: this
+- ~~**The Plans token graph needs rework.**~~ **Superseded, confirmed 7 Sep
+  2026.** Never struck through despite its own text closing the question.
+  Re-checked against the running code: `USAGE_RANGES` in
+  `kanban/js/14-schedule.js` still has the four ranges (24h/3d/7d/30d) and
+  `window_shape()` in `kanban/server.py` still exists, both matching what
+  this entry already described as shipped. This
   was written against the very first version of the chart — one thin vertical
   line per session, plotting a full month by default (commit `31af0a7`, before
   the "Eighty-three hairlines" rework below it in this file). Re-checked
@@ -726,7 +1086,7 @@ they settled is written up in the README rather than left here:
   the board itself (or the `pa-*` skills) should write that file — a stray
   edit from outside it, while the board might be open and autosaving, is
   exactly the kind of overwrite the "Testing the board" section warns about.
-  Wants a `pa-checkin` pass, or an in-board edit, rather than a file edit from
+  Wants a `pa` pass, or an in-board edit, rather than a file edit from
   here.
 
 - ~~**On the Plans page, make "Held back" its own column on the far left**
@@ -813,7 +1173,11 @@ they settled is written up in the README rather than left here:
   `pkill -f "remote-debugging-port=9"` before a suspicious run is the fix, not
   the code.
 
-- **The Plans page had five cards doing the job three could do.** Restructured
+- ~~**The Plans page had five cards doing the job three could do.**~~ **Done,
+  confirmed 7 Sep 2026.** Never struck through despite its own body describing
+  the change in the past tense. Re-checked against `kanban/js/13-plans.js`:
+  the Queue/Doing toggle card is exactly as described (`renderQueueDoingHead`,
+  "one card asking whichever question is actually live"). Restructured
   6 Sep 2026. **Queue** (was "Queue for tonight") and **Doing** (was "Next
   run") are one card now, toggling rather than sitting side by side: it shows
   the queue list and a **Run now** button when nothing is running, and swaps
@@ -884,10 +1248,9 @@ they settled is written up in the README rather than left here:
   the running server and the real `data/twinkl/projects/` folder: the route
   returns all five folders on disk, the tab renders them with correct
   live/orphaned tags, and clicking one opens the drawer, with the fetch guard
-  from `kanban/test_canvas.mjs` confirming nothing written. No dedicated test
-  file for this view yet — `kanban/test_canvas.mjs`, `test_plans.mjs` and
-  `test_schedule.mjs` don't touch it, so a `test_projects.mjs` on the same
-  pattern is still worth adding before this view is touched again.
+  from `kanban/test_canvas.mjs` confirming nothing written. The dedicated test
+  file this asked for arrived on 8 Sep 2026 with the folder listing above:
+  `kanban/test_projects.mjs`, covering the tab as well as the drawer.
 
 - **Find a way to run `execution-agent` automatically overnight**, raised
   6 Sep 2026. Right now it only runs from `pa-do`, inside a session he is

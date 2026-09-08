@@ -1,13 +1,13 @@
 ---
 name: pa-attach
-description: File the conversation you are having right now against a task on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). Takes no arguments — it reads its own session id from the environment, shows the task list, and once he names one, writes the request to data/<dataset>/attach-queue.json for the board to file next time it loads. It never touches todo.md itself. Use whenever he says a conversation belongs to a task, asks to attach, file or link this chat to a task, says "this is actually about X", "put this on my list", "attach this session", "file this conversation under...", or when work that started in the terminal turns out to be about a specific piece of work on the list. Do not use this to start a new conversation from a task — that already happens from the board's own Chats field, in the drawer or on the canvas — and do not use it to review or edit the list itself, which is pa-checkin.
+description: File the conversation you are having right now against a task on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). Takes no arguments — it reads its own session id from the environment, shows the task list, and once he names one, writes the request to data/<dataset>/attach-queue.json for the board to file next time it loads. It never touches todo.md itself. Use whenever he says a conversation belongs to a task, asks to attach, file or link this chat to a task, says "this is actually about X", "put this on my list", "attach this session", "file this conversation under...", or when work that started in the terminal turns out to be about a specific piece of work on the list. Do not use this to start a new conversation from a task — that already happens from the board's own Chats field, in the drawer or on the canvas — and do not use it to review the list itself, which is pa-checkin, or to change it, which is pa.
 ---
 
 # Attaching this conversation to a task
 
 Files the conversation you are running inside, right now, against a task on the list — the case AI-CANVAS.md in this repo calls "a session that started in the terminal": half an hour into some other piece of work it turns out this conversation *is* the work, and it should end up filed the way one started from the board would be.
 
-**Read `~/Code/to-dos/PA.md` first.** It holds where the list lives and how `data/<dataset>` is resolved. This skill does not repeat that.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first.** It holds where the list lives and how `data/<dataset>` is resolved. This skill does not repeat that.
 
 ## Why this cannot just edit todo.md
 
@@ -50,8 +50,8 @@ If that comes back empty, say so plainly and stop — this only works run from i
 
 It does not start a conversation, rename one, or open the board. It does not touch todo.md, sessions.json, or anything else directly — see the routes and the queue reader in `AI-CANVAS.md` for exactly what the board does with the request once it is queued, if that ever needs debugging.
 
-It does not offer to attach to a task that does not exist yet. If the work genuinely has no task, that is a `pa-checkin` job — add the task first, then run this again.
+It does not offer to attach to a task that does not exist yet. If the work genuinely has no task, that is a `pa` job — add the task first, then run this again.
 
 ## Tone
 
-One exchange: show the list, take the answer, confirm. Not a check-in, not a review — see `~/Code/to-dos/PA.md` for the tone that applies everywhere else on this list, and keep this shorter than that.
+One exchange: show the list, take the answer, confirm. Not a check-in, not a review — see `~/Code/to-dos/agents/pa_agent/PA.md` for the tone that applies everywhere else on this list, and keep this shorter than that.

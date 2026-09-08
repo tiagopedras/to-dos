@@ -169,3 +169,33 @@ function addSub(t){
   markDirty();
 }
 
+/* ---- A note on one step ----
+   A step already carries whatever is indented deeper than its own bullet — a
+   Suggested message, a Prompt, or just a line of plain prose saying what
+   happened. splitBody (core/todo.js) works this out per step already, for the
+   suggestion panels; this walks the same rule — deeper-indented lines belong to
+   the step above them — to find the exact range in the body so it can be
+   edited and written back in place, without touching anything before or after
+   it. No format change: this exposes what a step could already carry, it does
+   not add a new kind of line. */
+function stepNoteRange(t, lineIdx){
+  const base = leadIndent(t.body[lineIdx]);
+  let end = lineIdx + 1;
+  while (end < t.body.length && /^\s+\S/.test(t.body[end]) && leadIndent(t.body[end]) > base) end++;
+  return { start: lineIdx + 1, end, base };
+}
+function stepNoteText(t, lineIdx){
+  const { start, end, base } = stepNoteRange(t, lineIdx);
+  const re = new RegExp('^ {1,' + (base + 2) + '}');
+  return t.body.slice(start, end).map(l => l.replace(re, '')).join('\n').replace(/\n+$/, '');
+}
+function setStepNoteText(t, lineIdx, text){
+  if (state.locked) return;
+  const { start, end, base } = stepNoteRange(t, lineIdx);
+  const pad = ' '.repeat(base + 2);
+  const body = text.replace(/\s+$/, '');
+  const lines = body === '' ? [] : body.split('\n').map(l => l.trim() === '' ? '' : pad + l);
+  t.body.splice(start, end - start, ...lines);
+  markDirty();
+}
+

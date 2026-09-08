@@ -140,6 +140,16 @@ $('#urgentFilter').onchange = e => { state.urgentFilter = e.target.checked; clos
    which recomputes it from scratch — so a tick moves the card out of Quick wins
    and into its done state everywhere at once, with nothing to keep in step. */
 $('#lists').addEventListener('click', e => {
+  // preventDefault since the button sits inside a lane's <summary> — without
+  // it, the click also toggles the lane collapsed/open, which is not what a
+  // sort click means.
+  const sortBtn = e.target.closest('[data-tlsort]');
+  if (sortBtn) {
+    e.preventDefault();
+    sortTimelineLane(sortBtn.dataset.tlsort);
+    return;
+  }
+
   const toggle = e.target.closest('[data-tltoggle]');
   if (toggle) {
     const id = toggle.dataset.tltoggle;

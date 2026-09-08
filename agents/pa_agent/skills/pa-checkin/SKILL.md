@@ -1,103 +1,68 @@
 ---
 name: pa-checkin
-description: Run a review-and-update session over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), the one organised into People, Design oversight, Design System and Strategic buckets. Use this whenever he wants to review, update, re-prioritise, tick things off, add tasks, or check what is due on that list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "update my to-do list", "what's due this week", "I finished X", "add this to my list", "re-prioritise my tasks", "what should I be working on", or "let's go through my buckets". Also use it when he reports progress on a specific task without naming the file, since that progress needs recording, when he asks to optimise, streamline, cut down, automate or reduce his workload rather than just reorder it, and when he asks for the message, email or Slack note that goes with one of these tasks. Also use it to prepare for one of his recurring meetings, which each carry a script he wrote in the list's Context section, including phrasings like "get me ready for the Anu 1:1", "what do I need to raise on Wednesday", "write the agenda for my one-to-one", "prep my 1:1", "topics for the DS working group", or when he names a standing meeting and a day. Do not use it for building a new list from scratch for someone else, or for unrelated task tracking in other files.
+description: Run the daily check-in over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). It pulls anything new his meeting recorder captured, reads the list, gives him the brief for the day and the week rendered from a template he edits, asks what has moved, and hands the writing to the pa skill. Use it whenever he asks for a check-in or a status read on the list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "brief me", "what's on my plate", "what's due this week", "what am I doing today", "where am I", "what did I miss", or "let's go through my buckets". Do not use it for a change he has already decided on, which is the pa skill on its own, for the backlog sweeps, which are pa-checkout and pa-focus, or from a phone, which is pa-mobile.
 ---
 
-# PA check-in
+# The daily check-in
 
-This skill runs the review-and-update session over the owner's master to-do list.
+The morning session over the list: what came in overnight, what today and this week look like, what has moved, and whether the one thing still holds.
 
-**Read `~/Code/to-dos/PA.md` first, every session, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Everything below assumes both have been read, and does not repeat them.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, every session, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Everything below assumes both have been read, and does not repeat them.
 
-## How to report back
+**This skill does not write `todo.md`.** It reads, it reports, it asks, and it hands what he agreed to `pa`. That skill owns the tag syntax, the scores, the agendas, the checker and the Reload line, in one copy, so there is one place a convention can be wrong. Invoke it with the Skill tool at the end of the session and let it finish before you close.
 
-Short bullets, simple sentences, every time. He reads these between meetings and has no time for prose.
+## What a check-in is for
 
-Every reply about the list has the same three parts:
+The value is in the three things he cannot easily do himself: the pull, the brief, and the headline check. The middle of the session, applying what he tells you, is the cheap part.
 
-1. **What changed.** One bullet per change, plainly worded. "Ticked off the probation pack." "Moved the theme audit to next Friday."
-2. **What moved underneath it.** Only what he did not ask for and needs to know: a blocker he ticked that freed three other tasks, a date that now lands in someone's leave, something the checker flagged. One bullet each, and skip the part entirely when there is nothing.
-3. **Pending topics.** One line at the end, a count and nothing else: `3 topics pending.` Never list them.
+On a quiet morning where nothing has changed, moves 1, 2 and 3 are the whole session: nothing came in, here is the day, the headline still holds. Do not manufacture work to fill the rest.
 
-That is the whole reply. No preamble, no restating what he just told you, no explaining which tag went on which line, no mention of the checker, the file or the board. He can see the file and the board.
+## Move 1: pull what came in
 
-**Every task title in the reply is a link to its card.** The format and the rules are in `PA.md`, under every task named in a report is a link. That covers the status read in move 1 and the closing report in move 6 as much as anything in between.
+**Once a day, before you read the file.** The recorder holds actions from his calls that are not on the list yet, and a brief taken over a list that is missing them is a brief of the wrong list.
 
-**Pending topics are things to discuss, not things to do.** An optimisation you spotted, a task that has not moved in three sessions, two tasks worth merging, a headline that looks wrong. Count them and stop. He will follow up if he wants them, and then you give him one at a time.
+Look at the `Meeting actions last pulled` line in the header of todo.md. If that timestamp is not from today, invoke `pa-retrieve-tasks` and let it finish before carrying on. Do not pass it a window: it reads that same line and pulls from there to now, so whatever it has not shown him yet is exactly what comes back, however long the gap. That is what carries a Monday over the weekend, and a call late on Friday afternoon is exactly the one he has not seen yet.
 
-Two things are never pending topics, because they hold the work up rather than extend it:
+`pa-retrieve-tasks` reviews what it finds with him one item at a time, so on a day with actions waiting this becomes the opening part of the meeting rather than a background step. That is the right order: settle what is on the list before reading the list back to him. On a day with nothing waiting it should cost one line, or nothing at all.
 
-- **A question you need answered to finish the edit** — a task nothing on the list can score against, a date you would otherwise be inventing. Ask it in one line, at the end, above the count.
-- **A failure** — the checker still flags something, an edit could not be made, you assumed a date. Say it plainly and give it the room it needs. That is the one thing he cannot find out by looking at the board.
+Run it a second time in the same day only when he asks, after a call that has just ended for example.
 
-## The job is optimisation, not ordering
+## Move 2: read
 
-Act as his personal assistant, not as a filing system. Reordering a list he already wrote is the least valuable thing this skill can do, because he can do that himself in thirty seconds. The value is in reducing the total amount of work he has to do, and in making each remaining task cheaper to start.
+Read `data/.current`, then that dataset's `todo.md`, including the `## Context` section at the bottom. Context holds who is who, who is on leave and whose contract runs out when. It also holds `### How I want messages and prompts written` and `### Recurring meeting prep scripts`, both his own words, and both override anything in the reference files wherever they disagree.
 
-Every session, look for these and raise them without being asked:
-
-**Work that should not be done at all.** A task that has sat untouched for three sessions, or whose reason no longer holds, or that exists because of a decision that has since changed. Say so and offer to cut it. Cutting one real task beats reordering ten.
-
-**Work that can be handed over.** Anything currently `ai:none` or `ai:partial` that could move to `ai:full` now that something else exists, for example a rubric being defined, a snapshot being taken, a format being settled. Retag it, say why, and write its prompt and its `rank:` onto the task in the same move, since Delegate to Claude is generated from those two. Also offer to just do the `ai:full` work in this session rather than leaving it queued, since a delegable task sitting in a Delegate list is not actually delegated.
-
-The reverse matters as much. When something moves **off** `ai:full` back to `ai:partial` or `ai:none`, delete its prompt and its `rank:` at the same time. A prompt left on a task he has taken back reads as a standing instruction to hand it over, and the next session will believe it. The board does this automatically when the tag is changed there.
-
-**Work that is really several tasks, or several that are really one.** An L-effort task with no sub-steps usually means he cannot start it because the first step is undefined. Break it down. Two tasks that touch the same file, the same person or the same meeting usually want merging or at least batching.
-
-**Work that is bigger than it needs to be.** Ask what the smallest version that still gets the outcome is. A theme scoped to token modes rather than full RTL, a report that reuses an existing format rather than inventing one, a doc that borrows someone else's structure. Propose the smaller version and name what is being given up.
-
-**Work that repeats.** Anything he will do again on a cycle should become a recurring task, a scheduled task, or a skill, rather than being retyped every few weeks. Both probation packs are the clearest example: the second one is the first one with different names in it.
-
-**Friction sitting in front of a task.** A step waiting on a connector, a paired bridge, a named data source, or a message he has not written. Remove the friction rather than rescheduling the task. This is why contact steps carry pre-written messages, see the suggested messages section in the conventions.
-
-**Sequencing that wastes waiting time.** Something scheduled after a blocker where the prep work could happen before it. A contractor cover paper is the pattern: the conversation waits on a person being back, the paper does not, so the paper moves earlier and the conversation becomes a decision rather than a briefing.
-
-Find them every session, but keep them out of the reply. They are pending topics: count them on the last line and wait to be asked. When he does ask, give one at a time, as a concrete offer rather than an observation — "this one has not moved in three sessions, cut it or break it down?" is useful, "you may want to review your backlog" is noise. Hold the count to the two or three strongest, since a count of nine is a lecture with a number in front of it. Never bundle an optimisation into the file as though he agreed to it.
-
-## The session shape
-
-A check-in has seven moves. Do not skip straight to editing, because most of the value is in the status read at the start, the optimisation pass, and the headline check, which are the three things he cannot easily do himself.
-
-On a quiet morning where nothing has changed, moves 1 and 5 are the whole session: read the status, confirm the headline still holds, done. Do not manufacture work to fill the others.
-
-Move 3b, the recurring meeting agendas, is the one exception to that: it fires off the calendar rather than off anything having changed, so a quiet morning the day before a standing 1:1 still has an agenda to write.
-
-**When he only asks for the meeting prep** — "get me ready for the Anu 1:1", "what do I need to raise on Wednesday" — moves 1 and 3b are the whole session, and the reply is the agenda. Do not run a full review around it.
-
-### 1. Read and report
-
-**Name the session first**, as described in the first thing every session does, above.
-
-**Pull today's meeting actions before you read the file, once a day.** The recorder holds actions from his calls that are not on the list yet, and a status read taken over a list that is missing them is a status read of the wrong list. Look at the `Meeting actions last pulled` line in the header of todo.md. If that timestamp is not from today, run the `pa-retrieve-tasks` skill and let it finish before carrying on with the read below. Do not pass it a window: it reads that same line and pulls from there to now, so whatever it has not shown him yet is exactly what comes back, however long the gap. That is what carries a Monday over the weekend, and a call late on Friday afternoon is exactly the one he has not seen yet. Run it a second time in the same day only when he asks for it, after a call that has just ended for example.
-
-That line is written by this skill and by `pa-retrieve-tasks`, never by him, and it is not the same thing as `Last updated`. Set it to today's date once the pull has actually run, whether or not it found anything, because a pull that found nothing has still answered the question for today. If the line is not there at all, treat it as never pulled, pull, and write it back directly under `Last updated`.
-
-`pa-retrieve-tasks` reviews what it finds with him one by one, so on a day with actions waiting this becomes the opening part of the meeting rather than a background step. That is the right order: settle what is on the list before reading the list back to him. On a day with nothing waiting it should cost one line, or nothing at all.
-
-**Do not ask whether the board is open.** Start reading and editing straight away. He knows the board is there and asking every session costs a turn to be told yes or no. What the risk actually needs is the **Reload** line in move 6, which is already there: the board holds his edits in the browser until he presses Save and writes the whole file when he does, so a save from a stale board overwrites your work. Telling him to Reload afterwards closes that off. If he says mid-session that he has unsaved work on the board, stop and let him Save first.
-
-Read todo.md, including the `## Context` section at the bottom, which holds who is who, who is on leave and whose contract runs out when. It also holds `### How I want messages and prompts written`, his own rules for that, and those override the conventions file wherever the two disagree. He can edit that section on the board and cannot see the conventions file, so his copy is always the current one. Then run the checker:
+Then run the checker:
 
 ```bash
-python3 ~/Code/to-dos/agents/pa_agent/skills/pa-checkin/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
+python3 ~/Code/to-dos/agents/pa_agent/skills/pa/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
 ```
 
-Then open with a short status. **Lead with the headline in one line**, since that is the answer to "what am I doing today". Then what is time-critical, because that is what he is scanning for next:
+Work out everything the brief needs before rendering anything:
 
-- The current headline, how many days it has been set, and whether it is solved
+- The headline, its bucket, how many days it has been set, its first unticked sub-step, and whether it is solved
 - Anything overdue, with how many days
-- Anything due in the next five working days
-- Anything that has slipped since the file was last updated, inferred from the `Last updated` date against today
+- Anything due today, tomorrow and inside the working week
+- Anything that has slipped since `Last updated`, inferred from that date against today
 - Anything in Context whose date has passed or is close, since a leave date nobody is counting is how a plan ends up depending on somebody who is not there
-- Any recurring meeting happening today or tomorrow, and whether its agenda is written. One line, and it is the one line that turns into work in move 3b
-- Anything the checker flagged
-- How many tasks still have no impact or no effort score, as a count only
+- Any recurring meeting today or tomorrow, and whether its agenda is written
+- What the checker flagged
+- How many tasks have no impact or no effort score
 
-Keep this to a handful of bullets. If nothing is overdue, say so in one line and move on rather than listing everything that is fine.
+**Do not ask whether the board is open.** Start straight away. The risk that question is aimed at is closed off by the Reload line `pa` gives him at the end.
 
-**If the headline still holds and nothing is overdue, this is a two-line status.** That is the normal morning, and it should read like one.
+## Move 3: the brief
 
-### 2. Ask what has changed
+**Render it from a template.** `templates/` holds one file per shape of brief. Read the whole folder at the start of the session, because he adds and edits these and the folder is the current set, not the list in this file.
+
+Pick by what he asked for, using the `use:` line in each template's frontmatter. When two fit, pick the shorter one. When nothing fits, say so in one line and ask which he wants rather than inventing a shape, and note that a template for it is worth writing.
+
+**Render it exactly.** The template owns the order, the headings and the wording. Fill the placeholders and change nothing else. The `lines:` number in the frontmatter is a hard ceiling: if what you have to say does not fit, cut the least important line rather than running over, and end with `+3 more` so he knows there was more.
+
+The syntax, the blocks and every field available are in `~/Code/to-dos/agents/pa_agent/skills/pa/references/templates.md`. Read it before rendering for the first time in a session. Two rules matter enough to repeat: a placeholder with nothing to fill it drops its whole line rather than printing an empty one, and a template asking for a field that does not exist is a failure to report plainly, not something to quietly approximate.
+
+Send the brief on its own. No preamble in front of it and no summary after it, since the brief already is the summary.
+
+## Move 4: ask what has changed
 
 Ask what has moved since the last session. Two useful shapes, pick by context:
 
@@ -106,203 +71,38 @@ Ask what has moved since the last session. Two useful shapes, pick by context:
 
 Do not ask about every task. Ask about the states that matter: what is in Doing, and anything with a date inside the next fortnight.
 
-### 3. Apply the updates
+Straight after the brief, offering the obvious moves as choices is often faster than an open question: tick the headline's next step, move a date, write the agenda for the meeting that is coming, nothing for now. **"Nothing for now" is always one of the options.** Most mornings he wanted the brief and that is all.
 
-Use `Edit` on the specific lines. Rewriting the whole file for a two-line change risks losing notes and burns tokens for no gain. Reserve a full rewrite for a genuine restructure, like adding a bucket or moving most of a section between states.
+## Move 5: the headline
 
-**There are no sections to rebuild.** The file is four buckets and nothing else. This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude were removed on 10 Aug 2026 and are now worked out by the board every time it renders. Never add them back as text: a section in the file is a copy, and a copy has to be maintained by hand every session or it starts describing a file that has moved on. That is the exact failure this change removed.
+Check it, do not re-pick it. Most mornings this is one line and one question.
 
-Three of them also exist in `data/views.md`, which Obsidian regenerates from the tags with Dataview. That is a different thing from a section in todo.md: nothing writes it by hand, so it cannot fall behind. Never edit it, and never rebuild it in this session — changing the tag on the task is the whole of the update.
+**If it still holds**, say so and stop. Do not re-open the choice because something newer looks shinier.
 
-So the whole update is the tag:
+**If it is solved or blocked**, that is a pick, and picking is `pa`'s job under tier two: count what waits on each candidate, look for what a candidate makes unnecessary, prefer something he can finish this week. Pass it over with the reason it is no longer the headline.
 
-| To change this | Set this on the task |
-| --- | --- |
-| How much it matters, how heavy it is | `[impact:: high\|med\|low]` plus `[effort:: S\|M\|L]` |
-| When it must be finished | `[due:: YYYY-MM-DD]` |
-| What Claude does | `[ai:: full\|partial\|none]`, plus `rank:N` where it is full |
-| When it can first be started | `start:YYYY-MM-DD`, only where something real gates it |
-| The one thing for now | `headline:YYYY-MM-DD`, the date it was set |
-| What is in this week | `week` |
-| What blocks what | `blocked-by:slug`, and `#slug` on the blocker |
-| The message he sends | a `Suggested message:` note on the step |
-| The prompt he pastes | a `Prompt:` note on the step |
-| The ticket he raises | a `Jira (DSYS\|WADE):` note on the task or step |
-| Where its context lives | a `Project:` note on the task, naming a folder under `data/projects/` |
-| How often it comes round | `repeat:wed`, `repeat:wed-9:15`, `repeat:15`, `repeat:wd5`, `repeat:tue2`, or any with a `~` |
-| The topics he takes into a recurring meeting | an `Agenda:` block on the task |
+## Move 6: hand it to pa
 
-**The first three are written in brackets with a double colon, the rest in backticks.** Not a style choice: Dataview cannot read inside a code span, and impact, effort, due and ai are the four the queries in views.md need to rebuild Quick wins, Big rocks and Delegate to Claude. Writing one of those four as `` `due:2026-08-21` `` still parses everywhere in this repo but drops the task out of every Obsidian view, silently. `scripts/check_todo.py` flags it as a FIX. The older form is still read, so nothing has to be converted on sight — but never write it.
+Invoke `pa` with everything he agreed to in one list: the task, what changes, and anything you know that the file does not show. It applies the changes under the conventions, runs the optimisation pass on the file as it now stands, re-runs the checker, stamps `Last updated`, reports in its own short shape, and closes with the Reload line.
 
-All of these work on sub-steps as well as tasks, and usually belong there. Half of any given week is sub-steps, and the prompts mostly sit on steps rather than whole tasks. `#slug` on a step works too, so a step can be the thing other tasks wait on.
+Do not write anything yourself first, including `Last updated` and the watermark. `pa-retrieve-tasks` owns the watermark's value and `pa` owns the writing.
 
-**Every new task gets tier one applied in the same edit that creates it.** A task added without both scores is an unscored task he has to come back to, which is the friction this skill exists to remove. Suggest, name the comparison, and only ask when nothing is close.
-
-**A new task never lands in Doing unless he said he is doing it.** Doing is a statement about right now, and filling it on his behalf turns it into a wish list — which is how the state stops meaning anything. Only put a new task there when he says he has started it, is working on it, or is in the middle of it. Everything else goes to **To do** when it is scored high enough or dated inside the next few weeks to be next up, and **Backlog** when it is real work with no time pressure yet. If it genuinely sits on the line, put it in To do and say which one you chose in its line of the report. A `due:` date inside the next fortnight does not by itself justify Doing; it justifies To do plus the date.
-
-**Reporting back when he adds tasks.** One line per task: the title, its bucket and state, and the two scores — "Chase HR on the form — People, To do · med impact · S". Then anything that moved underneath, if anything did, then the pending count. Nothing else.
-
-If you scored a task yourself, say the scores in that line and name the comparison in a few words: "same as the sign-off chase". If you could not score it — nothing on the list is close, or the effort needs a first step defined — leave the scores out and end with one question asking him to score those tasks. Do not guess to avoid asking, and do not write the task in without scores and stay quiet about it.
-
-**Only one `headline:` in the file.** Setting a new one means clearing the old one in the same edit. Two headlines is the same failure as a week with two priorities.
-
-Three things still need judgement rather than a tag:
-
-- **Capacity.** No more than two M-effort items tagged `week`. The checker counts them but will not decide. If three are competing, say so and ask which one loses the tag rather than listing all three.
-- **Untagging.** Dropping `week` from something that slipped is the edit nobody makes. Do it explicitly at the end of a session, or the tag becomes a record of intentions.
-- **A blocked quick win.** Quick wins leaves out anything waiting on an unfinished blocker or a `start:` that has not arrived, because he cannot act on either. So a wrong or stale gate does not just mislabel a task, it hides it. When you tick a blocker, check what it was blocking in the same move.
-- **Which of the two dates you are setting.** `due:` is the deadline. `start:` is the earliest it can begin. Asking "is this a deadline, or the day it becomes possible?" takes one line and stops the two collapsing back into one. Where the gate is another task, use `blocked-by:` rather than guessing a date — it updates itself when the blocker is ticked.
-
-Write or refresh the suggested message on every live contact step you touched. Anything with a message on it shows up in Quick wins automatically, whatever its parent's effort tag says, so there is nothing to promote by hand any more.
-
-**Write the agenda for any recurring meeting that has one coming.** See the recurring meetings section below for how. Do it in the session rather than raising it as a topic: the whole point of a standing meeting is that it does not need deciding, and an agenda he has to ask for is one he prepares in the ten minutes before the call.
-
-**A task that belongs to a project points at its folder.** Work carrying more context than a line can hold keeps a folder in `data/projects/<name>/`, and the task names it in a `Project:` note. Read that folder's `CLAUDE.md` before you touch the task, since it holds the background and the decisions already taken, and write the pointer onto any new task that joins the project. The board reads the note and offers a panel showing every task on the same folder, which is the only place the whole of a project is visible — a task without the note is missing from it. The conventions cover when a folder is worth creating and what goes in it.
-
-Write a `Jira` note on anything whose real work is raising a ticket — a component contribution, a gap an audit turned up, a request to another team. The board turns it into a button that opens Jira's create form with the summary in place. **Never raise the ticket yourself.** He presses Create, on the form, with the summary in front of him; a ticket landing on a shared board without that is worse than no ticket. The conventions cover which board key to use and how to write the summary.
-
-Finally, set **Last updated** to today.
-
-### 3b. Recurring tasks, and the meetings among them
-
-Some of the list comes round on a cycle rather than being finished once: the standing 1:1s, the monthly AOP status update. Those carry `` `repeat:` `` and the board keeps their dates for them. The meetings among them also carry an agenda, and writing it is the work in this move.
-
-**How a recurring task works, so you do not fight the board over it.** One tag and one card.
-
-```
-- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
-```
-
-`repeat:wed` is every Wednesday, `repeat:wed-9:15` adds the time, `repeat:15` is the 15th of every month, `repeat:wd5` is the fifth working day of every month — for something dated by working days rather than by the calendar, which the AOP status update is — and `repeat:tue2` is the 2nd Tuesday of every month, for something pinned to a weekday rather than a day of the month, taking a time the same way: `repeat:tue2-15:00`. A `~` in front of any of them, `repeat:~fri-15:00`, says the day is the usual shape rather than a rule, for a meeting that is real but gets rebooked. `[due:: ]` is the occurrence the card is currently pointing at.
-
-The board owns that date. On load, once the date on the card has passed, it moves it to the next occurrence, unticks the card, and files the agenda that was on it as `Previous agenda (that date):`. So:
-
-- **Never hand-edit `[due:: ]` on a recurring task** to move it to the next cycle. The board has already done it or is about to, and two writers on one date is how it ends up a week out.
-- **Never delete or rewrite a `Previous agenda` note.** The board writes it and replaces it each cycle. It is there to be read, which is the point of reading it before writing the next agenda.
-- **The tick means "prepared", not "the meeting happened".** On a recurring meeting the card is the prep, so tick it once the agenda is written. It drops out of Quick wins and comes back unticked after the meeting.
-- **A meeting that moved is a date edit, not a rewrite.** When he says a 1:1 has moved, change `[due:: ]` to the new day and stop — the roll only fires on a date in the past, so a card dated forward keeps its agenda and its tick untouched. Do not rebuild the agenda, and do not touch `Previous agenda`.
-- **An agenda on an unticked card is still pending.** The board carries it forward rather than archiving it, on the grounds that an unticked card is prep that never happened. So a carried agenda holds topics that have not been raised yet: read it, keep what still matters, and say in the report that it came over from a meeting that did not happen.
-- **Sub-steps roll too**, and so do their dates. A step's tick comes off with the parent's, and any `[due:: ]` or `start:` on it moves by the days the parent moved, since those are offsets from the occurrence. So a "send the nudge two days before" step keeps meaning that. Never re-date a recurring task's steps by hand.
-- A recurring task with no `[due:: ]` gets one from the board. Do not invent one.
-- The `repeat:` tag goes on the task, never on a sub-step. The checker flags that as a FIX.
-
-**Making something recurring.** He names it. Add the tag and let the board date it. Do not convert a task to recurring on your own judgement — it changes what ticking it means, which is his call. The probation packs look recurring and are not: they follow a person's start date, not the calendar.
-
-**His script is the brief for a meeting, and it is his to write.** `## Context` in todo.md carries `### Recurring meeting prep scripts`, one line per meeting in his own words: when it happens, what it is usually about, and what to check before it. Read it every session, the same way you read `### How I want messages and prompts written`. It is on the board where he can edit it, so his copy is always the current one — if it disagrees with anything here, his wins. Never rewrite a script to match what you did; if a script is missing something you had to guess at, say so as a question rather than editing it.
-
-**What to write.** An `Agenda:` block on the task. One bullet per topic, one bullet indented under it with the context:
-
-```
-  - Agenda:
-    - AOP2027
-      - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
-    - Personal objectives
-      - Shared 26 Aug, pending validation before adding to Sage.
-```
-
-No date on the note. `[due:: ]` on the task is the meeting date, and the board reads it from there — a date here would be the same fact twice.
-
-**What the Copy button produces**, and the shape you are writing towards. It is not the markdown above verbatim:
-
-```
-Wednesday, 2 September 2026
-
-Agenda
-- AOP2027
-  - Confirm the rescoped recommendation is agreed so the tracker update can go out, due tomorrow.
-```
-
-The date of the meeting in full, on its own line. A blank line. The word `Agenda` on its own line. Then the topics, both levels as bullets. The board builds that from the block and the task's date, and it also puts an HTML flavour on the clipboard so a paste into Google Docs keeps both levels as real bullets rather than as hyphens. Nothing about that is yours to write — write the block, and the format follows. It matters only because it tells you what the topics have to survive being read as: a heading and a list in somebody else's document.
-
-**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Anu 1:1 that means anything in Waiting review or due around the meeting date that touches her or her team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
-
-Rules for the writing itself:
-
-- **Both levels are bullets.** The topic is one bullet and its context is one bullet nested under it. Not a title with a paragraph, not a bullet with a sub-heading. That is the format he pastes and it is not negotiable.
-- **A few words as the title.** `AOP2027`, `Personal objectives`. It is a heading in somebody else's document, not a sentence.
-- **One context bullet, two at most.** Say what has moved, what is being asked for, and by when. If it needs a paragraph the topic is really two topics.
-- **Written neutrally, because they read the same notes.** No pronouns for the other person, no "she needs to", no "chase her on". Write it as the shared record of what the meeting covered, which is what it becomes.
-- **Nothing from the list that is not theirs.** The agenda is not a status report on his week. A task he is getting on with, and which needs nothing from them, stays off it.
-- **Say when a decision has a window.** "before the window closes in September" is the sentence that gets a decision made in the meeting rather than after it.
-- **Something that has not moved since the last meeting is not a topic**, and `Previous agenda` is how you can tell.
-- **Do not invent facts to fill a topic.** Leave `[fill in]` in the context bullet, the same rule as prompts and Jira summaries.
-- **Three to five topics.** A 1:1 is thirty minutes. More than five and the last two do not get discussed, which is worse than not raising them, because they now read as covered. The checker flags six.
-
-**Rewrite the block, do not append to it.** It holds the agenda for the date on the card and nothing else. Anything that came out of the last meeting becomes a task in the buckets, which is where actions live.
-
-
-### 4. Optimise
-
-Run the optimisation pass described above, on the file as it now stands rather than as it was at the start of the session. Do not put the moves in the reply: count them for the pending line and hold them until he asks. Apply whichever he then accepts. Nothing needs rebuilding afterwards, since the views follow the tags.
-
-Do this after the updates rather than before, because a task he has just ticked or re-dated often changes which optimisation is worth suggesting.
-
-### 5. The one thing
-
-Check the headline. Most mornings this is one line and one question, and then you move on.
-
-**If it still holds:** say so and stop. Do not re-open the choice.
-
-**If it is solved, or blocked:** pick the next one using tier two. Count what waits on each candidate, look for what a candidate makes unnecessary rather than only unblocked, and prefer something he can finish this week. Propose one, with the number of tasks it frees, and let him confirm. Then write `headline:` with today's date and clear the old one.
-
-**If there is no headline at all:** propose one. Do not leave the file without one for a second session — that is the tier falling out of use.
-
-Only ever propose one. Offering three candidates hands the decision back to him, and the point of this pass is that you did the counting.
-
-### 6. Verify and deliver
-
-Re-run the checker. Fix anything it flags before delivering, since handing over a file with a Saturday deadline in it wastes his time and undermines the point of the list.
-
-**The file is edited in place, on his disk.** Use `Edit` and it is already saved; there is nothing to upload, attach or commit. Earlier versions of this skill described a `SendUserFile` and `device_commit_files` handover, which belonged to a setup where the file arrived as an attachment. That does not apply here and following it wastes a turn on a tool that will not do anything useful.
-
-Always end by telling him to press **Reload** on the board, without asking whether it is open. The board read the file when it opened and will not notice your changes until it re-reads, and if he saves from a stale board he overwrites everything you just did.
-
-**If the session was only an add**, the closing report is the task list described in move 3, and nothing else.
-
-For a real review session, the closing report follows the three parts in how to report back, with the middle one filled in like this:
-
-1. **What changed** — grouped as added, edited, ticked off, cut. Counts and short titles only: "Added 2 · chase HR on the form, designer feedback follow-up". One line per group, not one line per task.
-2. **What to focus on next** — the headline, then anything with a date inside the fortnight. The headline is the answer to "what do I start with", so it does not need restating as a separate line.
-3. **Pending topics** — the count on its own line.
-
-That is the whole report. If an edit needed a judgement call he has not seen, that is one bullet under what changed, not a paragraph.
+**If nothing changed**, there is nothing to hand over. Say the headline holds and stop.
 
 ## Judgement calls that come up
 
-**He reports a bundled step as done, but only did part of it.** Split the line rather than ticking it. This happened with "ask for the nominee list, and send the achievements reminder" — the list arrived, the reminder had not been sent. Ticking the whole thing would have lost a real task. When a step contains "and", check both halves before ticking.
+**He only wants the meeting prep.** "Get me ready for the Anu 1:1", "what do I need to raise on Wednesday". That is not a check-in. Go straight to `pa`, which writes agendas, and skip everything here.
 
-**A new task has no date.** Do not invent one silently. Either leave it undated, or propose a date and flag it as your assumption so he can correct it. Inventing dates quietly makes the whole file untrustworthy.
+**He reports progress on one task and nothing else.** Also not a check-in. That is `pa` on its own, one change and one line back.
 
-**He adds something that duplicates existing work.** Say so and offer to merge, rather than creating a near-duplicate. Two tickets for the same thing is how the list stops being believed.
+**The recorder is unreachable.** Say so in one line, carry on with the brief, and leave the watermark alone. A pull that failed is not a pull that happened.
 
-**A task keeps rolling over without progress.** Name it once, without nagging. Three sessions untouched usually means it belongs in Backlog with a revisit date, or it needs breaking down because it is too big to start. Offer both readings and let him pick.
+**The brief would run past the template's `lines:`.** Cut from the bottom, keep the headline and anything overdue, and end with the `+N more` count. Do not reflow the template to make room.
 
-**He asks what to work on.** The headline is the answer. Give it in one line, then the runners-up: what is due soonest, what is blocking someone else, and what is `ai:full` and could be handed over instead of scheduled. That last one is often the most useful.
+**The file has not been touched in over a week.** Say so in the brief and go bucket by bucket in move 4. A stale file usually means several dates have quietly passed rather than one.
 
-**A new task obviously matters but the effort is unknowable.** Score the impact, and say plainly that the effort needs the first step defined before it can be guessed. Then define that first step as a sub-step. Do not guess L to be safe: an L with no sub-steps is the exact shape of a task he never starts.
+**The checker flags something that was already there when you arrived.** Put it in the brief once, in the `checker_flags` block, and leave it. Do not open the session with it.
 
-**The headline has not moved in two weeks.** Say it once. Either it is genuinely a big piece of work and wants breaking into steps, or it was the wrong pick and something else is really blocking him. Offer both readings and let him choose. Do not silently swap it.
+## Tone
 
-**A contact step is sensitive.** Probation outcomes, performance, salary, someone's contract. Still write the message, but mark it as a draft to edit rather than something to fire, and keep it shorter than you want to. The conventions cover the format.
-
-**A delegable task needs an input he has not given, a file path, a data source, a budget.** Write the prompt anyway with a `[bracketed]` gap in it, and name the gap when reporting back. A prompt held back until the input arrives is friction sitting in front of the task, which is the thing this skill exists to remove.
-
-**He asks for a message for something that is not in the file yet.** Add the task first, then the message. A message with no task behind it gets sent and then forgotten about, and nothing tracks whether the reply arrived.
-
-**He hands you a brief, a plan, a deck or a set of documents for one task.** That is a project, not a note. Put the files in `data/projects/<name>/`, write the background into a `CLAUDE.md` in there addressed to a session that has never seen this one, and leave a one-line `Project:` note on the task. Pasting the same context into the task every session is the thing the folder removes. Below that bar — one or two sentences, no documents — it stays a note, since a folder holding a sentence is worse than the sentence.
-
-**He mentions something about a person rather than about work.** Somebody going on leave, a contract ending, a new starter, a name he keeps seeing spelt wrong. That is not a task and should not become one, because it will sit in a bucket unticked forever. It goes in `## Context` with an `on:` or `until:` tag if there is a date. The test is whether he would ever tick it.
-
-## Where things live
-
-- `data/.current` — which dataset is live right now, e.g. `twinkl`. Read this first; everything below is relative to `data/<that name>/`, not the bare `data/` root. The board's own dropdown is what changes it.
-- `data/<dataset>/todo.md` — the list. `data/` holds every dataset and everything derived from each, and is the whole of what git ignores. The four buckets, and the `## Context` section holding standing facts about people and dates. The only source of truth for both.
-- `kanban/index.html` plus `kanban/server.py`, launched by `board.command` at the root — the board. It reads and writes the current dataset's todo.md, and works out This week, Quick wins, Big rocks, Dependency chain and Delegate to Claude from the tags. Those five exist nowhere else.
-- `data/<dataset>/projects/<name>/` — one folder per project, holding the background in a `CLAUDE.md` and the source documents beside it, for work carrying more context than a task line can hold. Private like everything else in `data/`. The tasks stay in todo.md and point at the folder; the folder never holds a task list.
-- `~/Code/to-dos/PA.md` — standing behaviour: who he is, where the list lives, the two tiers of prioritisation, the standing rules and the tone. Read every session, before the conventions.
-- `~/Code/to-dos/CONVENTIONS.md` — the file format: buckets, states, tags, date rules, suggested messages, meeting agendas, capacity ceiling. Read this every session.
-- `references/audit-checklist.md` — what to check by hand that the script cannot, mostly dependency and state logic. Read before delivering after a large restructure.
-- `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
-- `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
-
-**Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
+See `~/Code/to-dos/agents/pa_agent/PA.md`. The brief is rendered rather than written, so the tone that matters here is everything around it: the question in move 4, the headline line in move 5. Keep both to one line each.

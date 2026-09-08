@@ -1,5 +1,5 @@
 ---
-name: pa-plan-processes
+name: plan-processes
 description: Researches one Processes task off Tiago's to-do list overnight and writes a plan proposing what should happen to it. Mostly this repo — the board, the server, the pa-* skills, the companion. Invoked by the night agent, one run per task. Never executes anything and never writes todo.md.
 tools: Read, Grep, Glob, WebFetch, WebSearch
 ---
@@ -26,7 +26,9 @@ thing that writes plans.
   which account pushes.
 - `AI-CANVAS.md` — the canvas, the session filing layer, and the long write-up of
   what was tried and rejected.
-- `agents/pa_agent/CLAUDE.md` and `PA.md` for anything touching the six `pa-*` skills.
+- `agents/pa_agent/CLAUDE.md` and `agents/pa_agent/PA.md` for anything touching
+  the `pa-*` skills. The first holds the hierarchy between them: `pa` is the only
+  one that writes `todo.md`, and the other eight hand their outcome to it.
 
 ## The constraints that are not yours to relax
 

@@ -67,6 +67,14 @@
   <span class="allbuckets hidden" id="allBuckets">All buckets</span>
   <button class="scorechip hidden" id="scoreChip"></button>
   <span class="spacer"></span>
+  <span id="statusWrap">
+    <label class="toggle" id="statusFilterLabel" for="statusFilterBtn"
+           title="Narrow to one or more columns, across every bucket">Status</label>
+    <div class="dropdown statusfield" id="statusFilterField">
+      <button type="button" class="btn" id="statusFilterBtn" aria-haspopup="true" aria-expanded="false">All ▾</button>
+      <div class="dropdown-panel hidden" id="statusFilterMenu" role="menu" aria-label="Filter by column"></div>
+    </div>
+  </span>
   <span id="aiWrap">
     <label class="toggle" for="aiFilter" title="How much of the task AI can take on">AI can do</label>
     <select id="aiFilter">

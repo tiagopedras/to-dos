@@ -45,7 +45,8 @@ import windows  # noqa: E402
 # rather than quietly planned by a generalist.
 # Bucket heading -> the stream it belongs to. One table rather than two,
 # because everything per-bucket is named off this: the planning agent is
-# `pa-plan-<stream>`, and the bucket brief is `buckets/<stream>/<stream>.md`.
+# `plan-<stream>`, beside this file, and the bucket brief is
+# `buckets/<stream>/<stream>.md`.
 # A second table keyed the same way is a second thing to keep in step, and the
 # headings move — People, BAU, DS, Strategic and Processes are what the file
 # says today, and the four in CONVENTIONS.md are what it said in August.
@@ -61,7 +62,7 @@ STREAMS = {
     "process": "processes",
 }
 FALLBACK_STREAM = "general"
-FALLBACK_AGENT = "pa-plan-general"
+FALLBACK_AGENT = "plan-general"
 
 # The line every bucket brief ships with, and the one line that has to come out
 # before the brief counts as written. See BUCKETS.md.
@@ -103,7 +104,7 @@ def bucket_stream(bucket):
 
 
 def bucket_agent(bucket):
-    return "pa-plan-%s" % bucket_stream(bucket)
+    return "plan-%s" % bucket_stream(bucket)
 
 
 def bucket_brief(bucket):

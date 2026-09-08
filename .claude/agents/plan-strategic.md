@@ -1,0 +1,1 @@
+../../agents/night_agent/plan-strategic.md

@@ -1,11 +1,11 @@
 ---
 name: pa-review-plans
-description: Go through the plans the night agent wrote against the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one plan at a time, and turn his reaction to each into a note on the task it belongs to. Use whenever he asks what the agent came up with overnight, what is waiting on the Plans tab, to go through, read, review, assess or triage the plans, or says something like "what did it plan", "any good plans this morning", "let's go through last night's", "review the overnight plans", "what's the agent suggesting", or names one task and asks what the plan for it says. Also use when he wants to tell the agent it got something wrong, since the way to do that is a note on the task and this is the skill that writes one. Do not use it to run the night agent, which is the board's own Run now button, and do not use it for a general status read or re-prioritisation of the list, which is pa-checkin.
+description: Go through the plans the night agent wrote against the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one plan at a time, and turn his reaction to each into a note on the task it belongs to. Use whenever he asks what the agent came up with overnight, what is waiting on the Plans tab, to go through, read, review, assess or triage the plans, or says something like "what did it plan", "any good plans this morning", "let's go through last night's", "review the overnight plans", "what's the agent suggesting", or names one task and asks what the plan for it says. Also use when he wants to tell the agent it got something wrong, since the way to do that is a note on the task and this is the skill that writes one. Do not use it to run the night agent, which is the board's own Run now button, and do not use it for a general status read of the list, which is pa-checkin, or for a re-prioritisation, which is pa.
 ---
 
 # Reviewing what the night agent proposed
 
-**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
 Read `~/Code/to-dos/agents/night_agent/README.md` too, at least the part describing what a
 plan is. A plan proposes and never executes, so nothing in this session is a
@@ -107,7 +107,7 @@ Where the plan needs nothing from him, ask whether it is right.
   he has already decided about.
 - **Reject the task, not the plan.** Sometimes reading a plan is what makes him
   realise the task should be dropped or reshaped. That is a change to the list,
-  not feedback on a plan — hand it to `pa-checkin` as an ordinary edit.
+  not feedback on a plan — hand it to `pa` as an ordinary edit.
 - **Nothing.** He has read it and has no reaction. Say so and move on. Do not
   manufacture a note to have written one; an empty note still changes the hash
   and buys a re-plan nobody wanted.
@@ -120,7 +120,7 @@ is turned into one of the outcomes above, say plainly what that means for the
 plan and the task before moving to the next one: the status it's being set to,
 and whether a note went on the task (and roughly what it says, not the full
 text). "Marked read, no note — nothing to change" is as valid a closing line as
-"Marked actioned, dropping the task via pa-checkin." He should never have to ask
+"Marked actioned, dropping the task via pa." He should never have to ask
 what just happened to something he reacted to.
 
 ## What this skill writes, and what it hands over
@@ -157,11 +157,11 @@ back to editing the frontmatter alone; a plan that says `read` against a ledger
 that says otherwise is worse than one still saying `unread`. The review itself
 carries on regardless — the notes are the part that matters.
 
-**The note on the task: hand it to `pa-checkin`.** This skill does not touch
-`todo.md`. Same reason as `pa-checkout` and `pa-retrieve-tasks`: one skill owns
-the file conventions and the checker, and a second path that edits the list by
-hand is how the two drift. Pass it the task titles and the note text and let it
-apply them, run the checker and stamp `Last updated`.
+**The note on the task: hand it to `pa`.** This skill does not touch
+`todo.md`. Same reason as `pa-checkout` and `pa-retrieve-tasks`: `pa` is the one
+writer, and a second path that edits the list by hand is how the two drift. Pass
+it the task titles and the note text and let it apply them, run the checker and
+stamp `Last updated`.
 
 The note is an ordinary note on the task, in the shape `CONVENTIONS.md` already
 describes, first line under the title line unless the task has a `Project:` note,
@@ -208,7 +208,7 @@ inside this pass. Finish the review, then pick it up as ordinary work.
 
 ## Tone
 
-See `~/Code/to-dos/PA.md`.
+See `~/Code/to-dos/agents/pa_agent/PA.md`.
 
 The count is a sentence. Each plan is a short block and one question. This is a
 conversation to move through quickly — the plans are already long, and the review

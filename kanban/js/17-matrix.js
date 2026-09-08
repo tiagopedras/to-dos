@@ -176,7 +176,7 @@ function matrixTasks(){
     if (!shownNames.has(b.name)) return;
     const color = bucketColor(b.name, bi);
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
-      if (t.done || !matches(t)) return;
+      if (t.done || !matches(t, tier.name)) return;
       const it = items.find(i => i.id === t.id && !i.sub);
       const blocked = !!it && !actionable(items, it);
       const waiting = tier.name === MATRIX_MUTED_TIER;

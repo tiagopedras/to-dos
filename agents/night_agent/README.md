@@ -112,10 +112,12 @@ These are known in three places and all three have to stay in step:
 `PLAN_STATUS` in `kanban/server.py`, the buttons in `kanban/js/13-plans.js`, and
 `is_stale()` in `agents/night_agent/pick.py`.
 
-The acting half is `execution-agent`, one agent for every bucket, run from a live
-session through the `pa-do` skill. It never runs on a schedule, and it never
-writes `todo.md`: a change to the list is asked for in its report and made by the
-PA agent, meaning the session running the `pa-*` skills. See `../CLAUDE.md`.
+The acting half is `execution-agent`, in `agents/execution_agent/`. There is one
+of it rather than one per bucket, because the per-bucket knowledge lives in the
+briefs both halves read. It runs from a live session through the `pa-do` skill,
+never on a schedule, and it never writes `todo.md`: a change to the list is asked
+for in its report and made by the `pa` skill. See `agents/execution_agent/README.md`
+and `../CLAUDE.md`.
 
 ## The bucket briefs
 
@@ -252,19 +254,23 @@ and exiting cleanly, which from a button is indistinguishable from starting.
 
 ## The sub-agents
 
-One per bucket, in `.claude/agents/` **in this repo** rather than `~/.claude/`,
-so they version alongside the runner that invokes them. They share
+One per bucket, `plan-<stream>.md` in this folder, symlinked into
+`.claude/agents/` **in this repo** rather than `~/.claude/`, so they version
+alongside the runner that invokes them. They moved in here on 7 Sep 2026 from the
+root of `agents/`, dropping the `pa-` prefix they had carried: they belong to the
+night agent rather than to the PA, and `bucket_agent()` in `plan.py` derives the
+name from the stream, so a rename means editing that one line. They share
 `PLAN-BRIEF.md`, which holds the output format and the rules; each definition
 adds what its bucket needs.
 
 | Bucket | Agent |
 | --- | --- |
-| People | `pa-plan-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
-| Design System | `pa-plan-design-system` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
-| Work oversight | `pa-plan-work-oversight` — who holds it, and what would move it |
-| Strategic | `pa-plan-strategic` — usually a decision wearing a task's clothes |
-| Processes | `pa-plan-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
-| anything else | `pa-plan-general` — the fallback, which says so in its output |
+| People | `plan-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
+| Design System | `plan-design-system` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
+| Work oversight | `plan-work-oversight` — who holds it, and what would move it |
+| Strategic | `plan-strategic` — usually a decision wearing a task's clothes |
+| Processes | `plan-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
+| anything else | `plan-general` — the fallback, which says so in its output |
 
 Buckets are renameable on the board, so the mapping in `plan.py` is by name with
 a fallback rather than a hard five. A task landing on the fallback is logged,
@@ -379,13 +385,13 @@ is the right number for something that spends money unattended.
 
 **Does Design System want splitting into its five streams?** It is much the
 biggest bucket: 14 of the 19 plans written on the first real night came from
-`pa-plan-design-system`. The split, if it happens, is along the streams the
+`plan-design-system`. The split, if it happens, is along the streams the
 bucket already has — ways of working, audits, improvements, documentation,
 enablement — which each task's first note line names, and which
-`pa-plan-design-system.md` already describes in one place. It is not a small
+`plan-design-system.md` already describes in one place. It is not a small
 edit: `STREAMS` in `plan.py` names both the agent and the brief, so five
 streams means five agent definitions and five brief files. The cheaper
-experiment is to fill in `buckets/design-system.md` first and see whether it
+experiment is to fill in `buckets/design-system/design-system.md` first and see whether it
 reads as one remit or five.
 
 **The Schedule view cannot show a run in progress.** Deferred deliberately. The

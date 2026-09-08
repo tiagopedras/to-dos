@@ -353,15 +353,82 @@ function depGroupHTML(g){
     '<div class="depcols">' + waiting + blocks + '</div>' +
   '</div>';
 }
+/* ---- One shape for every section in the drawer's second column ----
+   Chats, Project, Dependencies, the agenda, the two suggestion lists and Jira
+   all arrived separately and each drew its own heading — the chat list came
+   with the shared package's `aic-field`, faint and a size down, the Jira list
+   was a plain div that could not be put away at all, and the rest were
+   `field sugg`. Three headings for one kind of thing. This is that kind of
+   thing: a rule above it, a summary that collapses and remembers, and a count
+   when there is more than one. What differs between them is what goes inside,
+   which is the part that should differ. */
+function sideSection(label, key, body, count){
+  const k = 'sugg:' + key;
+  return '<hr class="dsep">' +
+    '<details class="field sugg" data-collapse="' + esc(k) + '"' +
+    (sectionCollapsed(k) ? '' : ' open') + '>' +
+    '<summary>' + esc(label) +
+    (count > 1 ? ' <em class="sublabel">' + count + '</em>' : '') + '</summary>' +
+    body +
+    '</details>';
+}
+
+/* The folder this task's work lives in, as a way into it rather than as a
+   field of the task: the note that names it stays where it was written, in
+   Description, and this is the same line shown properly. It sat ninth in the
+   left-hand column, under eight things it has nothing to do with and below the
+   fold on a real task; it belongs beside the conversations and the
+   dependencies, which are the other things about the task rather than of it.
+
+   The card is filled in by loadTaskProject() once the panel is up — what the
+   project is and when it was last touched are read off disk, and neither is
+   worth holding the drawer open for. */
+function projectSection(t){
+  const proj = taskProject(t);
+  if (!proj) return '';
+  return sideSection('Project', 'project',
+    '<div class="pcard" id="taskProjCard">' +
+      '<button type="button" class="pcbody" data-project="' + esc(proj) + '">' +
+        '<span class="pctitle">' + esc(proj) + '</span>' +
+        '<span class="pcblurb" id="taskProjBlurb"></span>' +
+        '<span class="pcmeta" id="taskProjWhen"></span>' +
+      '</button>' +
+    '</div>' +
+    '<span class="help">Everything on this project, and the documents behind it, ' +
+    'are in <code>data/projects/' + esc(proj) + '/</code>.</span>');
+}
+
+/* The two lines under the folder name, out of the same read the project drawer
+   does. Quiet about failure on purpose: this is a caption on a button that
+   already works, so a helper too old to answer leaves the name and nothing
+   else rather than an error where a sentence goes. */
+async function loadTaskProject(name, taskId){
+  let meta;
+  try {
+    const res = await fetch('/project.json?name=' + encodeURIComponent(name) + '&t=' + Date.now(),
+                            { cache:'no-store' });
+    if (!res.ok) return;
+    meta = await res.json();
+  } catch (err) { return; }
+  // The panel may have moved to another task, or to a project, while this was
+  // in flight — every openDrawer() on a task with a project starts one.
+  if (state.openTask !== taskId) return;
+  const blurb = $('#taskProjBlurb');
+  const when = $('#taskProjWhen');
+  if (blurb && meta.blurb) blurb.innerHTML = mdInline(meta.blurb);
+  if (when) {
+    const bits = [];
+    if (meta.file_count) bits.push(meta.file_count + ' file' + (meta.file_count === 1 ? '' : 's'));
+    const edited = cvWhen(meta.modified);
+    if (edited) bits.push('edited ' + edited);
+    when.textContent = bits.join(' · ');
+  }
+}
+
 function dependenciesSection(t){
   const groups = taskDependencies(t);
   if (!groups.length) return '';
-  const key = 'sugg:deps';
-  return '<hr class="dsep">' +
-    '<details class="field sugg" data-collapse="' + esc(key) + '"' + (sectionCollapsed(key) ? '' : ' open') + '>' +
-    '<summary>Dependencies</summary>' +
-    groups.map(depGroupHTML).join('') +
-    '</details>';
+  return sideSection('Dependencies', 'deps', groups.map(depGroupHTML).join(''));
 }
 
 /* ---- Messages and prompts written for this task ----
@@ -392,19 +459,13 @@ function suggestions(t){
 }
 function suggestionSection(label, list, opts){
   opts = opts || {};
-  const key = 'sugg:' + label;
   const body = list.length
     ? list.map(s => messageHTML(s.text, {
         where: s.where, draft: s.draft, claude: opts.claude, task: opts.task,
         dismiss: state.locked ? '' : s.raw
       })).join('')
     : '<p class="empty">' + esc(opts.emptyText || 'Nothing here yet.') + '</p>';
-  return '<hr class="dsep">' +
-    '<details class="field sugg" data-collapse="' + esc(key) + '"' + (sectionCollapsed(key) ? '' : ' open') + '>' +
-    '<summary>' + esc(label) +
-    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</summary>' +
-    body +
-    '</details>';
+  return sideSection(label, label, body, list.length);
 }
 
 /* The agenda for a recurring meeting, in the panel. Its own section rather than
@@ -419,17 +480,12 @@ function suggestionSection(label, list, opts){
    without a Copy, because its only job is to be read while the next is written. */
 function agendaSection(list, when, prev){
   if (!list.length && !prev) return '';
-  const key = 'sugg:agenda';
-  return '<hr class="dsep">' +
-    '<details class="field sugg" data-collapse="' + esc(key) + '"' +
-    (sectionCollapsed(key) ? '' : ' open') + '>' +
-    '<summary>Meeting agenda' +
-    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</summary>' +
+  return sideSection('Meeting agenda', 'agenda',
     list.map(ag => agendaHTML(ag, when, { where: ag.where })).join('') +
     (prev ? agendaHTML(prev, '', { prev:true }) : '') +
     '<span class="help">Copy takes the date, the word Agenda and both levels of ' +
-    'bullets, as bullets. The topics themselves are edited in Description.</span>' +
-    '</details>';
+    'bullets, as bullets. The topics themselves are edited in Description.</span>',
+    list.length);
 }
 
 /* Tickets waiting to be raised. Its own section rather than a third kind of
@@ -437,13 +493,13 @@ function agendaSection(list, when, prev){
    because which board it goes to is part of what the row has to say. */
 function jiraSection(list){
   if (!list.length) return '';
-  return '<div class="field sugg"><span>Jira tickets' +
-    (list.length > 1 ? ' <em class="sublabel">' + list.length + '</em>' : '') + '</span>' +
+  return sideSection('Jira tickets', 'jira',
     list.map(n => jiraHTML(n, {
       where: n.where, dismiss: state.locked ? '' : n.raw, dismissDesc: n.descRaw
     })).join('') +
-    '<span class="help">The link fills in the summary and the description. Nothing is raised until you press Create in Jira.</span>' +
-    '</div>';
+    '<span class="help">The link fills in the summary and the description. Nothing is ' +
+    'raised until you press Create in Jira.</span>',
+    list.length);
 }
 
 /* Turns one sub-step's text into an editable field in place. The row's drag
@@ -498,6 +554,7 @@ function editSubtext(span, t, lineIdx, id, opts){
 /* Adds a step and puts the cursor straight in it. Shared by the Add button and
    by Enter inside a new step, so both arrive in the same state. */
 function addStepAndEdit(t, id){
+  openStepNote = null;
   addSub(t);
   refreshView();
   openDrawer(id);
@@ -505,6 +562,14 @@ function addStepAndEdit(t, id){
   const last = spans[spans.length - 1];
   if (last) editSubtext(last, t, +last.dataset.line, id, { chain: true });
 }
+
+/* Which step's note box is open, as `<taskId>:<lineIdx>`, or null. Remembered
+   the same way the drawer's own width and the Description field's height are —
+   a preference about what is showing, not about one render of it, so it
+   survives the redraw a commit triggers. Reset on anything that can shift a
+   step's line index (adding, deleting, reordering), since a stale line number
+   would open the wrong row's box after one of those. */
+let openStepNote = null;
 
 function openDrawer(id, focusTitle){
   const loc = locate(id);
@@ -575,9 +640,28 @@ function openDrawer(id, focusTitle){
       '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
       '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
     '</details>' +
-    '<label class="field"><span>Bucket</span><select id="f-bucket"' + dis + '>' +
-      state.doc.buckets.map(b => '<option' + (b === loc.bucket ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
-    '</select></label>' +
+    /* A custom dropdown rather than a native <select> — an <option> cannot
+       carry the coloured dot the bucket filter pills at the top of the board
+       already draw (see bucketColor()/BUCKET_COLOR in 02-state.js), and this
+       is the one field on the whole card where "which bucket" is exactly the
+       thing that colour already stands for everywhere else. Reuses the
+       header's own .dropdown/.dropdown-panel/.dropdown-item — same
+       toggle-button-plus-popover shape the Data menu already uses — rather
+       than inventing a second popover component. */
+    '<div class="field"><span>Bucket</span>' +
+      '<div class="dropdown bucketfield">' +
+        '<button type="button" class="bucketbtn" id="f-bucket-btn"' + dis + '>' +
+          '<i class="dot" style="background:' + bucketColor(loc.bucket.name, state.doc.buckets.indexOf(loc.bucket)) + '"></i>' +
+          esc(loc.bucket.name) +
+        '</button>' +
+        (ro ? '' : '<div class="dropdown-panel bucketmenu hidden" id="f-bucket-menu" role="menu" aria-label="Choose a bucket">' +
+          state.doc.buckets.map((b, i) => '<button type="button" class="dropdown-item bucketopt' +
+            (b === loc.bucket ? ' on' : '') + '" role="menuitem" data-bucket="' + esc(b.name) + '">' +
+            '<i class="dot" style="background:' + bucketColor(b.name, i) + '"></i>' + esc(b.name) +
+          '</button>').join('') +
+        '</div>') +
+      '</div>' +
+    '</div>' +
     /* Full width rather than sharing a grid2 with Bucket: a column name like
        "Waiting review" needs the room a slider half that wide wouldn't give
        its label, where the old <select> never had to fit the whole word next
@@ -596,15 +680,6 @@ function openDrawer(id, focusTitle){
         '<span class="help">A name. Shows on the card.</span>' +
       '</label>' +
     '</div>' +
-    /* Read out of the notes below, and shown here as the thing it is. The note
-       itself stays where it was written — this is a way in, not a second copy. */
-    (proj
-      ? '<div class="field"><span>Project</span>' +
-          '<button type="button" class="projbtn" data-project="' + esc(proj) + '">' + esc(proj) + '</button>' +
-          '<span class="help">Its background and sources are in <code>data/projects/' + esc(proj) +
-          '/</code>. Click to see everything on it.</span>' +
-        '</div>'
-      : '') +
     /* Two dates, because one was doing two jobs. "Can start" is when the work
        becomes possible; "Due" is when it has to be finished. Quick wins reads
        the first and ignores the second. */
@@ -638,6 +713,8 @@ function openDrawer(id, focusTitle){
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
         const sd = dueInfo(s.due);
+        const note = ro ? '' : stepNoteText(t, s.line);
+        const noteOpen = !ro && openStepNote === (t.id + ':' + s.line);
         return '<div class="sub' + (s.done ? ' checked' : '') + '"' + (ro ? '' : ' draggable="true"') + ' data-i="' + i + '">' +
           '<span class="grip" title="Drag to reorder">⠿</span>' +
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
@@ -647,8 +724,16 @@ function openDrawer(id, focusTitle){
              the block renderer. */
           '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + mdInline(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
+          (ro ? '' : '<button type="button" class="noteicon' + (note ? ' has-note' : '') + '" data-line="' + s.line +
+            '" title="' + (note ? 'Edit the note on this step' : 'Add a note to this step') + '">💬</button>') +
           (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
-          '</div>';
+          '</div>' +
+          (noteOpen
+            ? '<div class="noterow" data-line="' + s.line + '">' +
+                '<textarea class="notebox" data-line="' + s.line +
+                  '" placeholder="What happened, when, and what it’s waiting on">' + esc(note) + '</textarea>' +
+              '</div>'
+            : '');
       }).join('') +
       '</div>' +
       (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
@@ -659,6 +744,7 @@ function openDrawer(id, focusTitle){
   // when the drawer is wide enough to hold one, same content and order as
   // when it isn't (see .dcols in the stylesheet).
   const sideFields =
+    projectSection(t) +
     chatSection(t) +
     dependenciesSection(t) +
     agendaSection(sugg.agenda, t.due, readPrevAgenda(bodyParts(t).notes)) +
@@ -672,6 +758,11 @@ function openDrawer(id, focusTitle){
     '<div class="dcol dcol-main">' + mainFields + '</div>' +
     (sideFields ? '<div class="dcol dcol-side">' + sideFields + '</div>' : '') +
   '</div>';
+
+  // The card in the Project section is drawn with the folder name it already
+  // had; what the folder holds is a read off disk, and the panel does not wait
+  // for it.
+  if (proj) loadTaskProject(proj, t.id);
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
@@ -724,17 +815,10 @@ function openDrawer(id, focusTitle){
     }
     markDirty(); refreshView(); openDrawer(id);
   });
-  $('#f-bucket').onchange = e => {
-    const nb = state.doc.buckets.find(b => b.name === e.target.value);
-    if (!nb) return;
-    const target = ensureTier(nb, loc.tier.name);
-    loc.tier.tasks.splice(loc.index, 1);
-    target.tasks.push(t);
-    // The filter stays put rather than following the task to its new bucket —
-    // moving a card out of the one you're looking at should look like moving
-    // it out, the same as any other edit that drops a task out of view.
-    markDirty(); refreshView(); openDrawer(id);
-  };
+  // Wiring for the button and its menu lives once, at module scope, near the
+  // other document-level delegated handlers at the bottom of this file — see
+  // the note there for why (this form is rebuilt on every openDrawer call,
+  // and a persistent ancestor would stack a new listener on every rebuild).
   const subsEl = $('#f-subs');
   if (subsEl) {
     subsEl.querySelectorAll('input').forEach(cb => {
@@ -764,8 +848,38 @@ function openDrawer(id, focusTitle){
         const m = SUB_RE.exec(t.body[lineIdx]);
         const label = m ? stripTags(m[3]).replace(/\s+/g, ' ').trim() : 'this step';
         if (!confirm('Delete "' + label + '"? This removes it from todo.md when you save.')) return;
+        openStepNote = null;
         removeSubLine(t, lineIdx);
         refreshView(); openDrawer(id);
+      };
+    });
+    subsEl.querySelectorAll('.noteicon').forEach(btn => {
+      btn.onclick = e => {
+        e.stopPropagation();
+        const lineIdx = +btn.dataset.line;
+        const key = t.id + ':' + lineIdx;
+        const opening = openStepNote !== key;
+        openStepNote = opening ? key : null;
+        refreshView(); openDrawer(id);
+        if (opening) {
+          const box = $('#f-subs').querySelector('.notebox[data-line="' + lineIdx + '"]');
+          if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+        }
+      };
+    });
+    subsEl.querySelectorAll('.notebox').forEach(box => {
+      const lineIdx = +box.dataset.line;
+      const saved = box.value;
+      const commit = () => {
+        if (box.value === saved) return;
+        setStepNoteText(t, lineIdx, box.value);
+        markDirty(); refreshView();
+      };
+      box.onblur = commit;
+      box.onkeydown = e => {
+        // Escape leaves the box rather than the drawer, same as Description —
+        // there is no draft here to throw away, the text is the step's.
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); box.blur(); }
       };
     });
     const rows = subsEl.querySelectorAll('.sub');
@@ -794,6 +908,7 @@ function openDrawer(id, focusTitle){
         const to = +row.dataset.i + (e.clientY > r.top + r.height / 2 ? 1 : 0);
         const from = subDrag;
         subDrag = null; clear();
+        openStepNote = null;
         moveSub(t, from, to);
         refreshView(); openDrawer(id);
       };
@@ -978,12 +1093,18 @@ function openProjectDrawer(name){
   };
 
   $('#dbody').innerHTML =
-    '<div class="field"><span>Folder</span>' +
-      '<div class="projpath">data/projects/' + esc(name) + '/</div>' +
-      '<span class="help">The background is in that folder\'s <code>CLAUDE.md</code>, with the ' +
-      'source documents beside it. The board does not read those files — this is where they are.</span>' +
+    // Filled in by loadProjectFiles() below, out of the folder's own
+    // CLAUDE.md — what this project is, when it was opened, when it was last
+    // touched. Empty until then rather than a placeholder: it is one line of
+    // prose, and a spinner where a sentence is going is worse than a beat of
+    // nothing.
+    '<div class="projabout" id="projAbout"></div>' +
+    '<div class="field"><span>Files in this folder</span>' +
+      '<a class="projpath" href="' + esc(projectUrl(name)) + '" target="_blank" rel="noopener">' +
+        'data/projects/' + esc(name) + '/</a>' +
+      '<div class="projfiles" id="projFiles"><span class="help">Reading the folder…</span></div>' +
     '</div>' +
-    '<div class="field"><span>On this project</span>' +
+    '<div class="field"><span>Tasks on this project</span>' +
       (rows.length
         ? '<div class="projlist">' + open.map(row).join('') + done.map(row).join('') + '</div>' +
           '<span class="help">' + esc(split) + '. Click one to open it.</span>'
@@ -998,6 +1119,100 @@ function openProjectDrawer(name){
   $('#dfootHelp').textContent = 'A project is a folder, not a task — nothing here can be edited.';
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
+  loadProjectFiles(name);
+}
+
+/* Where the folder itself is served. translate_path() (kanban/server.py)
+   resolves /data/ against the current dataset, so this is the same path
+   whichever list is open, and the browser's own directory listing is what
+   answers for a folder. */
+function projectUrl(name){
+  return '/data/projects/' + encodeURIComponent(name) + '/';
+}
+
+function fileSize(n){
+  if (!Number.isFinite(n)) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* Whether the folder's CLAUDE.md calls the project something other than what
+   the folder is called. The folder name is the identity — it is what a task's
+   own note points at — so a title that only differs in capitals and hyphens
+   is the same name twice and stays off screen. */
+function differentTitle(title, name){
+  const flat = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return !!title && flat(title) !== flat(name);
+}
+
+/* What the project is and when it was last touched, above everything else in
+   the panel. Both come off disk with no upkeep: the description is the lead
+   paragraph of the folder's own CLAUDE.md, and the date is the newest mtime
+   in the folder — see project_about() and project_meta() in kanban/server.py.
+   Nothing here is a field he has to remember to write. */
+function projectAboutHTML(meta, name){
+  const bits = [];
+  if (meta.opened) bits.push('Opened ' + meta.opened);
+  const edited = cvWhen(meta.modified);
+  if (edited) bits.push('Edited ' + edited);
+  return (differentTitle(meta.title, name)
+            ? '<div class="projname">' + mdInline(meta.title) + '</div>' : '') +
+    (meta.blurb
+      ? '<p class="projblurb">' + mdInline(meta.blurb) + '</p>'
+      : '<p class="projblurb none">Nothing describes this folder yet. A <code>CLAUDE.md</code> ' +
+        'in it, opening with a heading and a sentence, is what this line reads.</p>') +
+    (bits.length ? '<div class="projwhen">' + esc(bits.join(' · ')) + '</div>' : '');
+}
+
+/* What is in the folder, one level down and no further — the server decided
+   that, see project_entries() in kanban/server.py. A sub-folder is one row
+   carrying its own count rather than its contents, and clicking it hands the
+   walk to the browser's directory listing, which is where a walk belongs.
+
+   One fetch fills both halves of the panel: the description at the top and
+   the file rows under the path. They come out of the same read of the same
+   folder, so asking twice would be two reads for one answer. */
+async function loadProjectFiles(name){
+  const paint = (html, aboutHtml) => {
+    // The drawer may have moved on to another project, or shut, while this
+    // was in flight — every openProjectDrawer() call starts one of these.
+    if (state.openProject !== name) return;
+    const box = $('#projFiles');
+    if (box) box.innerHTML = html;
+    const top = $('#projAbout');
+    if (top) top.innerHTML = aboutHtml || '';
+  };
+  let meta;
+  try {
+    const res = await fetch('/project.json?name=' + encodeURIComponent(name) + '&t=' + Date.now(),
+                            { cache:'no-store' });
+    if (res.status === 404) return paint('<span class="help">That folder is not on disk.</span>');
+    if (!res.ok) {
+      return paint('<span class="help">The board helper needs restarting — the copy running ' +
+                   'does not list project files yet.</span>');
+    }
+    meta = await res.json();
+  } catch (err) {
+    return paint('<span class="help">Could not read the folder. ' + esc(String(err.message || err)) +
+                 '</span>');
+  }
+  const about = projectAboutHTML(meta, name);
+  const list = meta.entries || [];
+  if (!list.length) return paint('<span class="help">The folder is empty.</span>', about);
+  const base = projectUrl(name);
+  const row = e => {
+    const meta = e.dir
+      ? (e.children === null ? 'folder'
+         : e.children + ' item' + (e.children === 1 ? '' : 's'))
+      : fileSize(e.size);
+    return '<a class="projfile' + (e.dir ? ' isdir' : '') + '" target="_blank" rel="noopener" ' +
+        'href="' + esc(base + encodeURIComponent(e.name) + (e.dir ? '/' : '')) + '">' +
+      '<span class="pf">' + esc(e.name + (e.dir ? '/' : '')) + '</span>' +
+      '<span class="pfm">' + esc(meta) + '</span>' +
+    '</a>';
+  };
+  paint(list.map(row).join(''), about);
 }
 
 /* Which of the drawer's own sections — Description, Chats, Message
@@ -1138,6 +1353,39 @@ document.addEventListener('click', e => {
   e.stopPropagation();
   openProjectDrawer(chip.dataset.project);
 }, true);
+
+/* The Bucket field's dropdown (see openDrawer, the "Bucket" field), one
+   delegated handler rather than binding the button and its options fresh on
+   every openDrawer call — #f-bucket-menu is rebuilt each time the drawer
+   redraws, so a listener attached directly to it or to any element that
+   survives the redraw would stack a copy on every open. Looking the task up
+   fresh here, from state.openTask, is what lets that be true safely. */
+document.addEventListener('click', e => {
+  const menu = $('#f-bucket-menu');
+  const btn = e.target.closest('#f-bucket-btn');
+  if (btn) {
+    if (menu) menu.classList.toggle('hidden');
+    return;
+  }
+  const opt = e.target.closest('#f-bucket-menu [data-bucket]');
+  if (opt) {
+    const id = state.openTask;
+    const loc = id && locate(id);
+    const nb = loc && state.doc.buckets.find(b => b.name === opt.dataset.bucket);
+    if (menu) menu.classList.add('hidden');
+    if (!loc || !nb || nb === loc.bucket) return;
+    const target = ensureTier(nb, loc.tier.name);
+    loc.tier.tasks.splice(loc.index, 1);
+    target.tasks.push(loc.task);
+    // The filter stays put rather than following the task to its new bucket
+    // — moving a card out of the one you're looking at should look like
+    // moving it out, the same as any other edit that drops a task from view.
+    markDirty(); refreshView(); openDrawer(id);
+    return;
+  }
+  // Anywhere else closes it — the click-away a native <select> gets for free.
+  if (menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
+});
 $('#del').onclick = () => {
   if (state.locked) return;
   const loc = state.openTask && locate(state.openTask);

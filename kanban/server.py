@@ -204,6 +204,66 @@ def projects_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "projects")
 
 
+# "Opened 26 Aug 2026." — the line every project CLAUDE.md written by the PA
+# carries under its lead paragraph. It is the only start date a project folder
+# has: nothing on disk records when a folder was made, and a folder's own
+# ctime is the day it was last moved rather than the day it was opened.
+# The date and nothing after it: several of these carry a clause explaining
+# where the folder came from, and "6 Sep 2026, from four files that had been
+# sitting loose at the root of ~/Code since" is not a date.
+OPENED_RE = re.compile(r"^Opened\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})", re.I)
+
+
+def project_about(path):
+    """The folder's own description, out of the top of its CLAUDE.md.
+
+    No frontmatter anywhere here, and none worth adding: every one of these
+    files already opens the same way, an H1 naming the project and a lead
+    paragraph saying what it is, because the PA wrote them all to the same
+    shape. That shape is the metadata — read it rather than asking him to
+    maintain a second copy of it in a header.
+
+    Only the head of the file is read. The rest is the project itself, which
+    is exactly what the drawer has always said it does not open.
+    """
+    out = {"title": "", "blurb": "", "opened": ""}
+    try:
+        with open(os.path.join(path, "CLAUDE.md"), encoding="utf-8") as fh:
+            head = fh.read(4000)
+    except (OSError, UnicodeDecodeError):
+        return out
+    lines = head.splitlines()
+    i = 0
+    while i < len(lines) and not lines[i].startswith("# "):
+        i += 1
+    if i < len(lines):
+        out["title"] = lines[i][2:].strip()
+        i += 1
+    # The lead paragraph: everything up to the next blank line or heading,
+    # rewrapped, since the file is hard-wrapped at 90 and the drawer is not.
+    para = []
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    while i < len(lines) and lines[i].strip() and not lines[i].startswith("#"):
+        para.append(lines[i].strip())
+        i += 1
+    # Every one of these paragraphs ends the same two ways — "this folder is
+    # the context" and "the tasks live in ../../todo.md and only carry the
+    # essentials". Both are filing rather than description: the drawer is the
+    # folder, and it lists those tasks a few inches below this.
+    text = " ".join(para)
+    skip = ("todo.md", "this folder is the context")
+    kept = [s for s in re.split(r"(?<=\.)\s+", text)
+            if not any(w in s.lower() for w in skip)]
+    out["blurb"] = " ".join(kept).strip() or text
+    for line in lines:
+        m = OPENED_RE.match(line.strip())
+        if m:
+            out["opened"] = m.group(1).strip()
+            break
+    return out
+
+
 def project_meta(path, name):
     """One project folder, described without opening every file inside it.
 
@@ -227,14 +287,71 @@ def project_meta(path, name):
             latest = max(latest, os.stat(os.path.join(path, entry)).st_mtime)
         except OSError:
             pass
+    about = project_about(path)
     return {
         "name": name,
+        # The H1 out of CLAUDE.md — "Individual Role Profiles" where the
+        # folder is called role-profiles. The folder name stays the identity
+        # (it is what a task's note points at); this is only what to call it
+        # on screen.
+        "title": about["title"],
+        "blurb": about["blurb"],
+        "opened": about["opened"],
         "has_claude_md": "CLAUDE.md" in entries,
         "file_count": len(entries),
+        # When the project was last touched, not when the folder was: the
+        # newest mtime across the folder and everything directly inside it.
+        # A file edited two levels down still counts, because writing it bumps
+        # its own folder, and that folder is one of the entries here. Nothing
+        # has to be written or maintained for this to be true — which is why
+        # there is no "last edited" line in CLAUDE.md for anyone to forget.
         "modified": datetime.datetime.fromtimestamp(latest).isoformat(timespec="seconds"),
         # No dataset name in this, deliberately — see the same note on plan_meta.
         "url": "/" + DATA + "/projects/" + name + "/",
     }
+
+
+def project_entries(path):
+    """What is in one project folder, one level down and no further.
+
+    A folder is a row like any other, carrying its own child count rather
+    than its contents — a project keeping its documents in sources/ would
+    otherwise flood the panel with someone else's filing, and a walk deep
+    enough to be useful is deep enough to be slow on a folder holding a
+    checkout. Clicking the row opens the folder in the browser's own
+    directory listing, which is the walk, on demand.
+    """
+    out = []
+    try:
+        names = sorted(os.listdir(path))
+    except OSError:
+        return out
+    for name in names:
+        if name.startswith("."):
+            continue
+        full = os.path.join(path, name)
+        try:
+            st = os.stat(full)
+        except OSError:
+            continue
+        isdir = os.path.isdir(full)
+        kids = None
+        if isdir:
+            try:
+                kids = len([e for e in os.listdir(full) if not e.startswith(".")])
+            except OSError:
+                kids = None
+        out.append({
+            "name": name,
+            "dir": isdir,
+            "size": None if isdir else st.st_size,
+            "children": kids,
+            "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        })
+    # Folders first, then files, each alphabetically — the same order a file
+    # manager uses, and the one that keeps sources/ from hiding under n files.
+    out.sort(key=lambda e: (not e["dir"], e["name"].lower()))
+    return out
 
 
 def project_listing():
@@ -1370,6 +1487,13 @@ def ai_chat_static(rel_path):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    # Markdown as text rather than a download. The project drawer links
+    # straight at the files in a project folder, and most of them are .md —
+    # macOS has no mapping for it, so without this every one of those links
+    # saved a file to Downloads instead of opening it in a tab.
+    extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map)
+    extensions_map[".md"] = "text/plain"
+
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=ROOT, **kw)
 
@@ -1450,6 +1574,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, {"reports": report_listing()})
         if path == "/projects.json":
             return self._json(200, {"projects": project_listing()})
+        # One folder's contents, asked for by the project drawer alone. Kept
+        # off /projects.json on purpose: the Projects view needs a count and
+        # nothing else, and shipping every folder's file list to draw it would
+        # be the whole of data/projects/ on every render.
+        if path == "/project.json":
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            name = (q.get("name") or [""])[0]
+            # A folder name and not a path: anything with a separator or a
+            # parent hop in it is a way out of data/projects/.
+            if not name or name.startswith(".") or "/" in name or "\\" in name:
+                return self._json(400, {"error": "bad project name"})
+            meta = project_meta(os.path.join(projects_dir(), name), name)
+            if not meta:
+                return self._json(404, {"error": "no such project"})
+            meta["entries"] = project_entries(os.path.join(projects_dir(), name))
+            return self._json(200, meta)
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
         # Three routes rather than one, and split by how long each takes: the

@@ -1,1 +1,0 @@
-../../agents/pa-plan-strategic.md

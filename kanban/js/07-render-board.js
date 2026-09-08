@@ -10,9 +10,15 @@ function matchesAi(t){
   if (f === 'ai') return t.ai === 'full' || t.ai === 'partial';
   return t.ai === f;
 }
-function matches(t){
+/* tierName is optional — every call site that knows which column a task is
+   in (the board's own render, Matrix, Timeline) passes it; one that doesn't
+   (search suggestions, reports, anywhere a task is checked outside a
+   per-column loop) just gets no status narrowing, the same as before this
+   filter existed. */
+function matches(t, tierName){
   if (!matchesAi(t)) return false;
   if (state.urgentFilter && !(t.urgent || t.due)) return false;
+  if (state.statusFilter.size && tierName != null && !state.statusFilter.has(tierName)) return false;
   // Scoring a task he has already finished is busywork, so done ones never
   // count as needing it however they are tagged.
   if (state.unscoredOnly && (t.done || !unscored(t))) return false;
@@ -60,7 +66,7 @@ function shownBuckets(){
 
 function renderTabs(){
   const wrap = $('#bucketFilters');
-  const openIn = b => b.tiers.reduce((m, t) => m + t.tasks.filter(x => !x.done && matches(x)).length, 0);
+  const openIn = b => b.tiers.reduce((m, t) => m + t.tasks.filter(x => !x.done && matches(x, t.name)).length, 0);
   const total = state.doc.buckets.reduce((m, b) => m + openIn(b), 0);
   const all = '<button class="tab taball' + (allMode() ? ' on' : '') + '" data-bucket="' + ALL_BUCKETS + '"' +
     ' title="every bucket at once" aria-pressed="' + allMode() + '">All' +
@@ -78,4 +84,65 @@ function renderTabs(){
   $('#editTiers').onclick = openTierEditor;
   syncHash();
 }
+
+/* Status filter — the tier/column half of "narrow across every bucket",
+   alongside AI can do and Urgent/due. A dropdown rather than the row of pill
+   tabs the bucket strip uses above it, because the column list can run to
+   six or more names and the pills were wrapping the bar to a second and
+   third line — reuses the header's own .dropdown/.dropdown-panel/.dropdown-item
+   shape (see the Data menu and the drawer's Bucket field) rather than
+   inventing a second popover component. Still multi-select: state.statusFilter
+   is a Set, and a task counts as shown when the set is empty (no narrowing
+   yet) or contains the tier it's actually sitting in — see matches()'s
+   optional second argument. Picking an option doesn't close the panel, since
+   picking a second and third is the point. */
+function renderStatusFilters(){
+  const btn = $('#statusFilterBtn');
+  const menu = $('#statusFilterMenu');
+  if (!btn || !menu) return;
+  const cols = boardColumns();
+  const active = state.statusFilter;
+  const label = !active.size ? 'All'
+    : active.size === 1 ? [...active][0]
+    : active.size + ' columns';
+  btn.textContent = label + ' ▾';
+  btn.classList.toggle('on', active.size > 0);
+  btn.setAttribute('aria-pressed', String(active.size > 0));
+  const all = '<button type="button" class="dropdown-item statusopt' + (!active.size ? ' on' : '') +
+    '" role="menuitemcheckbox" aria-checked="' + !active.size + '" data-status="">All columns</button>';
+  menu.innerHTML = all + cols.map(name => {
+    const on = active.has(name);
+    return '<button type="button" class="dropdown-item statusopt' + (on ? ' on' : '') + '" role="menuitemcheckbox"' +
+      ' aria-checked="' + on + '" data-status="' + esc(name) + '"><i class="dot"></i>' + esc(name) + '</button>';
+  }).join('');
+}
+
+/* One delegated handler for the whole dropdown, rather than binding fresh on
+   every renderStatusFilters() call — the panel is rebuilt each time the
+   filter changes, so anything bound directly to its buttons would need
+   rebinding right after. Mirrors the Bucket field's dropdown in
+   19-drawer.js: toggle open on the button, act and stay open on an option
+   (multi-select), close on any other click. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#statusFilterBtn');
+  const menu = $('#statusFilterMenu');
+  if (btn) {
+    const open = menu.classList.toggle('hidden') === false;
+    btn.setAttribute('aria-expanded', String(open));
+    return;
+  }
+  const opt = e.target.closest('#statusFilterMenu [data-status]');
+  if (opt) {
+    const key = opt.dataset.status;
+    if (!key) state.statusFilter.clear();
+    else if (state.statusFilter.has(key)) state.statusFilter.delete(key); else state.statusFilter.add(key);
+    renderStatusFilters();
+    refreshView();
+    return;
+  }
+  if (menu && !menu.classList.contains('hidden') && !e.target.closest('#statusFilterField')) {
+    menu.classList.add('hidden');
+    $('#statusFilterBtn').setAttribute('aria-expanded', 'false');
+  }
+});
 

@@ -186,27 +186,82 @@ function goToPlanTask(key){
   openTaskByKey(key);
 }
 
+/* The Done column's own filter, sat above the stack. The column holds every
+   plan ever written and they are not one kind of thing: a new one wants
+   reading, a folded one wants answering, an agreed one wants running and an
+   actioned one is a record. The status is already on each card, so this only
+   narrows to one of them rather than telling him anything new.
+
+   `folded` is not a status — it is p.outcome — but it is the distinction he
+   scans for first, so it sits in the same row rather than in a second control
+   beside it. A plan can be both folded and unread; a chip narrows to one
+   question at a time, so it lands in whichever one he clicked. */
+const PLAN_FILTERS = [
+  { key:'unread',   label:'new',       match: p => p.status === 'unread' },
+  { key:'folded',   label:'needs you', match: p => p.outcome === 'folded' },
+  { key:'read',     label:'read',      match: p => p.status === 'read' },
+  { key:'agreed',   label:'agreed',    match: p => p.status === 'agreed' },
+  { key:'redo',     label:'redo',      match: p => p.status === 'redo' },
+  { key:'actioned', label:'actioned',  match: p => p.status === 'actioned' },
+];
+let planStatusFilter = 'all';
+
+/* Only chips with something behind them are drawn, which is what stops a chip
+   ever leading to an empty column: the bucket tabs above narrow this list too,
+   so a status that exists somewhere may have nothing in the bucket being shown.
+   A filter that empties out that way falls back to All rather than leaving him
+   looking at nothing with no way to tell why. */
+function planFilterBarHTML(shown){
+  const counts = PLAN_FILTERS
+    .map(f => ({ f, n: shown.filter(f.match).length }))
+    .filter(x => x.n);
+  if (!counts.length) return '';
+  return '<div class="tabs planfilter">' +
+    '<button class="tab taball' + (planStatusFilter === 'all' ? ' on' : '') +
+      '" data-planfilter="all">All<span class="n">' + shown.length + '</span></button>' +
+    counts.map(x =>
+      '<button class="tab' + (planStatusFilter === x.f.key ? ' on' : '') +
+        '" data-planfilter="' + x.f.key + '">' + x.f.label +
+        '<span class="n">' + x.n + '</span></button>').join('') +
+  '</div>';
+}
+
 function renderPlansList(){
   const out = $('#plansOut');
   if (!out) return;
-  const shown = plansShown(planList);
+  const all = plansShown(planList);
+  const active = PLAN_FILTERS.find(f => f.key === planStatusFilter);
+  if (active && !all.some(active.match)) planStatusFilter = 'all';
+  const bar = planFilterBarHTML(all);
+  const shown = planStatusFilter === 'all'
+    ? all
+    : all.filter(PLAN_FILTERS.find(f => f.key === planStatusFilter).match);
   /* Agreed plans sit above the rest rather than among them. They are the ones
      with work owed on them, and the question they answer is different: the
      others ask to be read, these ask to be run. */
   const agreed = shown.filter(p => p.status === 'agreed');
   const live = shown.filter(p => p.status !== 'actioned' && p.status !== 'agreed');
   const done = shown.filter(p => p.status === 'actioned');
-  out.innerHTML =
+  out.innerHTML = bar +
     (agreed.length
       ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
         '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
         agreed.map(planItemHTML).join('') + '</div>'
       : '') +
     (live.length ? live.map(planItemHTML).join('')
-                 : (agreed.length ? ''
+                 : (agreed.length || done.length ? ''
                     : '<div class="empty">Nothing waiting. Everything written has been actioned.</div>')) +
-    (done.length ? '<details><summary>' + done.length + ' actioned</summary>' +
+    /* Open when it is the thing being asked for: a chip that narrows to
+       actioned and then hides the result behind a fold has done half a job. */
+    (done.length ? '<details' + (planStatusFilter === 'actioned' ? ' open' : '') +
+                   '><summary>' + done.length + ' actioned</summary>' +
                    done.map(planItemHTML).join('') + '</details>' : '');
+  out.querySelectorAll('[data-planfilter]').forEach(btn => {
+    btn.onclick = () => {
+      planStatusFilter = btn.dataset.planfilter;
+      renderPlansList();
+    };
+  });
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
     const p = planList.find(x => x.url === btn.dataset.planOpen);
     btn.onclick = () => openPlanModal(p);

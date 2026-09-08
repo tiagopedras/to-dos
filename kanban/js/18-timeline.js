@@ -16,7 +16,7 @@
 
    A lane's vertical order is its own thing, not the tier order the board
    uses — a lane mixes tasks pulled from every tier, so there is no shared
-   position to read one off. Dragging a row's grip writes `tlrank`, and only
+   position to read one off. Dragging a row's label writes `tlrank`, and only
    dragging ever does; a lane nobody has touched just keeps falling back to
    board order (see timelineSection()).
    ========================================================================= */
@@ -51,7 +51,7 @@ function timelineTasks(){
     if (!shownNames.has(b.name)) return;
     const color = bucketColor(b.name, bi);
     b.tiers.forEach(tier => tier.tasks.forEach(t => {
-      if (t.done || !matches(t)) return;
+      if (t.done || !matches(t, tier.name)) return;
       const it = items.find(i => i.id === t.id && !i.sub);
       const blocked = !!it && !actionable(items, it);
       const steps = splitBody(t).steps
@@ -117,6 +117,24 @@ function tlWeeks(scale){
   }
   return out;
 }
+/* Every Saturday–Sunday inside the scale's range, as one two-day span each —
+   decided in IMPROVEMENTS.md against collapsing them: a weekend stays real
+   space on the axis, no change to tlOffset or the day-to-pixel math anywhere
+   else, and is marked instead with a diagonal-striped seam (see .tlweekend
+   in board.css) so five working days next to two off ones still reads as
+   what it is without the scale itself lying about how long either span is. */
+function tlWeekends(scale){
+  const out = [];
+  const cur = new Date(scale.min);
+  const dow = cur.getDay();                          // Sun=0..Sat=6
+  if (dow !== 6) cur.setDate(cur.getDate() + ((6 - dow + 7) % 7));
+  const end = addDays(scale.min, scale.days);
+  while (cur <= end) {
+    out.push({ offset: Math.round((cur - scale.min) / 86400000) });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return out;
+}
 
 /* One row: a sticky label plus a track the width of the whole scale, with
    the bar or diamond positioned inside it by day offset. `sub` narrows the
@@ -164,15 +182,18 @@ function timelineRowHTML(row, scale, sub){
       row.id + '" title="' + (tlExpanded.has(row.id) ? 'Hide' : 'Show') + ' ' + row.steps.length +
       ' step' + (row.steps.length > 1 ? 's' : '') + '">›</button>'
     : (sub ? '' : '<span class="tlchevron ph"></span>');
-  // The row's vertical position in its lane, dragged by this handle alone —
-  // a step has no lane position of its own to drag (see the file banner), so
-  // it gets nothing here, same as it gets no chevron.
-  const grip = sub ? '' : (state.locked
-    ? '<span class="tlgrip ph"></span>'
-    : '<span class="tlgrip" draggable="true" title="Drag to reorder within ' + esc(row.bucket || '') + '">⋮⋮</span>');
+  // The row's vertical position in its lane, dragged from anywhere on the
+  // label (see wireTlReorder) — a step has no lane position of its own to
+  // drag (see the file banner), so it gets nothing here, same as it gets no
+  // chevron. The dots are just the affordance now, not the only hit target:
+  // a native `draggable` ancestor still lets a plain click on the title
+  // through as a click, same as the board's own cards manage both at once.
+  const grip = sub ? '' : '<span class="tlgrip' + (state.locked ? ' ph' : '') + '">⋮⋮</span>';
+  const labelDrag = (sub || state.locked) ? '' :
+    ' draggable="true" title="Drag to reorder within ' + esc(row.bucket || '') + '"';
   return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '"' +
     (sub ? '' : ' data-tlreorder="' + row.id + '"') + '>' +
-    '<div class="tllabel">' + grip + chevron +
+    '<div class="tllabel"' + labelDrag + '>' + grip + chevron +
       '<span class="tllabeltext" data-open="' + row.id + '" title="' + esc(row.title) + '">' + mdInline(row.title) + '</span>' +
     '</div>' +
     '<div class="tltrack" style="width:' + trackWidth + 'px">' + mark + '</div>' +
@@ -182,8 +203,13 @@ function timelineRowHTML(row, scale, sub){
 function timelineLaneHTML(bucket, rows, scale){
   if (!rows.length) return '';
   const key = 'tl:' + bucket;
+  // Same field a grip drag already writes (see wireTlReorder) — a one-off
+  // sort, not a standing rule, so a later drag on any single row overwrites
+  // its own rank same as it always did.
+  const sortBtn = state.locked ? '' : '<button type="button" class="tlsort" data-tlsort="' +
+    esc(bucket) + '" title="Sort this lane by earliest date — start, else due">Sort by date</button>';
   const header = '<summary class="tlrow tllane"><div class="tllabel lanehead" style="--bc:' + rows[0].color + '">' +
-      '<i class="dot"></i>' + esc(bucket) + '<span class="lanecount">' + rows.length + '</span>' +
+      '<i class="dot"></i>' + esc(bucket) + '<span class="lanecount">' + rows.length + '</span>' + sortBtn +
     '</div><div class="tltrack" style="width:' + (scale.days * scale.dayPx) + 'px"></div></summary>';
   const body = rows.map(row => timelineRowHTML(row, scale) +
     (row.steps.length && tlExpanded.has(row.id) ? row.steps.map(s => timelineRowHTML(s, scale, true)).join('') : '')
@@ -213,6 +239,7 @@ function timelineTrayHTML(undated){
 function timelineHeaderHTML(scale){
   const months = tlMonths(scale);
   const weeks = tlWeeks(scale);
+  const weekends = tlWeekends(scale);
   const todayOffset = tlOffset(scale, ymd(today()));
   const trackWidth = scale.days * scale.dayPx;
   return '<div class="tlrow tlheader">' +
@@ -222,7 +249,10 @@ function timelineHeaderHTML(scale){
     '<div class="tltrack" style="width:' + trackWidth + 'px">' +
       months.map(m => '<span class="tlmonth" style="left:' + (m.offset * scale.dayPx) + 'px">' + esc(m.label) + '</span>').join('') +
       weeks.map(w => '<span class="tlweeknum" style="left:' + (w.offset * scale.dayPx) + 'px">W' + w.n + '</span>').join('') +
+      '<span class="tltodaylabel" style="left:' + (todayOffset * scale.dayPx) + 'px" title="Today">today</span>' +
     '</div></div>' +
+    weekends.map(w => '<div class="tlweekend" style="left:' +
+      (state.tlLabelWidth + w.offset * scale.dayPx) + 'px;width:' + (2 * scale.dayPx) + 'px"></div>').join('') +
     weeks.map(w => '<div class="tlweekline" data-dayoffset="' + w.offset + '" style="left:' +
       (state.tlLabelWidth + w.offset * scale.dayPx) + 'px"></div>').join('') +
     '<div class="tltoday" data-dayoffset="' + todayOffset + '" style="left:' +
@@ -266,13 +296,29 @@ function wireTimelineDrag(){
       e.dataTransfer.effectAllowed = 'move';
       dragId = el.dataset.tlid;
     };
-    el.ondragend = () => { dragId = null; };
+    el.ondragend = () => { dragId = null; hideTlTargetLine(); hideTlPopover(); };
   });
   if (!scroll) return;
   const body = scroll.querySelector('.tlbody');
-  scroll.ondragover = e => { if (dragId) e.preventDefault(); };
+  // Same day math the drop handler below uses, run on every dragover instead
+  // of only at drop — so the target line and the date popover track the
+  // pointer the whole way across the scale, not just announce where it
+  // landed after the fact.
+  scroll.ondragover = e => {
+    if (!dragId) return;
+    e.preventDefault();
+    const rect = body.getBoundingClientRect();
+    const x = e.clientX - rect.left - state.tlLabelWidth;
+    const scale = timelineScale(timelineTasks().dated);
+    const dayN = Math.round(x / scale.dayPx);
+    showTlTargetLine(state.tlLabelWidth + dayN * scale.dayPx);
+    showTlPopover(e.clientX, e.clientY, dueLabel(ymd(addDays(scale.min, dayN))));
+  };
+  scroll.ondragleave = e => { if (!scroll.contains(e.relatedTarget)) { hideTlTargetLine(); hideTlPopover(); } };
   scroll.ondrop = e => {
     e.preventDefault();
+    hideTlTargetLine();
+    hideTlPopover();
     const id = e.dataTransfer.getData('text/plain') || dragId;
     const loc = id && locate(id);
     if (!loc) return;
@@ -292,7 +338,29 @@ function wireTimelineDrag(){
   wireTlReorder();
 }
 
-/* Dragging a row's grip up or down writes a `tlrank` on every task in that
+/* The lane header's "Sort by date" button — a one-off, not a standing rule.
+   Writes `tlrank` in earliest-date order (`start:` where it exists, else
+   `due:`, both plain `YYYY-MM-DD` strings so a lexical compare is already a
+   chronological one) across every dated task in that bucket, the same field
+   a grip drag writes one row at a time (see wireTlReorder below). A later
+   drag on any single row overwrites its own rank same as it always did —
+   this does not lock the lane into staying date-ordered. */
+function sortTimelineLane(bucket){
+  if (state.locked) return;
+  const rows = timelineTasks().dated.filter(r => r.bucket === bucket);
+  const ranked = rows.slice().sort((a, b) => {
+    const da = a.start || a.due, db = b.start || b.due;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+  ranked.forEach((row, i) => {
+    const loc = locate(row.id);
+    if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
+  });
+  markDirty();
+  refreshView();
+}
+
+/* Dragging a row's label up or down writes a `tlrank` on every task in that
    lane, renumbered 0.. in the row's new visual order — the dedicated order
    timelineSection() reads back (see there). One lane at a time: rows outside
    the dragged one's own `.tllanegroup` never see its dragover, so a task can
@@ -319,13 +387,13 @@ function tlInsertAfterEl(group, clientY, skipId){
 function wireTlReorder(){
   if (state.locked) return;
   $('#lists').querySelectorAll('.tllanegroup').forEach(group => {
-    group.querySelectorAll('.tlgrip[draggable]').forEach(grip => {
-      grip.ondragstart = e => {
-        tlReorderId = grip.closest('.tlrow').dataset.tlreorder;
+    group.querySelectorAll('.tllabel[draggable]').forEach(label => {
+      label.ondragstart = e => {
+        tlReorderId = label.closest('.tlrow').dataset.tlreorder;
         e.dataTransfer.setData('text/plain', tlReorderId);
         e.dataTransfer.effectAllowed = 'move';
       };
-      grip.ondragend = () => { tlReorderId = null; hideDropLine(); };
+      label.ondragend = () => { tlReorderId = null; hideDropLine(); };
     });
     group.ondragover = e => {
       if (!tlReorderId) return;
@@ -342,6 +410,12 @@ function wireTlReorder(){
     group.ondrop = e => {
       if (!tlReorderId) return;
       e.preventDefault();
+      // Without this, the drop event bubbles up to .tlscroll's own ondrop
+      // (wired in wireTimelineDrag for the undated tray), which reads the
+      // same dataTransfer id and treats the reorder as a drop onto the
+      // scale — overwriting the task's due date with whatever day sits
+      // under the pointer.
+      e.stopPropagation();
       const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
       const before = tlReorderRows(group).map(el => el.dataset.tlreorder);
       const ids = before.slice();
@@ -377,6 +451,24 @@ function showTlPopover(x, y, text){
   tlPopoverEl.classList.add('on');
 }
 function hideTlPopover(){ if (tlPopoverEl) tlPopoverEl.classList.remove('on'); }
+
+/* The vertical line shown while dragging an undated tray card across the
+   scale — same idea as .tltoday/.tlweekline (a sibling of the rows, spanning
+   every lane at once), but appended on demand rather than drawn by the
+   template, since it only exists for the length of one drag. Reused across
+   a drag's own dragover events rather than recreated on each one. */
+let tlTargetEl = null;
+function showTlTargetLine(left){
+  const body = $('.tlbody');
+  if (!body) return;
+  if (!tlTargetEl) {
+    tlTargetEl = document.createElement('div');
+    tlTargetEl.className = 'tltarget';
+    body.appendChild(tlTargetEl);
+  }
+  tlTargetEl.style.left = left + 'px';
+}
+function hideTlTargetLine(){ if (tlTargetEl) { tlTargetEl.remove(); tlTargetEl = null; } }
 
 /* Drag a bar or a milestone to reschedule the task it belongs to, straight
    from the chart — the Gantt exists to make "push this a week" a drag rather
@@ -745,6 +837,7 @@ function renderHeadline(){
    only tolerated. Filtering means the same thing wherever it's shown. */
 function renderFilterBar(){
   renderTabs();
+  renderStatusFilters();
   renderScoreChip();
   // The "who does it" filter cuts across every bucket, so it overrides the tabs.
   // The urgent/due filter does the same. The All tab does the same thing, but
@@ -787,11 +880,11 @@ function renderBoard(){
       const label = many ? bucket.name : '';
       if (isDone) {
         bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
-          if (t.done && matches(t)) entries.push({ t, color, label });
+          if (t.done && matches(t, DONE_COL)) entries.push({ t, color, label });
         }));
       } else {
         const tier = bucket.tiers.find(t => t.name === name);
-        if (tier) tier.tasks.forEach(t => { if (!t.done && matches(t)) entries.push({ t, color, label }); });
+        if (tier) tier.tasks.forEach(t => { if (!t.done && matches(t, name)) entries.push({ t, color, label }); });
       }
     });
     // Stable: equal scores keep the order he put them in, so the sort only ever

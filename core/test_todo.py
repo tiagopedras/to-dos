@@ -7,7 +7,7 @@ standing invitation to drift, and drift here is quiet — a meeting rolls to the
 wrong Thursday and nothing complains.
 
 It used to be three, the third being a hand-transcribed copy inside
-pa-checkin/scripts/check_todo.py. That one is gone: the checker imports
+the PA's own check_todo.py. That one is gone: the checker imports
 core/todo.py from the repo, or the copy build.command stages beside it in the
 zip. The JavaScript is the one that cannot import, because the board is a single
 HTML file, so it is the one these tables exist to pin.

@@ -5,7 +5,7 @@ description: Carry out the plans the owner has agreed on the Plans view of his b
 
 # Carrying out an agreed plan
 
-**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The
 first holds who he is, where the list lives, how he prioritises, the standing
 rules and the tone. The second holds the file format. Neither is repeated below.
 
@@ -61,8 +61,11 @@ answer is to stop and tell him, which is what the agent is told to do too.
 
 ## Move 4: what comes back
 
-`execution-agent` reports what it did, what it left and what needs him. Pass that on
-in his own terms, short.
+`execution-agent` reports what it did, what it left and what needs him. Pass that
+on in his own terms: what got done in a line or two, then a `**Needs you**`
+heading holding what actually stopped or needs a decision. Its report is written
+for you rather than for him, so summarise it rather than relaying it, and follow
+`How much to say back` in `PA.md` as for any other reply.
 
 Two things to check before you call it done:
 
@@ -73,12 +76,12 @@ Two things to check before you call it done:
   private and gitignored. Nothing from it goes into a commit, a report or a
   message.
 
-If it asked for a change to `todo.md`, **you make it, not the agent.**
-`execution-agent` never writes that file. It hands the change up as a request, with the
-exact lines before and after, and this skill is the PA agent applying it. Show him
-those lines, get a yes, write only what he agreed, then tell him to press
-**Reload** on the board rather than save, in that order: a tab open since before
-the write is holding a stale document, and a save from it would undo the change.
+If it asked for a change to `todo.md`, **it goes through `pa`, not the agent.**
+`execution-agent` never writes that file. It hands the change up as a request,
+with the exact lines before and after. Show him those lines, get a yes, then
+invoke `pa` with what he agreed and let it write, check and close with the
+Reload line. Reload rather than save, in that order: a tab open since before the
+write is holding a stale document, and a save from it would undo the change.
 
 ## What this skill never does
 

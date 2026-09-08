@@ -3,6 +3,36 @@
 Written 3 Sep 2026, for turning the four `pa-*` skills into one PA with a shared
 brief. Updated the same day with the decisions taken since.
 
+## Built 7 Sep 2026
+
+The hierarchy below exists now, in a shape close to the `board-write` proposal
+and nothing like the `board-read` half.
+
+- **`pa` is the writer.** One skill, holding the tag syntax, the scores, the
+  recurring meeting agendas, the headline, the optimisation pass, the checker and
+  the Reload line. Everything else hands it a list of changes he has already
+  agreed to. `check_todo.py` and `audit-checklist.md` moved with it, out of
+  `pa-checkin`.
+- **`pa-checkin` is the daily session and nothing else.** It invokes
+  `pa-retrieve-tasks` once a day, reads, renders the brief for the day and the
+  week from `pa-checkin/templates/`, asks what has moved, and hands over.
+- **Reports are templated at the desk too**, not only on the phone. The syntax
+  and the field list moved to `pa/references/templates.md` so both sets render
+  the same way, and `pa-mobile`'s folder holds phone cuts of the same filenames
+  which win whenever the session is on a phone.
+- **`pa-mobile` is a surface over the others** rather than a parallel skill. It
+  still skips the meeting-action pull, which is the one move it cannot shorten.
+
+Names below were normalised to what the skills are called now: `pa-unstick`
+became `pa-checkout`, and the four skills this was written against are nine.
+
+Two things in this document are now wrong and left as the record of what was
+proposed. `board-read` was not built, and it remains the one job here that would
+suit a subagent, since it never writes and so never needs to ask. And the line
+under **The one writer rule survives** says `execution-agent` may write
+`todo.md`. It may not, and never could: it hands the change up as a request and
+`pa` applies it.
+
 **Decided since the first draft.** The shared brief is called `PA.md`, not
 `AGENT.md`, because nothing runs it: it is a reference the skills read, the same
 as `CONVENTIONS.md`. Both live at the root of `to-dos/`, next to the data they
@@ -49,7 +79,7 @@ brief it produces is exactly the input the second one would need if you ever wan
     board-write/            apply changes, check, stamp
     pa-checkin/             the review session
     pa-focus/               scope: what goes back to Backlog
-    pa-unstick/             movement: what is sitting unattended
+    pa-checkout/            movement: what is sitting unattended
     pa-retrieve-tasks/      intake from the meeting recorder
   scripts/
     check_todo.py           moved out of pa-checkin, used by board-read and board-write
@@ -109,16 +139,16 @@ delivering, and telling you to press Reload. It refuses anything it cannot expre
 in the conventions rather than inventing a form for it.
 
 Every conversational mode then has the same skeleton: call `board-read`, have the
-conversation, call `board-write`. `pa-focus`, `pa-unstick` and `pa-retrieve-tasks`
+conversation, call `board-write`. `pa-focus`, `pa-checkout` and `pa-retrieve-tasks`
 already end that way by handing back to `pa-checkin`. This makes the front of the
 sandwich match the back, and it takes the file-owning job off `pa-checkin`, which is
 currently doing two jobs at once.
 
 ## conventions.md becomes the agent's, not a skill's
 
-It sits inside `pa-checkin/references/` today and the other three reach across a
-skill boundary to read it. Moving it to `reference/conventions.md` under the agent
-fixes that.
+It sat inside `pa-checkin/references/` when this was written and the other three
+reached across a skill boundary to read it. Moving it to `reference/conventions.md`
+under the agent fixes that. Done since, as `CONVENTIONS.md` at the repo root.
 
 It does not need splitting into a read half and a write half, which was the earlier
 suggestion. Once `board-read` and `board-write` exist, they are the only two things
@@ -131,11 +161,11 @@ to split it for.
 | --- | --- | --- | --- |
 | `pa-checkin` | The full review. Status, what changed, apply it, meeting agendas, optimisation, the headline. | Everything | What has moved since last time |
 | `pa-focus` | Scope. What is claimed as in-flight or next-up that honestly is not, and goes back to Backlog. | Doing, To do | Does this column still tell the truth |
-| `pa-unstick` | Movement. What has stopped moving, and what is piling up under review with nobody looking at it. | Doing, Waiting review, Blocked | What would make this move |
+| `pa-checkout` | Movement. What has stopped moving, and what is piling up under review with nobody looking at it. | Doing, Waiting review, Blocked | What would make this move |
 | `pa-retrieve-tasks` | Intake. Action items the meeting recorder captured, reviewed one by one before anything lands. | The recorder, plus existing titles for duplicates | Is this yours, and is it real |
 
 Two of them meet in Doing, on purpose. `pa-focus` asks whether it should be there at
-all. `pa-unstick` asks why it has not moved. Same column, different question, so
+all. `pa-checkout` asks why it has not moved. Same column, different question, so
 they stay two skills.
 
 **On merging focus and unstick.** They share their mechanics and nothing else, which
@@ -160,7 +190,7 @@ being shown to you twice, including the ones you turned down.
   the review conversation and nothing else.
 - **`pa-focus`** loses move 1, the count. It starts at the walkthrough, working from
   what `board-read` returned.
-- **`pa-unstick`** loses move 1 the same way.
+- **`pa-checkout`** loses move 1 the same way.
 - **`pa-retrieve-tasks`** barely changes. Its read is the watermark line plus the
   existing task titles for spotting duplicates, which is a different job from a
   status read, so it keeps doing that itself. Its handoff at the end goes to
@@ -178,7 +208,7 @@ sub-step has no state of its own" rule. All three go in `PA.md`.
    check-in from, stop here and the rest is not worth doing.
 3. `board-write`, and point `pa-checkin` at it.
 4. Move `conventions.md` and `check_todo.py` up, update every reference.
-5. `reference/walkthrough.md`, then trim `pa-focus` and `pa-unstick` down to their
+5. `reference/walkthrough.md`, then trim `pa-focus` and `pa-checkout` down to their
    goal, their columns, their question and their outcome list.
 6. Repoint `pa-retrieve-tasks` at `board-write`.
 

@@ -58,6 +58,11 @@ const state = {
   query: '',
   aiFilter: '',
   urgentFilter: false,
+  /* Column names (see boardColumns()) currently narrowed to — empty means
+     every column, same "nothing picked means no filter" rule aiFilter and
+     urgentFilter already follow. Session-only, like both of those: reset on
+     reload rather than remembered. */
+  statusFilter: new Set(),
   unscoredOnly: false,
   matrixHideWaiting: false,
   /* Width of the timeline's frozen title column. Remembered the same way the

@@ -1,6 +1,6 @@
 # Writing a plan
 
-The shared half of every `pa-plan-*` agent. Each of them reads this first, then
+The shared half of every `plan-*` agent. Each of them reads this first, then
 applies whatever its own definition adds about its bucket.
 
 You have been given one task off Tiago's to-do list and asked what should happen
@@ -9,10 +9,12 @@ until the morning. That shapes everything below.
 
 ## What you are for
 
-The task you have been given is tagged `[ai:: full]` or `[ai:: partial]`, meaning
-Claude could do most or all of the work. It has not been handed over. What stops
-it is almost never the doing — it is the half hour of reading and working out
-that has to happen first, and that half hour never has a good moment.
+The task you have been given is tagged `[ai:: full]`, meaning Claude could do
+all of the work. That is the only tag the picker sends you: `[ai:: partial]`
+stopped being planned on 6 Sep 2026, so a task reaching you is one he has
+already judged able to run mostly without him. It has not been handed over.
+What stops it is almost never the doing — it is the half hour of reading and
+working out that has to happen first, and that half hour never has a good moment.
 
 So do that half hour now, and write down what you found. **You are not doing the
 task.** You are working out what doing it would involve, and what already exists
@@ -25,9 +27,9 @@ concrete enough to start on a Monday morning.
 
 ## Read these first
 
-- `PA.md` at the repo root — who he is, how he prioritises, the standing rules,
+- `agents/pa_agent/PA.md` — who he is, how he prioritises, the standing rules,
   the tone.
-- `CONVENTIONS.md` beside it — the file format, what every tag means.
+- `CONVENTIONS.md` at the repo root — the file format, what every tag means.
 - The `## Context` section at the bottom of the current `todo.md` — who is who,
   who is on leave, what dates cannot move. It is the only current copy of any of
   that, and a plan that ignores it will confidently schedule work into somebody's
@@ -110,7 +112,7 @@ title: <the task's exact title>
 task: <the task's exact title>
 bucket: <its bucket>
 column: <its state>
-ai: <full or partial>
+ai: full
 date: <today, YYYY-MM-DD>
 status: unread
 outcome: folded
@@ -146,7 +148,7 @@ title: <the task's exact title>
 task: <the task's exact title>
 bucket: <its bucket>
 column: <its state>
-ai: <full or partial>
+ai: full
 date: <today, YYYY-MM-DD>
 status: unread
 summary: <one sentence — what this proposes and roughly what it takes>

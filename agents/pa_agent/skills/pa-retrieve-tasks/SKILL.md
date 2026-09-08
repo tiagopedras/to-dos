@@ -1,11 +1,11 @@
 ---
 name: pa-retrieve-tasks
-description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of the DS WG", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to create new action items in the recorder, or to review the to-do list itself, which is pa-checkin.
+description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of the DS WG", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to create new action items in the recorder, or to review the to-do list itself, which is pa-checkin. It is also called by pa-checkin at the start of the daily check-in, once a day, so the list is complete before it is read back to him.
 ---
 
 # Meeting actions into the to-do list
 
-**Read `~/Code/to-dos/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
+**Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
 Something sits in his meetings and writes down who agreed to do what. This skill
 moves the ones that are his onto the list and closes them where they came from, so
@@ -79,8 +79,8 @@ of what comes back is not his, and some of what is his is already on the list un
 a better title. The review is the point of the skill; the pull is the easy half.
 
 **It does not apply the file conventions itself.** Once he has picked what to keep,
-hand the writing to `pa-checkin`. That skill owns the buckets, the scores, the
-tag syntax and the checker, and it should stay the only thing that edits todo.md.
+hand the writing to `pa`. That skill owns the buckets, the scores, the tag
+syntax and the checker, and it is the only thing that edits todo.md.
 
 ## The five moves
 
@@ -103,7 +103,7 @@ and the same holds for the Tuesday after a bank holiday Monday.
 Business day here means what it means everywhere else in this system: weekends
 are out and UK bank holidays are out, since the team is UK-based. The England and
 Wales dates for 2026 and 2027 are in
-`~/Code/to-dos/agents/pa_agent/skills/pa-checkin/scripts/check_todo.py`, which is the
+`~/Code/to-dos/agents/pa_agent/skills/pa/scripts/check_todo.py`, which is the
 authority when a date is borderline.
 
 **When he names a window, his wins.** "This week" means Monday to today. "Go back
@@ -172,7 +172,7 @@ are what make it startable later.
 
 ### 4. Add
 
-Invoke `pa-checkin` with what he kept, and let it do the writing: bucket,
+Invoke `pa` with what he kept, and let it do the writing: bucket,
 state, `[impact:: ]`, `[effort:: ]`, `[ai:: ]`, a suggested message on any step
 whose work is contacting somebody, and the checker before delivering.
 
@@ -215,14 +215,14 @@ Move the watermark forward, so nothing in this pull is ever shown to him again.
 
 It lives on the `Meeting actions last pulled` line in the header of todo.md, as a
 full UTC timestamp. `never` is a valid value and means no pull has happened yet.
-`pa-checkin` owns that line's format; this skill owns its value.
+`pa` owns that line's format; this skill owns its value.
 
 **Set it to the end of the window that was pulled, not to the moment the writing
 finished.** Those differ by however long the review took, and a task the recorder
 created while he was reading the review would be skipped forever if the stamp
 overshot it.
 
-**After the writing, never before.** If `pa-checkin` fails halfway, or he walks
+**After the writing, never before.** If `pa` fails halfway, or he walks
 away mid-review, a watermark already moved has silently swallowed everything in
 that window. Write the tasks, log the declines, confirm both landed, then stamp.
 
@@ -247,7 +247,7 @@ declines he meant to leave declined included.
 
 Found, run it through Filter and the duplicate check again before offering it —
 time has passed, and it may have been added a different way since, or somebody else
-may have picked it up. If he confirms, hand it to `pa-checkin` exactly as Move 4
+may have picked it up. If he confirms, hand it to `pa` exactly as Move 4
 does, carrying the same provenance line, then append a second line under the
 original entry in the decline log: `  → added 2026-09-10`, dated the day this
 happened, so the log still shows it was once turned down and shows what changed. If
@@ -289,6 +289,6 @@ in front of him twice with different wording.
 
 ## Tone
 
-See `~/Code/to-dos/PA.md`.
+See `~/Code/to-dos/agents/pa_agent/PA.md`.
 
 The review message is the one place a numbered list is right, since he is answering it with numbers.

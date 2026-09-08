@@ -376,29 +376,30 @@ def test_folding():
 
 def test_agents():
     for bucket, want in [
-        ("People", "pa-plan-people"),
-        ("1. People", "pa-plan-people"),
-        ("Design System", "pa-plan-design-system"),
-        ("DS", "pa-plan-design-system"),
-        ("3. DS", "pa-plan-design-system"),
-        ("BAU", "pa-plan-work-oversight"),
-        ("Work oversight", "pa-plan-work-oversight"),
-        ("Strategic", "pa-plan-strategic"),
-        ("Processes", "pa-plan-processes"),
-        ("Something new", "pa-plan-general"),
-        ("", "pa-plan-general"),
+        ("People", "plan-people"),
+        ("1. People", "plan-people"),
+        ("Design System", "plan-design-system"),
+        ("DS", "plan-design-system"),
+        ("3. DS", "plan-design-system"),
+        ("BAU", "plan-work-oversight"),
+        ("Work oversight", "plan-work-oversight"),
+        ("Strategic", "plan-strategic"),
+        ("Processes", "plan-processes"),
+        ("Something new", "plan-general"),
+        ("", "plan-general"),
     ]:
         check("bucket %r maps" % bucket, plan.bucket_agent(bucket), want)
 
     for bucket in list(plan.STREAMS) + ["x"]:
         agent = plan.bucket_agent(bucket)
-        path = os.path.join(ROOT, "agents", agent + ".md")
+        path = os.path.join(ROOT, "agents", "night_agent", agent + ".md")
         check("%s exists on disk" % agent, os.path.exists(path), True)
 
     # The acting half. One agent, not one per bucket — see the note at the top
     # of its own definition for why.
     check("execution-agent exists on disk",
-          os.path.exists(os.path.join(ROOT, "agents", "execution-agent.md")), True)
+          os.path.exists(os.path.join(
+              ROOT, "agents", "execution_agent", "execution-agent.md")), True)
 
     # A brief is offered only when it has actually been written. This is built
     # against a temporary tree rather than the real `buckets/`, because that
@@ -459,7 +460,7 @@ task: A planned thing
 bucket: Design System
 column: To do
 ai: partial
-agent: pa-plan-design-system
+agent: plan-design-system
 date: 2026-09-05
 status: unread
 summary: One line about it.
@@ -580,7 +581,7 @@ def test_queue_routes():
                   sorted(r["title"] for r in q["queue"]),
                   ["Plain and plannable", "Startable now"])
             check("each row carries the agent it would go to",
-                  q["queue"][0]["agent"].startswith("pa-plan-"), True)
+                  q["queue"][0]["agent"].startswith("plan-"), True)
             check("and why it is being planned", q["queue"][0]["why"], "never planned")
             check("nothing is held to begin with", q["held"], [])
 
@@ -609,13 +610,13 @@ def test_queue_routes():
                 fh.write(
                     "2026-09-05 01:05:00  wake — ride: his window runs to 04:00\n"
                     "2026-09-05 02:05:00  start: 3 to plan, 1 skipped\n"
-                    "2026-09-05 02:05:01    > Startable now (pa-plan-people)\n"
+                    "2026-09-05 02:05:01    > Startable now (plan-people)\n"
                     "2026-09-05 02:08:20    planned Startable now"
                     "                                      199s  $0.74\n"
-                    "2026-09-05 02:08:21    > Plain and plannable (pa-plan-processes)\n"
+                    "2026-09-05 02:08:21    > Plain and plannable (plan-processes)\n"
                     "2026-09-05 02:09:00    failed Plain and plannable"
                     "                             the agent timed out\n"
-                    "2026-09-05 02:09:01    > Third thing (pa-plan-strategic)\n")
+                    "2026-09-05 02:09:01    > Third thing (plan-strategic)\n")
             long_title = "A task with a title fifty characters long, exactly"
             check("the fixture title really is fifty characters", len(long_title), 50)
             with open(os.path.join(plans, "night-agent.log"), "a", encoding="utf-8") as fh:
@@ -650,7 +651,7 @@ def test_queue_routes():
             n = server.night_agent_run()
             check("the lock is what makes a run live", n["live"], True)
             check("and the task in flight is then a real one",
-                  (n["current"] or {}).get("agent"), "pa-plan-strategic")
+                  (n["current"] or {}).get("agent"), "plan-strategic")
             check("with nothing orphaned", n["orphan"], None)
 
             # Everything before the last `start:` belongs to a previous night.
@@ -816,10 +817,11 @@ def test_runner():
     # definition — a definition is a request, the flag is what holds.
     check("and pins the tools on the command line", "--allowedTools" in src, True)
     check("with no Bash among them", "\"Bash\"" in src, False)
-    for p in sorted(os.listdir(os.path.join(ROOT, "agents"))):
-        if not p.startswith("pa-plan-"):
+    planners = os.path.join(ROOT, "agents", "night_agent")
+    for p in sorted(os.listdir(planners)):
+        if not p.startswith("plan-"):
             continue
-        head = open(os.path.join(ROOT, "agents", p),
+        head = open(os.path.join(planners, p),
                     encoding="utf-8").read()[:400]
         check("%s claims no Bash either" % p, "Bash" in head, False)
 

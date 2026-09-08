@@ -10,7 +10,7 @@
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#14161a; --panel:#1c1f25; --ink:#e9ebee; --ink-soft:#a5abb6; --ink-faint:#7b818c;
-      --line:#2b3038; --line-soft:#23272e; --chip:#262b33;
+      --line:#363c45; --line-soft:#2c313a; --chip:#262b33;
       --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
       --green:#6fd398; --green-bg:#16301f;
       --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
@@ -132,6 +132,20 @@
   .tab.on .n{background:var(--chip); color:var(--ink-soft)}
   /* No colour dot: All is not one of the buckets, it is all of them. */
   .taball{font-weight:640}
+  /* The status filter dropdown — same button-plus-popover shape as the
+     Bucket field's own dropdown (.bucketfield below), swapped in for the
+     pill row this used to be because the column list runs long enough to
+     wrap the bar. A column has no colour of its own the way a bucket does,
+     so its dot is a flat neutral rather than reading var(--bc), which
+     nothing sets here. */
+  #statusWrap{display:inline-flex; align-items:center; gap:6px}
+  .statusfield{display:inline-flex}
+  .statusfield .btn{white-space:nowrap}
+  #statusFilterMenu{min-width:170px}
+  .statusopt{display:flex; align-items:center; gap:7px}
+  .statusopt.on{font-weight:640; background:var(--chip)}
+  #statusFilterMenu .dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--ink-faint); opacity:.5}
+  .statusopt.on .dot{opacity:1}
   .btn.mini{padding:3px 8px; font-size:12px; font-weight:560}
   /* Editing the buckets sits beside the strip rather than inside it: the strip is
      a filter, and a pencil in among the tabs reads as one more thing to filter by.
@@ -256,16 +270,57 @@
   }
   .tag.proj:hover{border-color:var(--accent); color:var(--accent)}
   .tag.proj::before{content:'▣ '; opacity:.6}
-  .projbtn{
-    border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px;
-    padding:7px 9px; width:100%; text-align:left; font-size:13px; font-weight:600;
+  /* The project the task's work lives in, in the drawer's second column. Built
+     on the same shell as a conversation card next to it — see the shared rule
+     down in the canvas section — because they are the same kind of thing in
+     that column: a card that is a way into something else. */
+  .pcbody{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
   }
-  .projbtn:hover{border-color:var(--accent); color:var(--accent)}
+  .pcbody:hover{background:var(--chip)}
+  .pctitle{display:block; font-size:13px; font-weight:600; line-height:1.3}
+  .pcblurb{display:block; font-size:12px; line-height:1.45; color:var(--ink-soft); margin-top:3px}
+  .pcblurb:empty{display:none}
+  .pcmeta{display:block; font-size:11px; color:var(--ink-faint); margin-top:5px}
+  .pcmeta:empty{display:none}
+  /* The path is a caption for the card under it, not a field of its own —
+     it had a box, the file list did not, and the border was drawn around
+     the one thing on screen with nothing inside it. */
   .projpath{
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
-    color:var(--ink-soft); background:var(--bg); border:1px solid var(--line);
-    border-radius:7px; padding:7px 9px; overflow-wrap:anywhere;
+    display:block; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px; color:var(--ink-faint); text-decoration:none;
+    overflow-wrap:anywhere; margin-bottom:6px;
   }
+  a.projpath:hover{color:var(--accent)}
+  /* One level of the folder, in a card, because the rows are a list of one
+     folder's contents rather than loose links: the border is what says where
+     the folder stops. A sub-folder is the same row shape carrying a count
+     instead of a size. */
+  .projfiles{
+    display:flex; flex-direction:column; padding:4px; gap:1px; margin-bottom:10px;
+    border:1px solid var(--line); border-radius:8px; background:var(--bg);
+  }
+  .projfiles .help{padding:4px 6px}
+  .projfiles .projfile{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:5px 8px; border-radius:6px;
+    color:var(--ink); text-decoration:none; font-size:12px;
+  }
+  .projfiles .projfile:hover{background:var(--panel); color:var(--accent)}
+  .projfile .pf{overflow-wrap:anywhere}
+  .projfile.isdir .pf{font-weight:600}
+  .projfile .pfm{font-size:11px; color:var(--ink-faint); white-space:nowrap}
+  /* What the project is, above everything else in the panel — read out of the
+     folder's CLAUDE.md rather than typed anywhere. */
+  .projabout:not(:empty){margin-bottom:16px}
+  .projname{font-size:14px; font-weight:600; line-height:1.3; margin-bottom:4px}
+  .projblurb{font-size:12px; line-height:1.5; color:var(--ink-soft); margin:0}
+  .projblurb.none{color:var(--ink-faint)}
+  .projwhen{font-size:11px; color:var(--ink-faint); margin-top:6px}
+  /* The same sentence the drawer opens with, on the card in the Projects
+     tab — the folder name alone never said what any of these were. */
+  .projcardblurb{font-size:12px; line-height:1.5; color:var(--ink-soft); margin-top:6px}
   .projlist{display:flex; flex-direction:column; gap:6px}
   .projrow{
     border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:8px 10px;
@@ -425,9 +480,18 @@
     display:flex; align-items:center; gap:2px; min-width:0;
   }
   .tllabel:hover{background:var(--chip)}
+  /* Draggable from anywhere on the row now, not just the dots — a native
+     `draggable` ancestor still lets a plain click on .tllabeltext through as
+     a click, same as the board's own cards already manage both at once. */
+  .tllabel[draggable]{cursor:grab}
+  .tllabel[draggable]:active{cursor:grabbing}
+  /* flex:1 rather than auto width — the click target (data-open) then fills
+     whatever room is left in the label after the grip and chevron, not just
+     the width of the text itself, so a short title's row is clickable all
+     the way to the resize handle rather than only over its own letters. */
   .tllabeltext{
     cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
-    padding:8px 0;
+    padding:8px 0; flex:1;
   }
   .tltrack{position:relative; flex:none; min-height:34px}
   .tlrow.tlsub .tllabel{padding-left:26px}
@@ -445,15 +509,14 @@
   .tlchevron:hover{color:var(--ink)}
   .tlchevron.open{transform:rotate(90deg)}
   .tlchevron.ph{cursor:default}
-  /* The handle that drags a row up or down its own lane. Its own element
-     rather than the row or the label, so it never fights the label's
-     click-to-open or the bar's own horizontal drag over in .tltrack. */
+  /* Just the visual cue now — the drag itself starts from .tllabel, wherever
+     on the row the pointer goes down. Kept as its own element so the dots
+     stay visible without fighting the bar's own horizontal drag in .tltrack. */
   .tlgrip{
     flex:none; width:12px; height:16px; display:flex; align-items:center; justify-content:center;
-    color:var(--ink-faint); font-size:10px; letter-spacing:-2px; cursor:grab; user-select:none;
+    color:var(--ink-faint); font-size:10px; letter-spacing:-2px; user-select:none;
   }
-  .tlgrip:hover{color:var(--ink)}
-  .tlgrip:active{cursor:grabbing}
+  .tllabel:hover .tlgrip{color:var(--ink)}
   .tlgrip.ph{cursor:default}
 
   /* One <details> per bucket, so collapsing it is free — the browser hides
@@ -471,10 +534,19 @@
   .tllanegroup:not([open]) .lanehead::before{content:'▸'}
   .tllabel.lanehead .dot{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
   .lanecount{font-weight:600; color:var(--ink-faint); text-transform:none; letter-spacing:0}
+  /* Right-aligned in the same flex row as the dot/name/count — a one-off
+     action, not a standing toggle, so it reads as a button rather than a
+     pill next to the count. */
+  .tlsort{
+    margin-left:auto; flex:none; border:0; background:transparent; cursor:pointer;
+    font-weight:600; font-size:10px; text-transform:none; letter-spacing:0;
+    color:var(--ink-faint); padding:2px 6px; border-radius:5px;
+  }
+  .tlsort:hover{color:var(--ink); background:var(--panel)}
 
-  .tlrow.tlheader{position:sticky; top:0; z-index:3}
+  .tlrow.tlheader{position:sticky; top:0; z-index:3; background:var(--panel)}
   .tlrow.tlheader .tllabel{background:var(--panel); position:relative}
-  .tlrow.tlheader .tltrack{min-height:40px}
+  .tlrow.tlheader .tltrack{min-height:40px; background:var(--panel)}
   .tlmonth{
     position:absolute; top:8px; font-size:10.5px; font-weight:700; text-transform:uppercase;
     letter-spacing:.03em; color:var(--ink-faint); white-space:nowrap;
@@ -497,13 +569,32 @@
   .tlweekline{
     position:absolute; top:0; bottom:0; width:1px; background:var(--line-soft); pointer-events:none;
   }
+  /* Weekends stay real space on the axis — decided against collapsing them,
+     see IMPROVEMENTS.md — marked instead with the same diagonal-stripe idiom
+     .tlbar.tltrail already uses, so five working days next to two off ones
+     still reads as what it is without changing any of the day math. */
+  .tlweekend{
+    position:absolute; top:0; bottom:0; pointer-events:none;
+    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 6px, transparent 6px 12px);
+  }
   .tltoday{
     position:absolute; top:0; bottom:0; width:1px;
     background:color-mix(in srgb, var(--accent) 55%, transparent); z-index:1; pointer-events:none;
   }
-  .tltoday::after{
-    content:"today"; position:absolute; top:2px; left:3px; font-size:9.5px; font-weight:700;
+  /* Lives in the sticky header row rather than on .tltoday's own full-height
+     line, so the label stays pinned to the top of the viewport while the
+     line itself keeps scrolling with the lanes underneath it. */
+  .tltodaylabel{
+    position:absolute; top:2px; margin-left:3px; font-size:9.5px; font-weight:700;
     letter-spacing:.03em; text-transform:uppercase; color:var(--accent); white-space:nowrap;
+    pointer-events:none;
+  }
+  /* Shown only while dragging an undated tray card across the scale — see
+     showTlTargetLine in 18-timeline.js. Dashed rather than solid so it never
+     reads as .tltoday at a glance. */
+  .tltarget{
+    position:absolute; top:0; bottom:0; width:0; z-index:1; pointer-events:none;
+    border-left:2px dashed var(--accent);
   }
 
   .tlbar{
@@ -704,6 +795,14 @@
   /* The range the dropdown resolves to, stated once beside it rather than
      repeated as its own heading further down. */
   .repwindow .repdates{color:var(--ink-faint)}
+  /* Same shape as .repwindow above, for the same reason: it governs every
+     card in the list below it rather than belonging to one of them. */
+  .projsort{
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
+  }
+  .projsort select{
+    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
+  }
   /* One h2 per report in reportDefs(), Completed and Weekly pace alike — a
      report's own name, not a section eyebrow, so it carries weight instead of
      shrinking away. Same bottom margin as the card's own h3 above it, so a
@@ -1210,6 +1309,13 @@
     color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   }
   .plangoto:hover{color:var(--ink)}
+  /* The Done column's status filter. It borrows the bucket strip's own tabs
+     rather than inventing a second kind of chip, shrunk a step because it sits
+     inside a column rather than across the window, and allowed to wrap since
+     six statuses will not fit one line in a third of the screen. */
+  .tabs.planfilter{display:flex; flex-wrap:wrap; margin:0 0 10px}
+  .tabs.planfilter .tab{padding:4px 9px; font-size:12px; gap:6px}
+  .tabs.planfilter .tab .n{font-size:10.5px; min-width:17px}
   .planagreed{margin:0 0 14px}
   .planagreed h4{margin:0 0 2px; font-size:12.5px}
   .planagreed .help{margin:0 0 8px}
@@ -1279,6 +1385,7 @@
     border-color:color-mix(in srgb, var(--amber) 60%, transparent);
   }
   .msgtext{font-size:13px; line-height:1.55; color:var(--ink)}
+  .msgtext a{color:var(--accent)}
   /* Copy is the one action worth reaching for without hovering first — the
      rest (Open in Claude, Raise in Jira, Dismiss) only earn their place once
      he is actually looking at the card, so they wait in .msgextra below.
@@ -1662,6 +1769,21 @@
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
     border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:7px 9px; width:100%;
   }
+  /* The Bucket field's own dropdown — a button standing in for the select it
+     replaced, same border/background/radius so it reads as the same kind of
+     control, with a coloured dot in front the way a plain <option> never
+     could carry one. */
+  .bucketfield{width:100%}
+  .bucketbtn{
+    display:flex; align-items:center; gap:7px; width:100%; text-align:left;
+    border:1px solid var(--line); background:var(--bg); border-radius:7px;
+    padding:7px 9px; color:var(--ink); font-size:13px; cursor:pointer;
+  }
+  .bucketbtn:disabled{cursor:default; color:var(--ink-faint)}
+  .bucketfield .dropdown-panel{width:100%; max-height:240px; overflow:auto}
+  .bucketopt{display:flex; align-items:center; gap:7px}
+  .bucketopt.on{font-weight:640}
+  .bucketfield .dot{width:8px; height:8px; border-radius:50%; flex:none}
   .field textarea{min-height:120px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere}
   /* Same surface as the textarea it stands in for, since the rendering
      replaces it in place rather than sitting beside it — see the Description
@@ -1789,6 +1911,23 @@
   .sub.dragging{opacity:.4}
   .sub.over-top{box-shadow:inset 0 2px 0 var(--accent)}
   .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  /* A note on one step, scoped to it rather than to the whole task the way
+     Description is. Quiet until there is something in it — most rows carry
+     none, so the icon should not read as a row of empty controls. */
+  .sub .noteicon{
+    flex:none; border:none; background:transparent; color:var(--ink-faint); opacity:0;
+    font-size:12.5px; line-height:1; padding:2px 3px; border-radius:4px;
+  }
+  .sub:hover .noteicon{opacity:.55}
+  .sub .noteicon:hover{opacity:1 !important; background:var(--chip)}
+  .sub .noteicon.has-note{opacity:.85; color:var(--accent)}
+  .sub:hover .noteicon.has-note{opacity:1}
+  .noterow{padding:0 6px 6px 34px}
+  .noterow .notebox{
+    width:100%; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
+    border-radius:6px; padding:6px 8px; font-size:12.5px; line-height:1.5; font-family:inherit;
+    resize:vertical; min-height:44px;
+  }
   .subedit{
     flex:1; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
     border-radius:5px; padding:2px 6px; font-size:13px; font-family:inherit;
@@ -2022,7 +2161,14 @@
      on the canvas. No grip — a card here is already filed against the one
      task it's open on, so there is nothing to drag it onto. */
   .cvstack{display:flex; flex-direction:column; gap:8px; margin:0 0 8px}
-  .cvstack .cvcard{position:relative; width:auto; box-shadow:none}
+  /* One rule for both cards in that column, so the project card and the
+     conversation cards under it cannot drift apart. What differs is what is
+     printed inside them. */
+  .cvstack .cvcard, .pcard{
+    position:relative; width:auto; box-shadow:none; overflow:hidden;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  }
+  .pcard{margin-bottom:8px}
   .cvstack .cvgrip{display:none}
   .aic-actions{display:flex; gap:8px; flex-wrap:wrap}
 

@@ -24,7 +24,7 @@ python3 core/windows.py --history    the last 30 days of usage windows
 Every file here started inside the thing that first needed it, and outgrew it.
 
 `todo.py` lived in `kanban/` while the board was its only caller. That stopped
-being true when the companion imported it, and by the time the pa-checkin checker
+being true when the companion imported it, and by the time the PA's checker
 and the night agent did too, four things depended on a module filed inside one
 of them. `windows.py` lived in `agents/night_agent/` for about six hours, until the board
 wanted the same window history for its Schedule view. `todo.js` was 440 lines in
@@ -96,7 +96,7 @@ documents in `parse.json` were missing: both of them started at `## 1. People`,
 so neither had a preamble to get wrong. The third one does.
 
 There used to be a third copy, hand-transcribed inside
-`agents/pa_agent/skills/pa-checkin/scripts/check_todo.py`. It is gone: the checker imports
+`agents/pa_agent/skills/pa/scripts/check_todo.py`. It is gone: the checker imports
 this file directly, five folders up. It used to have a second route as well, for a
 skill installed from a packed archive with no repo to reach, and that went with the
 archives on 6 Sep 2026 — skills are symlinked now, so the link resolves back into

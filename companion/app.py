@@ -52,7 +52,7 @@ BOARD_URL = "http://127.0.0.1:8765/kanban/index.html"
 TICK = 60.0
 # The morning notification goes out at the first tick at or after this, on a
 # working day — a weekday that is not a UK bank holiday. The holiday list is
-# todo.py's, the same one the pa-checkin checker reads, so a Monday off is a
+# todo.py's, the same one the PA's checker reads, so a Monday off is a
 # Monday off to both of them and there is no second list to keep in step.
 NOTIFY_AT = dt.time(8, 30)
 # And not after this. Launching the app late in the evening should not produce a

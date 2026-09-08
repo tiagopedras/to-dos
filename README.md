@@ -703,8 +703,8 @@ two designs of one list.
 
 Not the board's business. That lives in `## Context`, under `### Recurring
 meeting prep scripts`: one line per meeting in Tiago's own words, saying when it
-happens, what it is usually about, and what to check before it. `pa-checkin`
-reads that script, pulls the live status of whatever it points at, reads
+happens, what it is usually about, and what to check before it. The `pa`
+skill reads that script, pulls the live status of whatever it points at, reads
 `Previous agenda` to see what was already raised, and writes the block. Keeping
 the script in Context rather than in the skill is deliberate, and the same call
 `### How I want messages and prompts written` made: he can edit it on the board,
@@ -1113,7 +1113,7 @@ belongs to no one app: a Python port of the parsing, the suggested messages and
 the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
 tab that needs to know what is due asks one shared reader rather than inventing a
 second one. It sat in `kanban/` while the board was its only caller, and moved to
-`core/` on 5 Sep 2026 once the companion, the night agent and the pa-checkin
+`core/` on 5 Sep 2026 once the companion, the night agent and the PA's
 checker all depended on a module filed inside one of them. The JavaScript
 followed it there the same day, out of the middle of `index.html`, so the two
 copies of one grammar now sit next to each other. `core/README.md` says what
@@ -1137,7 +1137,7 @@ about junk input is invisible until the day something writes junk.
 holidays, and Portugal's national public holidays. Two countries because the work
 spans two. That is not file format and it sits there on sufferance, but three
 things need the same answer — the companion staying quiet on a day off, the
-`pa-checkin` checker flagging a deadline that lands on one, and the board's own
+the PA's checker flagging a deadline that lands on one, and the board's own
 idea of a working day — and the alternative is a second holiday list, which is a
 second list to go stale. Every function there takes a narrower set of regions if
 a caller only cares about one of them.
@@ -1248,9 +1248,24 @@ plans is one line at the end, not one line a plan.
 
 ## The skills
 
-`agents/pa_agent/skills/pa-checkin/` is a Claude skill that runs the review session: read
-and report, ask what changed, apply updates, optimise, check the one thing,
-verify.
+They are a hierarchy rather than a flat set, restructured on 7 Sep 2026.
+
+`agents/pa_agent/skills/pa/` is the one that writes. Every change to `todo.md`
+goes through it, whether he asked for it directly or another skill asked on his
+behalf, and nothing else in this repo edits that file. It owns the tag syntax,
+the scores, the recurring meeting agendas, the headline, the optimisation pass,
+the checker and the Reload line, in one copy, so there is one place a convention
+can be wrong. Before it existed those lived in `pa-checkin`, which meant a skill
+that ran the morning session also owned the file format, and the other five
+reached across a skill boundary to borrow it.
+
+`agents/pa_agent/skills/pa-checkin/` is now just the daily session: pull whatever
+the meeting recorder captured overnight by invoking `pa-retrieve-tasks`, read the
+list, give him the brief for the day and the week, ask what has moved, and hand
+what he agreed to `pa`. The brief is rendered from a template in
+`pa-checkin/templates/` rather than written freehand, for the same reason the
+phone ones are: a report that comes out in the same shape every morning can be
+scanned, and one written fresh each time has to be read.
 
 `scripts/check_todo.py` is a mechanical checker — dates on weekends, sub-steps
 running past their parent, a `blocked-by:` pointing at nothing, duplicate ranks,
@@ -1260,7 +1275,7 @@ under it, and a queried tag written in a form Dataview cannot read. Run it
 directly:
 
 ```bash
-python3 agents/pa_agent/skills/pa-checkin/scripts/check_todo.py data/twinkl/todo.md
+python3 agents/pa_agent/skills/pa/scripts/check_todo.py data/twinkl/todo.md
 ```
 
 It does not carry its own copy of the `repeat:` grammar or the bank holidays any
@@ -1270,22 +1285,29 @@ where there is no repo to reach, it imports the copy the build step staged besid
 it. The repo wins when both exist, so editing the original is always what takes
 effect and a stale staged copy cannot mask it.
 
-`agents/pa_agent/skills/pa-mobile/` is the same list read from a phone, over Remote Control from
-the Claude app. It reads and writes the real file like any other session, so what
-makes it a separate skill is the surface rather than the data: every question is
-asked as multiple choice instead of as something to type, and every report is
-rendered from a template in `agents/pa_agent/skills/pa-mobile/templates/` instead of being written
-freehand. The templates are Tiago's, one file per kind of report, and adding a
-file to that folder is the whole of adding a report shape. A status that comes out
-in the same shape every morning can be scanned in the four seconds a phone screen
-gets; one written fresh each time has to be read.
+`agents/pa_agent/skills/pa-mobile/` is a surface rather than a separate list. It
+runs the same skills over Remote Control from the Claude app, with two things
+changed: every question is asked as multiple choice instead of as something to
+type, and every report comes from `pa-mobile/templates/` rather than from the
+desk folder of the same name. A filename that exists in both places is the phone
+cut of the desk one and wins whenever the session is on a phone; where there is
+no phone twin, the skill says so and asks rather than rendering a desk brief into
+four screens. It is also the one surface that skips the meeting-action pull,
+since reviewing those one at a time is a desk-length conversation.
 
-Two reference files at the root of this repo sit behind all five skills, and
-neither is packaged inside one of them. `PA.md` is standing behaviour: who the
-list belongs to, where it lives, how he prioritises, the rules that hold whatever
-skill is running, and the tone. `CONVENTIONS.md` is the file format. Every skill
-reads both before it does anything, which is why none of them restate either.
-`pa-checkin/references/audit-checklist.md` is what to check by hand that the
+The templates are Tiago's, one file per kind of report, and adding a file to a
+`templates/` folder is the whole of adding a report shape. Their syntax and every
+field they can fill are documented once, in `pa/references/templates.md`, so both
+sets render the same way.
+
+Two reference files sit behind all nine skills, and neither is packaged inside
+one of them. `agents/pa_agent/PA.md` is standing behaviour: who the list belongs
+to, where it lives, how he prioritises, the rules that hold whatever skill is
+running, and the tone. It stayed a plain file rather than folding into `pa`
+because the night agent's six planners and `execution-agent` read it too and
+never write anything. `CONVENTIONS.md` at the repo root is the file format. Every
+skill reads both before it does anything, which is why none of them restate
+either. `pa/references/audit-checklist.md` is what to check by hand that the
 script cannot.
 
 ### Installing them
@@ -1303,9 +1325,9 @@ folder, because an archive beside a folder is a second copy that goes stale the
 moment the folder is edited and several of them had.
 
 The one thing the build did that was not just zipping was staging `core/todo.py`
-next to `pa-checkin`'s checker, since an installed skill had no repo to reach.
-A symlinked one does: `check_todo.py` resolves through the link and imports
-`core/todo.py` five folders up. One copy in git, and no build to forget.
+next to the checker, since an installed skill had no repo to reach. A symlinked
+one does: `check_todo.py` resolves through the link and imports `core/todo.py`
+five folders up. One copy in git, and no build to forget.
 
 ### Two dates, not one
 

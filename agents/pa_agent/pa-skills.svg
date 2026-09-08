@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 880" width="1200" height="880" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#71717a"/>
+    </marker>
+    <marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b9a68c"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a1a1aa"/>
+    </marker>
+    <style>
+      .card  { fill:#ffffff; stroke:#d4d4d8; stroke-width:1.5; }
+      .file  { fill:#fafaf9; stroke:#a1a1aa; stroke-width:1.5; stroke-dasharray:5 4; }
+      .ghost { fill:#ffffff; stroke:#a1a1aa; stroke-width:1.5; stroke-dasharray:5 4; }
+      .hub   { fill:#18181b; }
+      .name  { font-size:15px; font-weight:650; fill:#18181b; }
+      .namew { font-size:20px; font-weight:650; fill:#ffffff; }
+      .sub   { font-size:11.5px; fill:#52525b; }
+      .subw  { font-size:12px; fill:#d4d4d8; }
+      .lbl   { font-size:10.5px; fill:#71717a; }
+      .lbli  { font-size:10.5px; fill:#8b8b93; font-style:italic; }
+      .ttl   { font-size:23px; font-weight:680; fill:#18181b; }
+      .dek   { font-size:13px; fill:#52525b; }
+      .kick  { font-size:10px; font-weight:700; fill:#a1a1aa; letter-spacing:1.3px; }
+      .flow  { stroke:#71717a; stroke-width:1.6; fill:none; }
+      .flowd { stroke:#a1a1aa; stroke-width:1.5; fill:none; stroke-dasharray:5 4; }
+      .tag   { font-size:9.5px; font-weight:650; fill:#a1a1aa; letter-spacing:.4px; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="880" fill="#f7f7f6"/>
+
+  <text class="ttl" x="40" y="48">The PA skills</text>
+  <text class="dek" x="40" y="72">Nine skills against one file. Eight of them hold a conversation. One of them writes.</text>
+
+  <text class="kick" x="40" y="104">SURFACE</text>
+  <text class="kick" x="244" y="104">CONVERSATION</text>
+  <text class="kick" x="920" y="104">OUTSIDE THE SET</text>
+
+  <!-- ============ the phone surface ============ -->
+  <rect class="ghost" x="40" y="150" width="164" height="198" rx="10"/>
+  <text class="name" x="60" y="180">pa-mobile</text>
+  <text class="sub" x="60" y="203">Runs any of these</text>
+  <text class="sub" x="60" y="220">from a phone.</text>
+  <text class="sub" x="60" y="245">Every question is</text>
+  <text class="sub" x="60" y="262">multiple choice.</text>
+  <text class="sub" x="60" y="287">Its own templates</text>
+  <text class="sub" x="60" y="304">beat the desk ones.</text>
+  <text class="tag" x="60" y="330">TEMPLATES ×5</text>
+  <path class="flowd" d="M204 249 H228" marker-end="url(#ad)"/>
+
+  <!-- ============ row 1 ============ -->
+  <rect class="card" x="244" y="150" width="196" height="88" rx="10"/>
+  <text class="name" x="264" y="180">pa-checkin</text>
+  <text class="sub" x="264" y="201">The daily session. Reads,</text>
+  <text class="sub" x="264" y="218">briefs, asks what moved.</text>
+  <text class="tag" x="264" y="232">TEMPLATES ×2</text>
+
+  <rect class="card" x="464" y="150" width="196" height="88" rx="10"/>
+  <text class="name" x="484" y="180">pa-retrieve-tasks</text>
+  <text class="sub" x="484" y="201">Pulls what the recorder</text>
+  <text class="sub" x="484" y="218">caught. Owns the watermark.</text>
+
+  <rect class="card" x="684" y="150" width="196" height="88" rx="10"/>
+  <text class="name" x="704" y="180">pa-do</text>
+  <text class="sub" x="704" y="201">Hands one agreed plan</text>
+  <text class="sub" x="704" y="218">to the acting agent.</text>
+
+  <!-- checkin calls retrieve-tasks -->
+  <path class="flow" d="M342 150 C342 120, 562 120, 562 150" marker-end="url(#a)"/>
+  <text class="lbli" x="452" y="114" text-anchor="middle">calls it first, once a day</text>
+
+  <!-- ============ row 2 ============ -->
+  <rect class="card" x="244" y="262" width="196" height="86" rx="10"/>
+  <text class="name" x="264" y="292">pa-checkout</text>
+  <text class="sub" x="264" y="313">Walks Doing, Waiting</text>
+  <text class="sub" x="264" y="330">review and Blocked.</text>
+
+  <rect class="card" x="464" y="262" width="196" height="86" rx="10"/>
+  <text class="name" x="484" y="292">pa-focus</text>
+  <text class="sub" x="484" y="313">Walks To do and Doing.</text>
+  <text class="sub" x="484" y="330">What is really in flight?</text>
+
+  <rect class="card" x="684" y="262" width="196" height="86" rx="10"/>
+  <text class="name" x="704" y="292">pa-review-plans</text>
+  <text class="sub" x="704" y="313">Triages the night agent's</text>
+  <text class="sub" x="704" y="330">plans, one at a time.</text>
+
+  <!-- ============ the acting agent ============ -->
+  <rect class="ghost" x="920" y="150" width="240" height="88" rx="10"/>
+  <text class="name" x="940" y="180">execution-agent</text>
+  <text class="sub" x="940" y="201">Carries out the plan. Only</text>
+  <text class="sub" x="940" y="218">ever from a live session.</text>
+  <path class="flow" d="M880 194 H916" marker-end="url(#a)"/>
+
+  <path class="flowd" d="M1040 238 V542 H884" marker-end="url(#ad)"/>
+  <text class="lbli" x="1052" y="400">asks for the</text>
+  <text class="lbli" x="1052" y="416">list change,</text>
+  <text class="lbli" x="1052" y="432">never makes it</text>
+
+  <!-- ============ the handover bus ============ -->
+  <path class="flow" d="M440 219 H452 V410"/>
+  <path class="flow" d="M660 219 H672 V410"/>
+  <path class="flow" d="M342 348 V410"/>
+  <path class="flow" d="M562 348 V410"/>
+  <path class="flow" d="M782 348 V410"/>
+  <path class="flow" d="M342 410 H782"/>
+  <path class="flow" d="M562 410 V486" marker-end="url(#a)"/>
+  <text class="lbl" x="580" y="452">everything they agreed, handed over as a list</text>
+
+  <!-- ============ the one writer ============ -->
+  <rect class="hub" x="244" y="490" width="636" height="104" rx="12"/>
+  <text class="namew" x="272" y="528">pa</text>
+  <text class="subw" x="272" y="552">The one writer. Tags, scores, meeting agendas, the headline,</text>
+  <text class="subw" x="272" y="570">the optimisation pass, the checker, the Reload line.</text>
+  <text class="subw" x="272" y="586" font-style="italic" fill="#9a9aa2">Applies what it is handed. Never spawns a subagent to do it.</text>
+
+  <path class="flow" d="M562 594 V664" marker-end="url(#a)"/>
+  <text class="lbl" x="576" y="636">the only write</text>
+
+  <!-- ============ the file, and the board ============ -->
+  <rect class="file" x="404" y="668" width="316" height="70" rx="8"/>
+  <text class="name" x="428" y="698">data/&lt;dataset&gt;/todo.md</text>
+  <text class="sub" x="428" y="720">Five buckets. Nothing derived.</text>
+
+  <rect class="ghost" x="800" y="668" width="200" height="70" rx="10"/>
+  <text class="name" x="822" y="698">the board</text>
+  <text class="sub" x="822" y="720">Holds the whole document.</text>
+
+  <path d="M792 703 H728" stroke="#b9a68c" stroke-width="2" fill="none" marker-end="url(#aw)" marker-start="url(#aw)"/>
+  <text class="lbli" x="760" y="770" text-anchor="middle">it autosaves the whole file within seconds,</text>
+  <text class="lbli" x="760" y="786" text-anchor="middle">which is the entire reason there is one writer</text>
+
+  <!-- ============ pa-attach, which reaches the file another way ============ -->
+  <rect class="card" x="1000" y="586" width="180" height="80" rx="10"/>
+  <text class="name" x="1018" y="614">pa-attach</text>
+  <text class="sub" x="1018" y="635">Files this chat</text>
+  <text class="sub" x="1018" y="652">against a task.</text>
+
+  <rect class="file" x="1000" y="720" width="180" height="56" rx="8"/>
+  <text class="name" x="1018" y="744" font-size="13">attach-queue.json</text>
+  <text class="sub" x="1018" y="762">The board drains it.</text>
+
+  <path class="flowd" d="M1090 666 V716" marker-end="url(#ad)"/>
+  <path class="flowd" d="M1000 748 H900 V742" marker-end="url(#ad)"/>
+
+  <!-- ============ shared references ============ -->
+  <text class="kick" x="40" y="638">READ BY ALL NINE</text>
+  <rect class="file" x="40" y="654" width="330" height="172" rx="10"/>
+  <text class="sub" x="62" y="682" font-weight="650" fill="#18181b">PA.md</text>
+  <text class="lbl" x="62" y="698">Who he is, the two tiers, the tone.</text>
+  <text class="sub" x="62" y="724" font-weight="650" fill="#18181b">CONVENTIONS.md</text>
+  <text class="lbl" x="62" y="740">The file format.</text>
+  <text class="sub" x="62" y="766" font-weight="650" fill="#18181b">pa/references/templates.md</text>
+  <text class="lbl" x="62" y="782">Report syntax and every field, one copy.</text>
+  <text class="sub" x="62" y="808" font-weight="650" fill="#18181b">pa/scripts/check_todo.py</text>
+
+  <text class="lbl" x="1160" y="856" text-anchor="end">to-dos/agents/pa_agent · 7 September 2026</text>
+</svg>
