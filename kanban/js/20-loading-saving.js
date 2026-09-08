@@ -63,6 +63,13 @@ function load(text, name, opts){
         ? ', ' + (rolled.carried === 1 ? 'one' : rolled.carried) +
           ' carrying an agenda that was never ticked off'
         : '') +
+      // A finished one moving columns is a bigger change to the board than a
+      // date quietly ticking forward, so it gets its own clause rather than
+      // hiding inside "rolled".
+      (rolled.moved
+        ? ', ' + (rolled.moved === 1 ? 'one' : rolled.moved) +
+          ' parked in To do or Backlog'
+        : '') +
       ' — save to apply';
   }
   flushAgendaHistory(rolled.archived);

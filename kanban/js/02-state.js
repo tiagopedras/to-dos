@@ -110,7 +110,7 @@ const state = {
 
      #timeline                     the view — durable, rewritten on every render
      #timeline/design-system       …and which bucket tab is showing, durable too
-     #timeline!task=ds-audit       …or a card to open, once
+     #timeline!task=ds-audit       …or a card to open, held open
      #!task=ds-audit               a card to open, whatever view is up
 
    None of them compete. The view segment sets the view exactly as it always
@@ -119,9 +119,12 @@ const state = {
    is showing; an empty segment means leave that part of the state alone. The
    `!` cut comes first, because `!task=`/`!chat=` never appears without it,
    then the view half of what's left of it splits again on `/` for the bucket
-   slug. syncHash() writes the view+bucket half back on every render, which is
-   what drops the task again — an instruction that has been carried out
-   shouldn't survive a refresh.
+   slug. syncHash() writes the view+bucket half back on every render, and the
+   task half for as long as openDrawer/closeDrawer say a task is open — see
+   there — so a refresh (or a bookmark) lands back on the same card rather
+   than just the same view. `!chat=` doesn't get the same treatment: it names
+   one turn in a conversation rather than a thing that's "open", so it stays
+   the one-shot instruction it always was.
 
    The fragment rather than a query string on purpose. A link that differs only
    after the `#` is a same-document navigation, so the browser brings the tab
@@ -164,6 +167,24 @@ function findTaskByKey(key){
         if (!byTitle && String(t.title || '').replace(/\s+/g, ' ').trim().toLowerCase() === want) byTitle = t;
       }
   return bySlug || byTitle;
+}
+
+/* The inverse of findTaskByKey, and the same choice companion/app.py's own
+   task_key() makes — slug first, title as the fallback every task has — so a
+   link this tab writes into its own address bar is one findTaskByKey can read
+   straight back, here or from the companion. */
+function taskKey(t){
+  return t.slug || t.title;
+}
+
+/* encodeURIComponent leaves `!` untouched. parseHash() only ever splits on the
+   first one, which this file's own `!task=` always is, so an un-escaped `!`
+   inside a title wouldn't actually be misread today — but that is an
+   accident of the current grammar, not something to depend on, and
+   companion/app.py's board_url() already escapes it for exactly this reason.
+   Matched here so both halves build the same link. */
+function encodeTaskKey(key){
+  return encodeURIComponent(key).replace(/!/g, '%21');
 }
 
 /* Open the card a link named. The bucket tab is moved to the one holding it

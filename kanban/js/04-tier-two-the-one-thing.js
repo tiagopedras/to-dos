@@ -68,7 +68,7 @@ function stampDoneDates(doc){
    and a check-in is not. A week without a check-in would otherwise leave last
    week's date on the card.
 
-   Three things happen when an occurrence has passed:
+   Four things happen when an occurrence has passed:
 
    1. The agenda that was on it becomes `Previous agenda (that date):`, replacing
       whatever was there before. One cycle of history, which is what writing the
@@ -78,6 +78,14 @@ function stampDoneDates(doc){
       next week is done.
    3. `[due:: ]` moves to the next occurrence. In a loop, since the gap since the
       last time the board was open can be longer than one cycle.
+   4. A task that was ticked gets parked somewhere that says how soon it matters
+      again, rather than sitting wherever it happened to be finished from. Under
+      a week to the next occurrence and it goes to To do, where the rest of the
+      week's work is; a week or more and it goes to Backlog, out of the way
+      until it is worth thinking about again. An occurrence that was never
+      prepared for — still unticked when its date passed — has nothing to move
+      on from, so it is left exactly where it was; only a "done" carries an
+      opinion about what comes next.
 
    Nothing is rolled while the board is showing a backup: that document is a
    record of a past state and rewriting the dates in it would be a lie about
@@ -109,8 +117,13 @@ function shiftFieldDate(text, key, days){
 
 function rollRecurring(doc){
   const now = today();
-  let n = 0, c = 0;
+  let n = 0, c = 0, moved = 0;
   const archived = [];
+  // Collected rather than applied in place: this runs inside a forEach over
+  // tier.tasks itself, and splicing the array a task's own iteration is
+  // sitting in is how the next task in the same tier gets silently skipped.
+  // Applied once, after every tier has been walked.
+  const parks = [];
   doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
     const rep = readRepeat(t.repeat);
     if (!rep) return;
@@ -173,6 +186,18 @@ function rollRecurring(doc){
       carried = true;
     }
 
+    /* Checked before setDone() clears it below — this is the state the task
+       is rolling out of, not the one it's rolling into. A gap of a week
+       reads on the calendar the same way a working week does, which is the
+       only reason 7 is the line: less than that and it's still this week's
+       business, so it goes to To do; a week or more and it's next week's
+       problem at the earliest, so it's parked in Backlog instead. */
+    if (t.done) {
+      const gap = Math.round((next - now) / 86400000);
+      parks.push({ bucket: b, from: tier, task: t, to: gap >= 7 ? 'Backlog' : 'To do' });
+      moved++;
+    }
+
     setDone(t, false);
     /* And every sub-step with it. A recurring task's steps are the work of one
        occurrence — send the nudge, review what came back — so a step still
@@ -200,7 +225,19 @@ function rollRecurring(doc){
     n++;
     if (carried) c++;
   })));
-  return { n, carried: c, archived };
+  // Same move the Column field's own slider makes (see wireStepSlider('f-tier',
+  // ...) in 19-drawer.js) — splice out of the tier the roll found it in, push
+  // onto the target, skip the write entirely when they're already the same
+  // tier so a task already sitting in To do isn't reshuffled to the bottom of
+  // its own column for no reason.
+  parks.forEach(({ bucket, from, task, to }) => {
+    const target = ensureTier(bucket, to);
+    if (target === from) return;
+    const at = from.tasks.indexOf(task);
+    if (at > -1) from.tasks.splice(at, 1);
+    target.tasks.push(task);
+  });
+  return { n, carried: c, moved, archived };
 }
 
 /* The plain-text shape of one filed agenda, reused from agendaClipboard's

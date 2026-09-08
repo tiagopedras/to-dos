@@ -18,6 +18,23 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The button that edits columns sits next to the button that edits buckets,
+  not next to the control that filters by column.** `#editTiers`
+  (`kanban/index.html:63-66`, wired to `openTierEditor` in
+  `kanban/js/07-render-board.js:93`) is grouped with `#editBuckets` at the far
+  left of the bucket strip, right after `#bucketFilters`. The Status dropdown
+  it would actually pair with — `#statusWrap`/`#statusFilterBtn`
+  (`kanban/index.html:70-77`, drawn by `renderStatusFilters()` in
+  `07-render-board.js:108`) — sits on the other side of the strip's own
+  `<span class="spacer">`, past `#allBuckets` and `#scoreChip`. Edit buckets
+  belongs where it is, beside the tabs it edits; Edit columns edits the exact
+  set of names Status filters by, so moving `#editTiers` next to
+  `#statusFilterField` groups the control with the thing it controls, the way
+  Edit buckets already does for its own tabs. A markup move rather than new
+  behaviour — `18-timeline.js:849` and `:853` toggle both buttons' `.hidden`
+  class independently already, by id, so neither's visibility logic cares
+  where in the strip it sits.
+
 - **A project whose every task is done still wears the same "Live" tag as one
   with work outstanding.** `projectItemHTML()` (`kanban/js/26-projects.js:61`)
   already computes both numbers it would need — `open`, the count of
@@ -400,6 +417,52 @@ they settled is written up in the README rather than left here:
   Context section. The board is the authority, so `todo.py` moved in all three.
 
 ## Big
+
+- **Bucket filtering is a single pick plus an "All" escape hatch, while
+  Status right beside it is genuinely multi-select.** `state.activeBucket`
+  (`kanban/js/02-state.js:28`) holds one bucket name or the `ALL_BUCKETS`
+  sentinel (`02-state.js:272`), and `renderTabs()`
+  (`kanban/js/07-render-board.js:67-90`) draws it as one row of exclusive
+  tabs, each click replacing the whole value (`:90`). `state.statusFilter`
+  sits right beside it in the same strip as a `Set` (`02-state.js:65`),
+  toggled on and off independently by `renderStatusFilters()`
+  (`07-render-board.js:108`), with an empty set meaning "no narrowing" rather
+  than a dedicated All option — the shape this idea wants buckets to copy.
+  It isn't a redraw on its own: `activeBucket()` returning exactly one
+  bucket is depended on past the tabs themselves. `addTask()`
+  (`kanban/js/18-timeline.js:1081`) files a new card straight into it, and
+  `plansShown()` (`kanban/js/13-plans.js:174-178`) narrows the Plans view by
+  comparing a row's bucket string against that one name — both need an
+  answer for what happens once several buckets are live at once: which one
+  gets a new card, and does the Plans narrowing widen to "any of the ones
+  that are on" the way `shownBuckets()`'s own AI/urgent widening already
+  does. `syncHash()`'s `#<view>/<slug>` (`07-render-board.js:54-58`) also
+  bakes in one bucket per URL and would need to carry a set instead.
+
+- **A handful of column names are already load-bearing, and the newest code
+  to depend on one doesn't fail the way the rest of the codebase agreed to.**
+  `WAIT_COL`, `BLOCKED_TIER` and `BACKLOG_TIER` (`kanban/js/02-state.js:258-269`)
+  each carry a comment saying the same thing on purpose: "a renamed section
+  simply stops matching and goes back to looking normal" — the column is
+  matched by string, but a miss degrades quietly. `rollRecurring()`'s
+  move-on-completion logic (`kanban/js/04-tier-two-the-one-thing.js:197`,
+  added rolling a finished recurring task into Backlog or To do) doesn't
+  follow that rule: it writes fresh `'Backlog'`/`'To do'` literals rather than
+  reusing `BACKLOG_TIER`, and its target, `ensureTier()`
+  (`kanban/js/04-tier-two-the-one-thing.js:286`), doesn't fail quietly on a
+  miss at all — it creates a brand-new tier with that exact name. Rename "To
+  do" in `todo.md` and this feature doesn't go quiet the way `BACKLOG_TIER`
+  would; it spawns a second, empty "To do" column that nothing else
+  recognises, sitting next to whatever the real column is now called.
+  `renameParked()` (`kanban/js/04-tier-two-the-one-thing.js:270`) is the one
+  place that already treats a name as truly load-bearing rather than
+  cosmetic — it rewrites "Parked" to "Backlog" on sight rather than matching
+  either — which is closer to what Backlog, To do, Doing, Waiting review and
+  Done would need if they're meant to be relied on: either a fixed internal
+  key distinct from whatever label is typed in `todo.md`'s `###` headings, or
+  a firm rule that anything depending on a specific column name has to fail
+  the graceful way the existing three constants already do, never the way
+  this newest one does.
 
 - **Nothing the PA runs logs how long the sitting actually took, so there is
   no way to say where his time with it actually goes bucket by bucket.** None

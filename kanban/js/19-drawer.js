@@ -591,6 +591,14 @@ function openDrawer(id, focusTitle){
   const subs = subSteps(t);
   const sugg = suggestions(t);
   const proj = taskProject(t);
+  const rep = t.repeat ? readRepeat(t.repeat) : null;
+  /* The same fallback rollRecurring() itself uses (04-tier-two-the-one-thing.js):
+     trust `due` when it's a real, future date — that's the occurrence the roll
+     already landed on, and on a `~` tag it may be a hand-corrected date the
+     rule alone wouldn't produce — and only fall back to the rule when there's
+     nothing usable yet, which is a backup/read-only view, where load() skips
+     the roll on purpose. */
+  const nextDue = rep && (parseDue(t.due) && parseDue(t.due) >= today() ? parseDue(t.due) : occurrenceFrom(rep, today()));
   const dis = ro ? ' disabled' : '';
 
   state.openProject = null;
@@ -695,6 +703,20 @@ function openDrawer(id, focusTitle){
     '</div>' +
     '<div class="cal hidden" id="f-cal-start"></div>' +
     '<div class="cal hidden" id="f-cal-due"></div>' +
+    /* Read-only — the `repeat:` tag is set by the pa skill, never typed into
+       the drawer — so this is the same reading the card's own "Recurring" tag
+       tooltip already does, just given room to say it in full. Sits right
+       under the two dates rather than in the sugg column: it is a fact about
+       when the task falls, same as they are, not a note about the task. */
+    (rep ? '<div class="field"><span>Repeats</span>' +
+      '<span class="dpbtn" style="cursor:default">' +
+        esc(rep.label.charAt(0).toUpperCase() + rep.label.slice(1)) + '</span>' +
+      '</div>' +
+      '<span class="help">Next: ' + esc(dueLabel(ymd(nextDue))) + '</span>' +
+      (rep.loose
+        ? '<span class="help">Usual shape, not a fixed rule — the date moves around it.</span>'
+        : '')
+      : '') +
     (parseDue(t.start) && parseDue(t.due) && parseDue(t.start) > parseDue(t.due)
       ? '<p class="datewarn">This cannot start until after it is due. One of the two dates is wrong.</p>'
       : '') +
@@ -1046,6 +1068,10 @@ function openDrawer(id, focusTitle){
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
   if (focusTitle) { const el = $('#f-title'); el.focus(); el.select(); }
+  // Written into the URL now rather than left for the next full render —
+  // opening the drawer alone doesn't otherwise touch the hash. See syncHash()
+  // in 07-render-board.js.
+  syncHash();
 }
 
 function closeDrawer(){
@@ -1054,6 +1080,7 @@ function closeDrawer(){
   $('#drawer').classList.remove('open');
   $('#drawer').classList.remove('projectview');
   $('#scrim').classList.remove('open');
+  syncHash();
 }
 
 /* ---- The panel, showing a project instead of a task ----
@@ -1066,6 +1093,10 @@ function openProjectDrawer(name){
   const rows = projectTasks(name);
   state.openTask = null;
   state.openProject = name;
+  // Drops a `!task=` a click through from the task drawer left behind — see
+  // syncHash() in 07-render-board.js — rather than leaving it stale until
+  // whatever renders next happens to call syncHash() itself.
+  syncHash();
 
   $('#drawer').classList.add('projectview');
   $('#drawer').classList.toggle('readonly', state.locked);

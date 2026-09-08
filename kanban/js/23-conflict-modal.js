@@ -12,7 +12,8 @@ function closeModal(){
 }
 function modalKeys(e){ if (e.key === 'Escape') closeModal(); }
 
-/* buttons: [{ label, primary, danger, run }] — the first is the safe default.
+/* buttons: [{ label, primary, danger, agree, reject, run }] — the first is the
+   safe default. The × in .top always closes without running anything.
    opts: { wide } — wide is the document-width variant a written report opens
    in, rather than the confirmation-sized default. */
 function showModal(heading, sub, bodyHTML, buttons, opts){
@@ -21,15 +22,18 @@ function showModal(heading, sub, bodyHTML, buttons, opts){
   modalEl.className = 'mscrim';
   modalEl.innerHTML =
     '<div class="sheet' + (opts && opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
-      '<div class="top"><h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
+      '<div class="top"><button type="button" class="mclose" aria-label="Close">×</button>' +
+        '<h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
       '<div class="mid">' + bodyHTML + '</div>' +
       '<div class="foot">' + buttons.map((b, i) =>
         '<button class="btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : '') +
+        (b.agree ? ' agree' : '') + (b.reject ? ' reject' : '') +
         '" data-i="' + i + '">' + esc(b.label) + '</button>').join('') +
       '</div>' +
     '</div>';
   // Clicking the backdrop is a cancel, not a choice. Nothing is decided by it.
   modalEl.onclick = e => { if (e.target === modalEl) closeModal(); };
+  modalEl.querySelector('.mclose').onclick = closeModal;
   modalEl.querySelectorAll('.foot .btn').forEach(btn => {
     btn.onclick = () => { const b = buttons[+btn.dataset.i]; closeModal(); if (b.run) b.run(); };
   });

@@ -84,17 +84,18 @@ function planItemHTML(p){
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
   const sub = [p.bucket, p.column, planGeneratedLabel(p), p.agent].filter(Boolean).map(esc).join(' · ');
-  /* Four buttons and only two of them are decisions. Agree and Send back are
-     the pair this view exists for; Mark actioned stays for the plans he
-     carries out himself, which is still most of them. Agree is not the primary
-     button — the primary is the one pressed by reflex on the way out, and
-     approving work to run should not be reachable by reflex. */
+  /* Three buttons and only two of them are decisions. Agree and Send back are
+     the pair this view exists for, coloured for what they commit to — green
+     hands the work to the runner, red sends it away with a reason. I did this
+     myself stays for the plans he carries out on his own, which is still most
+     of them; it carries no colour because it isn't a verdict on the plan. The
+     modal's own × in the corner is the dismissal now, so there is no Close
+     button left to press by reflex on the way out. */
   openDocModal({
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    buttons: [{ label:'Agree, hand it over', run: () => agreePlan(p) },
-              { label:'Send it back', run: () => rejectPlan(p) },
-              { label:'Mark actioned', run: () => setPlanStatus(p, 'actioned') },
-              { label:'Close', primary:true }]
+    buttons: [{ label:'Agree, hand it over', agree:true, run: () => agreePlan(p) },
+              { label:'Send it back', reject:true, run: () => rejectPlan(p) },
+              { label:'I did this myself', run: () => setPlanStatus(p, 'actioned') }]
   });
   if (p.status === 'unread') setPlanStatus(p, 'read', true);
 }

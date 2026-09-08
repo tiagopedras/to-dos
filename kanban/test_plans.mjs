@@ -478,10 +478,10 @@ check('opening marks it read', marked.includes('POST /plan/status') && marked.in
 check('and names the night and the file', marked.includes('"night":"2026-09-05"') && marked.includes('"name":"add-caveat.md"'))
 
 // Actioned is a deliberate press, and it is the one the runner reads.
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Mark actioned').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'I did this myself').click()`)
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
-check('Mark actioned posts actioned', after.includes('"status":"actioned"'))
+check('I did this myself posts actioned', after.includes('"status":"actioned"'))
 check('and the row moves into the actioned fold', await evalJS(`
   document.querySelector('#plansOut details summary').textContent.trim() === '2 actioned'
 `))

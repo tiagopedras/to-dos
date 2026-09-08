@@ -42,18 +42,27 @@ function slugifyBucket(name){
 function bucketBySlug(slug){
   return (state.doc && state.doc.buckets.find(b => slugifyBucket(b.name) === slug)) || null;
 }
-/* Keeps the URL's view+bucket segment in step with state — #<view>/<slug> —
-   called from renderTabs() so every render and every bucket-tab click reaches
-   it, and from renderView() so a view change with no filter bar (canvas) still
-   updates the URL. Writing the view alone for canvas is deliberate: it has no
-   bucket tabs, so #canvas/all would claim a filter that isn't there. This is
-   also what drops a `!task=`/`!chat=` once it has been acted on — see the
-   fragment note in 02-state.js — same as before this had a bucket segment at
-   all. replaceState, not the hash setter: no history entry, no hashchange, so
-   this can't loop with the listener in boot.js. */
+/* Keeps the URL's view+bucket+task segments in step with state —
+   #<view>/<slug>!task=<key> — called from renderTabs() so every render and
+   every bucket-tab click reaches it, from renderView() so a view change with
+   no filter bar (canvas) still updates the URL, and directly from
+   openDrawer()/closeDrawer() (19-drawer.js), since opening or closing the
+   panel doesn't otherwise trigger a re-render of the board underneath it.
+   Writing the view alone for canvas is deliberate: it has no bucket tabs, so
+   #canvas/all would claim a filter that isn't there.
+
+   The task half is read off state.openTask fresh on every call rather than
+   cached, so it tracks the drawer rather than surviving past it — see the
+   fragment note in 02-state.js. `!chat=` still gets dropped the moment it's
+   acted on; only the task panel is "open" in a sense worth remembering.
+   replaceState, not the hash setter: no history entry, no hashchange, so this
+   can't loop with the listener in boot.js. */
 function syncHash(){
   const withBucket = state.doc && state.view !== 'canvas';
-  const hash = '#' + state.view + (withBucket ? '/' + (allMode() ? 'all' : slugifyBucket(activeBucket().name)) : '');
+  const openLoc = state.openTask && state.doc && locate(state.openTask);
+  const hash = '#' + state.view +
+    (withBucket ? '/' + (allMode() ? 'all' : slugifyBucket(activeBucket().name)) : '') +
+    (openLoc ? '!task=' + encodeTaskKey(taskKey(openLoc.task)) : '');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 /* Which buckets the board draws. The AI filter cuts across every bucket, and so
