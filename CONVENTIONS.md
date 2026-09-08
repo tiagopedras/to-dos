@@ -4,20 +4,22 @@ The format is load-bearing. Every rule here exists because breaking it caused a 
 
 ## Buckets
 
-Four, in this order, matching how his role actually splits:
+Five, in this order, matching how his role actually splits:
 
 1. **People** — probation reviews, performance reviews, hiring, 1:1s, growth conversations
-2. **Design oversight** — aligning designers, aligning stakeholders, unblocking, reviewing others' work, project planning
-3. **Design System** — a temporary remit, so scope creep here is a signal worth naming. Sub-organised into five streams: ways of working, audits, improvements, documentation, enablement. The stream is named in the task's first note line.
-4. **Strategic** — planning, defining ways of working, strategy decks, testing new ways of working with AI
+2. **BAU** (Design oversight) — chasing, aligning and checking in on work that is not his to do: aligning designers, aligning stakeholders, unblocking, reviewing others' work, project planning. Most of it is waiting on somebody, so a task here is mostly about who holds it and what would move it.
+3. **DS** (Design System) — a temporary remit, so scope creep here is a signal worth naming. The largest bucket by some distance, sub-organised into five streams: ways of working, audits, improvements, documentation, enablement. The stream is named in the task's first note line.
+4. **Strategic** — planning, defining ways of working, strategy decks, testing new ways of working with AI. The least mechanical bucket — much of it is a decision wearing a task's clothes.
+5. **Processes** — this repo, mostly: the board, the server, the `pa-*` skills, the companion, the night agent, the execution agent. Everything that runs his working week rather than being the work. The one bucket whose output is code, which makes it the only one where "done" is checkable.
 
-Do not add a fifth bucket without asking. The four map to how he is measured, and a fifth usually means a task is miscategorised. He can rename, reorder, add and remove buckets himself on the board, so read the headings out of the file rather than assuming these four are what you will find.
+BAU and DS were renamed from Design oversight and Design System; Processes was added 6 Sep 2026. Do not add a sixth bucket without asking. The five map to how he is measured, and a sixth usually means a task is miscategorised. He can rename, reorder, add and remove buckets himself on the board, so read the headings out of the file rather than assuming these five are what you will find.
 
 ## States
 
-Inside each bucket, four states. Doing / To do / Backlog replaced Now / Next / Later / Parked on 10 Aug 2026 at his request; if a file still uses the old four, rename the headings rather than adding new ones alongside. Waiting review was added on 26 Aug 2026.
+Inside each bucket, five states. Doing / To do / Backlog replaced Now / Next / Later / Parked on 10 Aug 2026 at his request; if a file still uses the old four, rename the headings rather than adding new ones alongside. Waiting review was added on 26 Aug 2026, Blocked on 28 Aug 2026.
 
 - **Waiting review** — finished as far as he is concerned, sitting with somebody else for sign-off. On the board it is the column to the right of Doing, so in the file it is the first heading in the bucket.
+- **Blocked** — can't move until something changes, sitting right after Waiting review. Unlike the other four it has no standing heading: it is only ever created the first time a task is moved into it, and the board hides the column again once nothing unfinished is left there. A task blocked on a person or an event gets a `Waiting on:` note here; a task blocked on another task uses `blocked-by:` instead, wherever it actually sits.
 - **Doing** — the current focus window, roughly the next two weeks
 - **To do** — two to four weeks out
 - **Backlog** — real work, no time pressure yet. Also where anything deliberately not being done goes, with a revisit date in the note.
@@ -196,10 +198,10 @@ One tag and one card:
 
 **When a meeting does not happen.** The board knows the date passed; it cannot know whether the meeting did. The tick is what separates them:
 
-- **Ticked and the date passed** — the prep was delivered, so the agenda is filed as `Previous agenda (that date):`.
+- **Ticked and the date passed** — the prep was delivered, so the agenda is filed as `Previous agenda (that date):`, and the task is parked out of wherever it was sitting: To do if the next occurrence is under a week away, Backlog if it is a week or more. An occurrence never prepared for (unticked) is left exactly where it was.
 - **Unticked and the date passed** — the prep never happened, so those topics were never raised. The agenda **carries forward** onto the new date instead of being archived.
 - **Known in advance** — change `[due:: ]` to the new day and nothing rolls at all, since the roll only fires on a date in the past. This is the one to reach for, and the one to tell him about when he says a meeting moved.
-- **Cancelled after he prepared** — the agenda is archived, because that case is indistinguishable from a delivered one. The `Previous agenda` block carries its own Copy, dated with the occurrence the card points at now, so recovering it is one click.
+- **Cancelled after he prepared** — the agenda is archived, because that case is indistinguishable from a delivered one. The `Previous agenda` block carries its own Copy, dated with the occurrence the card points at now, so recovering it is one click. The card keeps only the one cycle: the next roll archives whatever `Previous agenda` is already on it to `agenda-history.md` before overwriting it, so a month back is still readable, just not on the card itself.
 
 One card that rolls rather than a template that spawns copies. A card per occurrence would put a ticked "prepare for the 1:1" in Done every week for as long as the meeting exists, and the only question ever asked of last week's is what was on it — which is one note, not a whole card.
 

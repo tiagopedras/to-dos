@@ -873,6 +873,7 @@ function renderBoard(){
   board.style.setProperty('--cols', columns.length);
   board.innerHTML = columns.map(name => {
     const isDone = name === DONE_COL;
+    const isAi = name === AI_COL;
     const mode = sortMode(name);
     let entries = [];
     shown.forEach(bucket => {
@@ -882,9 +883,18 @@ function renderBoard(){
         bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
           if (t.done && matches(t, DONE_COL)) entries.push({ t, color, label });
         }));
+      } else if (isAi) {
+        // Not done yet and handed over — the same task a moment ago would
+        // have shown under its own tier; ai:full is what moves it here
+        // instead, the way t.done moves a task into Done.
+        bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
+          if (!t.done && t.ai === 'full' && matches(t, AI_COL)) entries.push({ t, color, label });
+        }));
       } else {
         const tier = bucket.tiers.find(t => t.name === name);
-        if (tier) tier.tasks.forEach(t => { if (!t.done && matches(t, name)) entries.push({ t, color, label }); });
+        if (tier) tier.tasks.forEach(t => {
+          if (!t.done && t.ai !== 'full' && matches(t, name)) entries.push({ t, color, label });
+        });
       }
     });
     // Stable: equal scores keep the order he put them in, so the sort only ever
@@ -895,22 +905,26 @@ function renderBoard(){
         .map(x => x.e);
     }
     const n = entries.length;
-    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked, muted: name === WAIT_COL, tier: name })).join('');
+    // Handed to AI is read-only the same way Done isn't — a card there can
+    // still be reordered against Done, but it moved here by the ai: tag, not
+    // by a drag, so dragging it back out is blocked the same way: taking work
+    // back off Claude goes through stripDelegation(), not this zone.
+    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked || isAi, muted: name === WAIT_COL, tier: name })).join('');
 
-    const sortBtn = isDone ? '' :
+    const sortBtn = (isDone || isAi) ? '' :
       '<button class="sortbtn' + (mode === 'priority' ? ' on' : '') + '" data-sort="' + esc(name) + '"' +
       ' title="' + (mode === 'priority'
         ? 'Showing highest impact for the lightest lift first. Hand-reordering is off while this is on.'
         : 'Showing your own order. Click to sort by impact against effort.') + '">' +
       (mode === 'priority' ? 'by priority' : '⇅') + '</button>';
 
-    return '<section class="col' + (isDone ? ' donecol' : '') +
+    return '<section class="col' + (isDone ? ' donecol' : '') + (isAi ? ' aicol' : '') +
         (name === WAIT_COL ? ' waitcol' : '') +
         (mode === 'priority' ? ' sorted' : '') + '" data-tier="' + esc(name) + '">' +
       '<h2>' + esc(name) + (TIER_HINT[name] ? ' <span class="hint">' + esc(TIER_HINT[name]) + '</span>' : '') +
       sortBtn + '<span class="count">' + n + '</span></h2>' +
       '<div class="drop" data-tier="' + esc(name) + '">' + (n ? cards : '<div class="empty">Nothing here</div>') + '</div>' +
-      (isDone || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
+      (isDone || isAi || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
     '</section>';
   }).join('');
 
@@ -1056,6 +1070,11 @@ function dropTask(id, tierName, zone, clientY){
     if (state.openTask === id) openDrawer(id);
     return;
   }
+  // Handed to AI is not a section either — it is the ai: tag. Its own cards
+  // are already undraggable; this only guards a card dragged in from
+  // elsewhere, which would otherwise call ensureTier() and write a real
+  // "Handed to AI" heading into the file.
+  if (tierName === AI_COL) return;
   setDone(loc.task, false);                       // dragged back out of Done
 
   const targetTier = ensureTier(loc.bucket, tierName);
@@ -1080,7 +1099,7 @@ function dropTask(id, tierName, zone, clientY){
 
 function addTask(tierName){
   if (state.locked) return;
-  const tier = ensureTier(activeBucket(), tierName);
+  const tier = ensureTier(defaultAddBucket(), tierName);
   const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', ai:'', to:'',
               urgent:false, week:false, slug:'', blockedBy:[], rank:null, extra:[], body:[], raw:'', dirty:true };
   tier.tasks.push(t);

@@ -45,6 +45,9 @@ needed yet.
 - `../../CONVENTIONS.md` — the file format.
 - `skills/pa/scripts/check_todo.py` — the mechanical checker. It lived under
   `pa-checkin` until 7 Sep 2026 and moved with the writing.
+- `skills/pa/scripts/log_sitting.py` — logs how long a sitting took and which
+  buckets it touched, into `data/<dataset>/pa-time.json`. Every `pa-*` skill
+  calls it; see PA.md.
 - `skills/pa/references/audit-checklist.md` — what to check by hand that the
   script cannot.
 - `skills/pa/references/templates.md` — the report template syntax and the full

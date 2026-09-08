@@ -162,20 +162,19 @@ async function setPlanStatus(p, status, quiet, note){
   }
 }
 
-/* Filters any of the queue/backlog/plan lists down to the one bucket the tabs
-   above this view are showing — All, the AI filter or the urgent/due filter
-   all widen it back to everything, the same as shownBuckets() does for the
-   board itself. Only a genuinely single bucket tab narrows it, and only by
-   an exact match on that bucket's own name — a widened view must never drop
-   a row just because its bucket string does not equal any one name, which is
-   what comparing against shownBuckets()'s own set would do. A row with no
-   bucket on it (should not happen in practice) is shown regardless, rather
-   than disappearing because of a field that was never set. */
+/* Filters any of the queue/backlog/plan lists down to whichever buckets the
+   tabs above this view are showing — All, the AI filter or the urgent/due
+   filter all widen it back to everything, the same as shownBuckets() does
+   for the board itself. Otherwise a row stays if its bucket is any one of the
+   toggled-on set, the same widening shownBuckets() itself does for AI/urgent
+   — not an exact match against a single name, which would drop a row the
+   moment two bucket tabs were on at once. A row with no bucket on it (should
+   not happen in practice) is shown regardless, rather than disappearing
+   because of a field that was never set. */
 function plansShown(list, field){
   field = field || 'bucket';
   if (!state.doc || allMode() || state.aiFilter || state.urgentFilter) return list;
-  const name = activeBucket().name;
-  return list.filter(r => !r[field] || r[field] === name);
+  return list.filter(r => !r[field] || state.bucketFilter.has(r[field]));
 }
 
 function goToPlanTask(key){

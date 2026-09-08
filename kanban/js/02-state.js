@@ -25,7 +25,10 @@ const state = {
      Nothing of his is at stake, so the watcher treats it as clean and reloads
      rather than asking. The tidy-up runs again on the way back in. */
   migratedOnly: false,
-  activeBucket: null,
+  /* Which bucket tabs are toggled on — empty means every bucket, the same
+     "nothing picked means no filter" rule statusFilter follows below. Several
+     can be on at once, same as Status; see shownBuckets(). */
+  bucketFilter: new Set(),
   /* name -> chosen swatch, one per dataset — see bucketColor() below and
      loadBucketColors() in 08-buckets.js. Lives in its own small file rather
      than in todo.md: a colour is a preference about looking at the list, not
@@ -198,8 +201,8 @@ function openTaskByKey(key){
     return false;
   }
   const loc = locate(t.id);
-  if (loc && state.activeBucket !== ALL_BUCKETS && loc.bucket.name !== state.activeBucket) {
-    state.activeBucket = loc.bucket.name;
+  if (loc && state.bucketFilter.size && !state.bucketFilter.has(loc.bucket.name)) {
+    state.bucketFilter = new Set([loc.bucket.name]);
   }
   renderView();
   openDrawer(t.id);
@@ -256,6 +259,11 @@ function bucketColor(name, index){
     BUCKET_COLOR[((index % BUCKET_COLOR.length) + BUCKET_COLOR.length) % BUCKET_COLOR.length];
 }
 const DONE_COL = 'Done';
+/* Synthetic the same way Done is — not a heading in todo.md, just where the
+   board draws a task tagged ai:full and not yet done. The ai: tag stays the
+   single source: nothing can be dragged into this column, only tagged into
+   it, and a task's real tier is untouched underneath. */
+const AI_COL = 'Handed to AI';
 /* Not a special column the way Done is — just a tier the board tints, so a
    renamed section simply stops matching and goes back to looking normal. */
 const WAIT_COL = 'Waiting review';
@@ -267,6 +275,22 @@ const BLOCKED_TIER = 'Blocked';
 /* Same story as WAIT_COL: a tier name the board fades on sight, not a status
    field of its own. A renamed Backlog just stops matching. */
 const BACKLOG_TIER = 'Backlog';
+/* rollRecurring() (04-tier-two-the-one-thing.js) parks a finished recurring
+   task in one of these two, by name, so they need the same constant every
+   other load-bearing tier gets rather than a fresh literal typed at the call
+   site. */
+const TODO_TIER = 'To do';
+const DOING_TIER = 'Doing';
+/* These five are matched by string all through the board, unlike an ordinary
+   tier a bucket adds — a real per-column identity that survives a rename
+   would mean a marker stored in the file itself, changing the format both
+   todo.js and todo.py read, which is a bigger job than this is. So instead
+   the Edit Columns editor simply refuses to rename any of the five away from
+   this exact text (see tierNameTaken() in 09-columns.js) — the same
+   protection DONE_COL and AI_COL already get by never being real headings at
+   all, extended to the three of these that are. Any other tier a bucket adds
+   stays freely renamable. */
+const RESERVED_TIERS = [BACKLOG_TIER, TODO_TIER, DOING_TIER, WAIT_COL, DONE_COL];
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
    needs a name no heading in the file could ever produce. */
 const ALL_BUCKETS = '__all__';
@@ -281,10 +305,12 @@ const TIER_HINT = {
   'Doing':   'current focus, next two weeks',
   'Now':     'current focus',
   'Done':    'ticked off',
-  'Blocked': "can't move until something changes"
+  'Blocked': "can't move until something changes",
+  'Handed to AI': 'tagged ai:: full, not done yet'
 };
 
 /* The file lists tiers Now → Backlog. The board shows them the other way
-   round, with a Done column on the far right for anything ticked off. */
-function boardColumns(){ return allTiers().slice().reverse().concat([DONE_COL]); }
+   round, with a synthetic Handed to AI column ahead of Done on the far
+   right for anything tagged ai:full and not yet done. */
+function boardColumns(){ return allTiers().slice().reverse().concat([AI_COL, DONE_COL]); }
 

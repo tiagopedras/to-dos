@@ -194,7 +194,7 @@ function rollRecurring(doc){
        problem at the earliest, so it's parked in Backlog instead. */
     if (t.done) {
       const gap = Math.round((next - now) / 86400000);
-      parks.push({ bucket: b, from: tier, task: t, to: gap >= 7 ? 'Backlog' : 'To do' });
+      parks.push({ bucket: b, from: tier, task: t, to: gap >= 7 ? BACKLOG_TIER : TODO_TIER });
       moved++;
     }
 

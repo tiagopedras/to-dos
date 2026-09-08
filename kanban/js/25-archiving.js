@@ -422,8 +422,9 @@ window.addEventListener('hashchange', () => {
   let changed = false;
   if (isKnownView(h.view) && h.view !== state.view) { state.view = h.view; changed = true; }
   if (h.bucketSlug && state.doc) {
-    const name = h.bucketSlug === 'all' ? ALL_BUCKETS : (bucketBySlug(h.bucketSlug) || {}).name;
-    if (name && name !== state.activeBucket) { state.activeBucket = name; changed = true; }
+    const names = bucketFilterFromSlugs(h.bucketSlug);
+    const same = names.size === state.bucketFilter.size && [...names].every(n => state.bucketFilter.has(n));
+    if (!same) { state.bucketFilter = names; changed = true; }
   }
   if (changed) renderView();
   /* A second link arriving at a tab that is already up — which is what the

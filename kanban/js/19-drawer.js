@@ -390,12 +390,11 @@ function projectSection(t){
     '<div class="pcard" id="taskProjCard">' +
       '<button type="button" class="pcbody" data-project="' + esc(proj) + '">' +
         '<span class="pctitle">' + esc(proj) + '</span>' +
+        '<code class="pcpath">data/projects/' + esc(proj) + '/</code>' +
         '<span class="pcblurb" id="taskProjBlurb"></span>' +
         '<span class="pcmeta" id="taskProjWhen"></span>' +
       '</button>' +
-    '</div>' +
-    '<span class="help">Everything on this project, and the documents behind it, ' +
-    'are in <code>data/projects/' + esc(proj) + '/</code>.</span>');
+    '</div>');
 }
 
 /* The two lines under the folder name, out of the same read the project drawer
@@ -429,6 +428,114 @@ function dependenciesSection(t){
   const groups = taskDependencies(t);
   if (!groups.length) return '';
   return sideSection('Dependencies', 'deps', groups.map(depGroupHTML).join(''));
+}
+
+/* ---- Every tag actually on the task, in one list ----
+   parseTaskLine() (core/todo.js) reads a dozen known tags into their own
+   fields and keeps anything it doesn't recognise verbatim in t.extra — which
+   nothing anywhere else in kanban/js ever reads. This is the one place a
+   task's whole tag set is visible at a glance, extra included, and it doubles
+   as the editor: a click edits the same field a slider or checkbox elsewhere
+   already owns, so there is one stored value per tag, never two copies that
+   could fall out of step.
+
+   Left out on purpose, because each already has a real editor of its own
+   elsewhere on this same panel that does more than a plain text box could —
+   impact, effort, due, start, ai and to all have their own slider, picker or
+   input above; headline has its own button; urgent has its own checkbox;
+   #slug has its own syntax; blocked-by has the Dependencies section above.
+   Showing any of those here too would just be a second, worse way to edit
+   the same value. What's left — rank, tlrank, chat, repeat — is exactly the
+   set with no editor anywhere else on the card. */
+const KNOWN_TAG_FIELDS = [
+  { field: 'rank',    label: 'rank' },
+  { field: 'tlrank',  label: 'tlrank' },
+  { field: 'chat',    label: 'chat' },
+  { field: 'repeat',  label: 'repeat' }
+];
+function taskTagChips(t){
+  const chips = [];
+  KNOWN_TAG_FIELDS.forEach(f => {
+    const v = t[f.field];
+    if (v == null || v === '') return;
+    chips.push({ label: f.label, value: String(v), editable: true, field: f.field });
+  });
+  // week has no checkbox of its own anywhere in the app yet, unlike urgent —
+  // shown here, read-only, for the same reason #slug and blocked-by are:
+  // there is nowhere else on the card that says it is set at all.
+  if (t.week) chips.push({ label: 'week', value: '', editable: false });
+  if (t.slug) chips.push({ label: '#' + t.slug, value: '', editable: false });
+  if (t.blockedBy && t.blockedBy.length) chips.push({ label: 'blocked-by', value: t.blockedBy.join(', '), editable: false });
+  (t.extra || []).forEach((raw, i) => {
+    ANY_TAG_RE.lastIndex = 0;
+    const m = ANY_TAG_RE.exec(raw);
+    if (m) {
+      const key = m[1] != null ? m[1] : m[3];
+      const value = (m[1] != null ? m[2] : m[4]).trim();
+      chips.push({ label: key, value, editable: true, extraIndex: i, unrecognised: true, form: m[1] != null ? 'bracket' : 'code' });
+    } else {
+      chips.push({ label: raw, value: '', editable: false, unrecognised: true });
+    }
+  });
+  return chips;
+}
+function tagsSection(t){
+  const chips = taskTagChips(t);
+  if (!chips.length) return '';
+  const ro = state.locked;
+  const body = chips.map((c, i) => {
+    const cls = 'tagchip' + (c.unrecognised ? ' tagchip-extra' : '') + (!c.editable || ro ? ' tagchip-ro' : '');
+    const text = c.value ? esc(c.label) + ': ' + esc(c.value) : esc(c.label);
+    return '<button type="button" class="' + cls + '" data-chip="' + i + '"' +
+      (c.editable && !ro ? '' : ' disabled') + '>' + text + '</button>';
+  }).join('');
+  const hasExtra = chips.some(c => c.unrecognised && c.editable);
+  return sideSection('Tags', 'tags', '<div class="tagchips">' + body + '</div>' +
+    (hasExtra ? '<span class="help">Amber ones are tags nothing else on the board reads — click to edit or clear.</span>' : ''),
+    chips.length);
+}
+/* Swaps one chip for a text input, commits on Enter or blur, cancels on
+   Escape. Rebuilding the whole drawer on every keystroke would lose focus, so
+   this edits the DOM directly and only calls back into the task/refresh once,
+   on commit. */
+function wireTagChips(t){
+  const wrap = $('#drawer').querySelector('.tagchips');
+  if (!wrap) return;
+  const chips = taskTagChips(t);
+  wrap.querySelectorAll('.tagchip').forEach(btn => {
+    if (btn.disabled) return;
+    const c = chips[+btn.dataset.chip];
+    btn.onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = c.value;
+      input.setAttribute('aria-label', c.label);
+      const label = document.createTextNode(c.label + ': ');
+      btn.textContent = '';
+      btn.appendChild(label);
+      btn.appendChild(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        const v = input.value.trim();
+        if (c.field) {
+          if (c.field === 'rank' || c.field === 'tlrank') t[c.field] = v ? parseInt(v, 10) : null;
+          else t[c.field] = v;
+        } else if (c.extraIndex != null) {
+          if (!v) t.extra.splice(c.extraIndex, 1);
+          else if (c.form === 'bracket') t.extra[c.extraIndex] = '[' + c.label + ':: ' + v + ']';
+          else t.extra[c.extraIndex] = '`' + c.label + ':' + v + '`';
+        }
+        t.dirty = true;
+        markDirty(); refreshView(); openDrawer(t.id);
+      };
+      input.onblur = commit;
+      input.onkeydown = e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        else if (e.key === 'Escape') { e.preventDefault(); input.onblur = null; openDrawer(t.id); }
+      };
+    };
+  });
 }
 
 /* ---- Messages and prompts written for this task ----
@@ -581,8 +688,10 @@ function openDrawer(id, focusTitle){
   const ro = state.locked;
   // Same list as the board, Done included: a ticked-off task is in the Done
   // column there, so the panel says the same thing rather than hiding it in a
-  // tick box that has nothing to do with the other columns.
-  const cols = boardColumns();
+  // tick box that has nothing to do with the other columns. Handed to AI left
+  // out: nothing can be dragged into it on the board either, only tagged, and
+  // this stepper only ever offers real destinations.
+  const cols = boardColumns().filter(n => n !== AI_COL);
   const nowIn = t.done ? DONE_COL : loc.tier.name;
   // Neutral rather than a per-column palette — the columns themselves vary by
   // board and carry no fixed meaning beyond "further along", except the last
@@ -648,6 +757,7 @@ function openDrawer(id, focusTitle){
       '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
       '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
     '</details>' +
+    tagsSection(t) +
     /* A custom dropdown rather than a native <select> — an <option> cannot
        carry the coloured dot the bucket filter pills at the top of the board
        already draw (see bucketColor()/BUCKET_COLOR in 02-state.js), and this
@@ -817,6 +927,7 @@ function openDrawer(id, focusTitle){
   hlBtn.onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
   wireDatePicker(t, touch, 'start');
   wireDatePicker(t, touch, 'due');
+  wireTagChips(t);
 
   /* Done is the tick box in the file, not a section, so picking it here ticks
      the task off and picking anything else unticks it — exactly what dragging a

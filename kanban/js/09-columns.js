@@ -19,10 +19,11 @@
    heading at all. See syncTierShapes for the rest of this.
    ========================================================================= */
 
-/* Left to right, the way the board actually draws them, with Done left off —
-   it is never a heading, just where a ticked task lands regardless of which
-   column it sits under. */
-function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL); }
+/* Left to right, the way the board actually draws them, with Done and Handed
+   to AI left off — neither is ever a heading: Done is where a ticked task
+   lands regardless of which column it sits under, and Handed to AI is where
+   an ai:full task lands regardless of which column it sits under. */
+function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL && n !== AI_COL); }
 
 function tierTaskCount(name){
   return state.doc.buckets.reduce((sum, b) => {
@@ -32,11 +33,13 @@ function tierTaskCount(name){
 }
 
 /* Returns the name already taken, so the complaint can quote it back rather
-   than just the one just typed. Done included: a real column called Done
-   would sit behind the synthetic one and never be reachable. */
+   than just the one just typed. Done and Handed to AI included: a real
+   column with either name would sit behind its synthetic namesake and never
+   be reachable. */
 function tierNameTaken(name, except){
   const k = name.toLowerCase();
   if (k === DONE_COL.toLowerCase() && name !== except) return DONE_COL;
+  if (k === AI_COL.toLowerCase() && name !== except) return AI_COL;
   return tierOrder().find(n => n !== except && n.toLowerCase() === k) || null;
 }
 
@@ -68,6 +71,12 @@ function renameTier(oldName, newName){
   const clean = cleanTierName(newName);
   if (!clean) return 'A column needs a name.';
   if (clean === oldName) return '';
+  // Backlog, To do, Doing, Waiting review and Done are matched by this exact
+  // text all through the board (rollRecurring, ensureTier, the status
+  // filter's synthetic columns) — renaming one away doesn't fail gracefully
+  // the way an ordinary tier does, it leaves a second, empty column of the
+  // old name behind. See RESERVED_TIERS in 02-state.js.
+  if (RESERVED_TIERS.indexOf(oldName) > -1) return '“' + oldName + '” can’t be renamed — the board depends on that exact name.';
   const clash = tierNameTaken(clean, oldName);
   if (clash) return 'There is already a column called “' + clash + '”.';
   state.doc.buckets.forEach(b => {

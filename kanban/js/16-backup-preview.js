@@ -29,7 +29,7 @@ async function loadBackupPreview(url, label){
     state.doc = doc;
     state.originalText = text;
     state.fileName = url.split('/').pop();
-    state.activeBucket = ALL_BUCKETS;
+    state.bucketFilter = new Set();
     state.view = 'board';
     state.locked = true;
     state.demo = false;

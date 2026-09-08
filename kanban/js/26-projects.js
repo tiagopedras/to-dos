@@ -71,6 +71,7 @@ function projectItemHTML(p){
       '<span class="reptitle">' + esc(p.name) + '</span>' +
       '<span class="tag ' + (live ? 'projlive' : 'projorphan') + '">' + (live ? 'Live' : 'Orphaned') + '</span>' +
     '</button>' +
+    '<code class="pcpath">data/projects/' + esc(p.name) + '/</code>' +
     '<div class="repmeta">' + esc(status) +
       (p.has_claude_md ? '' : ' · no CLAUDE.md') +
       ' · ' + p.file_count + ' file' + (p.file_count === 1 ? '' : 's') +

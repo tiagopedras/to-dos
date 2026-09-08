@@ -109,6 +109,36 @@ These hold whatever skill is running.
 - **Never publish anything from `data/`.** It holds real names and real dates.
   Nothing in there goes in a commit, a report or a message.
 
+## Logging how long a sitting took
+
+Every `pa-*` skill logs its own duration, against whichever buckets it
+touched, through `skills/pa/scripts/log_sitting.py`. A task belongs to
+exactly one bucket, but a sitting routinely touches several in one
+conversation, so the whole sitting's length counts against every bucket it
+touched — a `pa-checkin` sweep across four buckets logs its full duration
+against all four, not a split.
+
+Call `start` once, as the very first thing the skill does, before reading the
+list:
+
+```
+python3 skills/pa/scripts/log_sitting.py start data/<dataset>/.pa-sitting-<CLAUDE_CODE_SESSION_ID>.json
+```
+
+And call `end` once, as the very last thing before handing back to him,
+naming every bucket a task was discussed, scored, moved or written for during
+the sitting:
+
+```
+python3 skills/pa/scripts/log_sitting.py end data/<dataset>/.pa-sitting-<CLAUDE_CODE_SESSION_ID>.json data/<dataset>/pa-time.json --buckets "People,Design System" --skill pa-checkin
+```
+
+`--skill` is whichever `pa-*` skill is actually running. A sitting that opens
+no bucket at all — a pure question, nothing on the list touched — calls
+neither. Both exit quietly on their own: `start` needs nothing back, and `end`
+says nothing has moved if `start` was never called, so neither is worth
+checking the exit code of before continuing.
+
 ## Every task named in a report is a link
 
 Added 4 Sep 2026, at his request. When a report names a task, the title is a

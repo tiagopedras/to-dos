@@ -30,16 +30,13 @@ function load(text, name, opts){
   // here and is cleared either way, so a later reload of a different dataset
   // doesn't reapply a slug that belonged to the URL, not to this file.
   if (state.pendingBucketSlug !== null) {
-    if (state.pendingBucketSlug === 'all') state.activeBucket = ALL_BUCKETS;
-    else {
-      const match = doc.buckets.find(b => slugifyBucket(b.name) === state.pendingBucketSlug);
-      if (match) state.activeBucket = match.name;
-    }
+    state.bucketFilter = bucketFilterFromSlugs(state.pendingBucketSlug);
     state.pendingBucketSlug = null;
   }
-  if (state.activeBucket !== ALL_BUCKETS && !doc.buckets.some(b => b.name === state.activeBucket)) {
-    state.activeBucket = ALL_BUCKETS;
-  }
+  // A dataset switch can land here carrying a filter full of names from the
+  // *previous* dataset's buckets — drop whichever ones this file doesn't have
+  // rather than showing an empty board because every toggled name is stale.
+  state.bucketFilter.forEach(name => { if (!doc.buckets.some(b => b.name === name)) state.bucketFilter.delete(name); });
   markClean('');
   state.migratedOnly = false;
   renderView();

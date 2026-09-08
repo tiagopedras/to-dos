@@ -4,9 +4,14 @@ Read [README.md](README.md) first. Everything in `data/` is private and gitignor
 
 [IMPROVEMENTS.md](IMPROVEMENTS.md) is the standing list of what is wrong with the
 board and what should be built next. Read it before diagnosing anything here, and
-update it when something lands or something new turns up. `skills/improve-idea`
-and `skills/improve-list` are the two skills that read and write it — log a new
-one by hand only when neither fits.
+update it when something lands or something new turns up. Three skills read and
+write it — `improve-idea` adds an entry, `improve-list` reads the backlog back,
+and `improve-refinement` clears the `[needs you]` tag the second one puts on an
+entry, by asking the question the entry is holding and rewriting it to state
+the answer. They live in `~/Code/skills/personal/` rather than in here, and
+work against whichever repo they are run from: they moved out on 8 Sep 2026
+when they stopped being about this board in particular. Log a new entry by hand
+only when none of the three fits.
 
 ## The skills index
 

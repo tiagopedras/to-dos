@@ -52,6 +52,16 @@ function tasksByChatKey(){
    has since been archived out of todo.md. Both are conversations with no work
    attached, the transcripts survive either way, and re-filing one is the same
    gesture. */
+/* A conversation has no column of its own — only the task that owns it does,
+   so Status filtering here means checking that task rather than the card.
+   Same three names the board itself resolves a task to: Done and Handed to
+   AI both override the task's literal tier, exactly as they do on the board. */
+function canvasTaskShown(task){
+  if (!state.statusFilter.size) return true;
+  const loc = locate(task.id);
+  const tierName = task.done ? DONE_COL : task.ai === 'full' ? AI_COL : (loc && loc.tier.name);
+  return tierName != null && state.statusFilter.has(tierName);
+}
 function canvasModel(){
   const byKey = tasksByChatKey();
   const groups = [];
@@ -61,7 +71,7 @@ function canvasModel(){
       .sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
     if (!rows.length) return;
     const task = byKey[key];
-    if (task) groups.push({ key, task, rows });
+    if (task) { if (canvasTaskShown(task)) groups.push({ key, task, rows }); }
     else rows.forEach(row => loose.push({ key, row }));
   });
   groups.sort((a, b) => a.task.title.localeCompare(b.task.title));
@@ -785,26 +795,27 @@ function viewDefs(){
     { id:'timeline', label:'Timeline' },
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
-    { id:'sep2', sep:true },
-    { id:'reports',  label:'Reports' },
-    { id:'projects', label:'Projects' }
+    { id:'projects', label:'Projects' },
+    { id:'sep2', sep:true }
   ];
   // Canvas only exists where there is an engine behind it. Same rule the Ask
   // Claude buttons follow: no CLI, no helper, or a host serving these files
   // statically, and the tab is simply not there rather than being there and
-  // empty. It sits before Plans, in the same group, since both are process
-  // views rather than spatial ones like Board and Matrix.
-  if (state.chatsOn && !state.locked) defs.splice(6, 0, { id:'canvas', label:'AI processes' });
+  // empty. It sits between Projects and Reports.
+  // Hidden for now regardless of chatsOn — see IMPROVEMENTS.md.
+  if (false && state.chatsOn && !state.locked) defs.push({ id:'canvas', label:'AI processes' });
+  defs.push({ id:'reports', label:'Reports' });
   return defs;
 }
 /* Backups isn't a view of the board, it's a data operation — see the Backups
    button in the header's data menu — so it sits outside viewDefs() and its
    tabs, but it still needs a #backups URL and a renderView() case of its own. */
 function isKnownView(id){
-  // 'canvas' is listed by hand rather than read off viewDefs(), which only
-  // offers it once the engine has answered. A link is read before that, and a
-  // refresh onto #canvas should land on the canvas rather than falling back to
-  // the board for the half-second it takes /claude.json to reply.
-  return id === 'backups' || id === 'canvas' || viewDefs().some(d => d.id === id);
+  // 'canvas' would normally be listed by hand rather than read off viewDefs(),
+  // which only offers it once the engine has answered — a link is read before
+  // that, and a refresh onto #canvas should land on the canvas rather than
+  // falling back to the board for the half-second it takes /claude.json to
+  // reply. Left out while the view is hidden — see IMPROVEMENTS.md.
+  return id === 'backups' || viewDefs().some(d => d.id === id);
 }
 

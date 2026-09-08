@@ -42,8 +42,8 @@ function renameBucket(b, name){
   const was = b.name;
   b.name = clean;
   b.raw = null;
-  // activeBucket is held by name, so the tab he is looking at has to follow it.
-  if (state.activeBucket === was) state.activeBucket = clean;
+  // bucketFilter is held by name, so a toggled-on tab has to follow it.
+  if (state.bucketFilter.has(was)) { state.bucketFilter.delete(was); state.bucketFilter.add(clean); }
   markDirty(); refreshView();
   return '';
 }
@@ -83,7 +83,10 @@ function deleteBucket(b, dest){
   if (n) b.tiers.forEach(tier => tier.tasks.forEach(t => ensureTier(dest, tier.name).tasks.push(t)));
   list.splice(list.indexOf(b), 1);
   renumberBuckets();
-  if (state.activeBucket === b.name) state.activeBucket = dest ? dest.name : ALL_BUCKETS;
+  if (state.bucketFilter.has(b.name)) {
+    state.bucketFilter.delete(b.name);
+    if (dest) state.bucketFilter.add(dest.name);
+  }
   markDirty(); refreshView();
 }
 
