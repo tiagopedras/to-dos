@@ -1526,18 +1526,28 @@
   .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
   .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
   /* A long message, prompt, ticket or agenda would otherwise stretch the card
-     past the rest of the column, so every kind clamps to the same height —
+     past the rest of the column, so every kind clamps to the same three lines —
      Copy and the rest still carry the full text regardless of what shows on
-     screen; only Overview's own reading of the card is cut short. */
-  .ref .msg{margin:8px 0 0 21px; max-height:400px; overflow:hidden}
+     screen; only Overview's own reading of the card is cut short. Three lines
+     rather than a pixel height because the column holds three cards and has to
+     read as a list of them: a height cap tall enough to be worth having was
+     twenty lines of one card, which is a page of text, not a card. */
+  .ref .msg{
+    margin:8px 0 0 21px; overflow:hidden;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+  }
   /* Set by capMsgCards() once the card is in the DOM and its real height is
      known — a fade plus a label, so a card that was actually cut off reads
-     as cut off rather than as one that just happens to end at 400px. */
+     as cut off rather than as one that just happens to end on the third line.
+     The fade is only as tall as the label needs (11px text plus its padding),
+     because three lines at 13px on a 1.55 line-height is about 60px in total:
+     anything like the 60px this claimed under the old height cap would veil
+     the whole message rather than the end of it. */
   .ref .msg.capped::after{
     content:'truncated — open the task to read the rest';
-    position:absolute; left:0; right:0; bottom:0; height:60px;
-    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
-    background:linear-gradient(to bottom, transparent, var(--bg) 60%);
+    position:absolute; left:0; right:0; bottom:0; height:28px;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px;
+    background:linear-gradient(to bottom, transparent, var(--bg) 55%);
     font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.01em;
     border-radius:0 0 8px 8px; pointer-events:none;
   }

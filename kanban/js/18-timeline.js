@@ -683,11 +683,13 @@ function renderSections(viewId){
   if (tview) wireTimelineDrag();
 }
 
-/* .ref .msg's 400px cap is CSS, and CSS alone cannot tell a card that landed
-   on exactly 400px from one three screens long — so once the cards are
-   actually in the DOM, measure each one against its own scroll height and
-   mark the ones truncation really cut. Only .capped gets the fade and the
-   label; a card that fits gets neither. */
+/* .ref .msg's three-line clamp is CSS, and CSS alone cannot tell a card that
+   happens to run to exactly three lines from one three screens long — so once
+   the cards are actually in the DOM, measure each one against its own scroll
+   height and mark the ones truncation really cut. Only .capped gets the fade
+   and the label; a card that fits gets neither. A clamped box reports the
+   same way a height-capped one did: clientHeight is the three lines it shows,
+   scrollHeight the whole text. */
 function capMsgCards(){
   $('#lists').querySelectorAll('.ref .msg').forEach(el => {
     el.classList.toggle('capped', el.scrollHeight > el.clientHeight + 1);
