@@ -514,12 +514,18 @@ they settled is written up in the README rather than left here:
   That last one decides what happens to the app that is there now. Two status
   items for one list is clutter, which is what `claim_single_instance()` at
   `companion/app.py:74` already says with an flock on `companion.lock`, so an
-  Electron tray icon means the Python one stops rather than sits beside it. The
-  open question is whether `app.py` is retired outright or kept as the headless
-  half — it owns the once-a-morning notification, the 08:30 to 20:00 rule on the
-  queue, and the dismissal state in `companion.json` — and that is a decision
-  about how much Python an Electron app should be starting, not about the
-  window.
+  Electron tray icon means the Python one stops rather than sits beside it. It
+  stops for good: `app.py` is retired outright rather than kept as the headless
+  half, and the three things in it that are not about the menu come across into
+  the Electron app. Those are the once-a-morning notification (`NOTIFY_AT` at
+  `companion/app.py:57`), the 08:30 to 20:00 gate on the notify queue
+  (`companion/notify.py:35`), and the dismissal state in `companion.json`. None
+  of the three is hard to port — the gate is a clock comparison, the state file
+  is already JSON, and the notification is the one part Electron does more
+  easily than AppKit, since a signed Electron app can register with
+  `UNUserNotificationCenter` where the unsigned Python bundle could not. What is
+  bought for it is one long-lived process in one language, with nothing starting
+  or supervising Python.
 
   What the window holds is the day, in one column: the plans the night agent
   wrote, then what is overdue and due today, then the message suggestions that
@@ -558,13 +564,18 @@ they settled is written up in the README rather than left here:
 
   So a definition file per report — the window, the buckets it covers, the
   questions it has to answer, the sections it comes out in — plus a pass that
-  renders one on a schedule. Two decisions are in the way. **Where the
-  definitions live**: `data/<dataset>/reports/` beside the output is private and
-  per-list, which is right for one naming Twinkl processes, but it mixes
-  definitions with the reports they produce in a folder `report_listing()`
-  already sweeps for `.md`, so it would need a subfolder and a skip in that loop.
-  **What the pass reads**: the arithmetic behind "what got done between these two
-  dates" exists in JavaScript only — `completedRecently()`
+  renders one on a schedule. They live in `data/<dataset>/reports/_defs/`, one
+  file per report kind: private and per-list, which is what a definition naming
+  Twinkl processes has to be, and beside the output it produces rather than in a
+  folder of its own. The underscore is what keeps them out of the listing —
+  `report_listing()` (`kanban/server.py:1305`) sweeps that directory for `.md`
+  and would otherwise show every definition as a report, so it skips names
+  starting with `_` and skips the subfolder itself, which it already does by
+  only reading files.
+
+  What the pass reads is the other half, and it is not a free choice: the
+  arithmetic behind "what got done between these two dates" exists in
+  JavaScript only — `completedRecently()`
   (`kanban/js/12-reports.js:162`) and `parseArchiveEntries()` (`:130`) are what
   join the live file to `done-archive.md`, and the Python side has no archive
   reader at all (`check_todo.py:52` names the archive only as a file to ignore).
@@ -599,11 +610,28 @@ they settled is written up in the README rather than left here:
   every task in the new list plans against the `general` fallback and logs
   loudly for it — which is how `personal` has behaved since it was made. What
   this wants is a sequence rather than a prompt: ask for the buckets as well as
-  the name, scaffold the briefs from the template in `BUCKETS.md`, write the
-  `README.md`, and either write the `STREAMS` aliases or state plainly that they
-  are the one part still needing a code change. The decision it is holding is
-  whether `STREAMS` stays a table in Python at all, or moves into each dataset
-  beside the briefs it already names.
+  the name, scaffold the briefs from the template in `BUCKETS.md`, and write the
+  `README.md`.
+
+  `STREAMS` goes away rather than moving. The only work that table does is
+  bridge a shorthand heading to a descriptive filename — `ds` to
+  `design-system`, `bau` to `work-oversight` — and the other three entries map a
+  heading to itself. So `bucket_stream()` slugifies the heading instead: strip
+  the leading number, lowercase, and that is the stream. `3. DS` becomes `ds`,
+  `2. BAU` becomes `bau`, and the two files that no longer match get renamed to
+  match — `plan-design-system.md` to `plan-ds.md` and `plan-work-oversight.md`
+  to `plan-bau.md`, with `buckets/design-system/` and `buckets/work-oversight/`
+  renamed alongside them and the `.claude/agents/` symlinks repointed once.
+  After that a new bucket needs nothing written down anywhere: the heading is
+  the stream, and a new list needs only its own planner files, which a new
+  stream needed regardless of where the mapping lived.
+
+  What is lost with the table is the whitelist half — an unmapped heading used
+  to reach `general` and log loudly, which is how a renamed bucket got noticed.
+  A slugified heading always resolves, so the loud log moves to the missing
+  file instead: `bucket_agent()` naming a `plan-<stream>.md` that is not on disk
+  is the same signal one step later, and it is a stronger one, since it names
+  the file to create rather than a table row to add.
 
 - **The Done column on Plans holds six states that ask two different questions,
   and only one of them is "read this".** `PLAN_FILTERS`
@@ -759,9 +787,14 @@ they settled is written up in the README rather than left here:
   means a task edited today is briefed by morning rather than at the moment
   it is clicked.
 
-- **A task's tags are scattered across a dozen separate fields, so there is no
-  one place that shows what is actually applied to a task, and one whole class
-  of tag has no field at all.** `parseTaskLine()` (`core/todo.js:87`) reads every
+- ~~**A task's tags are scattered across a dozen separate fields, so there is
+  no one place that shows what is actually applied to a task, and one whole
+  class of tag has no field at all.**~~ **Done, 9 Sep 2026.** Built as
+  described: `tagsSection()` (`kanban/js/19-drawer.js:482`, drawn at `:760`)
+  lists every applied tag as a chip in the second column, `t.extra` included,
+  and each chip edits the field that already owns the value — writing back to
+  `t.extra` in the `[key:: value]` or backtick form the tag was written in
+  (`:524-527`) and to the known field otherwise. `parseTaskLine()` (`core/todo.js:87`) reads every
   recognised marker — impact, effort, ai, due, start, urgent, week, chat, rank,
   repeat and the rest — off a task line, but the drawer (`kanban/js/19-drawer.js`)
   surfaces each one as its own slider, button or checkbox scattered through the
@@ -781,8 +814,18 @@ they settled is written up in the README rather than left here:
   the sidebar and the existing slider or checkbox are two entry points onto
   the same field rather than two copies that could fall out of step.
 
-- **Bucket filtering is a single pick plus an "All" escape hatch, while
-  Status right beside it is genuinely multi-select.** `state.activeBucket`
+- ~~**Bucket filtering is a single pick plus an "All" escape hatch, while
+  Status right beside it is genuinely multi-select.**~~ **Done, 9 Sep 2026**
+  (`22749a6`). `state.bucketFilter` is a `Set` the way `state.statusFilter`
+  already was, read across twenty call sites, with an empty set meaning no
+  narrowing rather than a dedicated All option. Every consumer this entry
+  flagged was handled as it proposed: `plansShown()`
+  (`kanban/js/13-plans.js:174`) short-circuits in All mode and then matches a
+  row against the set, `addTask()` (`kanban/js/18-timeline.js:1102`) files a new
+  card into `defaultAddBucket()` rather than inferring it from the filter, and
+  `syncHash()` carries a comma-joined slug list through `bucketNamesToSlug()`
+  and `bucketFilterFromSlugs()` (`kanban/js/07-render-board.js:61-69`). What the
+  entry originally argued, kept for the reasoning: `state.activeBucket`
   (`kanban/js/02-state.js:28`) holds one bucket name or the `ALL_BUCKETS`
   sentinel (`02-state.js:272`), and `renderTabs()`
   (`kanban/js/07-render-board.js:67-90`) draws it as one row of exclusive
@@ -805,9 +848,30 @@ they settled is written up in the README rather than left here:
   (`07-render-board.js:54-58`) also bakes in one bucket per URL and needs to
   carry a set instead.
 
-- **A handful of column names are already load-bearing, and the newest code
-  to depend on one doesn't fail the way the rest of the codebase agreed to.**
-  `WAIT_COL`, `BLOCKED_TIER` and `BACKLOG_TIER` (`kanban/js/02-state.js:258-269`)
+- **The five reserved column names are enforced by an error message rather
+  than by a field you cannot type into, and deleting one is not blocked at
+  all.** Most of this entry is built: `RESERVED_TIERS`
+  (`kanban/js/02-state.js:293`) names Backlog, To do, Doing, Waiting review and
+  Done, `TODO_TIER` and `DOING_TIER` joined the three constants that existed,
+  and `rollRecurring()` (`kanban/js/04-tier-two-the-one-thing.js:197`) matches
+  against them rather than typing `'Backlog'`/`'To do'` fresh. What is left is
+  where the rule is enforced. `renameTier()` (`kanban/js/09-columns.js:79`)
+  rejects a reserved rename with "the board depends on that exact name", but it
+  rejects it on `onchange` (`:197-201`), so the input is freely typeable and a
+  refused rename leaves the typed text sitting in the field while the column
+  keeps its real name — the field then shows a name nothing on the board has.
+  The rule belongs on the field instead: a reserved row's
+  `input[data-tiername]` renders `disabled` in `draw()` (`:168`), with the
+  reason as its `title`, so there is nothing to reject. And
+  `confirmDeleteTier()` (`:136`) has no reserved check anywhere, so Doing can
+  be deleted outright, which is the same failure the rename guard exists to
+  prevent and a worse one — it needs the same guard, refusing before the
+  confirm rather than offering a destination select for a column that must not
+  go. Whichever of the five are real, renamable headings today are the ones
+  this reaches; `DONE_COL` and `AI_COL` are already out of `tierOrder()` and so
+  never draw a row at all.
+
+  What the entry originally argued, kept because it is the reasoning: `WAIT_COL`, `BLOCKED_TIER` and `BACKLOG_TIER` (`kanban/js/02-state.js:258-269`)
   each carry a comment saying the same thing on purpose: "a renamed section
   simply stops matching and goes back to looking normal" — the column is
   matched by string, but a miss degrades quietly. `rollRecurring()`'s
