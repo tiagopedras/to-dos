@@ -1267,6 +1267,12 @@
     flex:1; min-width:0; font-size:14px; font-weight:640; line-height:1.35; color:var(--ink);
   }
   .rephead:hover .reptitle{color:var(--accent)}
+  /* A project card carries data-project on the whole <article>, so the path,
+     status line and blurb open the drawer too — the pointer and the hover
+     accent have to cover the same area, or two thirds of the target looks
+     inert. Projects only: a report or plan item is still its top strip. */
+  .projitem{cursor:pointer}
+  .projitem:hover .reptitle{color:var(--accent)}
   .repdate{
     flex:none; font-size:11.5px; color:var(--ink-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;

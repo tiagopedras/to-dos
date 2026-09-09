@@ -154,6 +154,15 @@ check('the card says what the project is', await evalJS(`
 check('a folder with no CLAUDE.md gets no blurb rather than an empty one', await evalJS(`
   document.querySelectorAll('#projectsOut .projcardblurb').length === 1
 `))
+/* The whole card is the target, not just its title strip. Clicking the blurb —
+   the furthest thing on a card from the .rephead button that used to be the
+   only live part — is what proves data-project sits on the <article>. */
+await evalJS(`document.querySelector('#projectsOut .projcardblurb').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('clicking below the title opens the project too', await evalJS(`
+  state.openProject === 'aop2027'
+`))
+await evalJS(`closeDrawer()`)
 
 /* ---- the drawer, which is where the folder's own contents show ---- */
 
