@@ -579,7 +579,11 @@
      still reads as what it is without changing any of the day math. */
   .tlweekend{
     position:absolute; top:0; bottom:0; pointer-events:none;
-    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 6px, transparent 6px 12px);
+    /* 3px of solid in a 12px repeat, not 6px: an even split gives the stripe
+       as much weight as the gap and a weekend then reads heavier than the
+       working days either side. The repeat stays 12px so the angle and the
+       spacing don't move. */
+    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 3px, transparent 3px 12px);
   }
   .tltoday{
     position:absolute; top:0; bottom:0; width:1px;
