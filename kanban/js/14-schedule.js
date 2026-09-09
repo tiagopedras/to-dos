@@ -229,9 +229,10 @@ const USAGE_RANGES = [
    day is too short to tell you whether last night was unusual. */
 let usageDays = 3;
 
+const hm = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+
 function usageRow(w, peak){
   const a = new Date(w.start), b = new Date(w.end);
-  const hm = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   return '<div class="urow' + (w.open ? ' live' : '') + (w.night ? ' night' : '') + '">' +
     '<span class="uday">' + esc(a.toLocaleDateString([], { weekday:'short', day:'numeric', month:'short' })) + '</span>' +
     '<span class="uspan">' + hm(a) + '–' + hm(b) + '</span>' +
@@ -240,20 +241,27 @@ function usageRow(w, peak){
   '</div>';
 }
 
-/* The decision — would the agent spend right now, and why not — used to lead
-   this card, but it answers a question about the Queue/Doing card in
-   13-plans.js, not about token history, so it's drawn there now under its
-   own "Status" heading. Still fetched here, since /usage.json is the only
-   route that knows it: written into #statusOut as a side effect of the same
-   call that draws the chart, rather than fetched twice. */
+/* How much of the current usage window is left. This used to be a decision —
+   ride, open or stop — because a window that outlived 07:00 stopped the night
+   agent dead. That rule went on 9 Sep 2026, so what is left is a measurement:
+   the run is gated by its schedule now, and this says whether there is capacity
+   sitting there. Drawn into #statusOut on the Queue/Doing card in 13-plans.js
+   rather than into this chart's own #usageOut, since it answers a question
+   about tonight's run; still fetched here, because /usage.json is the only
+   route that knows it and one call draws both. */
 function renderStatus(u){
   const out = $('#statusOut');
   if (!out) return;
-  out.innerHTML = u.decision
-    ? '<div class="udecide ' + esc(u.decision.action) + '">' +
-        '<strong>' + esc(u.decision.action.toUpperCase()) + '</strong> — ' + esc(u.decision.why) +
-      '</div>'
-    : '<p class="help">Nothing to judge tonight against yet.</p>';
+  const w = u.window;
+  if (!w || !w.expires) {
+    out.innerHTML = '<div class="udecide">No usage window open right now.</div>';
+    return;
+  }
+  const end = new Date(w.expires);
+  const mins = Math.max(0, Math.round((end - new Date()) / 60000));
+  out.innerHTML = '<div class="udecide open">' +
+    '<strong>' + esc(hm(end)) + '</strong> — window open, ' + mins + ' min left (' +
+    esc(w.source) + ')</div>';
 }
 
 async function renderUsage(){

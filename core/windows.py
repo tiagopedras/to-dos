@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
-"""When the night agent is allowed to spend, and when it must keep its hands off.
+"""The rolling 5-hour usage windows: reconstructing them, and reading them back.
 
 Usage runs in rolling 5-hour windows. A window opens on the first request after
 the previous one expired and lasts five hours, so windows are anchored to when
-work starts rather than sitting on a fixed grid. That matters here for one
-reason: anything spent in a window that is still alive at 07:00 is capacity
-taken out of Tiago's morning.
+work starts rather than sitting on a fixed grid.
 
-So one test decides everything this module exists to answer:
+This module used to decide whether the night agent was allowed to spend, against
+one test — the window being spent in must expire by 07:00, so nothing the agent
+did overnight came out of Tiago's morning. That rule was removed on 9 Sep 2026.
+A window is anchored to whenever the day's first request happened to land, so it
+moves every night, and a schedule cannot be set against something that lands
+somewhere different each time: the same hours rode on Monday and stopped on
+Tuesday for no reason visible from outside. Keeping the morning clear is done by
+`agents/night_agent/schedule.py` instead — hours, plus a floor that refuses the
+working day whatever the schedule file says.
 
-    the window being spent in must expire by MORNING.
+What is left here is measurement rather than permission. Two readers:
+`agents/night_agent/plan.py` asks how much of the current window is left before
+it starts another task, and the board's usage chart asks what every window in
+the last month spent.
 
-Which gives three answers, and no fourth:
-
-  RIDE   a window is open and expires by 07:00. Spend in it. It costs him
-         nothing, because it dies before he sits down.
-  OPEN   nothing is open, and now + 5h is still before 07:00. Open a fresh one.
-         The last moment that is true is 02:00, derived rather than written down.
-  STOP   a window is open that survives past 07:00, or it is past 02:00 with
-         nothing open. Do nothing, and say which.
-
-The reason the RIDE case is first rather than a nicety: over the thirty nights
-before this was written, 29 already had a window running between 19:00 and
-07:00, opened by his own evening work, and on 13 of them there was no room at
-all to open a fresh one before the cutoff. A design that woke at 02:00 and
-started its own window would have done nothing on nearly half the nights. The
-capacity is in the window he already opened and then leaves half unused.
-
-Where the boundaries come from, in priority order:
+Where a boundary comes from, in priority order:
 
   1. `window.json`, when a run has actually hit the limit. The error names the
      reset time, which is the only exact signal there is. It beats everything
@@ -37,17 +30,11 @@ Where the boundaries come from, in priority order:
      machine. It cannot see claude.ai, Chrome or mobile, so it can believe a
      window is closed when it is open.
 
-Being wrong is safe in the direction that matters. Believing a window is closed
-when it is open means opening nothing and riding what is there. Believing one is
-open when it is closed costs a fresh window, and the cutoff arithmetic already
-stops that happening after 02:00.
-
 `apiBlockIndex` in the transcripts looks like it should be this and is not: it
 counts blocks within one session and restarts per transcript. Do not build on it.
 
-    python3 core/windows.py            what it would do right now
+    python3 core/windows.py            the window open right now, if any
     python3 core/windows.py --history  the last 30 days, one line a window
-    python3 core/windows.py --json     the same decision, for the runner
 """
 
 import datetime as dt
@@ -57,18 +44,6 @@ import os
 import sys
 
 WINDOW = dt.timedelta(hours=5)
-
-# The morning belongs to him. Everything else here is derived from this one
-# constant, including the 02:00 cutoff, so moving the boundary is a one-line
-# change rather than an arithmetic hunt.
-MORNING = dt.time(7, 0)
-
-# The hours the runner is woken. Outside these it exits before doing anything at
-# all, which is the guard against launchd firing a missed job on wake.
-NIGHT_FROM = dt.time(19, 0)
-NIGHT_TO = dt.time(6, 59)
-
-RIDE, OPEN, STOP = "ride", "open", "stop"
 
 TRANSCRIPTS = "~/.claude/projects/*/*.jsonl"
 
@@ -144,12 +119,6 @@ def reconstruct(events):
     return wins
 
 
-def morning_after(now):
-    """The next MORNING boundary. Tonight's 19:00 looks forward to tomorrow's."""
-    today = dt.datetime.combine(now.date(), MORNING, now.tzinfo)
-    return today if now < today else today + dt.timedelta(days=1)
-
-
 def read_state(path):
     try:
         with open(path, encoding="utf-8") as fh:
@@ -188,55 +157,25 @@ def known_expiry(state, now):
     return when if when > now else None
 
 
-def decide(now=None, state=None, events=None):
-    """RIDE, OPEN or STOP, with the reasoning attached.
+def current(now=None, state=None, events=None):
+    """The window open right now, or None — no judgement attached.
 
-    `events` is injectable so the tests can hand it a fabricated night rather
-    than depending on whatever happens to be in ~/.claude today.
+    Returns `{"expires": datetime|None, "source": str}`. `events` is injectable
+    so the tests can hand it a fabricated night rather than depending on
+    whatever happens to be in ~/.claude today.
     """
     now = now or dt.datetime.now().astimezone()
-    morning = morning_after(now)
-
-    # Outside the night entirely. Checked before anything is read, because this
-    # is the case where launchd has fired a job missed while the lid was shut.
-    t = now.timetz().replace(tzinfo=None)
-    if not (t >= NIGHT_FROM or t <= NIGHT_TO):
-        return {"action": STOP, "why": "outside the night window (19:00-06:59)",
-                "until": None, "expires": None}
 
     expiry = known_expiry(state, now)
-    source = "the limit's own reset time"
-    if expiry is None:
-        if events is None:
-            events = turns(since=now - dt.timedelta(hours=12))
-        wins = reconstruct(events)
-        source = "estimated from transcripts"
-        if wins and wins[-1]["end"] > now:
-            expiry = wins[-1]["end"]
-
     if expiry is not None:
-        if expiry <= morning:
-            return {"action": RIDE,
-                    "why": "a window is open until %s, %s" % (expiry.strftime("%H:%M"), source),
-                    "until": None, "expires": expiry}
-        # Open, but it outlives the morning boundary. Spending here is spending
-        # his 07:00. Wait for it to expire and reassess then — by which point
-        # the cutoff has usually passed too, and the answer becomes tomorrow.
-        return {"action": STOP,
-                "why": "the open window runs to %s, past %s" % (
-                    expiry.strftime("%H:%M"), morning.strftime("%H:%M")),
-                "until": expiry, "expires": expiry}
+        return {"expires": expiry, "source": "the limit's own reset time"}
 
-    # Nothing open. Opening one is only allowed if it dies before the morning.
-    fresh = now + WINDOW
-    if fresh <= morning:
-        return {"action": OPEN,
-                "why": "nothing open; a fresh window would close at %s" % fresh.strftime("%H:%M"),
-                "until": None, "expires": fresh}
-    return {"action": STOP,
-            "why": "past the %s cutoff, a fresh window would run to %s" % (
-                (morning - WINDOW).strftime("%H:%M"), fresh.strftime("%H:%M")),
-            "until": None, "expires": None}
+    if events is None:
+        events = turns(since=now - dt.timedelta(hours=12))
+    wins = reconstruct(events)
+    if wins and wins[-1]["end"] > now:
+        return {"expires": wins[-1]["end"], "source": "estimated from transcripts"}
+    return {"expires": None, "source": "nothing open"}
 
 
 def _history(days=30):
@@ -267,17 +206,14 @@ def main(argv):
     sys.path.insert(0, os.path.join(root, "agents", "night_agent"))
     import paths  # noqa: E402
 
-    state = read_state(paths.window_path())
-    d = decide(state=state)
-    if "--json" in argv:
-        out = dict(d)
-        for k in ("until", "expires"):
-            out[k] = out[k].isoformat() if out[k] else None
-        print(json.dumps(out))
+    now = dt.datetime.now().astimezone()
+    win = current(now=now, state=read_state(paths.window_path()))
+    if not win["expires"]:
+        print("No window open right now.")
         return 0
-    print("%s — %s" % (d["action"].upper(), d["why"]))
-    if d["until"]:
-        print("next worth checking: %s" % d["until"].strftime("%a %H:%M"))
+    left = win["expires"] - now
+    print("Window open until %s (%d min left), %s" % (
+        win["expires"].strftime("%H:%M"), left.total_seconds() // 60, win["source"]))
     return 0
 
 

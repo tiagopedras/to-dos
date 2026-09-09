@@ -35,7 +35,6 @@ sys.path.insert(0, HERE)
 import paths  # noqa: E402
 import pick  # noqa: E402
 import schedule  # noqa: E402
-import windows  # noqa: E402
 
 PLIST = "com.tiagopedras.todos-night-agent"
 
@@ -178,20 +177,16 @@ def tail_log(n):
 
 def state():
     s = schedule.load()
-    d = windows.decide(state=windows.read_state(paths.window_path()))
     return {
         "id": "night-agent",
         "name": "to-dos night agent",
         "blurb": "one log, in the dataset it plans against",
         "summary": "$%.2f a night · plans only, nothing is ever executed" % s["budget"],
         "job": launchd(PLIST),
-        # `scope: self` because this agent's copy of the window arithmetic
-        # short-circuits on its own hours before it looks at a window at all —
-        # ask it at 14:00 and it says STOP about the schedule while meaning
-        # nothing about the account. The dashboard reports the account's window
-        # across every agent, so it needs to know not to quote this one for it.
-        "window": {"action": d["action"], "why": d["why"], "scope": "self",
-                   "expires": d["expires"].isoformat() if d["expires"] else None},
+        # No `window`. The contract still carries the field, and nothing here
+        # reports one any more: the usage window stopped being a gate on 9 Sep
+        # 2026, so an answer about it would be a fact with no consequence on a
+        # card about what runs tonight. The schedule below is the whole gate.
         "running": os.path.isdir(os.path.join(ROOT, "data", ".night-agent.lock")),
         "log": tail_log(60),
         # The floor, which is the one thing on this card the page cannot write.

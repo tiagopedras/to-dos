@@ -95,8 +95,11 @@ await evalJS(`(() => {
       recent:['todo-backup-week-2026-W36.md'], hint:'' }
   ];
   window.__usage = {
-    available:true, days:30, baseline:30, morning:'07:00', cutoff:'02:00',
-    decision:{ action:'ride', why:'a window is open until 23:40, estimated from transcripts' },
+    available:true, days:30, baseline:30,
+    // Ninety minutes from now, so the Status line has a real countdown to
+    // render. It is capacity, not permission: nothing is gated on it since the
+    // usage-window rule went on 9 Sep 2026.
+    window:{ expires:iso(now + 90*60e3), source:'estimated from transcripts' },
     median: 71e6, p90: 197e6, max: 430e6,
     windows: [
       // shape is the running total across the window, as fractions of its own
@@ -163,16 +166,22 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
   !document.querySelectorAll('#schedOut .schedjob')[1].querySelector('.schedmeta').textContent.includes('T0')
 `))
 
-// The decision now leads the Queue/Doing card (#statusOut, under its own
-// "Status" heading), not the usage chart it used to sit on top of — see
-// renderStatus() in 14-schedule.js.
-check('the decision leads the Queue/Doing card, under a Status heading', await evalJS(`
+// What is left of the current window leads the Queue/Doing card (#statusOut,
+// under its own "Status" heading), not the usage chart it used to sit on top
+// of — see renderStatus() in 14-schedule.js. It used to be a ride/open/stop
+// decision; the rule behind that went on 9 Sep 2026 and the line now reports
+// capacity rather than permission.
+check('the window left leads the Queue/Doing card, under a Status heading', await evalJS(`
   document.querySelector('#queueDoingCard .fhead').textContent === 'Status' &&
-  document.querySelector('#statusOut .udecide strong').textContent === 'RIDE' &&
-  document.querySelector('#statusOut .udecide').textContent.includes('23:40')
+  /^\\d\\d:\\d\\d$/.test(document.querySelector('#statusOut .udecide strong').textContent) &&
+  (m => m && +m[1] >= 85 && +m[1] <= 90)(
+    document.querySelector('#statusOut .udecide').textContent.match(/(\\d+) min left/))
 `))
-// The usage card itself carries no explanatory prose: the decision line
-// (elsewhere now) says what tonight looks like and
+check('and nothing on it reads as a verdict any more', await evalJS(`
+  !/RIDE|OPEN|STOP/.test(document.querySelector('#statusOut').textContent)
+`))
+// The usage card itself carries no explanatory prose: the Status line
+// (elsewhere now) says what there is to spend and
 // agents/night_agent/README.md holds the reasoning.
 check('the usage card explains itself with the chart, not a paragraph', await evalJS(`
   !document.querySelector('#usageOut .help')

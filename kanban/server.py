@@ -786,7 +786,7 @@ def usage_summary(days=30, ttl=60):
     since = datetime.datetime.now().astimezone() - datetime.timedelta(days=span)
     every = windows.reconstruct(windows.turns(since=since))
     state = windows.read_state(os.path.join(plans_dir(), "window.json"))
-    decision = windows.decide(state=state)
+    win = windows.current(state=state)
     # The ceiling and the weekly line are worked out over the whole baseline;
     # only what is drawn is cut back to the range asked for.
     roll = rolling_week(every, span)
@@ -803,10 +803,11 @@ def usage_summary(days=30, ttl=60):
         "baseline": span,
         "available": True,
         "days": days,
-        "morning": windows.MORNING.strftime("%H:%M"),
-        "cutoff": (datetime.datetime.combine(datetime.date.today(), windows.MORNING)
-                   - windows.WINDOW).strftime("%H:%M"),
-        "decision": {"action": decision["action"], "why": decision["why"]},
+        # The window open right now, and nothing gates on it — it stopped being
+        # a gate on 9 Sep 2026. It is here because "how much of this window is
+        # left" is still the honest answer to "is there room to run something".
+        "window": {"expires": win["expires"].isoformat() if win["expires"] else None,
+                   "source": win["source"]},
         "median": toks[len(toks) // 2],
         "p90": toks[int(len(toks) * 0.9)],
         "max": toks[-1],

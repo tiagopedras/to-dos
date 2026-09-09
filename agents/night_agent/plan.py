@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Runs one planning agent per task and files what comes back.
 
-The middle of the night agent. `core/windows.py` says whether it may spend,
+The middle of the night agent. `agents/night_agent/schedule.py` says whether it
+may start, `core/windows.py` says how much of the current usage window is left,
 `pick.py` says on what, and this runs the agents and writes the results.
 
 One `claude -p` per task, sequential. Sequential rather than parallel for two
@@ -328,7 +329,8 @@ def record_limit(err):
     This is the only authoritative signal about where a window boundary is, so
     it is worth the parsing. When the message cannot be read, the expiry is left
     unset and core/windows.py falls back to the estimate — which is the normal case
-    anyway, so a miss here costs nothing.
+    anyway, so a miss here costs nothing. Nothing gates on it: it is read to
+    decide whether there is room for another task, and by the board's chart.
 
     It also records what the window had spent at the moment it was refused,
     which is the one measurement of the session allowance this machine can
@@ -668,7 +670,7 @@ def run(argv=None):
         return 0
 
     guard = file_hash(todo_file)
-    expiry = windows.decide(state=windows.read_state(paths.window_path()))["expires"]
+    expiry = windows.current(state=windows.read_state(paths.window_path()))["expires"]
     spent, written, stopped = 0.0, [], None
     started = dt.datetime.now().astimezone()
     log("start: %d to plan, %d skipped" % (len(plan), len(skipped)))

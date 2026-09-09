@@ -17,49 +17,47 @@ agents/night_agent/run.sh --dry-run          what it would do tonight, no spend,
 python3 agents/night_agent/pick.py           the queue, in the order it would be worked
 agents/night_agent/run.sh --task "Some task" one task by hand, now
 python3 core/windows.py --history the last 30 days of usage windows
-python3 agents/night_agent/test_night_agent.py   the arithmetic that decides what gets spent
+python3 agents/night_agent/test_night_agent.py   the schedule, the picker and the runner
 ```
 
-## The night is not empty, and that is the whole design
+## When it runs, and why the hours are the whole answer
 
-The obvious build is a launchd job at 02:00 that starts a fresh 5-hour usage
-window and works through the list. That build was measured against seven weeks of
-real usage and it does nothing on nearly half the nights.
+The schedule is the gate. `run.sh` is woken hourly, asks `schedule.py` whether
+this is one of tonight's hours, takes the lock, and runs. Nothing else votes.
+
+It was not always this way, and the history is worth keeping because the removed
+rule was a good idea that did not survive contact with the thing it measured.
 
 Usage runs in rolling 5-hour windows, anchored to the first request after the
-last one expired rather than sitting on a fixed grid. Over the thirty nights
-before this was written:
+last one expired rather than sitting on a fixed grid. Measured over the thirty
+nights before this agent was written: 29 of 30 already had a window running
+between 19:00 and 07:00, opened by Tiago's own evening work; on 13 of 30 there
+was no room to open a fresh one before 02:00, because that evening window was
+still live; and the typical window carried 71M tokens against a p90 of 197M, so
+the one he opened in the evening was usually half empty when it expired. So the
+agent was built to ride his window rather than open its own, under one test —
+*the window being spent in must expire by 07:00* — which kept the morning's
+capacity his.
 
-- 29 of 30 already had a window running between 19:00 and 07:00, opened by
-  Tiago's own evening work.
-- On 13 of 30 there was no room at all to open a fresh one before 02:00, because
-  that evening window was still live.
-- The median gap available to open a fresh window was 0.3 hours.
+**That rule was removed on 9 September 2026.** The measurements above are still
+true and the rule still failed, for a reason none of them shows: a window is
+anchored to whenever the day's first request happened to land, so it moves every
+night. A schedule cannot be set against something that lands somewhere different
+each time. The same hours rode on Monday and stopped on Tuesday, and from
+outside nothing distinguished "it declined to spend" from "it is broken" — which
+is how a schedule of 06:00 and 07:00 sat on a repo for a day doing nothing at
+all, because at those hours the answer is always stop.
 
-Meanwhile the typical window carries 71M tokens against a p90 of 197M, so the
-evening window he opens is usually half empty when it expires at midnight.
+Keeping the morning clear is done the plain way now: pick hours nowhere near it.
+The floor below is what makes that a guarantee rather than an intention.
 
-**So the agent rides his window rather than opening its own.** One test decides
-everything: *the window being spent in must expire by 07:00.*
-
-| | |
-| --- | --- |
-| **Ride** | A window is open and dies by 07:00. Spend in it — it costs him nothing, because it is gone before he sits down. The common case. |
-| **Open** | Nothing is open and now + 5h is still before 07:00, so 02:00 is the last moment. The quiet-night case. |
-| **Stop** | A window is open that outlives 07:00, or it is past 02:00 with nothing open. Do nothing and log why. |
-
-`MORNING` is one constant in `core/windows.py` and the 02:00 cutoff is derived from
-it, so moving the boundary is a one-line change rather than an arithmetic hunt.
-
-That is also why launchd wakes this **hourly rather than once**. The only way to
-catch a window he opened is to keep looking, and an hourly wake gives the
-resume-after-a-limit behaviour for free: when a run hits the limit, it records
-the reset time and stops, and the next wake past that reset either opens a fresh
-window or defers to tomorrow, by the same one test. No long-lived process,
-nothing sleeping, nothing to restart.
+`core/windows.py` still reconstructs the windows, because two things still want
+to read them — `plan.py` asks how much of the current window is left before it
+starts another task, and the board's Schedule view charts what every window in
+the last month spent. Neither stops anything from running.
 
 Almost every wake costs a few milliseconds. `run.sh` checks the schedule, then
-the lock, then the window, and stops at whichever says no.
+the lock, and stops at whichever says no.
 
 ### Which hours, and who decides
 
@@ -89,10 +87,9 @@ mobile. The exact one is a run that actually hits the limit, whose error names
 the reset time; that is written to `window.json` and beats the estimate until it
 expires.
 
-Being wrong is safe in the direction that matters. Thinking a window is closed
-when it is open means opening nothing and riding what is there. Thinking one is
-open when it is closed costs a fresh window, and the cutoff already stops that
-after 02:00.
+Neither is load-bearing any more — nothing is refused on the strength of either
+— so being wrong costs a slightly wrong number on a chart and, at worst, one
+task started with less window left than `plan.py` thought.
 
 `apiBlockIndex` in the transcripts looks like it should be this and is not: it
 counts blocks within one session and restarts per transcript.
@@ -270,9 +267,8 @@ rather than showing it as live.
 One card, not a list, because `plan.py` runs its agents strictly one at a time.
 
 The same card carries **Run the agent now**, which is `run.sh --force` started
-detached from the board. Force means what it says: it skips the clock gate and
-the window test, so it will spend in whatever window is open, including the one
-being worked in. It does not skip the lock, and it does not skip the ledger — a
+detached from the board. Force means what it says: it skips the schedule, so it
+will spend in whatever window is open, including the one being worked in. It does not skip the lock, and it does not skip the ledger — a
 task planned last night whose text has not moved is still skipped, so pressing
 it twice is cheap rather than a second full batch. The button is not offered
 while a run is going, because `run.sh` refuses a second one by logging a line
@@ -350,7 +346,7 @@ its next load — the same route `pa-attach` uses, for the same reason.
 
 ## Ceilings
 
-Windows are the schedule; these are the brakes. `--max-budget-usd` per task, a
+The schedule says when; these are the brakes on what it does once it starts. `--max-budget-usd` per task, a
 nightly total in `plan.py`, a ten-minute timeout per agent, and a floor: below 20
 minutes of window remaining, do not start another task, because a plan cut off
 half way is worse than one not written. Weekly limits are why these exist at all —

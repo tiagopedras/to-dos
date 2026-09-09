@@ -1131,9 +1131,11 @@
     margin:7px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
     font-size:11px; line-height:1.55; overflow-x:auto; color:var(--ink-soft);
   }
-  /* The decision line: would it spend right now, and why not — drawn into
+  /* The status line: how much of the current usage window is left — drawn into
      #statusOut on the Queue/Doing card, under its own "Status" heading, not
-     into this chart's own #usageOut (see renderStatus() in 14-schedule.js). */
+     into this chart's own #usageOut (see renderStatus() in 14-schedule.js).
+     `.ride` is kept alongside `.open` because it costs nothing and the class
+     was written by hand into a card that predates this. */
   .udecide{
     padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.5;
     background:var(--chip); color:var(--ink-soft); margin:0 0 10px;

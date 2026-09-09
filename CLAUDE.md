@@ -75,8 +75,8 @@ with none of them.
 `agents/night_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
 `[ai:: partial]`, and writes a plan for each into `data/<dataset>/plans/`. It
 proposes and never executes. Read [agents/night_agent/README.md](agents/night_agent/README.md) before
-changing any of it — particularly the window rule, which is the part that looks
-arbitrary and is not.
+changing any of it — particularly the schedule and its floor, which are the
+whole of what keeps it out of the working day.
 
 Two things to keep true:
 
@@ -86,10 +86,15 @@ Two things to keep true:
   makes it noisy should be fixed rather than removed. The board's queue column
   is held to the same rule: reordering or holding a task writes
   `plans/queue-order.json` and nothing else.
-- **It spends only in a usage window that expires before 07:00.** The morning is
-  his. `core/windows.py` owns that arithmetic and `python3
-  agents/night_agent/test_night_agent.py` covers it — run that after touching the rule, since
-  it is the only way to test 02:00 without waiting for 02:00.
+- **The hours it is set to are the only thing keeping it out of the morning.**
+  There was a second gate until 9 Sep 2026 — it would only spend in a usage
+  window that expired before 07:00 — and it went because a window moves with
+  whenever the day's first request landed, so hours could not be set against it.
+  `schedule.py` holds the hours plus a floor the dashboard cannot write under,
+  and `python3 agents/night_agent/test_night_agent.py` covers both. Run it after
+  touching either. `core/windows.py` is still there and no longer refuses
+  anything: `plan.py` reads it to see whether there is room for another task,
+  and the board's chart draws it.
 
 Its six per-bucket planners live beside it, `agents/night_agent/plan-<stream>.md`,
 rather than in `~/.claude/agents/`, so they version with the runner that invokes
@@ -246,7 +251,7 @@ which ones it reached:
 ```
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
-python3 agents/night_agent/test_night_agent.py    # the window rule, the picker, the runner
+python3 agents/night_agent/test_night_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
 node kanban/test_plans.mjs         # the four below need the board running
 node kanban/test_schedule.mjs

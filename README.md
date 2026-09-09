@@ -473,8 +473,10 @@ has moved on from gets a new plan.
 
 The full account of how the night agent decides what to plan and when it is
 allowed to spend is in [agents/night_agent/README.md](agents/night_agent/README.md). The short version
-of the part that matters: it only ever spends inside a usage window that expires
-before 07:00, so the morning is never eaten by work done overnight.
+of the part that matters: it runs at the hours its schedule file names and at no
+others, with a floor in `schedule.py` that refuses the working day whatever that
+file says. The usage-window rule that used to sit alongside those hours was
+removed on 9 Sep 2026, and that README says why.
 
 ### Schedule
 
@@ -497,10 +499,10 @@ install it.
 
 The second card is the usage windows, which had no home outside running
 `core/windows.py --history` at a terminal. The last 30 days, one row a window,
-with the ones that started in the night picked out — those are the ones the
-night agent could have spent in. Above them is the agent's own decision as it
-stands this second, ride, open or stop, with its reasoning: that line answers
-"would it run tonight" without waiting for tonight.
+with the ones that started in the night picked out. The Status line on the
+Queue card says how much of the window open right now is left; it used to say
+ride, open or stop, back when that answer could stop a run, and now it is
+capacity rather than permission.
 
 Everything in the view is read-only. It is the one view that writes nothing at
 all, not even a preference.

@@ -46,60 +46,41 @@ def turns_ending(*starts):
     return [(s, 1000) for s in starts]
 
 
-# --- the window rule ---------------------------------------------------------
+# --- the current window ------------------------------------------------------
 
 def test_windows():
-    # Riding a window he opened in the evening. The common case: 29 of the last
-    # 30 nights had one of these running.
-    d = windows.decide(now=at(4, 21, 0), events=turns_ending(at(4, 20, 0)))
-    check("21:00, his window runs to 01:00 — ride", d["action"], windows.RIDE)
+    """What is left of the window right now. No longer a gate on anything.
 
-    # The same window, but he started late enough that it outlives the morning.
-    # This is the case the whole module exists for.
-    d = windows.decide(now=at(4, 23, 0), events=turns_ending(at(4, 22, 30)))
-    check("23:00, window runs to 03:30 — ride", d["action"], windows.RIDE)
-    d = windows.decide(now=at(5, 3, 0), events=turns_ending(at(5, 2, 30)))
-    check("03:00, window runs to 07:30 — stop, it eats the morning",
-          d["action"], windows.STOP)
+    The 07:00 rule went on 9 Sep 2026 — a window is anchored to whenever the
+    day's first request landed, so it moves every night and hours could not be
+    set against it. `plan.py` still asks this before starting another task, and
+    the board's chart draws it, so the two boundaries it reads from are still
+    worth testing.
+    """
+    # Estimated from the transcripts: a turn at 20:00 opens a window to 01:00.
+    w = windows.current(now=at(4, 21, 0), events=turns_ending(at(4, 20, 0)))
+    check("21:00, a turn at 20:00 — open until 01:00", w["expires"], at(5, 1, 0))
+    check("and it says where that came from", w["source"], "estimated from transcripts")
 
-    # Nothing open, and time to fit a whole fresh window before 07:00.
-    d = windows.decide(now=at(4, 20, 0), events=turns_ending(at(4, 10, 0)))
-    check("20:00, nothing open — open", d["action"], windows.OPEN)
-
-    # 02:00 exactly is the last moment a fresh window closes by 07:00.
-    d = windows.decide(now=at(5, 2, 0), events=turns_ending(at(4, 10, 0)))
-    check("02:00 exactly, nothing open — open", d["action"], windows.OPEN)
-    d = windows.decide(now=at(5, 2, 1), events=turns_ending(at(4, 10, 0)))
-    check("02:01, nothing open — stop, past the cutoff", d["action"], windows.STOP)
-
-    # Riding is allowed after the cutoff, because the window is already running
-    # and dies before he wakes. This is the half of the rule that is easy to get
-    # wrong by testing the start time instead of the end.
-    d = windows.decide(now=at(5, 3, 0), events=turns_ending(at(5, 1, 30)))
-    check("03:00, window open until 06:30 — ride", d["action"], windows.RIDE)
-
-    # Daytime never spends, whatever the windows say.
-    d = windows.decide(now=at(4, 11, 0), events=turns_ending(at(4, 10, 30)))
-    check("11:00 — stop, outside the night", d["action"], windows.STOP)
+    # Nothing recent enough to still be running.
+    w = windows.current(now=at(4, 20, 0), events=turns_ending(at(4, 10, 0)))
+    check("a window that has already expired is not open", w["expires"], None)
+    check("and says so", w["source"], "nothing open")
 
     # A recorded limit beats the estimate while it stands, and is ignored once
-    # it has passed.
+    # it has passed. This is the only exact signal there is.
     live = {"expires": at(5, 5, 0).isoformat()}
-    d = windows.decide(now=at(5, 1, 0), state=live, events=[])
-    check("a recorded reset at 05:00 — ride", d["action"], windows.RIDE)
+    w = windows.current(now=at(5, 1, 0), state=live, events=[])
+    check("a recorded reset at 05:00 wins", w["expires"], at(5, 5, 0))
+    check("and says which source won", w["source"], "the limit's own reset time")
     stale = {"expires": at(4, 20, 0).isoformat()}
-    d = windows.decide(now=at(4, 21, 0), state=stale, events=turns_ending(at(4, 10, 0)))
-    check("a reset that has passed is ignored", d["action"], windows.OPEN)
+    w = windows.current(now=at(4, 21, 0), state=stale, events=turns_ending(at(4, 10, 0)))
+    check("a reset that has passed is ignored", w["expires"], None)
 
-    # morning_after rolls to tomorrow once today's has gone.
-    check("morning after 21:00 is tomorrow", windows.morning_after(at(4, 21)).date(),
-          dt.date(2026, 9, 5))
-    check("morning after 03:00 is today", windows.morning_after(at(5, 3)).date(),
-          dt.date(2026, 9, 5))
-
-    # The cutoff is derived, not written down twice.
-    check("cutoff is MORNING minus one window",
-          (windows.morning_after(at(4, 21)) - windows.WINDOW).strftime("%H:%M"), "02:00")
+    # The hour means nothing here now. The schedule and its floor are the whole
+    # gate, and this module has no opinion about when it is being asked.
+    w = windows.current(now=at(4, 11, 0), events=turns_ending(at(4, 10, 30)))
+    check("11:00 in the working day is still just a window", w["expires"], at(4, 15, 30))
 
 
 # --- the picker --------------------------------------------------------------

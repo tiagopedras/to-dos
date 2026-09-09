@@ -8,8 +8,7 @@
 # whatever the dashboard said. So the wake is dumb and hourly, the schedule
 # decides, and twenty-four wakes a day cost a few milliseconds each.
 #
-# Three gates before anything is allowed to spend, in this order, cheapest
-# first:
+# Two gates before anything is allowed to spend, in this order, cheapest first:
 #
 #   1. The schedule. Not one of tonight's hours and this exits immediately.
 #      schedule.py also holds a floor the dashboard cannot write under, so a
@@ -18,13 +17,16 @@
 #      closed on Friday runs at 09:00 on Monday while he is reading the board.
 #   2. The lock. One run at a time. An hourly wake landing on top of a batch
 #      still going is the normal case, not an edge one.
-#   3. The window. core/windows.py decides ride, open or stop against the one test
-#      that matters: the window being spent in must expire by 07:00.
 #
-#   ./agents/night_agent/run.sh              a real run, if all three gates pass
-#   ./agents/night_agent/run.sh --dry-run    the decision and the batch, no spend, any hour
-#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the schedule and window
-#   ./agents/night_agent/run.sh --force      ignore the schedule and the window, spend anyway
+# There was a third until 9 Sep 2026: a usage-window check, refusing any window
+# that outlived 07:00. It went because a window is anchored to whenever the
+# day's first request landed, so it moves, and hours could not be set against
+# it. The schedule and its floor are what keep the morning clear now.
+#
+#   ./agents/night_agent/run.sh              a real run, if both gates pass
+#   ./agents/night_agent/run.sh --dry-run    the batch, no spend, any hour
+#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the schedule
+#   ./agents/night_agent/run.sh --force      ignore the schedule, spend anyway
 
 set -uo pipefail
 
@@ -87,7 +89,7 @@ if [ "$DRY" -eq 0 ]; then
   mkdir -p "$(dirname "$LOCK")" 2>/dev/null
   if ! mkdir "$LOCK" 2>/dev/null; then
     # A lock older than two hours is a crashed run, not a live one: the per-task
-    # timeout is ten minutes and the batch cannot outlive its own window.
+    # timeout is ten minutes, and a batch of them has never come close.
     if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then
       logline "clearing a stale lock"
       rmdir "$LOCK" 2>/dev/null && mkdir "$LOCK" 2>/dev/null || exit 0
@@ -97,21 +99,6 @@ if [ "$DRY" -eq 0 ]; then
     fi
   fi
   trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
-fi
-
-# --- 3. the window -----------------------------------------------------------
-if [ "$FORCE" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
-  DECISION="$($PY "$ROOT/core/windows.py" --json 2>/dev/null)"
-  ACTION="$(printf '%s' "$DECISION" | $PY -c 'import json,sys;print(json.load(sys.stdin)["action"])' 2>/dev/null)"
-  WHY="$(printf '%s' "$DECISION" | $PY -c 'import json,sys;print(json.load(sys.stdin)["why"])' 2>/dev/null)"
-  if [ "$DRY" -eq 1 ]; then
-    printf 'window: %s — %s\n\n' "${ACTION:-?}" "${WHY:-unknown}"
-  elif [ "$ACTION" != "ride" ] && [ "$ACTION" != "open" ]; then
-    logline "wake — ${WHY:-no window}"
-    exit 0
-  else
-    logline "wake — ${ACTION}: ${WHY}"
-  fi
 fi
 
 # A child, not exec. `exec` replaces this shell, and a replaced shell never runs
