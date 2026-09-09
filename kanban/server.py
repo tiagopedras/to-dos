@@ -291,7 +291,7 @@ def project_meta(path, name):
     return {
         "name": name,
         # The H1 out of CLAUDE.md — "Individual Role Profiles" where the
-        # folder is called role-profiles. The folder name stays the identity
+        # folder is called career-framework-revisions. The folder name stays the identity
         # (it is what a task's note points at); this is only what to call it
         # on screen.
         "title": about["title"],

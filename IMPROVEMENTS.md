@@ -471,6 +471,119 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The companion is a menu, and a menu is why the plans half had to come back
+  out of it.** `companion/app.py` is 720 lines written straight against AppKit,
+  a status item whose whole surface is `NSMenuItem`s built in `Companion` at
+  `companion/app.py:281` and a notification through `NSUserNotification` at
+  `companion/app.py:155`. That shape is what settled the entry above on 5 Sep
+  2026: the plans half landed and was taken straight back out because a plan is
+  several minutes of reading and a menu is the wrong place for it, so what the
+  companion says about the night's work is only that it happened. Rebuilding it
+  as an Electron app with a small window changes that premise rather than
+  arguing with it — a window can hold what the night agent wrote, and
+  `ai_canvas` next door is already React in Electron with
+  `PACKAGES/ai_chat_engine` shared between it and this board, so the shell and
+  the pattern for sharing code with it both already exist.
+
+  Most of what a window would show is already readable without the board.
+  `digest.build()` at `companion/digest.py:139` is the morning's counts and its
+  message suggestions; the plans are files under `data/<dataset>/plans/<date>/`,
+  which `kanban/server.py:899` already serves at `/data/plans/…` with their
+  statuses in `kanban/js/13-plans.js`, `PLAN_STATUS` in `kanban/server.py` and
+  `is_stale()` in `agents/night_agent/pick.py`; and the queue in
+  `companion/notify.py` is the channel anything else uses to say something
+  happened. A window reading those three is not new data, it is the same data
+  with room to be read.
+
+  Three things about the window are decided. It is **small and portrait**,
+  about the proportions of a phone, because what it holds is a column — the
+  night's plans, then what is due, then what is on today — and a column read
+  down beside the work is a different thing from a page. **Every plan and every
+  task in it is a link that opens the board in the browser**, which needs
+  nothing invented: `board_url()` at `companion/app.py:224` already builds
+  `#<view>!task=<key>` and `open_board()` at `:245` already starts the server
+  first when nothing is listening and waits for the port before sending the
+  fragment. Both would move into the Electron app as they are, fragment rule
+  included — a link differing only after the `#` raises the tab that is already
+  open, and two tabs autosaving one `todo.md` is the failure this app exists to
+  stay out of the way of. And it keeps **a tray icon of its own**, so closing
+  the window leaves the icon in the menu bar rather than quitting: the window is
+  the surface, the icon is the process, and the morning notification still has
+  somewhere to come from when the window is shut.
+
+  That last one decides what happens to the app that is there now. Two status
+  items for one list is clutter, which is what `claim_single_instance()` at
+  `companion/app.py:74` already says with an flock on `companion.lock`, so an
+  Electron tray icon means the Python one stops rather than sits beside it. The
+  open question is whether `app.py` is retired outright or kept as the headless
+  half — it owns the once-a-morning notification, the 08:30 to 20:00 rule on the
+  queue, and the dismissal state in `companion.json` — and that is a decision
+  about how much Python an Electron app should be starting, not about the
+  window.
+
+  What the window holds is the day, in one column: the plans the night agent
+  wrote, then what is overdue and due today, then the message suggestions that
+  are already in the menu. No calendar and no meetings — the day here means the
+  list, and every part of it is already on disk in `todo.md` and `plans/` with a
+  reader in `core/todo.py` and `companion/digest.py` that gets it out without
+  the board running. Nothing new has to be parsed, and nothing new has to be
+  stored.
+
+  Two things stay true whatever it is built with. The companion never writes
+  `todo.md`, and an Electron app is a second long-lived process rather than a
+  script that ticks once a minute, so that rule gets more load-bearing rather
+  than less. And `build-app.command` bundles nothing today — `To-Do
+  Companion.app` is a plist, a shell script and an icon reading `app.py` off
+  disk — where Electron means a real build step and a real install, which is a
+  cost worth naming before it is paid.
+
+- **A report he defines once cannot be written down anywhere, so every written
+  report is typed fresh from a prompt and comes out a slightly different shape
+  each time.** The Reports view's second column reads `data/<dataset>/reports/`
+  through `report_listing()` (`kanban/server.py:1305`) and `report_meta()`
+  (`:1255`), which parse the frontmatter — `title`, `date`, `covers`, `topic`,
+  `summary` — off whatever Markdown file happens to be in the folder; the empty
+  state says as much in as many words, "asking Claude for one is how they get
+  there" (`kanban/js/12-reports.js:630`). So the output has a home and a format,
+  and the *input* has neither: the rules live as prose in README.md under "Rules
+  for writing a report", the period, the buckets and the question are re-stated
+  in the prompt every time, and there is no `pa-report` among the nine skills in
+  `agents/pa_agent/skills/`. The shape to copy already exists one folder over —
+  `agents/pa_agent/skills/pa-mobile/templates/` is one file per report kind, with
+  its own README saying "adding a file here is the whole of adding a report
+  shape", and `pa/references/templates.md` documenting the fields — except those
+  produce phone messages off the live list rather than a written report about a
+  period, and they are the templates the entry below already says nothing
+  executes.
+
+  So a definition file per report — the window, the buckets it covers, the
+  questions it has to answer, the sections it comes out in — plus a pass that
+  renders one on a schedule. Two decisions are in the way. **Where the
+  definitions live**: `data/<dataset>/reports/` beside the output is private and
+  per-list, which is right for one naming Twinkl processes, but it mixes
+  definitions with the reports they produce in a folder `report_listing()`
+  already sweeps for `.md`, so it would need a subfolder and a skip in that loop.
+  **What the pass reads**: the arithmetic behind "what got done between these two
+  dates" exists in JavaScript only — `completedRecently()`
+  (`kanban/js/12-reports.js:162`) and `parseArchiveEntries()` (`:130`) are what
+  join the live file to `done-archive.md`, and the Python side has no archive
+  reader at all (`check_todo.py:52` names the archive only as a file to ignore).
+  That is the same gap the `core/render.py` entry below already argues for
+  filling once in `core/`, with `check_overdue()`
+  (`agents/pa_agent/skills/pa/scripts/check_todo.py:638`) and `select()`
+  (`agents/night_agent/pick.py:278`) as the two half-written copies to fold in —
+  this wants the same aggregation pointed at a past window rather than at today,
+  so the two entries should be built as one piece of work or not at all.
+
+  Where it runs is the easier half. A weekly render is unattended work on a
+  budget, which is `agents/night_agent/`'s machinery — the clock and lock gates
+  in `run.sh`, the window arithmetic in `core/windows.py` — but not its contract:
+  `eligible()` (`pick.py:82`) only ever yields open `ai:full` tasks, and a report
+  is about finished ones. It is a pass of its own, the way the briefing entry
+  below also concludes, firing on one night a week rather than every night, and
+  writing only into `reports/`. `todo.md` is not in reach for it, same as
+  everything else that runs while he is asleep.
+
 - **Creating a list already works; what it produces is a shell nothing else on
   the board knows how to use.** `createDataset()`
   (`kanban/js/21-datasets.js:48-58`) prompts for a name, posts it to
