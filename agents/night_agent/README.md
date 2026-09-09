@@ -51,15 +51,35 @@ everything: *the window being spent in must expire by 07:00.*
 `MORNING` is one constant in `core/windows.py` and the 02:00 cutoff is derived from
 it, so moving the boundary is a one-line change rather than an arithmetic hunt.
 
-That is also why launchd wakes this **twelve times, hourly from 19:00 to 06:00**,
-rather than once. The only way to catch a window he opened is to keep looking,
-and an hourly wake gives the resume-after-a-limit behaviour for free: when a run
-hits the limit, it records the reset time and stops, and the next wake past that
-reset either opens a fresh window or defers to tomorrow, by the same one test.
-No long-lived process, nothing sleeping, nothing to restart.
+That is also why launchd wakes this **hourly rather than once**. The only way to
+catch a window he opened is to keep looking, and an hourly wake gives the
+resume-after-a-limit behaviour for free: when a run hits the limit, it records
+the reset time and stops, and the next wake past that reset either opens a fresh
+window or defers to tomorrow, by the same one test. No long-lived process,
+nothing sleeping, nothing to restart.
 
-Almost every wake costs a few milliseconds. `run.sh` checks the clock, then the
-lock, then the window, and stops at whichever says no.
+Almost every wake costs a few milliseconds. `run.sh` checks the schedule, then
+the lock, then the window, and stops at whichever says no.
+
+### Which hours, and who decides
+
+`schedule.py` and `data/night-agent-schedule.json`, edited from the agents
+dashboard at `~/Code/agents-dashboard`. The plist wakes this all twenty-four
+hours and holds no policy at all, because a plist that only woke between certain
+hours would silently override whatever the dashboard said.
+
+Before 9 September 2026 the hours were written twice — twelve entries in the
+plist and a `19:00–06:59` clock check in `run.sh` — and changing them meant
+editing both and reloading launchd, which is a good description of why they were
+never changed. The schedule file was seeded with exactly those twelve hours, so
+nothing about the first night after the move was different.
+
+**The floor is not editable.** `schedule.ALLOWED` in `schedule.py` is the same
+19:00–06:59 range, and `run.sh` refuses to start outside it however the file has
+been edited; the dashboard draws those hours dead rather than accepting a click
+it knows would be refused. Moving a schedule into a file a web page can write
+removes a guard, and this is what replaced it — two guards is the right number
+for something that spends money unattended.
 
 ### Where the boundaries come from
 
@@ -339,15 +359,24 @@ a window's capacity dies overnight, a week's does not.
 ## What lands where
 
 ```
+data/night-agent-schedule.json   on/off, the hours, the nightly budget
 data/<dataset>/plans/
   2026-09-05/            one folder a night
     index.md             what was planned, what was skipped and why
+    run.json             the same night as JSON, for the agents dashboard
     <task-slug>.md       one plan, frontmatter plus four short sections
   actioned/              plans he acted on, kept when the night is pruned
   ledger.json            what has been planned, and whether it was actioned
   window.json            the usage-window clock
   night-agent.log            every wake, every run, what it cost
 ```
+
+The schedule sits beside the datasets rather than inside one, because when the
+agent runs is true of the agent: switching the board from `twinkl` to `personal`
+for ten minutes should not change tonight's hours. `index.md` is the one to open
+in the morning; `run.json` says the same thing to the dashboard, which asks every
+agent on the machine what last night did and cannot be expected to parse each
+one's prose to find out.
 
 Nights older than 30 days are deleted, matching the backups, except anything
 marked `actioned` — that is the record of a decision rather than a proposal that
@@ -384,8 +413,16 @@ launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
 ```
 
 `RunAtLoad` is deliberately absent, so loading it at 10am starts nothing. The
-clock guard in `run.sh` would refuse anyway, and two guards on the same mistake
-is the right number for something that spends money unattended.
+schedule guard in `run.sh` would refuse anyway, and two guards on the same
+mistake is the right number for something that spends money unattended.
+
+Reloading is only needed when the plist itself changes, which is now almost
+never — the hours are a file the dashboard writes, not a plist to edit.
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+launchctl load   ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+```
 
 ## Open questions
 

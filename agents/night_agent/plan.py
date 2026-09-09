@@ -514,6 +514,37 @@ def write_index(day, written, skipped, stopped):
         fh.write("\n".join(lines) + "\n")
 
 
+def write_run_record(day, written, skipped, stopped, spent, started):
+    """The same night as JSON, for anything reading this agent rather than the plans.
+
+    index.md is written for him, and it is the better thing to open. This is
+    written for the agents dashboard, which asks every agent on the machine the
+    same question — what did last night do — and cannot be expected to parse
+    each one's prose to find out. Cheap, next to the plans it describes, and
+    pruned with them.
+    """
+    rows = []
+    for name, title, summary, folded in written:
+        rows.append({"outcome": "folded" if folded else "planned",
+                     "title": title, "summary": summary, "file": name})
+    for title, why in skipped:
+        rows.append({"outcome": "skipped", "title": title, "summary": why})
+    record = {
+        "started": started.isoformat(),
+        "finished": dt.datetime.now().astimezone().isoformat(),
+        "cost": round(spent, 4),
+        "stopped": stopped,
+        "entries": rows,
+    }
+    path = os.path.join(paths.night_dir(day), "run.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
+        json.dump(record, fh, indent=2)
+        fh.write("\n")
+    os.replace(tmp, path)
+
+
 # The statuses prune() will not throw away. `actioned` is the record of a
 # decision rather than scratch state; `agreed` is a plan he has approved and
 # that has not been carried out yet, and deleting one of those on its thirtieth
@@ -639,6 +670,7 @@ def run(argv=None):
     guard = file_hash(todo_file)
     expiry = windows.decide(state=windows.read_state(paths.window_path()))["expires"]
     spent, written, stopped = 0.0, [], None
+    started = dt.datetime.now().astimezone()
     log("start: %d to plan, %d skipped" % (len(plan), len(skipped)))
 
     for task in plan:
@@ -701,6 +733,7 @@ def run(argv=None):
         log("  planned %-50s %3ds  $%.2f" % (task.title[:50], took, cost or 0.0))
 
     write_index(day, written, skipped, stopped)
+    write_run_record(day, written, skipped, stopped, spent, started)
     prune(day)
     folded = len([w for w in written if w[3]])
     log("done: %d written%s, $%.2f spent%s"

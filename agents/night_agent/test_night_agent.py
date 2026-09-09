@@ -851,8 +851,93 @@ def test_runner():
         check("%s claims no Bash either" % p, "Bash" in head, False)
 
 
+def test_schedule():
+    """The floor under the schedule, and that nothing can write below it.
+
+    The hours moved out of run.sh and the plist into a JSON file the agents
+    dashboard writes, which removed one of the two guards on something that
+    spends money unattended. `schedule.ALLOWED` is what replaced it, so it gets
+    more than one check: the floor itself, the loader dropping an hour under it,
+    and `due()` refusing to obey a file that already names one.
+    """
+    import importlib
+    import schedule as sched
+
+    check("the floor is the old 19:00-06:59 gate, exactly",
+          sorted(sched.ALLOWED), sorted(list(range(0, 7)) + list(range(19, 24))))
+    for hour in (7, 12, 18):
+        check("%02d:00 is barred" % hour, hour in sched.ALLOWED, False)
+    for hour in (19, 23, 0, 6):
+        check("%02d:00 is allowed" % hour, hour in sched.ALLOWED, True)
+
+    tmp = tempfile.mkdtemp()
+    real_path = sched.path
+    try:
+        path = os.path.join(tmp, "night-agent-schedule.json")
+        sched.path = lambda: path
+
+        # A file naming a barred hour — edited by hand, or written before the
+        # floor was narrowed. The loader drops it and due() refuses it, so
+        # neither is the only thing between a stray edit and a run at lunchtime.
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"on": true, "hours": [3, 12, 20]}')
+        check("load() drops an hour under the floor", sched.load()["hours"], [3, 20])
+        check("due() says no at 12:00 even if the file said yes",
+              sched.due(at(4, 12)), False)
+        check("due() says yes at 03:00", sched.due(at(4, 3)), True)
+
+        # Switched off is switched off, whatever the hours say.
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"on": false, "hours": [3]}')
+        check("due() says no when the agent is switched off", sched.due(at(4, 3)), False)
+
+        # A missing file reads as the defaults rather than as off. An agent that
+        # skipped a night over a failed disk write is a failure you find out
+        # about in the morning.
+        os.unlink(path)
+        check("a missing schedule falls back to on", sched.load()["on"], True)
+        check("and to the full allowed range", sched.load()["hours"], list(sched.ALLOWED))
+    finally:
+        sched.path = real_path
+        shutil.rmtree(tmp, ignore_errors=True)
+        importlib.reload(sched)
+
+
+def test_runner_root():
+    """ROOT in run.sh, pinned because getting it wrong killed the agent silently.
+
+    The agent moved from night_agent/ to agents/night_agent/ and this line did
+    not move with it, so ROOT became to-dos/agents — no core/, no data/. mkdir
+    on a lock whose parent does not exist fails exactly like a lock that is
+    held, so every wake from 6 to 9 September 2026 logged "a run is already
+    going" and stopped. Nothing ran and nothing said so, which is the worst
+    shape a bug can have in something nobody watches.
+    """
+    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
+    check("run.sh goes two levels up to the repo root",
+          'ROOT="$(dirname "$(dirname "$HERE")")"' in sh, True)
+    check("and makes the lock's parent before taking the lock",
+          'mkdir -p "$(dirname "$LOCK")"' in sh, True)
+    # The paths ROOT is used for have to exist from the root it cd's to, which
+    # is the check that would have caught it.
+    for rel in ("core/windows.py", "data"):
+        check("%s exists under the root run.sh cd's to" % rel,
+              os.path.exists(os.path.join(ROOT, rel)), True)
+    check("run.sh asks schedule.py rather than a hardcoded clock",
+          "schedule.py\" --due" in sh, True)
+    check("and no longer has the 19/7 hours written into it",
+          "-lt 19 " in sh, False)
+    # The plist is dumb now. Twelve wakes there would silently override whatever
+    # the dashboard wrote into the schedule file.
+    plist = open(os.path.join(HERE, "com.tiagopedras.todos-night-agent.plist"),
+                 encoding="utf-8").read()
+    check("the plist wakes all twenty-four hours",
+          plist.count("<key>Hour</key>"), 24)
+
+
 def main():
     test_windows()
+    test_schedule()
     test_pick()
     test_order()
     test_rules()
@@ -862,6 +947,7 @@ def main():
     test_queue_routes()
     test_usage_chart()
     test_runner()
+    test_runner_root()
     if FAILED:
         print("%d failed\n" % len(FAILED))
         for f in FAILED:

@@ -1,13 +1,21 @@
 #!/bin/bash
-# The night agent's entry point. launchd wakes this once an hour from
-# 19:00 to 06:00; almost every wake costs a few milliseconds and stops.
+# The night agent's entry point. launchd wakes this every hour, all day; almost
+# every wake costs a few milliseconds and stops.
+#
+# Every hour rather than only at night, and that is deliberate. The schedule
+# lives in data/night-agent-schedule.json, where the agents dashboard can edit
+# it, and a plist that only woke between certain hours would silently override
+# whatever the dashboard said. So the wake is dumb and hourly, the schedule
+# decides, and twenty-four wakes a day cost a few milliseconds each.
 #
 # Three gates before anything is allowed to spend, in this order, cheapest
 # first:
 #
-#   1. The clock. Outside 19:00-06:59 this exits immediately. launchd fires a
-#      job missed while the lid was shut, so without this a laptop closed on
-#      Friday runs at 09:00 on Monday while he is reading the board.
+#   1. The schedule. Not one of tonight's hours and this exits immediately.
+#      schedule.py also holds a floor the dashboard cannot write under, so a
+#      wake inside the working day is refused whatever the file says. launchd
+#      fires a job missed while the lid was shut, so without this a laptop
+#      closed on Friday runs at 09:00 on Monday while he is reading the board.
 #   2. The lock. One run at a time. An hourly wake landing on top of a batch
 #      still going is the normal case, not an edge one.
 #   3. The window. core/windows.py decides ride, open or stop against the one test
@@ -15,13 +23,20 @@
 #
 #   ./agents/night_agent/run.sh              a real run, if all three gates pass
 #   ./agents/night_agent/run.sh --dry-run    the decision and the batch, no spend, any hour
-#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the clock and window
-#   ./agents/night_agent/run.sh --force      ignore the clock and the window, spend anyway
+#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the schedule and window
+#   ./agents/night_agent/run.sh --force      ignore the schedule and the window, spend anyway
 
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(dirname "$HERE")"
+# Two levels up, not one. This agent moved from night_agent/ to
+# agents/night_agent/ and this line did not move with it, so ROOT became
+# to-dos/agents — a folder with no core/ and no data/ in it. The damage was
+# silent and total: mkdir on a lock inside a directory that does not exist
+# fails, the failure path reads a failed mkdir as "someone else holds it", and
+# every wake from 6 Sep to 9 Sep 2026 logged "a run is already going" and
+# stopped. Nothing ran and nothing said so.
+ROOT="$(dirname "$(dirname "$HERE")")"
 PY="${NIGHTLY_PYTHON:-python3}"
 cd "$ROOT" || exit 1
 
@@ -37,18 +52,27 @@ while [ $# -gt 0 ]; do
 done
 
 logline() {
-  local dir; dir="$($PY -c 'import sys;sys.path.insert(0,"night_agent");import paths;print(paths.log_path())')"
+  # $HERE rather than a path relative to the working directory. The relative
+  # one resolved only because ROOT was wrong in the way it was; correcting ROOT
+  # would have quietly stopped every log line from being written.
+  local dir; dir="$($PY -c 'import sys;sys.path.insert(0,sys.argv[1]);import paths;print(paths.log_path())' "$HERE")"
   mkdir -p "$(dirname "$dir")"
   printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$dir"
 }
 
-# --- 1. the clock ------------------------------------------------------------
+# --- 1. the schedule ---------------------------------------------------------
 # A run by hand, a dry run and --force all skip this. Everything else is the
-# scheduler, and the scheduler has no business running in the morning.
+# scheduler asking whether this is one of the hours it was told to work.
+#
+# The hours used to be written here as `19` and `7`, and again as twelve entries
+# in the plist. Now they are in data/night-agent-schedule.json, where the agents
+# dashboard can edit them, and the plist is woken every hour so that the file
+# can mean what it says. schedule.py holds the floor that no schedule can go
+# under, so this still refuses to start in the working day however the file has
+# been edited — the guard the hardcoded hours used to be.
 if [ "$DRY" -eq 0 ] && [ "$FORCE" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
-  H=$(date +%H)
-  if [ "$((10#$H))" -lt 19 ] && [ "$((10#$H))" -ge 7 ]; then
-    logline "wake at ${H}:00 — outside the night, nothing done"
+  if ! $PY "$HERE/schedule.py" --due; then
+    logline "wake at $(date +%H):00 — not a scheduled hour, nothing done"
     exit 0
   fi
 fi
@@ -56,6 +80,11 @@ fi
 # --- 2. the lock -------------------------------------------------------------
 LOCK="$ROOT/data/.night-agent.lock"
 if [ "$DRY" -eq 0 ]; then
+  # The parent, first. `mkdir` on a lock whose parent is missing fails the same
+  # way as one whose lock is held, and the branch below reads that failure as
+  # "a run is already going" — which is exactly how a wrong ROOT above stopped
+  # this agent dead for three nights while logging something reassuring.
+  mkdir -p "$(dirname "$LOCK")" 2>/dev/null
   if ! mkdir "$LOCK" 2>/dev/null; then
     # A lock older than two hours is a crashed run, not a live one: the per-task
     # timeout is ten minutes and the batch cannot outlive its own window.

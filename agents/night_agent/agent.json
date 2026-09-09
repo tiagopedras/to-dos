@@ -1,0 +1,9 @@
+{
+  "contract": "1.0",
+  "id": "night-agent",
+  "name": "to-dos night agent",
+  "cwd": ".",
+  "state": ["python3", "dashboard.py", "--state"],
+  "apply": ["python3", "dashboard.py", "--apply"],
+  "run": ["python3", "dashboard.py", "--run"]
+}
