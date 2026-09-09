@@ -964,8 +964,23 @@ they settled is written up in the README rather than left here:
   `{{#overdue}}` and `{{#none overdue}}` becomes `{{^overdue}}` across the six
   files, which is a find-and-replace rather than a rewrite.
 
-- **The board has no column for work handed to AI, so a delegated task sits in
-  Doing looking exactly like something he is doing himself.** The `ai:` tag is
+- ~~**The board has no column for work handed to AI, so a delegated task sits
+  in Doing looking exactly like something he is doing himself.**~~ **Done,
+  9 Sep 2026** (`22749a6`). `AI_COL` is "Handed to AI"
+  (`kanban/js/02-state.js:266`), appended by `boardColumns()` (`:315`) and kept
+  out of `tierOrder()`, so it is synthetic exactly as this entry decided: the
+  column sits second from the right, between Waiting review and Done, and
+  `todo.md` has no such heading. `renderBoard()`
+  (`kanban/js/18-timeline.js:886-897`) fills it with every not-done `ai:full`
+  task and drops the same task out of its own tier, so a card is in one place
+  or the other rather than both. The cost the entry named holds: cards there
+  are `noDrag` (`:912`) and the column offers no Add task footer (`:927`), since
+  moving work there means setting the tag and taking it back goes through
+  `stripDelegation()`. Checked against the running board on 9 Sep 2026 in a
+  locked tab — thirteen assertions over the column's position, its contents,
+  the drag block and the missing footer, with every non-GET torn out of `fetch`
+  so nothing could reach disk. What the entry originally argued: the `ai:` tag
+  is
   the only marker (`AI_STOPS` in `kanban/js/19-drawer.js:148`) and it is
   orthogonal to the column, which is a `###` heading inside each bucket read off
   by `allTiers()`/`boardColumns()` (`kanban/js/02-state.js:268`). Everything
