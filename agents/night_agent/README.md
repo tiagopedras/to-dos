@@ -121,11 +121,17 @@ and `../CLAUDE.md`.
 
 ## The bucket briefs
 
-`buckets/<stream>/<stream>.md`, one per bucket plus a fallback, holding the processes he
-actually runs there, what each produces and which of his skills already does it.
-`bucket_stream()` in `plan.py` maps a bucket heading to the stream, and both the
-agent name and the brief are derived from it, so there is one table rather than
-two.
+`data/<dataset>/buckets/<stream>/<stream>.md`, one per bucket plus a fallback,
+holding the processes he actually runs there, what each produces and which of his
+skills already does it. `bucket_stream()` in `plan.py` maps a bucket heading to
+the stream, and both the agent name and the brief are derived from it, so there
+is one table rather than two.
+
+The dataset in that path comes from `paths.buckets_dir()`, which follows
+`data/.current` like everything else here. Stream names are shared across every
+list, since they name the planning agents, but the briefs behind them are not —
+`general` is the fallback nothing should reach on `twinkl` and the only bucket
+there is on `personal`.
 
 Both halves read them. That is the reason they are files: the planner and the
 acting agent need the same knowledge, and written twice the two would drift, so
@@ -391,7 +397,8 @@ enablement — which each task's first note line names, and which
 `plan-design-system.md` already describes in one place. It is not a small
 edit: `STREAMS` in `plan.py` names both the agent and the brief, so five
 streams means five agent definitions and five brief files. The cheaper
-experiment is to fill in `buckets/design-system/design-system.md` first and see whether it
+experiment is to fill in `data/twinkl/buckets/design-system/design-system.md` first and see
+whether it
 reads as one remit or five.
 
 **The Schedule view cannot show a run in progress.** Deferred deliberately. The

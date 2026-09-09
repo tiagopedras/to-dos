@@ -35,6 +35,25 @@ def todo_path():
     return os.path.join(data_dir(), "todo.md")
 
 
+def buckets_dir():
+    """This dataset's bucket briefs, one folder per stream inside it.
+
+    Inside `data/<dataset>/` rather than at the root, because a bucket brief is
+    only true of one list. `twinkl` and `personal` do not share a bucket set —
+    the first has five headings and the second has one — so a brief filed by
+    stream name alone would hand the personal list Twinkl's processes and its
+    people. Moving it in here also means the dataset is one folder: copy it,
+    delete it, and its briefs go with it.
+
+    Gitignored with the rest of `data/`, for the reason `BUCKETS.md` at the root
+    spells out: a brief names real people and real processes, and the skills
+    beside it are Twinkl's own. `BUCKETS.md` is the tracked half and holds the
+    rules and the template; what each dataset actually has is the README in
+    here.
+    """
+    return os.path.join(data_dir(), "buckets")
+
+
 def plans_dir():
     return os.path.join(data_dir(), "plans")
 

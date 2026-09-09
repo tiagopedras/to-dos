@@ -21,14 +21,19 @@ data/twinkl/projects/      that data set's own project folders, see below
 data/personal/todo.md      a second, unrelated list, shaped the same way
 ```
 
-`buckets/` beside it is the second private folder, and gitignored for the same
-reason. One folder per bucket of the board, holding the brief that says what work
-I actually do in it, and that bucket's own skills:
+`buckets/` sits inside each data set, gitignored with the rest of it. One folder
+per bucket of the board, holding the brief that says what work I actually do in
+it, and that bucket's own skills:
 
 ```
-buckets/people/people.md        the brief
-buckets/people/skills/          the skills that bucket's work runs on
+data/twinkl/buckets/people/people.md    the brief
+data/twinkl/buckets/people/skills/      the skills that bucket's work runs on
+data/twinkl/buckets/README.md           which buckets that list has
 ```
+
+Per data set rather than one shared set at the root, because a brief is only true
+of one list: `twinkl` and `personal` have different buckets, different processes
+and different people. It moved in here on 8 Sep 2026.
 
 The night agent's planners and `execution-agent` both read the brief, and so do I.
 [BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is

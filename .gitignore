@@ -9,19 +9,21 @@
 # holds the list and nothing else.
 #
 # Inside it: todo.md, the board's backups and weekly snapshots, done-archive.md,
-# views.md with the Dataview output, and todo.md.tmp if a save ever crashes
-# mid-write.
-data/
-
-# The bucket briefs, and each bucket's own skills. Same reasoning as data/ above
-# and the same shape: what he actually does in People or Design System names the
-# people he does it with, and the skills that sit beside a brief are Twinkl's
+# views.md with the Dataview output, todo.md.tmp if a save ever crashes
+# mid-write, and buckets/ — the bucket briefs and each bucket's own skills.
+#
+# buckets/ was a second rule at the root until 8 Sep 2026, when it moved inside
+# the dataset. Its reasoning was always the same as this one's, and now so is
+# its rule: a brief describes what he does in People or Design System, which
+# names the people he does it with, and the skills beside a brief are Twinkl's
 # process written down — probation forms, the interview question pool, the offer
-# justifications. This repo is public, so none of it is committed.
+# justifications. It moved because a brief is only true of one list; `twinkl`
+# and `personal` have different buckets and different people.
 #
 # `BUCKETS.md` at the root is the tracked half: what a brief is for, how one is
-# found, and the template to start from. The briefs themselves are his.
-buckets/
+# found, and the template to start from. The briefs themselves are his, and so
+# is the README in each dataset's buckets/ saying which buckets that list has.
+data/
 
 # Obsidian's own state, wherever a vault is opened.
 .obsidian/
@@ -52,8 +54,8 @@ To-Do Board.app/
 # build, and the stub is a signed binary that has no business in git.
 To-Do Companion.app/
 
-# Claude Code's own local state for this checkout: per-file agent symlinks (some
-# point into buckets/, which is already gitignored) and launch.json, which has
-# carried paths under data/. All of it is specific to this machine, not to the
-# project, so a clone should build its own rather than inherit ours.
+# Claude Code's own local state for this checkout: per-file agent symlinks and
+# launch.json, which has carried paths under data/. All of it is specific to
+# this machine, not to the project, so a clone should build its own rather than
+# inherit ours.
 .claude/

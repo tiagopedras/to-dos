@@ -43,8 +43,8 @@ bucket goes in a commit, a report or a message.
 
 ## What already exists
 
-Read `buckets/people/people.md` for the full picture. Four skills, in
-`buckets/people/skills/`, already cover most of the chain, and a plan proposing to
+Read `data/<dataset>/buckets/people/people.md` for the full picture. Four skills,
+in that bucket's `skills/`, already cover most of the chain, and a plan proposing to
 build one of them again is the failure mode here:
 
 - `job-description` — writes the JD and the interview scorecard from the career

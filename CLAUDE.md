@@ -108,7 +108,7 @@ plan he has already agreed to. Its own [README](agents/execution_agent/README.md
 holds the detail. Three things about it are load-bearing:
 
 - **There is one of it.** Not one per bucket. The per-bucket knowledge lives in
-  `buckets/<stream>/<stream>.md`, which the planners read too, so it is written
+  `data/<dataset>/buckets/<stream>/<stream>.md`, which the planners read too, so it is written
   once. Six agents holding write tools is six copies of one set of guard rails.
   That folder sits at the root beside `data/` and is gitignored for the same
   reason: the briefs name real people and real Twinkl processes, and the skills

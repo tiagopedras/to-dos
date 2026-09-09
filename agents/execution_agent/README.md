@@ -23,7 +23,7 @@ file.
 differences are real; an acting agent holds the dangerous half, and six copies
 of one set of guard rails is six chances for one to be edited without the
 others. The per-bucket knowledge sits
-in `buckets/<stream>/<stream>.md`, which both halves read, so it is written once
+in `data/<dataset>/buckets/<stream>/<stream>.md`, which both halves read, so it is written once
 and cannot drift between the agent that researched the work and the agent that
 does it.
 

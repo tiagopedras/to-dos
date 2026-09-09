@@ -471,6 +471,27 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Creating a list already works; what it produces is a shell nothing else on
+  the board knows how to use.** `createDataset()`
+  (`kanban/js/21-datasets.js:48-58`) prompts for a name, posts it to
+  `/datasets`, and `create_dataset()` (`kanban/server.py:394`) writes one file:
+  a `todo.md` holding `NEW_DATASET_TEMPLATE` (`kanban/server.py:384-391`), which
+  is `## 1. Tasks` and the four standard columns, empty. Everything that makes a
+  list actually work is left unmade and undocumented — `people.md`, which
+  `CLAUDE.md` calls the source of truth for who is who; the Context section at
+  the foot of `todo.md`; and, since 8 Sep 2026, `buckets/<stream>/<stream>.md`
+  plus the `buckets/README.md` saying which buckets the list has. Worse, a
+  bucket heading invented at the prompt is invisible to `STREAMS`
+  (`agents/night_agent/plan.py:53-72`) until someone edits that table by hand, so
+  every task in the new list plans against the `general` fallback and logs
+  loudly for it — which is how `personal` has behaved since it was made. What
+  this wants is a sequence rather than a prompt: ask for the buckets as well as
+  the name, scaffold the briefs from the template in `BUCKETS.md`, write the
+  `README.md`, and either write the `STREAMS` aliases or state plainly that they
+  are the one part still needing a code change. The decision it is holding is
+  whether `STREAMS` stays a table in Python at all, or moves into each dataset
+  beside the briefs it already names.
+
 - **The Done column on Plans holds six states that ask two different questions,
   and only one of them is "read this".** `PLAN_FILTERS`
   (`kanban/js/13-plans.js:199-206`) puts new, needs you (`folded`), read,
@@ -488,9 +509,45 @@ they settled is written up in the README rather than left here:
   arrays, one per column, and `planStatusFilter` into one state variable per
   column so a chip picked in one doesn't reset the other.
 
-- **The improvements in this file are read and built by hand, one at a time,
+- ~~**The improvements in this file are read and built by hand, one at a time,
   while the to-do list beside it has a whole agent working its backlog
-  overnight.** `agents/night_agent/` picks tasks by rule, spends only in a usage
+  overnight.**~~ **Built, 8 Sep 2026 — and not in this repo.** It serves every
+  repo here that keeps an `IMPROVEMENTS.md`, so it lives at the root of `~/Code`
+  as `improve_agent/` rather than inside `agents/` beside the night agent. Four
+  repos have one today and only this one calls its sections `## Small` and
+  `## Big`, so the headings are a per-repo setting, guessed on discovery and
+  corrected on a dashboard — which is also where each repo is switched on and
+  given its own hours. This repo is the only one switched on.
+
+  Most of what this entry predicted held. The picker was replaced by a parser
+  over the `- **` bullets, the two rules moved into a shared reader
+  (`improve_agent/improve/reader.py`) that `skills/personal/improve-list` now
+  points at rather than restating, output is a branch a night with one commit
+  per entry carrying the strikethrough alongside the change, and a build whose
+  tests fail stays on the branch with the failure named. The window arithmetic
+  came across as a deliberate copy rather than an import: `core/windows.py`
+  reaches into `agents/night_agent/paths.py`, and the hours are a per-repo
+  setting over there where they are a constant here.
+
+  Three things were decided differently once it was real. The agent gets **no
+  Bash tool at all** — Read, Grep, Glob, Edit, Write and nothing else — which is
+  how the harness holds the tab-lock rule rather than trusting an agent to: it
+  cannot run a suite, so the board suites are simply not in the configured test
+  list, and the four that are safe run from the harness afterwards. It is
+  **confined to the repo it is building in**, with no `--add-dir ~/Code`, since
+  read access it could write through is not worth the blast radius on something
+  holding write tools. And the **clean-tree check** turned out to be the load
+  bearing one: it licenses the single hard reset in that codebase, because if
+  nothing was uncommitted when the run began then everything uncommitted
+  afterwards is what the agent just wrote.
+
+  The prompt's first instruction is to check whether the entry is already built,
+  which was added after finding four entries in the Big list below describing
+  work that shipped weeks ago and was never struck through. `already-built` is a
+  real outcome and it changes nothing.
+
+  What the entry originally argued, kept because it is the reasoning the thing
+  was built from: `agents/night_agent/` picks tasks by rule, spends only in a usage
   window that expires before 07:00 (`core/windows.py`), skips anything whose text
   has not moved since it was last reached (`ledger[task.title]`,
   `agents/night_agent/plan.py:684-690`) and writes a plan per task. Most of that
@@ -830,7 +887,7 @@ they settled is written up in the README rather than left here:
   instead is one file per bucket that every agent reads, for the reason in the
   entry above.
 
-  **What exists now:** `buckets/<stream>/<stream>.md`, one per stream plus the
+  **What exists now:** `data/<dataset>/buckets/<stream>/<stream>.md`, one per stream plus the
   fallback, found by `bucket_stream()` in `agents/night_agent/plan.py` — the same table
   that names the agent, so there is one mapping rather than two. Both the
   planners and `execution-agent` are pointed at it. Each ships with a

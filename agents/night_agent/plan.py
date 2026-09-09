@@ -46,7 +46,7 @@ import windows  # noqa: E402
 # Bucket heading -> the stream it belongs to. One table rather than two,
 # because everything per-bucket is named off this: the planning agent is
 # `plan-<stream>`, beside this file, and the bucket brief is
-# `buckets/<stream>/<stream>.md`.
+# `data/<dataset>/buckets/<stream>/<stream>.md`.
 # A second table keyed the same way is a second thing to keep in step, and the
 # headings move — People, BAU, DS, Strategic and Processes are what the file
 # says today, and the four in CONVENTIONS.md are what it said in August.
@@ -60,6 +60,11 @@ STREAMS = {
     "strategy": "strategic",
     "processes": "processes",
     "process": "processes",
+    # `personal`'s only heading. It would reach `general` through the fallback
+    # anyway, but the fallback logs loudly and is meant to — it is how a renamed
+    # bucket gets noticed. A heading that is deliberately general belongs in the
+    # table, so the noise stays reserved for headings nobody has mapped yet.
+    "tasks": "general",
 }
 FALLBACK_STREAM = "general"
 FALLBACK_AGENT = "plan-general"
@@ -110,15 +115,19 @@ def bucket_agent(bucket):
 def bucket_brief(bucket):
     """The path to this bucket's own brief, or None where it is still empty.
 
-    One folder per stream under `buckets/`, at the root of the repo rather than
-    inside this one, holding the processes Tiago actually runs in that bucket,
-    what each produces and which skill already does it, plus that bucket's own
-    skills. Both the planners and the acting agent read it, and he reaches for
-    it himself, which is the whole reason it sits beside `data/` rather than
-    under the agent that happened to need it first.
+    One folder per stream under `data/<dataset>/buckets/`, holding the processes
+    Tiago actually runs in that bucket, what each produces and which skill
+    already does it, plus that bucket's own skills. Both the planners and the
+    acting agent read it, and he reaches for it himself.
 
-    Gitignored for the same reason `data/` is: it names real people and real
-    Twinkl processes, and this repo is public. `BUCKETS.md` is the tracked half.
+    Scoped to the dataset because a brief is only true of one list: `twinkl` and
+    `personal` have different buckets, different processes and different people,
+    so a brief filed by stream name alone would hand one list the other's. See
+    `paths.buckets_dir()`, which is where that path is worked out.
+
+    Gitignored with the rest of `data/`: it names real people and real Twinkl
+    processes, and this repo is public. `BUCKETS.md` at the root is the tracked
+    half, holding the rules and the template but none of the content.
 
     A brief that exists but has never been filled in is treated as absent. The
     templates ship with a marker line and nothing else useful, and naming an
@@ -126,7 +135,7 @@ def bucket_brief(bucket):
     headings.
     """
     stream = bucket_stream(bucket)
-    path = os.path.join(ROOT, "buckets", stream, "%s.md" % stream)
+    path = os.path.join(paths.buckets_dir(), stream, "%s.md" % stream)
     try:
         with open(path, encoding="utf-8") as fh:
             body = fh.read()

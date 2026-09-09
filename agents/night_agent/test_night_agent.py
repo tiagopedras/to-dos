@@ -22,6 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 sys.path.insert(0, HERE)
 
+import paths  # noqa: E402
 import pick  # noqa: E402
 import plan  # noqa: E402
 import todo  # noqa: E402
@@ -402,17 +403,26 @@ def test_agents():
               ROOT, "agents", "execution_agent", "execution-agent.md")), True)
 
     # A brief is offered only when it has actually been written. This is built
-    # against a temporary tree rather than the real `buckets/`, because that
-    # folder is gitignored for the same reason `data/` is — a fresh clone has
-    # none of it, and a test that asserts his own briefs exist would fail on
-    # any machine but this one.
+    # against a temporary tree rather than the real briefs, because they live
+    # inside `data/`, which is gitignored — a fresh clone has none of it, and a
+    # test that asserts his own briefs exist would fail on any machine but this
+    # one.
+    #
+    # The tree is written under a dataset name, and `.current` points at it,
+    # because that is the part worth covering: briefs moved inside
+    # `data/<dataset>/` on 8 Sep 2026 so that `twinkl` and `personal` stop
+    # sharing one set. A path built without the dataset would still find the
+    # `people` brief below, so the second dataset is what actually proves it.
     tmp = tempfile.mkdtemp()
-    real_root = plan.ROOT
+    real_root = paths.ROOT
     try:
-        plan.ROOT = tmp
+        paths.ROOT = tmp
+        os.makedirs(os.path.join(tmp, "data"))
+        io.open(os.path.join(tmp, "data", ".current"), "w",
+                encoding="utf-8").write("alpha\n")
         for stream, body in (("people", "# People\n\nwritten out properly.\n"),
                              ("design-system", "# DS\n\n%s\n" % plan.BRIEF_EMPTY)):
-            d = os.path.join(tmp, "buckets", stream)
+            d = os.path.join(tmp, "data", "alpha", "buckets", stream)
             os.makedirs(d)
             io.open(os.path.join(d, "%s.md" % stream), "w", encoding="utf-8").write(body)
         check("a written brief is offered", plan.bucket_brief("People") is not None, True)
@@ -420,8 +430,23 @@ def test_agents():
               plan.bucket_brief("3. DS"), None)
         check("and a bucket with no folder at all is not",
               plan.bucket_brief("Nothing like it"), None)
+
+        # The same stream name, a different dataset, a different brief. This is
+        # the whole point of the move: `general` is the fallback nobody should
+        # reach on `twinkl` and the only bucket there is on `personal`, and one
+        # folder per stream could not hold both.
+        io.open(os.path.join(tmp, "data", ".current"), "w",
+                encoding="utf-8").write("beta\n")
+        check("a brief from another dataset is not offered here",
+              plan.bucket_brief("People"), None)
+        d = os.path.join(tmp, "data", "beta", "buckets", "people")
+        os.makedirs(d)
+        io.open(os.path.join(d, "people.md"), "w",
+                encoding="utf-8").write("# People\n\nbeta's own.\n")
+        check("its own is", plan.bucket_brief("People"),
+              os.path.join(d, "people.md"))
     finally:
-        plan.ROOT = real_root
+        paths.ROOT = real_root
         shutil.rmtree(tmp, ignore_errors=True)
 
     # Every stream still resolves to a name, whether or not a brief is on disk.
