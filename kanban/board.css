@@ -1840,6 +1840,18 @@
     padding:7px 9px; color:var(--ink); font-size:13px; cursor:pointer;
   }
   .bucketbtn:disabled{cursor:default; color:var(--ink-faint)}
+  /* A dot and a name on their own read as a label rather than as something
+     that opens, which is the one thing the <select> never had to say out
+     loud. Rotated rather than swapped for '▴', the way .tlchevron.open turns,
+     so the movement itself is what says the panel is down there. */
+  .bucketbtn::after{
+    content:'▾'; margin-left:auto; font-size:10px; color:var(--ink-faint);
+    transition:transform .12s;
+  }
+  .bucketbtn.open::after{transform:rotate(180deg)}
+  /* Read-only draws no panel at all (see openDrawer), so a chevron there
+     would point at nothing. */
+  .bucketbtn:disabled::after{content:none}
   .bucketfield .dropdown-panel{width:100%; max-height:240px; overflow:auto}
   .bucketopt{display:flex; align-items:center; gap:7px}
   .bucketopt.on{font-weight:640}
