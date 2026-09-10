@@ -127,7 +127,7 @@ function parseArchiveEntries(text){
     }
     if (!TASK_RE.test(line)) return;
     const t = parseTask([line]);
-    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn });
+    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn, effort: t.effort });
   });
   return out;
 }
@@ -166,14 +166,14 @@ function completedRecently(){
     if (!t.done || !t.doneOn) return;
     const age = daysSince(t.doneOn);
     if (age == null || age < 0 || age > days) return;
-    out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, age });
+    out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, effort:t.effort, age });
   })));
   if (days > ARCHIVE_DAYS) {
     const entries = archiveEntriesSync(() => renderCountedReports());
     (entries || []).forEach(e => {
       const age = daysSince(e.doneOn);
       if (age == null || age < 0 || age > days) return;
-      out.push({ bucketName:e.bucketName, tierName:e.tierName, title:e.title, doneOn:e.doneOn, taskId:null, age });
+      out.push({ bucketName:e.bucketName, tierName:e.tierName, title:e.title, doneOn:e.doneOn, taskId:null, effort:e.effort, age });
     });
   }
   return out.sort((x, y) => x.age - y.age);
@@ -210,6 +210,29 @@ function completedByCategoryReport(){
     const n = r.items.length;
     const pct = total ? Math.round(n / total * 100) : 0;
     const width = most ? (n / most * 100) : 0;
+    const scored = r.items.filter(it => EFFORT_N[it.effort]);
+    const pts = scored.reduce((sum, it) => sum + EFFORT_N[it.effort], 0);
+    /* Effort points beside the count, so three L tasks stop reading the same as
+       three S ones. The same S/M/L → 1/2/3 the impact-against-effort sort uses,
+       and deliberately not called time: nothing in the file records how long a
+       task took, so the size tag is the only weight there is to read.
+
+       Three things it can honestly say. Nothing finished: no effort either way.
+       Tasks finished but none of them sized: "untagged", because a bare 0 next
+       to a count of 3 reads as work that cost nothing rather than work nobody
+       scored. Otherwise the sum, with the title saying how much of the bucket
+       it is actually made of — a partial sum is still an undercount. */
+    let effortCell;
+    if (!n) {
+      effortCell = '<span class="ef">—</span>';
+    } else if (!scored.length) {
+      effortCell = '<span class="ef untagged" title="No effort tag on any of these ' + n +
+        ' tasks, so there is nothing to add up">untagged</span>';
+    } else {
+      effortCell = '<span class="ef" title="' + pts + ' effort point' + (pts === 1 ? '' : 's') +
+        ', from ' + scored.length + ' of ' + n + ' task' + (n === 1 ? '' : 's') +
+        ' — S counts 1, M 2, L 3">' + pts + ' pt' + (pts === 1 ? '' : 's') + '</span>';
+    }
     // An archived task has no live id to open the drawer with, so it renders
     // as plain text instead of a button.
     // The "where" chip says Done for every row rather than it.tierName — Done
@@ -231,6 +254,7 @@ function completedByCategoryReport(){
           '<span class="bkname"><i></i>' + esc(r.name) + '</span>' +
           '<span class="bar"><span style="width:' + width.toFixed(1) + '%"></span></span>' +
           '<span class="n">' + n + '</span>' +
+          effortCell +
           '<span class="pct">' + (total ? pct + '%' : '—') + '</span>' +
         '</div>' +
         (n ? '<details><summary>Show the ' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +

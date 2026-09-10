@@ -860,8 +860,16 @@
   .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--chip); border-radius:5px; overflow:hidden}
   .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:5px}
   .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--ink)}
+  /* Effort points, sitting between the count and the percentage. Quieter than
+     the count on purpose: the count is still what the report is about, and this
+     qualifies it rather than replacing it. */
+  .reportsview .ef{
+    min-width:4.5em; text-align:right; font-size:12.5px; color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .reportsview .ef.untagged{color:var(--ink-faint); font-style:italic}
   .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--ink-faint)}
-  .reportsview .zero .n, .reportsview .zero .bkname{color:var(--ink-faint)}
+  .reportsview .zero .n, .reportsview .zero .ef, .reportsview .zero .bkname{color:var(--ink-faint)}
   /* Each bucket can be opened to see which tasks made the number. Closed by
      default: the count is the report, the list is the evidence behind it. */
   /* Indented under the bucket name it belongs to, so the pairing survives a
