@@ -650,7 +650,7 @@ function renderSections(viewId){
       refSection('Big rocks', 'High impact, L effort. Needs protected time.', bigRocksSection(items), { collapsible:true }),
       refSection('This week', 'Everything tagged `week`, soonest first.', weekSection(items), { collapsible:true }),
       refSection('Quick wins', 'Yours to do: meeting agendas, `effort:S` and written messages. Anything `ai:full` sits in Delegate instead.', quickSection(items), { collapsible:true }),
-      refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order.', delegateSection(items), { collapsible:true })
+      refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order. Drag a number to move that task up or down the queue.', delegateSection(items), { collapsible:true })
     ];
     if (ctx) {
       secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.', ctx, { collapsible:true }));
@@ -681,6 +681,10 @@ function renderSections(viewId){
     'Open one to change it, then Save.</p>';
   capMsgCards();
   if (tview) wireTimelineDrag();
+  // Delegate is an Overview column, so its reorder is wired on the same terms
+  // the timeline's is: after the HTML is in the DOM, and only for the view that
+  // actually drew it.
+  if (split) wireDelegateReorder();
 }
 
 /* .ref .msg's three-line clamp is CSS, and CSS alone cannot tell a card that
