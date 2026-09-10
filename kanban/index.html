@@ -60,10 +60,6 @@
           title="Rename, reorder, add or remove the buckets">
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
   </button>
-  <button class="iconbtn" id="editTiers" aria-label="Edit columns"
-          title="Rename, reorder, add or remove the columns (states) tasks move through">
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
-  </button>
   <span class="allbuckets hidden" id="allBuckets">All buckets</span>
   <button class="scorechip hidden" id="scoreChip"></button>
   <span class="spacer"></span>
@@ -74,6 +70,14 @@
       <button type="button" class="btn" id="statusFilterBtn" aria-haspopup="true" aria-expanded="false">All ▾</button>
       <div class="dropdown-panel hidden" id="statusFilterMenu" role="menu" aria-label="Filter by column"></div>
     </div>
+    <!-- Inside statusWrap rather than beside #editBuckets: the columns it edits
+         are the exact set of names the dropdown to its left filters by, so it
+         sits with the thing it controls the way Edit buckets sits with its
+         tabs. Nothing about it is per-bucket. -->
+    <button class="iconbtn" id="editTiers" aria-label="Edit columns"
+            title="Rename, reorder, add or remove the columns (states) tasks move through">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
+    </button>
   </span>
   <span id="aiWrap">
     <label class="toggle" for="aiFilter" title="How much of the task AI can take on">AI can do</label>
