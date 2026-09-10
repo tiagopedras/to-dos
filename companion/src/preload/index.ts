@@ -11,8 +11,7 @@ const api: CompanionApi = {
   openBoard: (task, view) => ipcRenderer.send('companion:openBoard', task, view),
   copyMessage: (key) => ipcRenderer.send('companion:copyMessage', key),
   dismissMessage: (key) => ipcRenderer.send('companion:dismissMessage', key),
-  checkNow: () => ipcRenderer.send('companion:checkNow'),
-  notifyNow: () => ipcRenderer.send('companion:notifyNow')
+  checkNow: () => ipcRenderer.send('companion:checkNow')
 }
 
 contextBridge.exposeInMainWorld('companion', api)

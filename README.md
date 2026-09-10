@@ -1066,24 +1066,34 @@ Quit. It is a tray app and nothing else — no Dock icon, no app switcher entry.
 The icon carries a count of what is owed next to it, and turns into a warning
 triangle when something is overdue.
 
-The window, top to bottom: **the night's plans** still unread or read (not yet
-agreed, sent back, or acted on), then **the one thing** if there is one, then
-what's **overdue**, then what's **due today**, then **messages to send**.
-Clicking a plan opens the board's Plans tab; clicking a task opens the board on
-that card, with its panel already up. Reading and doing something about it stay
-two different places on purpose: there is no ticking off in the window, because
-a tick is a write to `todo.md` and the companion never writes to it. It opens
-`todo.md` read-only and that is the whole of its access, so it cannot race the
-board's autosave or damage a list.
+It reads like a phone rather than a page, which is what the shape of the window
+asks for. The first screen is **the one thing** if there is one, then four
+cards, each a section with a count on it: **the night's plans** still unread or
+read (not yet agreed, sent back, or acted on), **overdue**, **due today**, and
+**messages to send**. Pressing one slides that section's list in from the
+right, with Back at the top left; a section with nothing in it doesn't open.
+Open the board and Check again sit as small buttons above the header, so the
+day itself is the first thing the window says rather than the second.
+
+The lists are the board's own cards — same shape, same bucket colour down the
+left edge, same chips — because they are the board's own CSS, lifted into
+`board-ui.css` (see *How it is built*). A plan carries the red top edge and the
+accent-coloured date the board's Plans tab gives it, so an unread one reads the
+same in both places. Clicking a plan opens the board's Plans tab; clicking a
+task opens the board on that card, with its panel already up. Reading and doing
+something about it stay two different places on purpose: there is no ticking
+off in the window, because a tick is a write to `todo.md` and the companion
+never writes to it. It opens `todo.md` read-only and that is the whole of its
+access, so it cannot race the board's autosave or damage a list.
 
 **Messages to send** is the section the app earns its place with: every
 suggested message on a live contact step, ready to copy. What stalls one of
 those steps for days is writing the opening line, and a message already written
-turns it into a click. The person's name is the row; the message itself sits
-underneath it.
+turns it into a click. The person's name tops the card and the message fills
+it.
 
-Clicking a message copies it. The × beside it **dismisses** it — hides it here
-and nowhere else, since the message stays on the card and a dismissal is a
+Clicking a message copies it. The × in its corner **dismisses** it — hides it
+here and nowhere else, since the message stays on the card and a dismissal is a
 statement about this window rather than about the work, and this process still
 never writes to `todo.md`. Dismissals are keyed on the message's own text, so
 rewording one deliberately brings it back: a changed message is a different
@@ -1141,9 +1151,21 @@ policy is deliberately not duplicated anywhere else — see `core/todo.js`'s own
 note on the holiday calendar below — so a short-lived Python process once a
 minute buys reusing it as-is instead of a third implementation to keep in
 step. Everything else the window shows — the night agent's plans, the
-notification queue, its own dismissed-messages state — is read straight off
-disk in TypeScript (`plans.ts`, `notifyQueue.ts`, `state.ts`), since that's
-plain frontmatter and JSON with no format of its own to duplicate.
+notification queue, its own dismissed-messages state, the board's bucket
+colours — is read straight off disk in TypeScript (`plans.ts`,
+`notifyQueue.ts`, `state.ts`, `buckets.ts`), since that's plain frontmatter and
+JSON with no format of its own to duplicate.
+
+`src/renderer/src/board-ui.css` is the board's own stylesheet, in the part
+that matters here: the colour tokens, the `.card` block and `.btn`, verbatim
+out of `kanban/board.css`. Copied rather than imported, because that file is
+2,400 lines whose `body`, `header` and layout rules are written for a
+full-page board and would quietly restyle a 380px window. If a card changes
+shape over there, that file is the one place to bring it across. The cards
+also need to know which colour a bucket takes, which is why `digest.py`'s
+JSON carries the buckets in the order the file declares them, and `buckets.ts`
+reads the board's own `bucket-colors.json` when there is one — the same
+fallback-to-position rule `bucketColor()` in `kanban/js/02-state.js` applies.
 
 Neither of them knows the todo.md file format. That lives in `core/todo.py`, which
 belongs to no one app: a Python port of the parsing, the suggested messages and

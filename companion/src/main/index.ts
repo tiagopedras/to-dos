@@ -20,6 +20,7 @@ import { runDigest } from './digest.js'
 import { planListing } from './plans.js'
 import { drainQueue } from './notifyQueue.js'
 import { readState, writeState, type CompanionState } from './state.js'
+import { readBucketColors } from './buckets.js'
 import { openBoard } from './boardUrl.js'
 
 const dirname_ = fileURLToPath(new URL('.', import.meta.url))
@@ -177,7 +178,12 @@ async function refresh(): Promise<void> {
   const withinWindow = nowMinutes(now) >= minutesOf(NOTIFY_AT) && nowMinutes(now) <= minutesOf(NOTIFY_UNTIL)
   drainQueue(ROOT, DATASET, withinWindow, postNotification)
 
-  snapshot = { digest, plans, statusLine: statusLine(digest, now) }
+  snapshot = {
+    digest,
+    plans,
+    statusLine: statusLine(digest, now),
+    bucketColors: readBucketColors(ROOT, DATASET)
+  }
   drawTray(digest)
   window_?.webContents.send('companion:snapshot', snapshot)
   maybeNotify(digest)
@@ -272,11 +278,6 @@ function registerIpc(): void {
     void refresh()
   })
   ipcMain.on('companion:checkNow', () => void refresh())
-  ipcMain.on('companion:notifyNow', () => {
-    void refresh().then(() => {
-      if (snapshot) send(snapshot.digest)
-    })
-  })
 }
 
 /** `--notify-once` / `--notify-test [--task X] [--view Y]` — fire one banner

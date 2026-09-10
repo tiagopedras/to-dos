@@ -1,213 +1,316 @@
-:root {
-  --bg: #f5f5f4;
-  --panel: #ffffff;
-  --border: #e2e2e0;
-  --text: #1c1c1a;
-  --muted: #6b6b68;
-  --accent: #2f6fed;
-  --danger: #c23b3b;
-  --chip-bg: #ececea;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1c1a;
-    --panel: #262623;
-    --border: #383834;
-    --text: #f0f0ee;
-    --muted: #9a9a96;
-    --chip-bg: #33332f;
-  }
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 13px -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-}
+/* This window's own layout. Everything visual it stands on — the colour
+   tokens, the card, the button, the base type — comes from board-ui.css,
+   which is the board's own CSS lifted across. What is here is only what the
+   board has no equivalent of: the two screens, the section cards, and the
+   slide between them. */
 
 .app {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
 }
 
 .app.loading {
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted);
+  color: var(--ink-faint);
+  font-size: 13px;
 }
 
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ---------- the bar over the header ---------- */
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px 0;
+  background: var(--panel);
+}
+
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-soft);
+  border-radius: 7px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.iconbtn:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+.iconbtn-glyph {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ---------- header ---------- */
+
 header {
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 16px 12px;
 }
 
 .heading {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .status {
-  color: var(--muted);
-  font-size: 12px;
   margin-top: 2px;
 }
 
 .line {
-  margin-top: 8px;
+  margin-top: 7px;
   font-size: 13px;
+  color: var(--ink-soft);
 }
 
 .error {
-  margin-top: 8px;
-  color: var(--danger);
+  margin-top: 7px;
   font-size: 13px;
+  color: var(--red);
 }
 
 main {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 0 12px;
-}
-
-.section h2 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  margin: 14px 16px 4px;
-}
-
-.row {
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  gap: 10px;
+}
+
+/* ---------- the one thing, and the section cards ---------- */
+
+.card-hit {
+  display: block;
   width: 100%;
-  padding: 8px 16px;
+  text-align: left;
   border: none;
   background: none;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-}
-
-.row:hover,
-.row-main:hover {
-  background: var(--chip-bg);
-}
-
-.row-title {
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.row-sub {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.row-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.row-when {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.chip {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: var(--chip-bg);
-  color: var(--muted);
-}
-
-.chip-new {
-  background: var(--accent);
-  color: white;
-}
-
-.chip-draft {
-  background: var(--danger);
-  color: white;
-}
-
-.message-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
   padding: 0;
-}
-
-.row-main {
-  flex: 1;
-  padding: 8px 8px 8px 16px;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
   color: inherit;
-  font: inherit;
 }
 
-.dismiss {
-  border: none;
-  background: none;
-  color: var(--muted);
-  font-size: 16px;
-  padding: 8px 16px 8px 4px;
-  cursor: pointer;
+.cardsub {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.dismiss:hover {
-  color: var(--danger);
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sectioncard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 11px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 1px rgba(16, 20, 28, 0.04);
+  text-align: left;
+}
+
+.sectioncard:hover {
+  border-color: var(--ink-faint);
+}
+
+.sectioncard.empty {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sectioncard.empty:hover {
+  border-color: var(--line);
+}
+
+.sectioncard-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.sectioncard-count {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.sectioncard-title {
+  font-size: 11.5px;
+  font-weight: 560;
+  color: var(--ink-soft);
+  line-height: 1.25;
 }
 
 .parked,
 .quiet {
-  color: var(--muted);
+  color: var(--ink-faint);
   font-size: 12px;
-  padding: 12px 16px;
+  padding: 2px 2px 0;
 }
 
-footer {
-  border-top: 1px solid var(--border);
-  padding: 10px;
+/* ---------- the screen that slides in ---------- */
+
+/* Animated rather than transitioned, so it does not depend on a second
+   render landing between mount and paint: a window that is hidden — which
+   this one is, most of the time — runs no requestAnimationFrame callbacks,
+   and a transition set up that way would never start. */
+.detail-screen {
+  transform: translateX(0);
+  animation: slide-in 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: -8px 0 24px rgba(10, 12, 16, 0.12);
+}
+
+.detail-screen.closing {
+  transform: translateX(100%);
+  animation: slide-out 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.detail-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 
-footer button {
-  padding: 7px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
+/* The night a plan was written. In the accent while it is unread, which is
+   what the board does with the same date (.repdate on an unread plan). */
+.tag.night {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-weight: 550;
+}
+
+.tag.night.new {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  font-weight: 640;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 560;
+  padding: 2px 4px 2px 0;
+}
+
+.back-chevron {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.detail-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.detail-body .card {
   cursor: pointer;
 }
 
-footer button:hover {
-  background: var(--chip-bg);
+/* ---------- a message card ---------- */
+
+.message-card {
+  position: relative;
+}
+
+/* Who the message is to. One line, clipped rather than wrapped, and kept
+   clear of the dismiss button sitting in the corner above it. */
+.msgwho {
+  display: block;
+  color: var(--ink-soft);
+  text-transform: none;
+  font-size: 11px;
+  letter-spacing: 0;
+  padding-right: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msgtext {
+  font-weight: 450;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.copyhint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 5px;
+}
+
+.dismiss:hover {
+  background: var(--chip);
+  color: var(--red);
 }

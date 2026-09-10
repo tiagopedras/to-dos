@@ -22,6 +22,7 @@ export interface MessageRef {
   text: string
   draft: boolean
   due: string
+  bucket: string
 }
 
 export interface TodayStatus {
@@ -40,6 +41,9 @@ export interface Digest {
   overdue: TaskRef[]
   today: TaskRef[]
   messages: MessageRef[]
+  /** Bucket names in the order todo.md declares them — what the board
+      colours a card's left stripe by when nothing is chosen for it. */
+  buckets: string[]
   today_status: TodayStatus
 }
 
@@ -63,6 +67,9 @@ export interface Snapshot {
   digest: Digest
   plans: PlanRef[]
   statusLine: string
+  /** bucket name -> swatch, straight off the board's own bucket-colors.json.
+      Usually empty, which means every bucket takes its position's colour. */
+  bucketColors: Record<string, string>
 }
 
 export interface CompanionApi {
@@ -72,5 +79,4 @@ export interface CompanionApi {
   copyMessage: (key: string) => void
   dismissMessage: (key: string) => void
   checkNow: () => void
-  notifyNow: () => void
 }

@@ -67,6 +67,7 @@ class Digest:
         self.headline = None   # the one thing, whatever its date
         self.parked = 0        # open, dated, but sitting with someone else
         self.messages = []     # contact steps with a message ready to copy
+        self.buckets = []      # bucket names, in the order the file declares them
         self.error = None      # the file could not be read
 
     @property
@@ -156,6 +157,9 @@ def read_messages(text, day, dismissed=()):
                 if start and start > day:
                     continue
             m["key"] = message_key(m)
+            # The bucket its task sits in, so anything drawing a message as a
+            # card can colour it the way the board colours that bucket.
+            m["bucket"] = t.bucket
             if m["key"] in dismissed:
                 continue
             out.append(m)
@@ -177,6 +181,8 @@ def build(day=None, path=None, dismissed=()):
     tasks = todo.parse_doc(text)
     slugs = todo.slug_states(tasks)
     for t in tasks:
+        if t.bucket and t.bucket not in d.buckets:
+            d.buckets.append(t.bucket)
         if t.done:
             continue
         if t.headline and not d.headline:
@@ -218,8 +224,15 @@ def to_json(d):
         "today": [{"title": t.title, "bucket": t.bucket, "task": task_key(t),
                     "due": due.isoformat()} for due, t in d.today],
         "messages": [{"key": m["key"], "task": m["task"], "where": m["where"],
-                       "text": m["text"], "draft": m["draft"], "due": m["due"]}
+                       "text": m["text"], "draft": m["draft"], "due": m["due"],
+                       "bucket": m.get("bucket", "")}
                       for m in d.messages],
+        # The buckets in the order the file declares them, which is what the
+        # board colours cards by — bucketColor(name, index) in
+        # kanban/js/02-state.js falls through to a bucket's position when
+        # nothing is chosen for it in bucket-colors.json. Taken from the order
+        # tasks are parsed in, which is the order their headings appear.
+        "buckets": d.buckets,
         # So the Electron side never needs its own copy of the UK/PT holiday
         # calendar, which core/todo.js deliberately doesn't carry — see
         # todo.is_working_day/holiday_names, the only place this lives.

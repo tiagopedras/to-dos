@@ -1,0 +1,95 @@
+/* The board's own look, lifted out of kanban/board.css so this window reads
+   as the same application — same tokens, same card (radius, padding, shadow,
+   bucket-colour stripe, chips), same button.
+
+   Copied rather than imported: board.css is 2,400 lines whose `body`,
+   `header` and layout rules are written for a full-page board and would
+   quietly restyle a 380px window. What is here is the design tokens, the
+   `---------- card ----------` block and `.btn`, verbatim, and nothing else.
+   If a card or a button changes shape on the board, this is the one place to
+   bring it across. */
+
+:root {
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --ink-soft:#5d636e; --ink-faint:#8b919c;
+  --line:#e3e6ea; --line-soft:#eef0f3; --accent:#2f6feb; --accent-ink:#fff;
+  --red:#c8322f; --red-bg:#fdecec; --amber:#9a6100; --amber-bg:#fff4e0;
+  --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
+  --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f; --b5:#b1306b; --b6:#0f7d93;
+  --b7:#8a5a2f; --b8:#4550c9; --b9:#c23b3b; --b10:#55606e;
+  --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#14161a; --panel:#1c1f25; --ink:#e9ebee; --ink-soft:#a5abb6; --ink-faint:#7b818c;
+    --line:#363c45; --line-soft:#2c313a; --chip:#262b33;
+    --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
+    --green:#6fd398; --green-bg:#16301f;
+    --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
+    --b7:#d1a06c; --b8:#9aa3ff; --b9:#f28080; --b10:#aab4c0;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
+  }
+}
+
+/* ---------- base, from board.css's own body rule ---------- */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+
+/* ---------- button ---------- */
+.btn{
+  border:1px solid var(--line); background:var(--panel); color:var(--ink);
+  border-radius:7px; padding:6px 11px; font-size:13px; font-weight:520;
+}
+.btn:hover{border-color:var(--ink-faint)}
+.btn.ghost{border-color:transparent; color:var(--ink-soft)}
+.btn.mini{padding:3px 8px; font-size:12px; font-weight:560}
+.status{font-size:12px; color:var(--ink-faint)}
+
+/* ---------- card ---------- */
+.card{
+  background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--bc,var(--line));
+  border-radius:9px; padding:9px 10px; box-shadow:0 1px 1px rgba(16,20,28,.04);
+}
+.card:hover{border-color:var(--ink-faint)}
+.card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+/* Same as any other card — same width, radius, padding, shadow, left
+   bucket-colour stripe — except the border colour and a faint accent tint
+   behind it, so it reads as "the same card, just marked" rather than a
+   different kind of card. */
+.card.onething{
+  border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+  border-left:3px solid var(--bc,var(--line));
+  background:color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.card.onething:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
+/* Plan cards get a top border rather than the left accent task cards carry,
+   and it's a fixed red rather than the bucket's own colour — a plan is not
+   the bucket, it's a proposal about one task in it. (.repitem.planitem on the
+   board, where a plan is a report item rather than a card.) */
+.card.planitem{border-top:3px solid var(--red)}
+.card.read{opacity:.82}
+.card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
+.bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
+.card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
+.title{font-size:13.5px; font-weight:570; line-height:1.35; letter-spacing:-.005em}
+.meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
+/* Urgent and due read as "look at this now", so they sit apart from the rest
+   of the meta row, pinned to the right rather than wrapping in with it. */
+.meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
+.tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
+.tag.due{background:var(--chip)}
+.tag.due.soon{background:var(--amber-bg); color:var(--amber)}
+.tag.due.over{background:var(--red-bg); color:var(--red)}
+.tag.urgent{background:var(--red-bg); color:var(--red)}
+.tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
+.mini{font-style:normal; font-size:11px; font-weight:600; color:var(--ink-faint); background:var(--chip); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
+.mini.over{background:var(--red-bg); color:var(--red)}
+.mini.soon{background:var(--amber-bg); color:var(--amber)}
+.notecount{font-size:11px; color:var(--ink-faint); margin-top:6px}
