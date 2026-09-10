@@ -176,9 +176,14 @@ await new Promise(r => setTimeout(r, 400))
 
 const live = await evalJS(`[...document.querySelectorAll('#plansOut > .repitem')].length`)
 check('unactioned plans are listed', live === 2, `${live} shown`)
-check('actioned ones are folded away', await evalJS(`
-  !!document.querySelector('#plansOut details') &&
-  document.querySelector('#plansOut details summary').textContent.trim() === '1 actioned'
+check('actioned ones are folded away, in the Decided column', await evalJS(`
+  !!document.querySelector('#plansDecided details') &&
+  document.querySelector('#plansDecided details summary').textContent.trim() === '1 actioned'
+`))
+check('and the Inbox holds only what is still to be read', await evalJS(`
+  ![...document.querySelectorAll('#plansOut .repitem')]
+    .some(r => r.classList.contains('actioned') || r.classList.contains('agreed') ||
+               r.classList.contains('redo'))
 `))
 check('an unread plan is marked new', await evalJS(`
   document.querySelector('#plansOut .repitem:not(.read):not(.actioned) .repdate').textContent === 'new'
@@ -197,6 +202,7 @@ check('the summary is what the closed row shows', await evalJS(`
 check('all five cards are drawn', await evalJS(`
   !!document.querySelector('#backlogOut') && !!document.querySelector('#queueOut') &&
   !!document.querySelector('#doingOut') && !!document.querySelector('#plansOut') &&
+  !!document.querySelector('#plansDecided') &&
   !!document.querySelector('#usageOut') && !!document.querySelector('#schedOut')
 `))
 check('the queue shows while nothing is running, not Doing', await evalJS(`
@@ -204,10 +210,10 @@ check('the queue shows while nothing is running, not Doing', await evalJS(`
   !document.querySelector('#queueOut').classList.contains('hidden') &&
   document.querySelector('#doingOut').classList.contains('hidden')
 `))
-check('Backlog, Queue, Done, Token Session and the clock read left to right, top to bottom', await evalJS(`
+check('Backlog, Queue, Inbox, Decided, Token Session and the clock read left to right, top to bottom', await evalJS(`
   [...document.querySelectorAll('.lists.pview .listcard')]
     .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Backlog | Queue | Done | Token Session | What runs on a clock')
+`) === 'Backlog | Queue | Inbox | Decided | Token Session | What runs on a clock')
 check('Token Session and the clock share the last track, stacked', await evalJS(`
   document.querySelector('.pvcol').children.length === 2 &&
   document.querySelector('.pvcol').children[0].querySelector('h3').textContent === 'Token Session' &&
@@ -482,8 +488,9 @@ await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.t
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
 check('I did this myself posts actioned', after.includes('"status":"actioned"'))
-check('and the row moves into the actioned fold', await evalJS(`
-  document.querySelector('#plansOut details summary').textContent.trim() === '2 actioned'
+check('and the row moves out of the Inbox into the actioned fold', await evalJS(`
+  document.querySelector('#plansDecided details summary').textContent.trim() === '2 actioned' &&
+  !document.querySelector('#plansOut details')
 `))
 
 // Agree and Send back, the two statuses the execution half runs on. Both go
@@ -516,10 +523,16 @@ const sentBack = await evalJS(`window.__blocked.join(' | ')`)
 check('with a reason it posts redo', sentBack.includes('"status":"redo"'))
 check('and carries the reason with it', sentBack.includes('Wrong scope'))
 check('the reason is shown on the card without opening it', await evalJS(`
-  !!document.querySelector('#plansOut .repitem.redo .planredo')
+  !!document.querySelector('#plansDecided .repitem.redo .planredo')
+`))
+// Sending it back emptied the Inbox — there were two plans and both have now
+// been ruled on, which is the state the split exists to make readable.
+check('an emptied Inbox says so rather than going blank', await evalJS(`
+  !!document.querySelector('#plansOut .empty') &&
+  !document.querySelector('#plansOut .repitem')
 `))
 
-await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await evalJS(`document.querySelector('#plansDecided .repitem.redo [data-plan-open]').click()`)
 await new Promise(r => setTimeout(r, 400))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree, hand it over').click()`)
 await new Promise(r => setTimeout(r, 200))
@@ -532,8 +545,25 @@ check('and says how it actually gets run', await evalJS(`
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree it').click()`)
 await new Promise(r => setTimeout(r, 400))
 check('agreeing posts agreed', (await evalJS(`window.__blocked.join(' | ')`)).includes('"status":"agreed"'))
-check('and the agreed plan is lifted out of the reading list', await evalJS(`
-  !!document.querySelector('#plansOut .planagreed .repitem.agreed')
+check('and the agreed plan is lifted to the top of the Decided column', await evalJS(`
+  !!document.querySelector('#plansDecided .planagreed .repitem.agreed') &&
+  !document.querySelector('#plansOut .planagreed')
+`))
+// The two chip rows are independent: a pick in one must not reset the other.
+check('each column keeps its own status filter', await evalJS(`
+  (() => {
+    const inbox = document.querySelector('#plansOut [data-planfilter]');
+    const dec = [...document.querySelectorAll('#plansDecided [data-planfilter]')]
+      .find(b => b.dataset.planfilter === 'actioned');
+    if (!dec) return false;
+    dec.click();
+    if (decidedFilter !== 'actioned') return false;
+    if (inboxFilter !== 'all') return false;
+    // and the fold opens when it is the thing being asked for
+    const open = !!document.querySelector('#plansDecided details[open]');
+    document.querySelector('#plansDecided [data-planfilter=\"all\"]').click();
+    return open && decidedFilter === 'all';
+  })()
 `))
 
 // The whole point of the second guard.

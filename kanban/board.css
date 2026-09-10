@@ -996,18 +996,21 @@
   .lists.rview .listcard{margin:0}
 
   /* ---------- plans ----------
-     Five columns, read left to right as the life of one task through the
-     nightly agent: what is excluded, what is queued, what is being worked on,
-     what came back, and what any of it costs. Narrower than the two-column
-     views because five of them have to fit, and scrolling sideways is what a
-     board does anyway. */
-  /* Four tracks now, not five: Queue and Doing used to be separate cards and
-     are one now (see .queueview below), and the clock card stacks under
-     Token Session instead of taking a track of its own — see .pvcol. */
+     Read left to right as the life of one task through the nightly agent:
+     what is excluded, what is queued or being worked on, what came back to be
+     read, what has been ruled on, and what any of it costs. Narrower than the
+     two-column views because all of them have to fit, and scrolling sideways
+     is what a board does anyway. */
+  /* Five tracks. Queue and Doing used to be separate cards and are one now
+     (see .queueview below), and the clock card stacks under Token Session
+     instead of taking a track of its own — see .pvcol. The fifth is Decided,
+     split out of the old Done column: that one card held plans waiting to be
+     read alongside plans already agreed or actioned, which are two different
+     questions and now two columns. */
   .lists.pview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:repeat(3, minmax(330px,1fr)) minmax(320px,420px);
-    min-width:1452px;
+    grid-template-columns:repeat(4, minmax(330px,1fr)) minmax(320px,420px);
+    min-width:1796px;
   }
   .lists.pview .listcard{margin:0}
   /* Token Session and "What runs on a clock" share a track, stacked, rather

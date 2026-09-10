@@ -186,81 +186,65 @@ function goToPlanTask(key){
   openTaskByKey(key);
 }
 
-/* The Done column's own filter, sat above the stack. The column holds every
-   plan ever written and they are not one kind of thing: a new one wants
-   reading, a folded one wants answering, an agreed one wants running and an
-   actioned one is a record. The status is already on each card, so this only
-   narrows to one of them rather than telling him anything new.
+/* Two columns, and each one's own chip row. The Done column used to hold all
+   six of these behind a single row of chips, which asked two different
+   questions of one list: unread, folded and read are waiting to be read, and
+   agreed, redo and actioned are verdicts already given. Splitting the chips in
+   two is what lets each row narrow one question rather than both at once.
 
    `folded` is not a status — it is p.outcome — but it is the distinction he
-   scans for first, so it sits in the same row rather than in a second control
+   scans for first, so it sits in the Inbox row rather than in a second control
    beside it. A plan can be both folded and unread; a chip narrows to one
    question at a time, so it lands in whichever one he clicked. */
-const PLAN_FILTERS = [
+const INBOX_FILTERS = [
   { key:'unread',   label:'new',       match: p => p.status === 'unread' },
   { key:'folded',   label:'needs you', match: p => p.outcome === 'folded' },
   { key:'read',     label:'read',      match: p => p.status === 'read' },
+];
+const DECIDED_FILTERS = [
   { key:'agreed',   label:'agreed',    match: p => p.status === 'agreed' },
   { key:'redo',     label:'redo',      match: p => p.status === 'redo' },
   { key:'actioned', label:'actioned',  match: p => p.status === 'actioned' },
 ];
-let planStatusFilter = 'all';
+/* Which column a plan is in at all, decided by status rather than by chip —
+   the chips narrow a column, they do not choose it. The five statuses split
+   cleanly in two: unread and read are still being read, these three have had a
+   verdict. A folded plan is in whichever column its status puts it, so one
+   that has been sent back sits under redo rather than staying in the Inbox
+   asking a question he has already answered. */
+const DECIDED_STATUS = new Set(['agreed', 'redo', 'actioned']);
+/* One filter per column, so a chip picked in one does not reset the other. */
+let inboxFilter = 'all';
+let decidedFilter = 'all';
 
 /* Only chips with something behind them are drawn, which is what stops a chip
    ever leading to an empty column: the bucket tabs above narrow this list too,
    so a status that exists somewhere may have nothing in the bucket being shown.
    A filter that empties out that way falls back to All rather than leaving him
    looking at nothing with no way to tell why. */
-function planFilterBarHTML(shown){
-  const counts = PLAN_FILTERS
+function planFilterBarHTML(shown, filters, current){
+  const counts = filters
     .map(f => ({ f, n: shown.filter(f.match).length }))
     .filter(x => x.n);
   if (!counts.length) return '';
   return '<div class="tabs planfilter">' +
-    '<button class="tab taball' + (planStatusFilter === 'all' ? ' on' : '') +
+    '<button class="tab taball' + (current === 'all' ? ' on' : '') +
       '" data-planfilter="all">All<span class="n">' + shown.length + '</span></button>' +
     counts.map(x =>
-      '<button class="tab' + (planStatusFilter === x.f.key ? ' on' : '') +
+      '<button class="tab' + (current === x.f.key ? ' on' : '') +
         '" data-planfilter="' + x.f.key + '">' + x.f.label +
         '<span class="n">' + x.n + '</span></button>').join('') +
   '</div>';
 }
 
-function renderPlansList(){
-  const out = $('#plansOut');
-  if (!out) return;
-  const all = plansShown(planList);
-  const active = PLAN_FILTERS.find(f => f.key === planStatusFilter);
-  if (active && !all.some(active.match)) planStatusFilter = 'all';
-  const bar = planFilterBarHTML(all);
-  const shown = planStatusFilter === 'all'
-    ? all
-    : all.filter(PLAN_FILTERS.find(f => f.key === planStatusFilter).match);
-  /* Agreed plans sit above the rest rather than among them. They are the ones
-     with work owed on them, and the question they answer is different: the
-     others ask to be read, these ask to be run. */
-  const agreed = shown.filter(p => p.status === 'agreed');
-  const live = shown.filter(p => p.status !== 'actioned' && p.status !== 'agreed');
-  const done = shown.filter(p => p.status === 'actioned');
-  out.innerHTML = bar +
-    (agreed.length
-      ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
-        '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
-        agreed.map(planItemHTML).join('') + '</div>'
-      : '') +
-    (live.length ? live.map(planItemHTML).join('')
-                 : (agreed.length || done.length ? ''
-                    : '<div class="empty">Nothing waiting. Everything written has been actioned.</div>')) +
-    /* Open when it is the thing being asked for: a chip that narrows to
-       actioned and then hides the result behind a fold has done half a job. */
-    (done.length ? '<details' + (planStatusFilter === 'actioned' ? ' open' : '') +
-                   '><summary>' + done.length + ' actioned</summary>' +
-                   done.map(planItemHTML).join('') + '</details>' : '');
+/* Both columns wire the same three controls — their own chip row, and the open
+   and open-the-card buttons on every row in them. Only the chip handler
+   differs, since each column holds its own filter. Wiring is scoped to the
+   container, so the two chip rows never see each other's clicks despite
+   sharing the attribute name. */
+function wirePlanColumn(out, setFilter){
   out.querySelectorAll('[data-planfilter]').forEach(btn => {
-    btn.onclick = () => {
-      planStatusFilter = btn.dataset.planfilter;
-      renderPlansList();
-    };
+    btn.onclick = () => { setFilter(btn.dataset.planfilter); renderPlansList(); };
   });
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
     const p = planList.find(x => x.url === btn.dataset.planOpen);
@@ -269,6 +253,65 @@ function renderPlansList(){
   out.querySelectorAll('[data-plan-goto]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
+}
+
+/* A status change moves a plan from one column to the other, so both are
+   always redrawn together. */
+function renderPlansList(){
+  renderPlanInbox();
+  renderPlanDecided();
+}
+
+/* The reading column. Flat, because every row in it asks the same thing, and
+   the chips are the only split it needs. */
+function renderPlanInbox(){
+  const out = $('#plansOut');
+  if (!out) return;
+  const all = plansShown(planList).filter(p => !DECIDED_STATUS.has(p.status));
+  const active = INBOX_FILTERS.find(f => f.key === inboxFilter);
+  if (active && !all.some(active.match)) inboxFilter = 'all';
+  const shown = inboxFilter === 'all'
+    ? all
+    : all.filter(INBOX_FILTERS.find(f => f.key === inboxFilter).match);
+  out.innerHTML = planFilterBarHTML(all, INBOX_FILTERS, inboxFilter) +
+    (shown.length
+      ? shown.map(planItemHTML).join('')
+      : '<div class="empty">Nothing waiting to be read. Everything written has been ruled on.</div>');
+  wirePlanColumn(out, k => { inboxFilter = k; });
+}
+
+/* The verdict column, and the reason the split was worth making: agreed is
+   work still owed, redo went back for another night, and actioned is a record.
+   The three keep the grouping the one list already gave them — agreed lifted
+   to the top under its own heading, actioned folded shut at the bottom — with
+   redo between them, which is where it always drew. */
+function renderPlanDecided(){
+  const out = $('#plansDecided');
+  if (!out) return;
+  const all = plansShown(planList).filter(p => DECIDED_STATUS.has(p.status));
+  const active = DECIDED_FILTERS.find(f => f.key === decidedFilter);
+  if (active && !all.some(active.match)) decidedFilter = 'all';
+  const shown = decidedFilter === 'all'
+    ? all
+    : all.filter(DECIDED_FILTERS.find(f => f.key === decidedFilter).match);
+  const agreed = shown.filter(p => p.status === 'agreed');
+  const redo = shown.filter(p => p.status === 'redo');
+  const done = shown.filter(p => p.status === 'actioned');
+  out.innerHTML = planFilterBarHTML(all, DECIDED_FILTERS, decidedFilter) +
+    (agreed.length
+      ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
+        '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
+        agreed.map(planItemHTML).join('') + '</div>'
+      : '') +
+    redo.map(planItemHTML).join('') +
+    /* Open when it is the thing being asked for: a chip that narrows to
+       actioned and then hides the result behind a fold has done half a job. */
+    (done.length ? '<details' + (decidedFilter === 'actioned' ? ' open' : '') +
+                   '><summary>' + done.length + ' actioned</summary>' +
+                   done.map(planItemHTML).join('') + '</details>' : '') +
+    (shown.length ? ''
+                  : '<div class="empty">Nothing ruled on yet. Agreeing a plan, or sending one back, lands it here.</div>');
+  wirePlanColumn(out, k => { decidedFilter = k; });
 }
 
 /* -------------------------------------------------------------------------
@@ -826,10 +869,14 @@ async function renderPlansView(){
         '<div id="queueOut">Loading…</div>' +
         '<div class="hidden" id="doingOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview processed"><h3>Done</h3>' +
+      '<div class="listcard reportsview processed"><h3>Inbox</h3>' +
         '<div id="doneStatsOut"></div>' +
         '<p class="help listlead">What the night agent has worked out, waiting to be read.</p>' +
         '<div id="plansOut">Loading…</div>' +
+      '</div>' +
+      '<div class="listcard reportsview decided"><h3>Decided</h3>' +
+        '<p class="help listlead">Already ruled on — agreed and waiting to run, sent back, or actioned.</p>' +
+        '<div id="plansDecided">Loading…</div>' +
       '</div>' +
       '<div class="pvcol">' +
         '<div class="listcard schedview usage"><h3>Token Session</h3>' +
@@ -856,6 +903,11 @@ async function renderPlansView(){
     if (!planList.length) {
       out.innerHTML = '<div class="empty">Nothing yet. The night agent writes into ' +
         '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
+      /* The Decided column has no reason to explain where plans come from —
+         the column beside it just did — so it only says it is empty rather
+         than sitting on "Loading…" forever. */
+      const dec = $('#plansDecided');
+      if (dec) dec.innerHTML = '<div class="empty">Nothing ruled on yet.</div>';
     } else {
       renderPlansList();
     }

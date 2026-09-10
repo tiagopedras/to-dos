@@ -18,6 +18,26 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A plan sent back stays in Decided forever, even once the night has
+  written the replacement it asked for.** `is_stale()`
+  (`agents/night_agent/pick.py:271`) treats `redo` as a reason to plan the task
+  again, so the next run writes a fresh plan into its own night folder and the
+  rejected one keeps `status: redo` — nothing anywhere clears it, unlike an
+  `agreed` card, which leaves the column the moment the work is done and the
+  plan turns `actioned`. So the redo group in `renderPlanDecided()`
+  (`kanban/js/13-plans.js:288`) only ever grows, and a reason he wrote weeks
+  ago sits at the same weight as one from last night. The board can already
+  tell which are spent without reading the night agent's ledger: every row
+  `plan_meta()` returns (`kanban/server.py:868-895`) carries `night` plus
+  `slug`/`task`, so a redo plan is superseded when another plan for the same
+  task carries a later `night`, which is the same `p.slug || p.task` key
+  `planItemHTML()` already builds at `13-plans.js:61`. Folding those behind the
+  `<details>` the actioned group already uses in that function — or dropping
+  them into it outright — leaves the redo group holding only the rejections
+  still waiting on a replacement. The reason itself must stay readable either
+  way: `rejection()` (`agents/night_agent/plan.py:185`) reads `redo_note` back
+  off that file, so a superseded card can be folded but never deleted.
+
 - ~~**A project card on the Projects view is only clickable on its title row.**~~ **Built by the improvements agent, 10 Sep 2026.**
   `projectItemHTML()` (`kanban/js/26-projects.js:61-85`) puts `data-project` on
   the `.rephead` button alone, and the path, status line and blurb underneath
@@ -633,22 +653,37 @@ they settled is written up in the README rather than left here:
   is the same signal one step later, and it is a stronger one, since it names
   the file to create rather than a table row to add.
 
-- **The Done column on Plans holds six states that ask two different questions,
-  and only one of them is "read this".** `PLAN_FILTERS`
-  (`kanban/js/13-plans.js:199-206`) puts new, needs you (`folded`), read,
-  agreed, redo and actioned behind chips in the same `#plansOut` list, under a
-  single "Done" heading (`kanban/js/13-plans.js:829`) that no longer describes
-  most of what is in it — agreed and redo are work still owed, not a record.
-  `renderPlansList()` (`kanban/js/13-plans.js:229-272`) already splits `agreed`
-  out above the rest and folds `actioned` shut below it, so the grouping this
-  needs is close to what is there, but it renders all of it into one card.
-  Splitting it in two means an "Inbox" column carrying only unread, folded and
-  read, and a second `.listcard` to its right — a new entry in the `.lists
-  pview` grid built in `renderPlansView()` (`kanban/js/13-plans.js:811-845`) —
-  carrying agreed, redo and actioned, each keeping the sub-grouping
-  `renderPlansList()` already does. `PLAN_FILTERS` would need splitting into two
-  arrays, one per column, and `planStatusFilter` into one state variable per
-  column so a chip picked in one doesn't reset the other.
+- ~~**The Done column on Plans holds six states that ask two different
+  questions, and only one of them is "read this".**~~ **Done, 10 Sep 2026.**
+  Built as described. The Done card is two cards now — **Inbox**, carrying
+  unread, folded and read, and **Decided** to its right, carrying agreed, redo
+  and actioned — so the Plans view is five tracks rather than four
+  (`.lists.pview` in `kanban/board.css`, `repeat(4, minmax(330px,1fr))` plus
+  the Token Session track, `min-width` up from 1452px to 1796px).
+
+  `PLAN_FILTERS` split into `INBOX_FILTERS` and `DECIDED_FILTERS`, and
+  `planStatusFilter` into `inboxFilter` and `decidedFilter`, so a chip picked
+  in one column no longer resets the other. Which column a plan is in is
+  decided by status rather than by chip — `DECIDED_STATUS` is the set
+  `agreed`/`redo`/`actioned` — which is what settles the one case the entry
+  did not name: a folded plan that has been sent back sits under redo rather
+  than staying in the Inbox asking a question already answered.
+  `renderPlansList()` is now two functions that always draw together, since a
+  status change moves a card from one column to the other, and the grouping
+  each column keeps is exactly what the single list already did —
+  `planItemHTML()` untouched, agreed lifted into `.planagreed`, actioned
+  folded shut, redo between them. `planFilterBarHTML()` takes its filter list
+  and current key as arguments, and `wirePlanColumn()` wires one container's
+  chips and rows, so neither column can see the other's clicks despite sharing
+  `data-planfilter`.
+
+  `kanban/test_plans.mjs` moved its agreed/redo/actioned assertions onto
+  `#plansDecided` and gained four: that the Inbox holds nothing already ruled
+  on, that an emptied Inbox says so rather than going blank, that the six
+  headings read left to right in order, and that the two chip rows keep their
+  filters independently. 72 checks pass. Checked against the running board on
+  the real plan list too: 24 plans split 17 Inbox / 7 Decided, chips counting
+  per column.
 
 - ~~**The improvements in this file are read and built by hand, one at a time,
   while the to-do list beside it has a whole agent working its backlog
