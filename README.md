@@ -375,7 +375,16 @@ archived ones, which have no live card left to open. Reading a backup preview
 reports on that backup rather than the live file, and nothing on this tab writes
 anything.
 
-The second report, **Weekly pace**, answers the question a single count cannot:
+The second report, **Recent accomplishments**, is that same list read the other
+way round. Grouped by bucket, every list sits behind its own closed toggle, so
+reading what actually got done means opening each non-empty bucket in turn —
+and the thing a status update or a one-to-one wants is the list itself, in the
+order the work happened. So this one is flat and already open: every finished
+task in the window, newest first, with the bucket as a chip on the row rather
+than as the heading above it. Same tasks, same window, same archive; nothing is
+counted twice and nothing extra is fetched.
+
+The third report, **Weekly pace**, answers the question a single count cannot:
 whether that number is more or less than usual. Eight trailing complete weeks,
 Monday to Sunday, one line per bucket. It leads with its own total the same way,
 and with the per-week average beside it, since "23 over 8 weeks" needs arithmetic
@@ -391,7 +400,7 @@ figures and the pace sentence, with a note saying so. A headline number still
 counting a line you have just hidden would contradict the chart directly above
 it.
 
-A third report means one more function that returns HTML, listed in
+A fourth report means one more function that returns HTML, listed in
 `reportDefs()`. The tab is built to hold more than one.
 
 The column beside it, **Written reports**, holds the other kind. Counting can only
