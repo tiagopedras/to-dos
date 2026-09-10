@@ -516,6 +516,66 @@ def write_index(day, written, skipped, stopped):
         fh.write("\n".join(lines) + "\n")
 
 
+def run_record_path(day):
+    return os.path.join(paths.night_dir(day), "run.json")
+
+
+def read_run_record(day):
+    try:
+        with open(run_record_path(day), encoding="utf-8") as fh:
+            record = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def carry_over(day, written, skipped, stopped, spent, started):
+    """Fold an earlier run of the same day into this one's record and index.
+
+    A night that plans everything leaves nothing for the next scheduled hour, so
+    for most of this agent's life the day's folder held exactly one run and
+    writing over it cost nothing. It stops being true the moment two runs in one
+    day both find something — a task edited at nine and another at eleven — and
+    then the second run's index.md and run.json describe only the second, while
+    the first run's plan files sit in the folder unlisted. The morning reads the
+    index; a plan missing from it is a plan that was not written.
+
+    So the day accumulates. Entries this run produced win over the same task or
+    the same file carried from earlier, anything planned today is dropped from
+    the not-planned list however the earlier run described it, and the cost and
+    start time cover the day rather than the last hour of it.
+    """
+    prior = read_run_record(day)
+    if not prior:
+        return written, skipped, stopped, spent, started
+    entries = prior.get("entries") or []
+
+    files = {w[0] for w in written}
+    titles = {w[1] for w in written}
+    carried = [(e.get("file"), e.get("title"), e.get("summary"), e.get("outcome") == "folded")
+               for e in entries
+               if e.get("outcome") in ("planned", "folded")
+               and e.get("file") not in files and e.get("title") not in titles]
+    written = carried + list(written)
+
+    planned = {w[1] for w in written}
+    seen, merged = set(), []
+    for title, why in ([(e.get("title"), e.get("summary")) for e in entries
+                        if e.get("outcome") == "skipped"] + list(skipped)):
+        if title in planned or title in seen:
+            continue
+        seen.add(title)
+        merged.append((title, why))
+
+    was = prior.get("started")
+    if was:
+        try:
+            started = dt.datetime.fromisoformat(was)
+        except ValueError:
+            pass
+    return written, merged, stopped or prior.get("stopped"), spent + (prior.get("cost") or 0.0), started
+
+
 def write_run_record(day, written, skipped, stopped, spent, started):
     """The same night as JSON, for anything reading this agent rather than the plans.
 
@@ -538,7 +598,7 @@ def write_run_record(day, written, skipped, stopped, spent, started):
         "stopped": stopped,
         "entries": rows,
     }
-    path = os.path.join(paths.night_dir(day), "run.json")
+    path = run_record_path(day)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="") as fh:
@@ -734,8 +794,13 @@ def run(argv=None):
         pick.save_ledger(ledger)
         log("  planned %-50s %3ds  $%.2f" % (task.title[:50], took, cost or 0.0))
 
-    write_index(day, written, skipped, stopped)
-    write_run_record(day, written, skipped, stopped, spent, started)
+    # The day's whole account for the two files anything else reads; the log
+    # line and the notification below stay this run's own, because what just
+    # happened is what they are for.
+    day_written, day_skipped, day_stopped, day_spent, day_started = carry_over(
+        day, written, skipped, stopped, spent, started)
+    write_index(day, day_written, day_skipped, day_stopped)
+    write_run_record(day, day_written, day_skipped, day_stopped, day_spent, day_started)
     prune(day)
     folded = len([w for w in written if w[3]])
     log("done: %d written%s, $%.2f spent%s"

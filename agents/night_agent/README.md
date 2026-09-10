@@ -374,6 +374,20 @@ in the morning; `run.json` says the same thing to the dashboard, which asks ever
 agent on the machine what last night did and cannot be expected to parse each
 one's prose to find out.
 
+Both files hold the day rather than the last run in it. Most nights there is
+only one run, because the ledger leaves the next scheduled hour nothing to plan,
+so this was invisible until it wasn't: two runs in one day and the second one's
+index listed only its own plans while the first one's sat in the same folder
+unlinked. `carry_over` in `plan.py` folds the earlier run in — its plans, its
+cost, its start time — and drops from the not-planned list anything that has
+since been planned. `test_night_agent.py` covers it.
+
+`dashboard.py --activity` is the third reader of the same folder, and the one
+written for a report rather than a page: hand it a moment on stdin and it
+answers with every plan written since, what the night cost, what it passed over
+and how many hours it woke without work. The `agents-report` skill asks every
+agent on the machine that question at once.
+
 Nights older than 30 days are deleted, matching the backups, except anything
 marked `actioned` — that is the record of a decision rather than a proposal that
 expired.

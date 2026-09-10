@@ -15,15 +15,17 @@ One target, itself. The improvements agent has one target per repo it serves;
 this one plans against a single list, so it sends a list of one rather than a
 different shape, which is what keeps the page from needing a special case.
 
-    python3 agents/night_agent/dashboard.py --state    what the page should draw
-    python3 agents/night_agent/dashboard.py --apply    one change, on stdin
-    python3 agents/night_agent/dashboard.py --run      one action, on stdin
+    python3 agents/night_agent/dashboard.py --state     what the page should draw
+    python3 agents/night_agent/dashboard.py --apply     one change, on stdin
+    python3 agents/night_agent/dashboard.py --run       one action, on stdin
+    python3 agents/night_agent/dashboard.py --activity  what it did in a window, on stdin
 """
 
 import argparse
 import datetime as dt
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -254,11 +256,172 @@ def start(body):
     return {"ok": True}
 
 
+# --------------------------------------------------------------------------
+# what it did, for a report rather than a page
+
+
+def _since(body):
+    """The start of the window, defaulted to a day ago and always tz-aware."""
+    raw = (body or {}).get("since")
+    if raw:
+        try:
+            when = dt.datetime.fromisoformat(raw)
+        except ValueError:
+            when = None
+        if when is not None:
+            return when if when.tzinfo else when.astimezone()
+    return dt.datetime.now().astimezone() - dt.timedelta(hours=24)
+
+
+def _at(raw):
+    if not raw:
+        return None
+    try:
+        when = dt.datetime.fromisoformat(str(raw))
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.astimezone()
+
+
+GENERATED = re.compile(r"^generated:\s*(\S+)\s*$", re.M)
+
+
+def _written_at(day, name):
+    """When one plan was finished, out of its own frontmatter.
+
+    The run record holds no per-plan timestamp — a night is a couple of hours
+    and the record was written for a card that only ever showed the night. A
+    report cuts a window that can open in the middle of one, so the plan file is
+    asked instead. Only the frontmatter is read, which is the top of a file of a
+    few kilobytes.
+    """
+    if not name:
+        return None
+    try:
+        with open(os.path.join(paths.night_dir(day), name), encoding="utf-8") as fh:
+            head = fh.read(1200)
+    except OSError:
+        return None
+    m = GENERATED.search(head)
+    return m.group(1) if m else None
+
+
+# One line per wake is not what this log holds — a wake that finds work writes
+# several — so wakes are counted by the minute they happened in. The count is
+# the only way a report can tell an agent that was armed and had nothing to plan
+# from one that never woke at all, and those look identical in the plans folder.
+STAMP = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d):\d\d\s+(.*)$")
+WOKE = ("wake", "a run is already going", "nothing to plan")
+
+
+def _wakes(since):
+    try:
+        with open(paths.log_path(), encoding="utf-8") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return None
+    woke, worked = set(), set()
+    for line in lines:
+        m = STAMP.match(line)
+        if not m:
+            continue
+        try:
+            when = dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M").astimezone()
+        except ValueError:
+            continue
+        if when < since:
+            continue
+        text = m.group(2)
+        if text.startswith(WOKE):
+            woke.add(m.group(1))
+        if text.startswith("start:"):
+            woke.add(m.group(1))
+            worked.add(m.group(1))
+    return {"total": len(woke), "worked": len(worked)}
+
+
+def _day_run(day, since):
+    """One night's folder as an activity run, or None if it falls outside."""
+    record = read_run(day)
+    if not record:
+        return None
+    finished = _at(record.get("finished")) or _at(record.get("started"))
+    if finished is not None and finished < since:
+        return None
+
+    did, left, first, last = [], [], None, None
+    for e in record.get("entries") or []:
+        outcome = e.get("outcome")
+        if outcome == "skipped":
+            left.append({"title": e.get("title") or "", "why": e.get("summary") or ""})
+            continue
+        when = _written_at(day, e.get("file"))
+        if _at(when) is not None and _at(when) < since:
+            continue
+        tone, label = OUTCOMES.get(outcome, (None, outcome or "—"))
+        did.append({"outcome": outcome, "tone": tone, "label": label,
+                    "title": e.get("title") or "", "summary": e.get("summary") or "",
+                    "ref": e.get("file"), "cost": None,
+                    "detail": "needs a decision before it can be planned"
+                              if outcome == "folded" else None,
+                    "when": when})
+        first = first or when
+        last = when or last
+    if not did and not left:
+        return None
+    return {"target": "%s list" % paths.dataset(),
+            "started": first or record.get("started"),
+            "finished": last or record.get("finished"),
+            # The night's own total. Plans are not costed one by one in the
+            # record, so a window cutting into the middle of a night reports the
+            # whole night's spend rather than pretending to divide it.
+            "cost": round(record.get("cost") or 0.0, 4),
+            "where": os.path.relpath(paths.night_dir(day), ROOT),
+            "stopped": record.get("stopped"),
+            "did": did, "left": left}
+
+
+def read_run(day):
+    try:
+        with open(os.path.join(paths.night_dir(day), "run.json"), encoding="utf-8") as fh:
+            record = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def activity(body):
+    """Every night's work inside the window, oldest first.
+
+    Three days of folders for a window of one. A night runs from 19:00 into the
+    next morning and is filed under two dates when it crosses midnight, so a
+    window of twenty-four hours routinely touches three of them.
+    """
+    since = _since(body)
+    today = dt.date.today()
+    runs, spent = [], 0.0
+    for back in range(3, -1, -1):
+        run = _day_run(today - dt.timedelta(days=back), since)
+        if not run:
+            continue
+        spent += run["cost"]
+        runs.append(run)
+    out = {"id": "night-agent", "name": "to-dos night agent",
+           "since": since.isoformat(), "cost": round(spent, 4), "unit": "$",
+           "runs": runs,
+           "note": "every one of these is a proposal; nothing here has been carried out"}
+    wakes = _wakes(since)
+    if wakes:
+        out["wakes"] = wakes
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--state", action="store_true")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--activity", action="store_true")
     args = ap.parse_args(argv)
 
     if args.state:
@@ -276,6 +439,9 @@ def main(argv=None):
         return 0
     if args.run:
         print(json.dumps(start(body)))
+        return 0
+    if args.activity:
+        print(json.dumps(activity(body)))
         return 0
 
     ap.print_help()

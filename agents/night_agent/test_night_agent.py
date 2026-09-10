@@ -916,6 +916,61 @@ def test_runner_root():
           plist.count("<key>Hour</key>"), 24)
 
 
+def test_carry_over():
+    """A second run in one day adds to the day rather than replacing it.
+
+    Most nights there is only one, because the ledger leaves the next scheduled
+    hour nothing to plan. The day two runs both find something is the day the
+    morning index would have listed the second run's plans and quietly dropped
+    the first run's, which are sitting in the same folder unlinked.
+    """
+    import tempfile
+
+    day = dt.date(2026, 9, 10)
+    tmp = tempfile.mkdtemp(prefix="carry-test-")
+    real = plan.paths.night_dir
+    plan.paths.night_dir = lambda d=None: tmp
+    try:
+        first = [("a.md", "Task A", "What A needs.", False),
+                 ("b.md", "Task B", "B is waiting on a decision.", True)]
+        started = dt.datetime(2026, 9, 10, 19, 5, tzinfo=TZ)
+        plan.write_run_record(day, first, [("Task C", "tagged ai:partial")], None, 2.0, started)
+
+        # The second run plans C. A and B are now in the ledger, so the picker
+        # hands them back as skipped — which is exactly the case that must not
+        # read as "not planned" in an index that links them.
+        second = [("c.md", "Task C", "What C needs.", False)]
+        skipped = [("Task A", "unchanged since 2026-09-10"),
+                   ("Task B", "unchanged since 2026-09-10"),
+                   ("Task D", "tagged ai:partial")]
+        later = dt.datetime(2026, 9, 10, 23, 5, tzinfo=TZ)
+        written, left, stopped, spent, start = plan.carry_over(
+            day, second, skipped, None, 1.5, later)
+
+        check("every plan the day wrote is in the record",
+              [w[1] for w in written], ["Task A", "Task B", "Task C"])
+        check("and the fold is still a fold", [w[3] for w in written], [False, True, False])
+        check("nothing planned today is also listed as not planned",
+              [t for t, _ in left], ["Task D"])
+        check("the cost is the day's", spent, 3.5)
+        check("and the run began when the first one did", start, started)
+
+        plan.write_run_record(day, written, left, stopped, spent, start)
+        plan.write_index(day, written, left, stopped)
+        index = open(os.path.join(tmp, "index.md"), encoding="utf-8").read()
+        for name in ("a.md", "b.md", "c.md"):
+            check("index.md links %s" % name, name in index, True)
+        check("and counts the two unfolded ones", "count: 2" in index, True)
+
+        third, _, _, spent, _ = plan.carry_over(day, [], [], None, 0.0, later)
+        check("a run that plans nothing loses nothing", [w[1] for w in third],
+              ["Task A", "Task B", "Task C"])
+        check("and adds nothing to the cost", spent, 3.5)
+    finally:
+        plan.paths.night_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     test_windows()
     test_schedule()
@@ -929,6 +984,7 @@ def main():
     test_usage_chart()
     test_runner()
     test_runner_root()
+    test_carry_over()
     if FAILED:
         print("%d failed\n" % len(FAILED))
         for f in FAILED:
