@@ -812,7 +812,17 @@ def test_runner():
     body = sh.split("# --- 3. the window", 1)[-1]
     check("run.sh does not exec plan.py, or the lock leaks",
           "exec " in body.replace("exec $?", ""), False)
-    check("and it does trap the lock off on exit", "trap 'rmdir" in sh, True)
+    trap = sh.split("trap '", 1)[-1].split("'", 1)[0]
+    check("and it does trap the lock off on exit", 'rmdir "$LOCK"' in trap, True)
+    # The PID file lives inside the lock directory, so rmdir fails while it is
+    # there and the lock outlives the run that took it.
+    check("clearing the PID file with it", '"$PIDFILE"' in trap, True)
+
+    # Staleness asks whether the holder is alive before it asks how old the
+    # lock is. A laptop asleep mid-batch suspends the holder rather than
+    # killing it, so age alone held the lock from 6 to 8 September 2026.
+    check("run.sh records the holder's PID with the lock", 'echo $$ > "$PIDFILE"' in sh, True)
+    check("and tests it before trusting the mtime", 'kill -0 "$HOLDER"' in sh, True)
 
     # The agents are told to read ~/Code/CLAUDE.md, SKILLS.md and
     # DS-KNOWN-ISSUES.md. Without --add-dir claude -p cannot see any of them,

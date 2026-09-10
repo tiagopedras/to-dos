@@ -59,6 +59,18 @@ the last month spent. Neither stops anything from running.
 Almost every wake costs a few milliseconds. `run.sh` checks the schedule, then
 the lock, and stops at whichever says no.
 
+The lock records the PID of the run that took it, in `pid` inside the lock
+directory, and a wake that finds the lock held asks `kill -0` on that PID before
+it asks anything about the age of the directory. Age on its own cannot tell a
+crash from a sleeping laptop: closing the lid mid-batch suspends the holder
+instead of killing it, `plan.py`'s ten-minute per-task ceiling cannot fire while
+the process is not being scheduled, and the batch carries on where it stopped
+when the machine wakes. That is how the lock came to be held from 06:05 on 6
+September 2026 to the morning of the 8th, with every hourly wake in between
+logging "a run is already going". So a dead PID clears the lock whatever its
+mtime says, a live one is left alone however old it looks, and the two-hour
+mtime window is now only the fallback for a lock that names no holder.
+
 ### Which hours, and who decides
 
 `schedule.py` and `data/night-agent-schedule.json`, edited from the agents

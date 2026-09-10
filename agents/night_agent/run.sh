@@ -81,6 +81,7 @@ fi
 
 # --- 2. the lock -------------------------------------------------------------
 LOCK="$ROOT/data/.night-agent.lock"
+PIDFILE="$LOCK/pid"
 if [ "$DRY" -eq 0 ]; then
   # The parent, first. `mkdir` on a lock whose parent is missing fails the same
   # way as one whose lock is held, and the branch below reads that failure as
@@ -88,17 +89,40 @@ if [ "$DRY" -eq 0 ]; then
   # this agent dead for three nights while logging something reassuring.
   mkdir -p "$(dirname "$LOCK")" 2>/dev/null
   if ! mkdir "$LOCK" 2>/dev/null; then
-    # A lock older than two hours is a crashed run, not a live one: the per-task
-    # timeout is ten minutes, and a batch of them has never come close.
-    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then
-      logline "clearing a stale lock"
+    # Is the holder alive, asked before how old the lock looks. Age alone
+    # cannot tell a crash from a suspended run: a lid closed mid-batch
+    # suspends the holder rather than killing it, plan.py's ten-minute
+    # per-task ceiling cannot fire while the process is not being scheduled,
+    # and the batch picks up where it left off when the machine wakes. That
+    # happened over 6–8 Sep 2026 — the lock sat held from 06:05 on the 6th to
+    # the morning of the 8th, and every hourly wake in between logged "a run
+    # is already going" rather than ever clearing it.
+    STALE=""
+    HOLDER="$(cat "$PIDFILE" 2>/dev/null)"
+    if [ -n "$HOLDER" ]; then
+      # A dead PID clears whatever the mtime says; a live one is left alone
+      # however old the lock looks.
+      kill -0 "$HOLDER" 2>/dev/null || STALE="its holder (pid $HOLDER) is gone"
+    elif [ -n "$(find "$LOCK" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then
+      # Only reached when there is no PID to ask: a lock taken before this
+      # check existed, or one whose PID file could not be written. Two hours
+      # because the per-task timeout is ten minutes and a batch of them has
+      # never come close.
+      STALE="it is over two hours old and names no holder"
+    fi
+    if [ -n "$STALE" ]; then
+      logline "clearing a stale lock — $STALE"
+      rm -f "$PIDFILE" 2>/dev/null
       rmdir "$LOCK" 2>/dev/null && mkdir "$LOCK" 2>/dev/null || exit 0
     else
       logline "a run is already going, skipping this wake"
       exit 0
     fi
   fi
-  trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
+  # Immediately, so a wake seconds later has a PID to test rather than falling
+  # back to an mtime that will read as fresh for the next two hours.
+  echo $$ > "$PIDFILE" 2>/dev/null
+  trap 'rm -f "$PIDFILE" 2>/dev/null; rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
 fi
 
 # A child, not exec. `exec` replaces this shell, and a replaced shell never runs
