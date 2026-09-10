@@ -232,7 +232,15 @@ function renderCanvas(){
   // positioned siblings rather than nested, because a card has to be
   // draggable out of its box and nesting would make that a reparent
   // mid-drag rather than a move.
-  let html = '<div class="cvsurface">';
+  //
+  // Tidy is the only control on the canvas that moves something already
+  // placed, so a locked tab does not get it at all rather than getting one
+  // that refuses — the same line every other rearranging gesture here draws.
+  let html = state.locked ? '' :
+    '<div class="cvtools"><button type="button" class="btn mini" id="cvtidy"' +
+      ' title="Line every box and loose card back up in a grid, in the order they' +
+      ' already read. Nothing changes but where things sit.">Tidy</button></div>';
+  html += '<div class="cvsurface">';
   model.groups.forEach(group => {
     const rect = placed.boxes[group.key];
     if (!rect) return;
@@ -320,6 +328,9 @@ function wireCanvas(host){
   // A locked tab can look and open, and cannot rearrange — the same line
   // every other view draws.
   if (state.locked) return;
+
+  const tidy = host.querySelector('#cvtidy');
+  if (tidy) tidy.onclick = tidyCanvas;
 
   host.onpointerdown = e => {
     const grip = e.target.closest('.cvgrip');
@@ -473,6 +484,103 @@ function cvRecord(cardEl){
     y: parseFloat(cardEl.style.top) || 0,
     z: held.z || 1
   };
+}
+
+/* ---- Straightening the canvas back out ----
+   Everything else here places a thing once and then leaves it alone:
+   layoutCanvas only deals out a card the first time it sees one, and a
+   position dragged by hand is kept forever. That is right until a few dozen
+   drags have piled boxes and cards on top of each other, at which point
+   there is nothing to undo it with. This is that one control.
+
+   It is the same behaviour as tidyCanvas() in ai_canvas, and the same
+   ordering decision: blocks are sorted by where they already sit, top-left
+   down, so this straightens the desk rather than reshuffling it into an order
+   nobody arranged. Sorting by task name or by date would be a different
+   feature and would throw away the arrangement it is meant to rescue.
+
+   A box moves with its cards, so a group is one block and only cards outside
+   every box are blocks of their own. */
+const TIDY_GAP = 40, TIDY_MARGIN = 60;
+
+/* Read off the DOM rather than out of state.canvas, for the reason ai_canvas
+   measures too: a box grows to cover what is in it, so the rectangle actually
+   drawn is the true one and the stored rect is only the floor it was asked
+   for. */
+function cvRectOf(el){
+  return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+}
+function cvBlocks(host){
+  const blocks = [];
+  const boxed = new Set();
+  const cards = [...host.querySelectorAll('.cvcard')];
+  host.querySelectorAll('.cvbox').forEach(el => {
+    const key = el.dataset.box;
+    boxed.add(key);
+    blocks.push({
+      kind: 'box', key: key, rect: cvRectOf(el),
+      members: cards.filter(c => c.dataset.owner === key).map(c => ({
+        id: c.dataset.session,
+        geometry: Object.assign(cvRectOf(c), { z: (state.canvas.cards[c.dataset.session] || {}).z || 1 })
+      }))
+    });
+  });
+  // Loose is "in no box on screen", not isLoose() on the key: a conversation
+  // whose task has been archived out of todo.md still carries that task's
+  // chat key and has no box to move with.
+  cards.forEach(el => {
+    if (boxed.has(el.dataset.owner)) return;
+    blocks.push({ kind: 'card', id: el.dataset.session, rect: cvRectOf(el) });
+  });
+  return blocks;
+}
+
+function tidyCanvas(){
+  const host = $('#canvas');
+  const C = window.AICards;
+  // A box and its cards move as one, which is shiftBox's whole job — the same
+  // function the Electron canvas moves a group with. Without the engine there
+  // is no arithmetic here to fall back on, and half a tidy is worse than none.
+  if (!host || !C || state.locked) return;
+
+  const blocks = cvBlocks(host);
+  if (!blocks.length) return;
+  blocks.sort((a, b) => a.rect.y - b.rect.y || a.rect.x - b.rect.x);
+
+  // The row wraps at the width of the pane, not at the surface's own 4000px,
+  // so what comes back fits the window it was tidied in. The floor stops a
+  // narrow window from putting every block on a row of its own.
+  const rowWidth = Math.max(720, host.clientWidth - TIDY_MARGIN * 2);
+  let x = TIDY_MARGIN, y = TIDY_MARGIN, rowHeight = 0;
+
+  blocks.forEach(block => {
+    if (x > TIDY_MARGIN && x + block.rect.width > TIDY_MARGIN + rowWidth) {
+      x = TIDY_MARGIN;
+      y += rowHeight + TIDY_GAP;
+      rowHeight = 0;
+    }
+    const dx = x - block.rect.x, dy = y - block.rect.y;
+    // Only what needs to move is written, so a block already in its place
+    // keeps the exact numbers it had rather than being rounded through this.
+    if (dx || dy) {
+      if (block.kind === 'card') {
+        const held = state.canvas.cards[block.id] || {};
+        state.canvas.cards[block.id] =
+          { x: block.rect.x + dx, y: block.rect.y + dy, z: held.z || 1 };
+      } else {
+        const moved = C.shiftBox(state.canvas.boxes[block.key] || block.rect, block.members, dx, dy);
+        state.canvas.boxes[block.key] = moved.rect;
+        moved.cards.forEach(c => {
+          state.canvas.cards[c.id] = { x: c.geometry.x, y: c.geometry.y, z: c.geometry.z || 1 };
+        });
+      }
+    }
+    x += block.rect.width + TIDY_GAP;
+    rowHeight = Math.max(rowHeight, block.rect.height);
+  });
+
+  saveCanvas();
+  renderCanvas();
 }
 
 /* ---- Filing a card by dropping it ----

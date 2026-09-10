@@ -2176,6 +2176,14 @@
       radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px;
   }
   .cvsurface{position:relative; width:4000px; height:2600px}
+  /* Tidy, and nothing else so far. Sticky in both directions so it stays in
+     the corner of the pane wherever the 4000px surface has been scrolled to —
+     an absolutely positioned child would scroll away with the cards. Zero
+     height so it takes no room in the flow: the surface still starts at the
+     top-left of the pane, and the button hangs over it. Above the 999 a card
+     takes while it is being dragged, since a card passing under the cursor
+     should not swallow the control. */
+  .cvtools{position:sticky; top:10px; left:12px; z-index:1000; height:0}
   .cvempty{
     position:absolute; left:50%; top:120px; transform:translateX(-50%);
     max-width:460px; text-align:center; color:var(--ink-soft);
