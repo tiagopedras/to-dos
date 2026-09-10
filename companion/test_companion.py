@@ -24,6 +24,7 @@ sys.path.insert(0, HERE)
 
 import digest  # noqa: E402
 import notify  # noqa: E402
+import todo  # noqa: E402
 
 FAILED = []
 
@@ -150,36 +151,70 @@ def test_notify_queue():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def test_board_url():
-    """The fragment grammar, which is the one thing in app.py worth checking.
+def test_json():
+    """The shape the Electron companion polls once a tick — see digest.to_json.
 
-    It is the contract between this app and the board's parseHash, and it fails
-    silently in both directions — a wrong fragment opens the right board on the
-    wrong thing, which reads as the link not working. Skipped where PyObjC is
-    not installed, since importing app.py pulls in AppKit; it draws no menu and
-    claims no lock at import time, so on this machine it is safe to import."""
+    Every field it reads is checked here rather than there, because there is
+    no Python left to run in that project: this is the only place the payload
+    can be pinned down before the JavaScript side ever sees it.
+    """
+    tmp = tempfile.mkdtemp(prefix="digest-json-")
+    doc_path = os.path.join(tmp, "todo.md")
     try:
-        import app  # noqa: E402
-    except ImportError:
-        return
-    base = app.BOARD_URL
-    check("nothing named opens the board itself", app.board_url(), base)
-    check("a card, whatever view is up", app.board_url("ds-audit"),
-          base + "#!task=ds-audit")
-    check("a view on its own", app.board_url(None, "plans"), base + "#plans")
-    check("both together", app.board_url("ds-audit", "plans"),
-          base + "#plans!task=ds-audit")
-    # A `!` in a title would otherwise look like the separator the board splits
-    # on, and a `#` would end the fragment.
-    check("a title is escaped", app.board_url("Ship it! #now"),
-          base + "#!task=Ship%20it%21%20%23now")
+        with open(doc_path, "w", encoding="utf-8") as fh:
+            fh.write(DOC)
+        d = digest.build(DAY, path=doc_path)
+        out = digest.to_json(d)
+        check("day is ISO", out["day"], "2026-09-07")
+        check("line matches", out["line"], d.line())
+        check("count matches", out["count"], d.count)
+        check("no error on a readable file", out["error"], None)
+        check("overdue rows carry a task key",
+              [o["task"] for o in out["overdue"]],
+              [t.slug or t.title for _, t in d.overdue])
+        check("today rows carry a due date",
+              [o["due"] for o in out["today"]],
+              [due.isoformat() for due, _ in d.today])
+        check("messages carry the same keys as the object form",
+              [m["key"] for m in out["messages"]],
+              [m["key"] for m in d.messages])
+        check("today_status names whether it's a working day",
+              out["today_status"]["working"], True)   # 2026-09-07 is a Monday
+
+        broken = digest.build(DAY, path=os.path.join(tmp, "missing.md"))
+        check("a missing file reports an error rather than raising",
+              digest.to_json(broken)["error"] is not None, True)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_task_key():
+    t = todo.Task()
+    t.title, t.slug = "Ship the thing", ""
+    check("falls back to the title with no slug", digest.task_key(t), "Ship the thing")
+    t.slug = "ship-it"
+    check("prefers the slug", digest.task_key(t), "ship-it")
+
+
+def test_read_dismissed():
+    tmp = tempfile.mkdtemp(prefix="companion-state-")
+    try:
+        check("no state file yet", digest.read_dismissed(tmp), set())
+        os.makedirs(os.path.join(tmp, "data", digest.DATASET))
+        with open(digest.companion_state_path(tmp), "w", encoding="utf-8") as fh:
+            json.dump({"dismissed": ["a", "b"]}, fh)
+        check("reads what is there", digest.read_dismissed(tmp), {"a", "b"})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main():
     test_messages()
     test_digest_line()
     test_notify_queue()
-    test_board_url()
+    test_json()
+    test_task_key()
+    test_read_dismissed()
     if FAILED:
         print("%d failed\n" % len(FAILED))
         for f in FAILED:

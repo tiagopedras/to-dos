@@ -1054,37 +1054,41 @@ read inside. The board remains the authority.
 
 The board only says anything while a tab is open on it, which means a day it is
 never opened is a day nothing is said. **To-Do Companion.app** is the answer to
-that: a menu bar icon that reads the list off disk and tells you once each
-working morning what is due and what is overdue.
+that: a tray icon and a small portrait window that read the list off disk and
+tell you once each working morning what is due and what is overdue — and, since
+7 Sep 2026, what the night agent worked out while nobody was watching, because a
+plan is several minutes of reading and a menu was the wrong place to hold that.
 
-Double-click it to start, and Quit in its own menu to stop. It is a menu bar app
-and nothing else — no Dock icon, no window, no app switcher entry. The icon
-carries a count of what is owed, and turns into a warning triangle when
-something is overdue. Its menu lists the one thing, then what is overdue, then
-what is due today, and clicking any of them opens the board on that card, with
-its panel already up. Reading a task and doing something about it stay two
-different places on purpose: there is no ticking off in the menu, because a tick
-is a write to `todo.md` and the companion never writes to it. It opens the file
-read-only and that is the whole of its access, so it cannot race the board's
-autosave or damage a list.
+Click the tray icon to open the window, click it again (or close the window) to
+put it away — the icon stays either way, since the icon is the process and the
+window is only ever its surface. Right-click the icon for Open the board and
+Quit. It is a tray app and nothing else — no Dock icon, no app switcher entry.
+The icon carries a count of what is owed next to it, and turns into a warning
+triangle when something is overdue.
 
-Under those it lists **Messages to send** — every suggested message on a live
-contact step, ready to copy. That is the section the app earns its place with:
-what stalls one of those steps for days is writing the opening line, and a
-message already written turns it into a click. The step is the label, since that
-is what names the person, and the message itself is the tooltip.
+The window, top to bottom: **the night's plans** still unread or read (not yet
+agreed, sent back, or acted on), then **the one thing** if there is one, then
+what's **overdue**, then what's **due today**, then **messages to send**.
+Clicking a plan opens the board's Plans tab; clicking a task opens the board on
+that card, with its panel already up. Reading and doing something about it stay
+two different places on purpose: there is no ticking off in the window, because
+a tick is a write to `todo.md` and the companion never writes to it. It opens
+`todo.md` read-only and that is the whole of its access, so it cannot race the
+board's autosave or damage a list.
 
-Clicking one copies it. Hold alt and the row becomes **Dismiss**, which hides it
-here and nowhere else — the message stays on the card, because a dismissal is a
-statement about this menu rather than about the work, and this process still
+**Messages to send** is the section the app earns its place with: every
+suggested message on a live contact step, ready to copy. What stalls one of
+those steps for days is writing the opening line, and a message already written
+turns it into a click. The person's name is the row; the message itself sits
+underneath it.
+
+Clicking a message copies it. The × beside it **dismisses** it — hides it here
+and nowhere else, since the message stays on the card and a dismissal is a
+statement about this window rather than about the work, and this process still
 never writes to `todo.md`. Dismissals are keyed on the message's own text, so
 rewording one deliberately brings it back: a changed message is a different
 message and is worth seeing again. What the companion cannot do is the board's
 delete-on-send, for the same reason it cannot tick a task off.
-
-Plans are deliberately not here. A plan is several minutes of reading and belongs
-on the board's Plans tab; what the companion does about them is say they exist,
-through the queue below.
 
 The morning notification goes out at the first check at or after 08:30 on a
 working day, once a day. Starting the app later in the day still gets you the
@@ -1092,13 +1096,12 @@ briefing — opening the laptop at four having missed the morning is exactly whe
 it is wanted — but not after 20:00, by which time the day is over. A working day
 means a weekday that is not a public holiday in the UK **or** Portugal: he takes
 the Portuguese ones and the team takes the UK ones, and a briefing is worth
-little on a morning either side is away. The menu names the holiday and which
-country it belongs to — "Quiet — Dia de Portugal (PT)" — so a silent Monday
-reads as the day off it is instead of as an app that has stopped. Only the
-notification is suppressed; the icon and the menu are live as usual, so a day
-off that turns out to be a working day costs nothing. Nothing is recorded on a
-quiet day, so the next working morning goes out as normal. Narrowing it to one
-country is one argument in `maybe_notify`.
+little on a morning either side is away. The window's status line names the
+holiday and which country it belongs to — "Quiet — Dia de Portugal (PT)" — so a
+silent Monday reads as the day off it is instead of as an app that has stopped.
+Only the notification is suppressed; the icon and the window are live as usual,
+so a day off that turns out to be a working day costs nothing. Nothing is
+recorded on a quiet day, so the next working morning goes out as normal.
 
 **What it counts as owed.** The same three exclusions Quick wins already makes,
 because two views of one list disagreeing about what is actionable is worse than
@@ -1106,7 +1109,7 @@ either answer on its own. Waiting review and Blocked are out, since the next
 move belongs to somebody else. A task whose `blocked-by:` names something
 unticked is out, since the blocker is the real task. Sub-steps are out, since a
 step has no state of its own. Whatever is left out is counted in a line at the
-bottom of the menu, so nothing disappears silently.
+bottom of the window, so nothing disappears silently.
 
 Recurring tasks are rolled forward in memory. The board rewrites a passed
 `repeat:` date into the file when it loads; the companion works out the same
@@ -1122,12 +1125,27 @@ second.
 
 `companion/digest.py` decides what is owed and can be run on its own at a
 terminal — `python3 companion/digest.py`, or with a date to see what a future
-day looks like. `companion/app.py` is the menu bar item, written straight
-against AppKit through PyObjC because PyObjC is already installed alongside the
-Python that runs the board, and `rumps` would be one more thing to install and
-remember.
+day looks like, or `--json` for the one-line machine-readable form the tray
+app actually polls. The tray app itself is Electron — `companion/src/main/`,
+`preload/` and `renderer/`, built and run with `npm run dev`/`dev.command` and
+packaged with `package.command` — rebuilt from the AppKit-and-PyObjC menu bar
+app that lived at `companion/app.py` until 10 Sep 2026, once a plan being
+several minutes of reading made a menu the wrong place to hold it (see
+`IMPROVEMENTS.md`).
 
-Neither of them knows the file format. That lives in `core/todo.py`, which
+Rather than port digest.py's policy — effective due dates, `blocked-by`,
+message extraction, the UK/PT holiday calendar — into a second copy in
+JavaScript, the Electron main process shells out to `python3 digest.py --json`
+once a tick (`companion/src/main/digest.ts`) and reads the answer back. That
+policy is deliberately not duplicated anywhere else — see `core/todo.js`'s own
+note on the holiday calendar below — so a short-lived Python process once a
+minute buys reusing it as-is instead of a third implementation to keep in
+step. Everything else the window shows — the night agent's plans, the
+notification queue, its own dismissed-messages state — is read straight off
+disk in TypeScript (`plans.ts`, `notifyQueue.ts`, `state.ts`), since that's
+plain frontmatter and JSON with no format of its own to duplicate.
+
+Neither of them knows the todo.md file format. That lives in `core/todo.py`, which
 belongs to no one app: a Python port of the parsing, the suggested messages and
 the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
 tab that needs to know what is due asks one shared reader rather than inventing a
@@ -1180,8 +1198,8 @@ has no official feed. Every England-and-Wales date from 2019 to 2028 agrees, and
 both Portuguese years agree exactly. The offline tables are what run by default,
 because a test that needs the network is a test that fails on a train.
 
-**Opening a card from outside the board.** A task in the companion's menu links
-to `#!task=<key>`, where the key is the task's `#slug` if it has one and its
+**Opening a card from outside the board.** A task or a plan in the companion
+links to `#!task=<key>`, where the key is the task's `#slug` if it has one and its
 title if it does not — the board mints a fresh id for every task on every parse,
 so an id is no use to anything outside the tab. The fragment carries the view and
 the card at once, `#<view>!task=<key>`, and the two do not compete: the view
@@ -1199,29 +1217,35 @@ running at all the companion launches it and waits for the port before sending
 the link, so the server's own tab is the one that gets it.
 
 The bundle is gitignored, like the board's Dock launcher, and
-`companion/build-app.command` rebuilds it. Two things in that recipe are worth
-knowing about, both to do with notifications. The app is ad-hoc signed, so macOS
-has a stable identity to hang notification permission on. And the launcher runs
-a copy of the framework Python's own app stub, kept inside the bundle, because a
-notification carries the name of the bundle the running process belongs to — run
-the framework interpreter directly and the alert says Python. If that copy ever
-stops working, the launcher rebuilds it on the next start, and if it cannot, the
-app falls back to posting through `osascript` and the alerts are attributed to
-Script Editor. Working notifications under the wrong name beat none at all.
+`companion/package.command` builds it: `electron-packager` bundles the whole
+`companion/` project — including `digest.py` and `notify.py`, which the
+packaged app still runs and appends to at runtime — into `companion/dist/`,
+and the script leaves a symlink named `To-Do Companion.app` at the repo root,
+where `kanban/server.py`'s own hint expects to find it. Re-running the script
+after a change repoints the symlink; nothing else has to move. Being a real,
+ad-hoc-signed `.app` rather than a hand-launched Python script is what fixes
+the one thing the old app could never do: register with macOS's own
+`UNUserNotificationCenter`, so notifications finally carry the right name and
+icon without a copied interpreter stub standing in for one.
+
+A packaged `.app` is a frozen copy of the project, cut off from the live repo
+it was built from — so `companion/src/main/index.ts`'s `findRepoRoot()`
+doesn't trust its own location once packaged. It guesses the relative path
+first (right when running from source, wrong inside `Contents/Resources/app`)
+and falls back to the one machine this has ever run on when that guess finds
+no `data/` folder next to it — the identical fallback
+`companion/build-app.command`'s old launcher script used to carry.
 
 The log is at `~/Library/Logs/To-Do Companion.log`, which is the only place a
-menu bar app has to say anything. It records each start, which route every
+tray app has to say anything. It records each start, which route every
 notification took, and where each banner that was clicked went.
 
-**A notification goes somewhere when you press it.** Every banner carries a card
-and a view in its `userInfo`, and clicking it opens the board there — the same
-`#<view>!task=<key>` link the menu rows use, through the same `open_board`, so a
-banner and a menu row behave identically and neither can give you a second tab.
-The morning briefing points at the one thing when there is one, and at the board
-itself when the line names several tasks, since picking one of three to open
-would be a guess. The night agent's line points at the Plans tab. Only the
-NSUserNotification route can carry a target: the `osascript` fallback posts a
-banner that does nothing when pressed, which is one more reason it is a fallback.
+**A notification goes somewhere when you press it.** Every banner is built
+with the task or view it should open, and clicking it calls the same
+`openBoard()` the window's own rows call, so a banner and a row behave
+identically and neither can give you a second tab. The morning briefing points
+at the one thing when there is one, and at the board itself when the line
+names several tasks, since picking one of three to open would be a guess.
 
 ### Asking the companion to say something
 

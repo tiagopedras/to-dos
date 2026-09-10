@@ -48,11 +48,19 @@ __pycache__/
 # Dock launcher, rebuilt from kanban/icon.svg rather than committed.
 To-Do Board.app/
 
-# The menu bar companion's bundle, for the same reason: a plist, a shell script,
-# a copied icon and a copied interpreter stub, all of it rebuilt in a second by
-# companion/build-app.command. Keeping the recipe is worth more than keeping the
-# build, and the stub is a signed binary that has no business in git.
-To-Do Companion.app/
+# The companion's bundle — a symlink since 10 Sep 2026, not a directory, so no
+# trailing slash: `companion/package.command` points it at whatever it just
+# built in companion/dist/, which is itself ignored below. Keeping the recipe
+# is worth more than keeping the build.
+To-Do Companion.app
+
+# The companion's own Electron project: dependencies, the electron-vite build
+# output, and the packaged .app electron-packager writes. package-lock.json is
+# still tracked, same as ai_canvas, so a clone gets the exact versions this was
+# built against.
+companion/node_modules/
+companion/out/
+companion/dist/
 
 # Claude Code's own local state for this checkout: per-file agent symlinks and
 # launch.json, which has carried paths under data/. All of it is specific to

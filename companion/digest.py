@@ -7,6 +7,8 @@ status icon or a notification permission anywhere in the way:
 
     python3 companion/digest.py            what is owed today
     python3 companion/digest.py 2026-09-07 what would be owed on that day
+    python3 companion/digest.py --json     the same, as one line of JSON —
+                                            what the Electron companion polls
 
 The format knowledge is not here — that is core/todo.py, which every reader of
 the list shares.
@@ -40,6 +42,7 @@ Both are read-only, which is the whole of what this process is allowed to be.
 
 import datetime as dt
 import hashlib
+import json
 import os
 import sys
 
@@ -87,6 +90,30 @@ class Digest:
 def todo_path(root=None):
     root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(root, "data", DATASET, "todo.md")
+
+
+def companion_state_path(root=None):
+    root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(root, "data", DATASET, "companion.json")
+
+
+def read_dismissed(root=None):
+    """The set of message keys the companion has hidden, straight off
+    companion.json — read here rather than passed in, so anything that just
+    wants a digest (a terminal, the Electron app's --json call) gets the same
+    answer the app itself would, without first having to read its own state."""
+    try:
+        with open(companion_state_path(root), encoding="utf-8") as fh:
+            return set(json.load(fh).get("dismissed", []))
+    except (OSError, ValueError):
+        return set()
+
+
+def task_key(task):
+    """How a card is named in a link: its `#slug` where it has one, its title
+    where it does not — the two things in todo.md stable enough to point at,
+    since the board mints a fresh id for every task on every parse."""
+    return task.slug or task.title
 
 
 def message_key(m):
@@ -170,9 +197,48 @@ def build(day=None, path=None, dismissed=()):
     return d
 
 
+def to_json(d):
+    """The digest as plain data, for anything that isn't Python — today that
+    is the Electron companion, which shells out to `--json` once a tick rather
+    than re-deriving this policy (effective due dates, blocked-by, message
+    extraction, the holiday calendar) a second time in JavaScript. See
+    `read_messages` and `build` above for what each field actually means;
+    this only flattens it.
+    """
+    return {
+        "day": d.day.isoformat(),
+        "line": d.line(),
+        "count": d.count,
+        "error": d.error,
+        "parked": d.parked,
+        "headline": {"title": d.headline.title, "task": task_key(d.headline)}
+                    if d.headline else None,
+        "overdue": [{"title": t.title, "bucket": t.bucket, "task": task_key(t),
+                      "due": due.isoformat()} for due, t in d.overdue],
+        "today": [{"title": t.title, "bucket": t.bucket, "task": task_key(t),
+                    "due": due.isoformat()} for due, t in d.today],
+        "messages": [{"key": m["key"], "task": m["task"], "where": m["where"],
+                       "text": m["text"], "draft": m["draft"], "due": m["due"]}
+                      for m in d.messages],
+        # So the Electron side never needs its own copy of the UK/PT holiday
+        # calendar, which core/todo.js deliberately doesn't carry — see
+        # todo.is_working_day/holiday_names, the only place this lives.
+        "today_status": {
+            "working": todo.is_working_day(d.day),
+            "holidays": list(todo.holiday_names(d.day)),
+        },
+    }
+
+
 def main():
-    day = dt.date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else None
-    d = build(day)
+    argv = sys.argv[1:]
+    as_json = "--json" in argv
+    argv = [a for a in argv if a != "--json"]
+    day = dt.date.fromisoformat(argv[0]) if argv else None
+    d = build(day, dismissed=read_dismissed())
+    if as_json:
+        print(json.dumps(to_json(d)))
+        return 1 if d.error else 0
     print("%s — %s" % (d.day.strftime("%A %-d %B %Y"), d.line()))
     if d.error:
         return 1

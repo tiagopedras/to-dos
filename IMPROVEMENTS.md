@@ -18,6 +18,53 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The Reports window picker is a dropdown, so the seven ranges it holds are
+  invisible until it is opened.** `reportWindowSelectHTML()`
+  (`kanban/js/12-reports.js:760`) writes a `<select>` over the seven entries in
+  `REPORT_WINDOWS` (`:25`), and it governs every report on the tab — the counts,
+  the lead note, and the weekly pace chart through `trendWeeks()` (`:378`) — so
+  it is the one control on the view worth reading at a glance. A segmented row
+  of buttons would show all seven at once and make switching one click rather
+  than two. The change is contained: emit a `<div class="repwindow-seg">` of
+  `<button data-window="...">` instead of the `<select>`, swap the `onchange`
+  handler in `renderReportsView()` (`:742`) for a click handler that calls the
+  same `setReportWindow()` (`:48`), and give `.repwindow select`
+  (`kanban/board.css:802`) a sibling rule for the row. `readReportWindow()`
+  (`:39`) and its `localStorage` key are untouched. Seven buttons plus the
+  `.repdates` span may not fit the card at narrow widths, so the row needs to
+  wrap or the labels shorten.
+
+- **A plan spends most of its words before it gets to what to do.**
+  `agents/night_agent/PLAN-BRIEF.md` sets one budget, "under 400 words in
+  total", and splits it nowhere, so "What this actually involves" and "What
+  already exists" can take three hundred of them and the numbered steps arrive
+  after the point he has stopped reading. The brief actively encourages it too:
+  "What already exists" is described as "the section that earns the whole
+  exercise", which is true of the research and false of the plan he reads over
+  coffee. The fix is in that one file, no new outcome value and nothing to
+  change in `write_plan()` (`agents/night_agent/plan.py:394`) or the renderer at
+  `kanban/js/13-plans.js:922`: cap the two front sections at a short paragraph
+  each, say what a finding has to earn to be written down at all, and let the
+  course of action have the rest of the budget. It sits next to the entry below
+  about there being only two shapes, which is about which shape a plan picks
+  rather than the proportions inside the four-section one.
+
+- **A numbered list in a plan renders as one run-on paragraph.** `mdBlocks()`
+  at `kanban/js/12-reports.js:598` knows one bullet shape,
+  `/^[-*]\s+(.*)$/`, so a line opening `1.` misses it, falls through to the
+  paragraph branch, and is joined to its neighbours with a space by
+  `flushPara()`. Every plan hits it: `agents/night_agent/PLAN-BRIEF.md` asks
+  for the course of action and the open questions as numbered steps and the
+  planners write them that way, so the file on disk is right and the renderer
+  is what is wrong, which also means fixing it once beats editing six planner
+  briefs. It wants an ordered branch beside the bullet one, `/^\d+[.)]\s+(.*)$/`,
+  with `flushList()` closing whichever kind is open and emitting `<ol
+  class="repnum">`, and a `.repdoc .repnum` rule beside `.repbul` at
+  `kanban/board.css:1410`, since that one sets `list-style:none` and draws its
+  own middot in `::before`, which would swallow the numbers. The same function
+  draws written reports and the drawer's Description field, so
+  `kanban/test_notes.mjs` and `kanban/test_plans.mjs` both want a case for it.
+
 - ~~**A plan sent back stays in Decided forever, even once the night has
   written the replacement it asked for.**~~ **Done, 10 Sep 2026.** A replaced
   rejection is filed with the record instead of left in the redo group reading
@@ -501,77 +548,29 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **The companion is a menu, and a menu is why the plans half had to come back
-  out of it.** `companion/app.py` is 720 lines written straight against AppKit,
-  a status item whose whole surface is `NSMenuItem`s built in `Companion` at
-  `companion/app.py:281` and a notification through `NSUserNotification` at
-  `companion/app.py:155`. That shape is what settled the entry above on 5 Sep
-  2026: the plans half landed and was taken straight back out because a plan is
-  several minutes of reading and a menu is the wrong place for it, so what the
-  companion says about the night's work is only that it happened. Rebuilding it
-  as an Electron app with a small window changes that premise rather than
-  arguing with it — a window can hold what the night agent wrote, and
-  `ai_canvas` next door is already React in Electron with
-  `PACKAGES/ai_chat_engine` shared between it and this board, so the shell and
-  the pattern for sharing code with it both already exist.
+- ~~**The companion is a menu, and a menu is why the plans half had to come
+  back out of it.**~~ **Done, 10 Sep 2026.** Rebuilt as an Electron app —
+  `companion/src/main/`, `preload/`, `renderer/` — with the small portrait
+  window this entry called for: the night's plans still unread or read, then
+  the one thing, then overdue, then due today, then the message suggestions,
+  each a link into the board exactly as decided. A tray icon toggles it and
+  survives it closing; right-click gives Open the board and Quit.
+  `companion/app.py` is retired outright, and the three things in it that
+  weren't about the menu — the once-a-morning notification, the notify
+  queue's time gate, the dismissed-messages state — moved across.
 
-  Most of what a window would show is already readable without the board.
-  `digest.build()` at `companion/digest.py:139` is the morning's counts and its
-  message suggestions; the plans are files under `data/<dataset>/plans/<date>/`,
-  which `kanban/server.py:899` already serves at `/data/plans/…` with their
-  statuses in `kanban/js/13-plans.js`, `PLAN_STATUS` in `kanban/server.py` and
-  `is_stale()` in `agents/night_agent/pick.py`; and the queue in
-  `companion/notify.py` is the channel anything else uses to say something
-  happened. A window reading those three is not new data, it is the same data
-  with room to be read.
-
-  Three things about the window are decided. It is **small and portrait**,
-  about the proportions of a phone, because what it holds is a column — the
-  night's plans, then what is due, then what is on today — and a column read
-  down beside the work is a different thing from a page. **Every plan and every
-  task in it is a link that opens the board in the browser**, which needs
-  nothing invented: `board_url()` at `companion/app.py:224` already builds
-  `#<view>!task=<key>` and `open_board()` at `:245` already starts the server
-  first when nothing is listening and waits for the port before sending the
-  fragment. Both would move into the Electron app as they are, fragment rule
-  included — a link differing only after the `#` raises the tab that is already
-  open, and two tabs autosaving one `todo.md` is the failure this app exists to
-  stay out of the way of. And it keeps **a tray icon of its own**, so closing
-  the window leaves the icon in the menu bar rather than quitting: the window is
-  the surface, the icon is the process, and the morning notification still has
-  somewhere to come from when the window is shut.
-
-  That last one decides what happens to the app that is there now. Two status
-  items for one list is clutter, which is what `claim_single_instance()` at
-  `companion/app.py:74` already says with an flock on `companion.lock`, so an
-  Electron tray icon means the Python one stops rather than sits beside it. It
-  stops for good: `app.py` is retired outright rather than kept as the headless
-  half, and the three things in it that are not about the menu come across into
-  the Electron app. Those are the once-a-morning notification (`NOTIFY_AT` at
-  `companion/app.py:57`), the 08:30 to 20:00 gate on the notify queue
-  (`companion/notify.py:35`), and the dismissal state in `companion.json`. None
-  of the three is hard to port — the gate is a clock comparison, the state file
-  is already JSON, and the notification is the one part Electron does more
-  easily than AppKit, since a signed Electron app can register with
-  `UNUserNotificationCenter` where the unsigned Python bundle could not. What is
-  bought for it is one long-lived process in one language, with nothing starting
-  or supervising Python.
-
-  What the window holds is the day, in one column: the plans the night agent
-  wrote, then what is overdue and due today, then the message suggestions that
-  are already in the menu. No calendar and no meetings — the day here means the
-  list, and every part of it is already on disk in `todo.md` and `plans/` with a
-  reader in `core/todo.py` and `companion/digest.py` that gets it out without
-  the board running. Nothing new has to be parsed, and nothing new has to be
-  stored.
-
-  Two things stay true whatever it is built with. The companion never writes
-  `todo.md`, and an Electron app is a second long-lived process rather than a
-  script that ticks once a minute, so that rule gets more load-bearing rather
-  than less. And `build-app.command` bundles nothing today — `To-Do
-  Companion.app` is a plist, a shell script and an icon reading `app.py` off
-  disk — where Electron means a real build step and a real install, which is a
-  cost worth naming before it is paid.
+  One deviation from what this entry proposed: the policy the window needs
+  (effective due dates, `blocked-by`, message extraction, the UK/PT holiday
+  calendar) stayed in Python rather than being ported to JavaScript, because
+  it already lives in exactly one place on purpose — `core/todo.js` says as
+  much about the holiday calendar specifically — and porting it would have
+  made a second copy of exactly the thing this repo's format rules exist to
+  prevent. So `digest.py` gained a `--json` mode, and the Electron main
+  process shells out to it once a tick instead of re-deriving that policy
+  itself. Everything else the window needed — plans, the notify queue, its
+  own state — had no format of its own to duplicate, so those are read
+  straight off disk in TypeScript. See the README's "The desktop companion"
+  section for how it's actually built.
 
 - **A report he defines once cannot be written down anywhere, so every written
   report is typed fresh from a prompt and comes out a slightly different shape
