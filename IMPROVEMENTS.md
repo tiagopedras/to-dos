@@ -18,7 +18,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **A project card on the Projects view is only clickable on its title row.**
+- ~~**A project card on the Projects view is only clickable on its title row.**~~ **Built by the improvements agent, 10 Sep 2026.**
   `projectItemHTML()` (`kanban/js/26-projects.js:61-85`) puts `data-project` on
   the `.rephead` button alone, and the path, status line and blurb underneath
   it carry none — so clicking anywhere in a card except that top strip does

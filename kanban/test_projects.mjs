@@ -154,6 +154,15 @@ check('the card says what the project is', await evalJS(`
 check('a folder with no CLAUDE.md gets no blurb rather than an empty one', await evalJS(`
   document.querySelectorAll('#projectsOut .projcardblurb').length === 1
 `))
+/* The whole card is the target, not just its title strip. Clicking the blurb —
+   the furthest thing on a card from the .rephead button that used to be the
+   only live part — is what proves data-project sits on the <article>. */
+await evalJS(`document.querySelector('#projectsOut .projcardblurb').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('clicking below the title opens the project too', await evalJS(`
+  state.openProject === 'aop2027'
+`))
+await evalJS(`closeDrawer()`)
 
 /* ---- the drawer, which is where the folder's own contents show ---- */
 
@@ -286,6 +295,34 @@ await evalJS(`document.querySelector('#taskProjCard .pcbody').click()`)
 await new Promise(r => setTimeout(r, 500))
 check('clicking the card opens the project', await evalJS(`state.openProject === 'aop2027'`))
 check('and the task panel is behind it, not gone', await evalJS(`state.openTask === null`))
+
+/* ---- the third state: pointed at, with nothing left open ----
+   No fixture project can be in it and Live at the same time, so this swaps the
+   document for one where every task on aop2027 is ticked rather than adding a
+   third folder — a third folder would move :last-child and the .repmeta index
+   the two checks above count on. It runs last for the same reason: everything
+   before it is reading the document this replaces. */
+await evalJS(`(() => {
+  load([
+    '# To-do', '', '## 1. Tasks', '', '### To do', '',
+    '- [x] Write the AOP deck [bucket:: Strategic]',
+    '  - Project: data/projects/aop2027',
+    '- [x] Review the AOP wording [bucket:: People]',
+    '  - Project: data/projects/aop2027', ''
+  ].join('\\n'), 'demo.md', {});
+  state.locked = true;
+})()`)
+await evalJS(`renderProjectsView()`)
+await new Promise(r => setTimeout(r, 500))
+check('a folder every task on it has finished is Completed', await evalJS(`
+  document.querySelector('#projectsOut .repitem:first-child .tag')?.className === 'tag projcompleted'
+`), await evalJS(`document.querySelector('#projectsOut .repitem:first-child .tag')?.className`))
+check('and the tag says so', await evalJS(`
+  document.querySelector('#projectsOut .repitem:first-child .tag')?.textContent === 'Completed'
+`))
+check('one nothing points at is still Orphaned, not Completed', await evalJS(`
+  !!document.querySelector('#projectsOut .repitem:last-child .projorphan')
+`))
 
 /* ---- the point of the second guard ---- */
 

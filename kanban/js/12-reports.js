@@ -88,7 +88,7 @@ function reportWindowLabel(){
 }
 
 function reportDefs(){
-  return [completedByCategoryReport, weeklyTrendReport];
+  return [completedByCategoryReport, recentAccomplishmentsReport, weeklyTrendReport];
 }
 
 /* "27 Aug" — the year is noise inside a 30 day window. */
@@ -127,7 +127,7 @@ function parseArchiveEntries(text){
     }
     if (!TASK_RE.test(line)) return;
     const t = parseTask([line]);
-    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn });
+    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn, effort: t.effort });
   });
   return out;
 }
@@ -166,14 +166,14 @@ function completedRecently(){
     if (!t.done || !t.doneOn) return;
     const age = daysSince(t.doneOn);
     if (age == null || age < 0 || age > days) return;
-    out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, age });
+    out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, effort:t.effort, age });
   })));
   if (days > ARCHIVE_DAYS) {
     const entries = archiveEntriesSync(() => renderCountedReports());
     (entries || []).forEach(e => {
       const age = daysSince(e.doneOn);
       if (age == null || age < 0 || age > days) return;
-      out.push({ bucketName:e.bucketName, tierName:e.tierName, title:e.title, doneOn:e.doneOn, taskId:null, age });
+      out.push({ bucketName:e.bucketName, tierName:e.tierName, title:e.title, doneOn:e.doneOn, taskId:null, effort:e.effort, age });
     });
   }
   return out.sort((x, y) => x.age - y.age);
@@ -189,6 +189,32 @@ function undatedDoneCount(){
     if (t.done && !t.doneOn) n++;
   })));
   return n;
+}
+
+/* One finished task as a row: the date it was ticked, its title, and a chip on
+   the right saying where it sits. Both reports that list tasks rather than
+   count them draw their rows through here, so the live-versus-archived branch
+   below is written once and a row reads the same whichever report it is in.
+
+   An archived task has no live id to open the drawer with, so it renders as
+   plain text instead of a button. */
+function doneRowHTML(it, color, chip, chipClass){
+  return '<li style="--bc:' + color + '">' +
+      '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
+      (it.taskId
+        ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
+        : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
+      '<span class="where' + (chipClass ? ' ' + chipClass : '') + '">' + esc(chip) + '</span>' +
+    '</li>';
+}
+
+/* The bucket a finished task was in, in the board's own colour. Anything the
+   list no longer has a bucket for — an archived entry whose bucket has since
+   been renamed or removed — is greyed rather than dropped, the same as in
+   weeklyTrendReport. */
+function reportBucketColor(name){
+  const i = state.doc ? state.doc.buckets.findIndex(b => b.name === name) : -1;
+  return i > -1 ? bucketColor(name, i) : 'var(--ink-faint)';
 }
 
 function completedByCategoryReport(){
@@ -210,27 +236,42 @@ function completedByCategoryReport(){
     const n = r.items.length;
     const pct = total ? Math.round(n / total * 100) : 0;
     const width = most ? (n / most * 100) : 0;
-    // An archived task has no live id to open the drawer with, so it renders
-    // as plain text instead of a button.
+    const scored = r.items.filter(it => EFFORT_N[it.effort]);
+    const pts = scored.reduce((sum, it) => sum + EFFORT_N[it.effort], 0);
+    /* Effort points beside the count, so three L tasks stop reading the same as
+       three S ones. The same S/M/L → 1/2/3 the impact-against-effort sort uses,
+       and deliberately not called time: nothing in the file records how long a
+       task took, so the size tag is the only weight there is to read.
+
+       Three things it can honestly say. Nothing finished: no effort either way.
+       Tasks finished but none of them sized: "untagged", because a bare 0 next
+       to a count of 3 reads as work that cost nothing rather than work nobody
+       scored. Otherwise the sum, with the title saying how much of the bucket
+       it is actually made of — a partial sum is still an undercount. */
+    let effortCell;
+    if (!n) {
+      effortCell = '<span class="ef">—</span>';
+    } else if (!scored.length) {
+      effortCell = '<span class="ef untagged" title="No effort tag on any of these ' + n +
+        ' tasks, so there is nothing to add up">untagged</span>';
+    } else {
+      effortCell = '<span class="ef" title="' + pts + ' effort point' + (pts === 1 ? '' : 's') +
+        ', from ' + scored.length + ' of ' + n + ' task' + (n === 1 ? '' : 's') +
+        ' — S counts 1, M 2, L 3">' + pts + ' pt' + (pts === 1 ? '' : 's') + '</span>';
+    }
     // The "where" chip says Done for every row rather than it.tierName — Done
     // is not a section in the file, it is the tick box on the task (see
     // setDone/dropTask), so a ticked task keeps whatever tier it was last
     // dragged into and it.tierName would show that raw tier instead. Every
     // task in this report is done by construction, so the live board's own
     // convention (t.done ? DONE_COL : tier.name) is what belongs here too.
-    const tasks = r.items.map(it =>
-      '<li style="--bc:' + r.color + '">' +
-        '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
-        (it.taskId
-          ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
-          : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
-        '<span class="where">' + esc(DONE_COL) + '</span>' +
-      '</li>').join('');
+    const tasks = r.items.map(it => doneRowHTML(it, r.color, DONE_COL)).join('');
     return '<div class="bkgroup">' +
         '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
           '<span class="bkname"><i></i>' + esc(r.name) + '</span>' +
           '<span class="bar"><span style="width:' + width.toFixed(1) + '%"></span></span>' +
           '<span class="n">' + n + '</span>' +
+          effortCell +
           '<span class="pct">' + (total ? pct + '%' : '—') + '</span>' +
         '</div>' +
         (n ? '<details><summary>Show the ' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
@@ -248,12 +289,37 @@ function completedByCategoryReport(){
              reportWindowPhrase() + '.</div>');
 }
 
+/* ---- Recent accomplishments ----
+
+   The same finished tasks the report above lists, read the other way round.
+   Grouped by bucket, each list sits behind its own closed <details>, so
+   reading what actually got done means opening every non-empty bucket in
+   turn — and what a status update or a one-to-one needs is the list itself,
+   in the order the work happened. So: one flat <ul>, open by default, newest
+   first, with the bucket as a chip on each row rather than as the grouping.
+
+   No second walk of the document and no second fetch. completedRecently() has
+   already merged the live file with the archive and sorted the result newest
+   first, and the Show picker above is the same one every report here reads. */
+function recentAccomplishmentsReport(){
+  const list = completedRecently();
+  return '<h2>Recent accomplishments</h2>' +
+    '<p class="help listlead">Everything ticked off ' + reportWindowPhrase() +
+      ', newest first — the same tasks counted above, flat and in one place.</p>' +
+    (list.length
+      ? '<ul class="done flat">' +
+          list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +
+        '</ul>'
+      : '<div class="empty">Nothing has been ticked off with a date ' +
+        reportWindowPhrase() + '.</div>');
+}
+
 /* The one description of what every report on this tab counts and how
    complete it is — right under the panel's own heading, same shape as the
    Written reports column beside it: a headline, then what it means, then the
    content. Lives here rather than inside completedByCategoryReport() because
-   it is true of Weekly pace too, not just the first report — both read the
-   same `done:` dates and reach into the same archive. */
+   it is true of the reports under it too, not just the first one — they all
+   read the same `done:` dates and reach into the same archive. */
 function countedLeadHTML(){
   const undated = undatedDoneCount();
   // Below 30 days this window sits inside the one archiving leaves alone, so the

@@ -583,13 +583,134 @@ function delegateSection(items){
   const capped = capGroups([ranked, unranked]);
   const [sRanked, sUnranked] = capped.shown;
 
+  /* The number is the grip. It is already the one part of the row that stands
+     for the order, so nothing here needs a second handle beside it — and only
+     the ranked rows get one, since dragging an unranked card would be giving
+     it a rank rather than changing one. */
   let html = sRanked.map(i =>
-    '<div class="refrow"><span class="refnum">' + i.rank + '</span>' + refCard(i, { prompt:true }) + '</div>'
+    '<div class="refrow" data-rank="' + esc(quickKey(i)) + '">' +
+      '<span class="refnum"' +
+        (state.locked ? '' : ' draggable="true" title="Drag to reorder the queue"') + '>' +
+        i.rank + '</span>' +
+      refCard(i, { prompt:true }) +
+    '</div>'
   ).join('');
+  if (html) html = '<div class="refrank">' + html + '</div>';
   if (sUnranked.length) {
     html += refGroup('Not ranked yet', sUnranked.map(i => refCard(i, { prompt:true })));
   }
   return html + moreNote(capped.hidden);
+}
+
+/* Dragging a row's number rewrites `rank:` across every `ai:full` task in the
+   file, dense 1..n in the new order. Two things make a whole-queue renumber the
+   right shape rather than swapping the dragged row with its neighbour, the way
+   the timeline's `tlrank` drag can afford to: `rank` is global across the file
+   where `tlrank` is scoped to one bucket lane, and the numbers on this list
+   drift on their own — a rank stays on the line when a task is ticked off or
+   taken back off Claude, so the list already reads 1..9, 11, 12, and nothing
+   stops two tasks sharing a number, which leaves their order against each other
+   to whatever the sort happens to do. A dense pass on every write is what makes
+   the number on screen mean the position in the queue. It costs nothing: the
+   board writes the whole document on save regardless of how many lines moved.
+
+   The rows on screen are not the whole queue — Overview caps the column at
+   OV_CARD_LIMIT and the bucket tabs narrow it further — so the drop is read as
+   the one thing it actually states, which card the dragged one now sits above.
+   See applyDelegateOrder below for what that does to the tasks it cannot see. */
+let delegateDragKey = null;
+function delegateRows(zone){
+  return Array.from(zone.querySelectorAll(':scope > .refrow[data-rank]'));
+}
+function delegateInsertAfterEl(zone, clientY, skipKey){
+  let after = null;
+  delegateRows(zone).forEach(el => {
+    if (el.dataset.rank === skipKey) return;
+    const r = el.getBoundingClientRect();
+    if (clientY > r.top + r.height / 2) after = el;
+  });
+  return after;
+}
+function wireDelegateReorder(){
+  if (state.locked) return;
+  $('#lists').querySelectorAll('.refrank').forEach(zone => {
+    zone.querySelectorAll('.refnum[draggable]').forEach(num => {
+      const row = num.closest('.refrow');
+      num.ondragstart = e => {
+        delegateDragKey = row.dataset.rank;
+        row.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', delegateDragKey);
+        e.dataTransfer.effectAllowed = 'move';
+      };
+      num.ondragend = () => {
+        row.classList.remove('dragging');
+        delegateDragKey = null;
+        hideDropLine();
+      };
+    });
+    zone.ondragover = e => {
+      if (!delegateDragKey) return;
+      e.preventDefault();
+      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'dropline'; }
+      const after = delegateInsertAfterEl(zone, e.clientY, delegateDragKey);
+      if (after) after.after(dropLine); else zone.prepend(dropLine);
+    };
+    zone.ondragleave = e => { if (!zone.contains(e.relatedTarget)) hideDropLine(); };
+    zone.ondrop = e => {
+      if (!delegateDragKey) return;
+      e.preventDefault();
+      const after = delegateInsertAfterEl(zone, e.clientY, delegateDragKey);
+      const before = delegateRows(zone).map(el => el.dataset.rank);
+      const shown = before.slice();
+      shown.splice(shown.indexOf(delegateDragKey), 1);
+      const at = after ? shown.indexOf(after.dataset.rank) + 1 : 0;
+      shown.splice(at, 0, delegateDragKey);
+      const key = delegateDragKey;
+      hideDropLine();
+      delegateDragKey = null;
+      if (shown.join() === before.join()) return;        // dropped back where it started
+      applyDelegateOrder(key, shown);
+    };
+  });
+}
+
+/* The visible order the drop produced, folded back into the whole `ai:full`
+   queue and written out dense 1..n. The dragged card goes immediately above the
+   next card that was on screen with it, or below the last one if it was dropped
+   at the foot — either way it lands where the drop said it should, and every
+   task the cap or the bucket tabs kept off screen holds the order it already
+   had rather than being shuffled by a drag that never saw it. */
+function applyDelegateOrder(key, shown){
+  const queue = allItems().filter(i => i.ai === 'full' && !i.done && i.rank != null)
+                          .sort((a, b) => a.rank - b.rank);
+  const byKey = new Map(queue.map(i => [quickKey(i), i]));
+  const moved = byKey.get(key);
+  if (!moved) return;
+  const at = shown.indexOf(key);
+  const next = shown.slice(at + 1).find(k => byKey.has(k));
+  const prev = shown.slice(0, at).reverse().find(k => byKey.has(k));
+  const order = queue.filter(i => i !== moved);
+  const to = next ? order.indexOf(byKey.get(next))
+           : prev ? order.indexOf(byKey.get(prev)) + 1
+           : order.length;
+  order.splice(to, 0, moved);
+  order.forEach((it, n) => setRank(it, n + 1));
+  markDirty();
+  refreshView();
+}
+
+/* One `rank:`, written where that item's rank actually lives. A task carries it
+   as a parsed field and the serialiser puts it back; a sub-step has no
+   serialiser — its line is part of the parent's body, written back verbatim —
+   so the tag has to be edited in the raw text, the same way toggleSub edits the
+   tick. No branch that adds a missing tag, because only items that already
+   parsed a rank reach here. */
+function setRank(it, n){
+  if (!it.sub) { it.task.rank = n; it.task.dirty = true; return; }
+  const m = SUB_RE.exec(it.task.body[it.sub.line]);
+  if (!m) return;
+  it.task.body[it.sub.line] =
+    m[1] + '- [' + m[2] + '] ' + m[3].replace(/`rank:\d+`/, '`rank:' + n + '`');
 }
 
 /* ---- Small shared renderers ---- */

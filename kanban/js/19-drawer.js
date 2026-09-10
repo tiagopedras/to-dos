@@ -1502,11 +1502,21 @@ document.addEventListener('click', e => {
    redraws, so a listener attached directly to it or to any element that
    survives the redraw would stack a copy on every open. Looking the task up
    fresh here, from state.openTask, is what lets that be true safely. */
+/* The panel being open and the button's chevron pointing up are one state
+   with two elements holding it, so they are always set together — every path
+   below closes the menu, and a button left turned up after a click-away would
+   be pointing at a panel that is no longer there. */
+function setBucketMenu(open) {
+  const menu = $('#f-bucket-menu');
+  const btn = $('#f-bucket-btn');
+  if (menu) menu.classList.toggle('hidden', !open);
+  if (btn) btn.classList.toggle('open', open && !!menu);
+}
 document.addEventListener('click', e => {
   const menu = $('#f-bucket-menu');
   const btn = e.target.closest('#f-bucket-btn');
   if (btn) {
-    if (menu) menu.classList.toggle('hidden');
+    if (menu) setBucketMenu(menu.classList.contains('hidden'));
     return;
   }
   const opt = e.target.closest('#f-bucket-menu [data-bucket]');
@@ -1514,7 +1524,7 @@ document.addEventListener('click', e => {
     const id = state.openTask;
     const loc = id && locate(id);
     const nb = loc && state.doc.buckets.find(b => b.name === opt.dataset.bucket);
-    if (menu) menu.classList.add('hidden');
+    setBucketMenu(false);
     if (!loc || !nb || nb === loc.bucket) return;
     const target = ensureTier(nb, loc.tier.name);
     loc.tier.tasks.splice(loc.index, 1);
@@ -1526,7 +1536,7 @@ document.addEventListener('click', e => {
     return;
   }
   // Anywhere else closes it — the click-away a native <select> gets for free.
-  if (menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
+  if (menu && !menu.classList.contains('hidden')) setBucketMenu(false);
 });
 $('#del').onclick = () => {
   if (state.locked) return;

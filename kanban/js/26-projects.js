@@ -57,7 +57,11 @@ function renderProjectList(){
 /* Clickable via a single data-project attribute and nothing else: the
    document-level capture handler in 19-drawer.js already opens
    openProjectDrawer() for any element carrying one, the same way a card's own
-   project chip does. */
+   project chip does. It sits on the <article>, not on the .rephead button
+   inside it, so the path, the status line and the blurb are all part of the
+   same target — the card looks like one thing and now behaves like one. The
+   button stays a button so the card is still reachable from the keyboard;
+   its click finds the attribute on the way out through closest(). */
 function projectItemHTML(p){
   const rows = projectTasks(p.name);
   const open = rows.filter(r => !r.task.done).length;
@@ -65,11 +69,16 @@ function projectItemHTML(p){
   const status = !live ? 'nothing on the list points here'
     : open ? open + ' open task' + (open === 1 ? '' : 's')
     : 'all ' + rows.length + ' task' + (rows.length === 1 ? '' : 's') + ' done';
+  // The tag splits the same three ways the status line above does. A folder
+  // whose every task is ticked used to read "Live", which is the one of the
+  // three a glance down the column most needs told apart from the others.
+  const tagClass = !live ? 'projorphan' : open ? 'projlive' : 'projcompleted';
+  const tagLabel = !live ? 'Orphaned' : open ? 'Live' : 'Completed';
   const edited = cvWhen(p.modified);
-  return '<article class="repitem projitem">' +
-    '<button class="rephead" data-project="' + esc(p.name) + '">' +
+  return '<article class="repitem projitem" data-project="' + esc(p.name) + '">' +
+    '<button class="rephead">' +
       '<span class="reptitle">' + esc(p.name) + '</span>' +
-      '<span class="tag ' + (live ? 'projlive' : 'projorphan') + '">' + (live ? 'Live' : 'Orphaned') + '</span>' +
+      '<span class="tag ' + tagClass + '">' + tagLabel + '</span>' +
     '</button>' +
     '<code class="pcpath">data/projects/' + esc(p.name) + '/</code>' +
     '<div class="repmeta">' + esc(status) +

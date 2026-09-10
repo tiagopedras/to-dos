@@ -579,7 +579,11 @@
      still reads as what it is without changing any of the day math. */
   .tlweekend{
     position:absolute; top:0; bottom:0; pointer-events:none;
-    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 6px, transparent 6px 12px);
+    /* 3px of solid in a 12px repeat, not 6px: an even split gives the stripe
+       as much weight as the gap and a weekend then reads heavier than the
+       working days either side. The repeat stays 12px so the angle and the
+       spacing don't move. */
+    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 3px, transparent 3px 12px);
   }
   .tltoday{
     position:absolute; top:0; bottom:0; width:1px;
@@ -856,8 +860,16 @@
   .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--chip); border-radius:5px; overflow:hidden}
   .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:5px}
   .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--ink)}
+  /* Effort points, sitting between the count and the percentage. Quieter than
+     the count on purpose: the count is still what the report is about, and this
+     qualifies it rather than replacing it. */
+  .reportsview .ef{
+    min-width:4.5em; text-align:right; font-size:12.5px; color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .reportsview .ef.untagged{color:var(--ink-faint); font-style:italic}
   .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--ink-faint)}
-  .reportsview .zero .n, .reportsview .zero .bkname{color:var(--ink-faint)}
+  .reportsview .zero .n, .reportsview .zero .ef, .reportsview .zero .bkname{color:var(--ink-faint)}
   /* Each bucket can be opened to see which tasks made the number. Closed by
      default: the count is the report, the list is the evidence behind it. */
   /* Indented under the bucket name it belongs to, so the pairing survives a
@@ -889,6 +901,19 @@
   .reportsview .done .tt.archived{color:var(--ink-soft); cursor:default}
   .reportsview .done .tt.archived:hover{color:var(--ink-soft); text-decoration:none}
   .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
+  /* The flat list is not evidence behind a count, so it is not indented under
+     anything and it is not opened to be read. */
+  .reportsview .done.flat{margin:0 0 4px}
+  /* In the flat list the bucket is on the row rather than above it, so the chip
+     carries the colour the grouped list gets from its heading — the left edge
+     alone is too thin to name a bucket by. */
+  .reportsview .done .where.bk{
+    display:inline-flex; align-items:center; gap:6px; padding:1px 9px 2px;
+    border-radius:999px; background:var(--chip); color:var(--ink-soft);
+  }
+  .reportsview .done .where.bk::before{
+    content:''; width:7px; height:7px; border-radius:50%; background:var(--bc); flex:none;
+  }
   .reportsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
   /* One band per bucket rather than one stack per week. A stack only ever
      answers how many in total; the offset under each chunk moves every week,
@@ -1267,6 +1292,12 @@
     flex:1; min-width:0; font-size:14px; font-weight:640; line-height:1.35; color:var(--ink);
   }
   .rephead:hover .reptitle{color:var(--accent)}
+  /* A project card carries data-project on the whole <article>, so the path,
+     status line and blurb open the drawer too — the pointer and the hover
+     accent have to cover the same area, or two thirds of the target looks
+     inert. Projects only: a report or plan item is still its top strip. */
+  .projitem{cursor:pointer}
+  .projitem:hover .reptitle{color:var(--accent)}
   .repdate{
     flex:none; font-size:11.5px; color:var(--ink-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -1516,18 +1547,28 @@
   .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
   .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
   /* A long message, prompt, ticket or agenda would otherwise stretch the card
-     past the rest of the column, so every kind clamps to the same height —
+     past the rest of the column, so every kind clamps to the same three lines —
      Copy and the rest still carry the full text regardless of what shows on
-     screen; only Overview's own reading of the card is cut short. */
-  .ref .msg{margin:8px 0 0 21px; max-height:400px; overflow:hidden}
+     screen; only Overview's own reading of the card is cut short. Three lines
+     rather than a pixel height because the column holds three cards and has to
+     read as a list of them: a height cap tall enough to be worth having was
+     twenty lines of one card, which is a page of text, not a card. */
+  .ref .msg{
+    margin:8px 0 0 21px; overflow:hidden;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+  }
   /* Set by capMsgCards() once the card is in the DOM and its real height is
      known — a fade plus a label, so a card that was actually cut off reads
-     as cut off rather than as one that just happens to end at 400px. */
+     as cut off rather than as one that just happens to end on the third line.
+     The fade is only as tall as the label needs (11px text plus its padding),
+     because three lines at 13px on a 1.55 line-height is about 60px in total:
+     anything like the 60px this claimed under the old height cap would veil
+     the whole message rather than the end of it. */
   .ref .msg.capped::after{
     content:'truncated — open the task to read the rest';
-    position:absolute; left:0; right:0; bottom:0; height:60px;
-    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
-    background:linear-gradient(to bottom, transparent, var(--bg) 60%);
+    position:absolute; left:0; right:0; bottom:0; height:28px;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px;
+    background:linear-gradient(to bottom, transparent, var(--bg) 55%);
     font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.01em;
     border-radius:0 0 8px 8px; pointer-events:none;
   }
@@ -1554,6 +1595,13 @@
     flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--chip);
     color:var(--ink-soft); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
   }
+  /* The number is the grip for reordering the queue, so it has to say so on
+     hover. Nothing else in the row is draggable — the card itself opens the
+     task — and the selection block matters because dragging a text node picks
+     up the digits instead of starting the reorder. */
+  .refnum[draggable]{cursor:grab; user-select:none; -webkit-user-select:none}
+  .refnum[draggable]:active{cursor:grabbing}
+  .refrow.dragging{opacity:.45}
   /* Dependency chain: the blocker(s) sit beside the card waiting on them.
      Each blocker gets its own arrow into the target, so a task with several
      blockers still reads as several distinct dependencies rather than one
@@ -1694,11 +1742,15 @@
   .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
   .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
   .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
-  /* Live vs orphaned on a project card — a soft green nod rather than the
-     amber this file uses elsewhere for "needs an answer" (.repitem.folded,
-     .tag.needsscore): an orphaned folder is not urgent, it's just
-     unreferenced, so it gets the same neutral treatment as .tag.ai instead. */
+  /* Live, completed or orphaned on a project card — a soft green nod rather
+     than the amber this file uses elsewhere for "needs an answer"
+     (.repitem.folded, .tag.needsscore): an orphaned folder is not urgent,
+     it's just unreferenced, so it gets the same neutral treatment as .tag.ai
+     instead. Completed sits between the two, quieter than the green because
+     the green here marks work still in flight rather than work finished, and
+     louder than the faint grey because the folder is still being pointed at. */
   .tag.projlive{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
+  .tag.projcompleted{color:var(--ink-soft)}
   .tag.projorphan{color:var(--ink-faint)}
   /* Delegated to a person. Its own colour, because "someone else has this" is a
      different fact from every other chip on the card, all of which describe the
@@ -1788,6 +1840,18 @@
     padding:7px 9px; color:var(--ink); font-size:13px; cursor:pointer;
   }
   .bucketbtn:disabled{cursor:default; color:var(--ink-faint)}
+  /* A dot and a name on their own read as a label rather than as something
+     that opens, which is the one thing the <select> never had to say out
+     loud. Rotated rather than swapped for '▴', the way .tlchevron.open turns,
+     so the movement itself is what says the panel is down there. */
+  .bucketbtn::after{
+    content:'▾'; margin-left:auto; font-size:10px; color:var(--ink-faint);
+    transition:transform .12s;
+  }
+  .bucketbtn.open::after{transform:rotate(180deg)}
+  /* Read-only draws no panel at all (see openDrawer), so a chevron there
+     would point at nothing. */
+  .bucketbtn:disabled::after{content:none}
   .bucketfield .dropdown-panel{width:100%; max-height:240px; overflow:auto}
   .bucketopt{display:flex; align-items:center; gap:7px}
   .bucketopt.on{font-weight:640}
@@ -2156,6 +2220,14 @@
       radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px;
   }
   .cvsurface{position:relative; width:4000px; height:2600px}
+  /* Tidy, and nothing else so far. Sticky in both directions so it stays in
+     the corner of the pane wherever the 4000px surface has been scrolled to —
+     an absolutely positioned child would scroll away with the cards. Zero
+     height so it takes no room in the flow: the surface still starts at the
+     top-left of the pane, and the button hangs over it. Above the 999 a card
+     takes while it is being dragged, since a card passing under the cursor
+     should not swallow the control. */
+  .cvtools{position:sticky; top:10px; left:12px; z-index:1000; height:0}
   .cvempty{
     position:absolute; left:50%; top:120px; transform:translateX(-50%);
     max-width:460px; text-align:center; color:var(--ink-soft);
