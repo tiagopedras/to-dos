@@ -91,15 +91,28 @@ built on a guess about what the task meant.
 
 ### Do not fold when
 
-- You simply did not find much. Say you found little; that is a finding.
+- You simply did not find much. Say you found little, that is a finding, and
+  the short form under "What to write" is where a small one goes.
 - The open question is answerable by reading something you can reach. Read it.
 - The task is large. Large is not the same as unclear, and a big task with a
   clear first step is exactly what this is for.
 - Only the last step is ambiguous. Plan the steps you can and put the rest in
   "What it needs from you".
 
-The bar is deliberately high. Folding on a task that could have been planned
-costs him a night's capacity and returns questions he did not need to answer.
+### Ask early rather than late
+
+If what stops you is a decision only he can make, name it on the first pass.
+Writing three sections around the gap and mentioning it at the end wastes the
+same night and hides the question inside a plan that reads as finished. A
+question asked tonight gets answered over coffee and planned properly tomorrow
+night, which costs one night. A plan built over a guess costs the plan, and
+whatever he starts on the back of it.
+
+The two lists above are what keeps that honest, so work through them rather
+than folding on the first thing you cannot see. Fold on a decision he holds.
+For a question you could answer by reading something you can reach, read it.
+For a fact you went looking for and could not find, leave a `[fill in]` and
+carry on.
 
 ### What a folded plan looks like
 
@@ -138,6 +151,11 @@ That changes the task's text, which is what makes tonight's picker plan it
 afresh. So a fold is a question asked, not a task dropped.
 
 ## What to write
+
+Three shapes, and the size of the answer picks one. Most tasks take the four
+sections below. A task whose whole answer is one finding and one first step
+takes the short form under "When the answer is short". A task you could not
+plan takes the fold.
 
 Frontmatter, then four sections, under 400 words in total. Short beats thorough:
 he reads these over coffee, and one nobody finishes is worth nothing.
@@ -181,6 +199,29 @@ The decisions, gaps and `[fill in]`s that stop this running unattended. Be
 specific: "which board, DSYS or WADE" rather than "needs a decision". **Empty is
 a valid and good answer**, and it means the work is ready to hand over as it
 stands — say so plainly when it is true.
+
+### When the answer is short
+
+Some tasks are answered in a paragraph. A skill already does the whole of it,
+or one step covers it, and four sections around that would be three headings of
+padding. Write the short form: the same frontmatter, no `outcome:` line, and
+two sections, under 150 words in total.
+
+```
+### What I found
+
+What the task turns out to be once you have looked, and what already exists
+that covers it. Name paths.
+
+### The first step
+
+One step, or two. A line each, and say whose it is. If something still has to
+come from him, one more line saying what.
+```
+
+This is a finished plan and it comes back looking like one, `status: unread`
+with no badge on it. Reach for it when you have the answer and it is short, and
+write the four sections the moment you have a third thing to say.
 
 ## Tone
 
