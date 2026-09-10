@@ -295,21 +295,30 @@ function completedByCategoryReport(){
    Grouped by bucket, each list sits behind its own closed <details>, so
    reading what actually got done means opening every non-empty bucket in
    turn — and what a status update or a one-to-one needs is the list itself,
-   in the order the work happened. So: one flat <ul>, open by default, newest
-   first, with the bucket as a chip on each row rather than as the grouping.
+   in the order the work happened. So: one flat list, newest first, with the
+   bucket as a chip on each row rather than as the grouping.
+
+   It folds, and starts open. A month of finished work is long enough to push
+   the report under it off the screen, so there has to be a way to put it away;
+   starting closed would undo the point of it, which is that the list is there
+   to be read without opening anything.
 
    No second walk of the document and no second fetch. completedRecently() has
    already merged the live file with the archive and sorted the result newest
    first, and the Show picker above is the same one every report here reads. */
 function recentAccomplishmentsReport(){
   const list = completedRecently();
+  const n = list.length;
   return '<h2>Recent accomplishments</h2>' +
     '<p class="help listlead">Everything ticked off ' + reportWindowPhrase() +
       ', newest first — the same tasks counted above, flat and in one place.</p>' +
-    (list.length
-      ? '<ul class="done flat">' +
-          list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +
-        '</ul>'
+    (n
+      ? '<details class="whole" open>' +
+          '<summary>' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
+          '<ul class="done flat">' +
+            list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +
+          '</ul>' +
+        '</details>'
       : '<div class="empty">Nothing has been ticked off with a date ' +
         reportWindowPhrase() + '.</div>');
 }

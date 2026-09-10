@@ -381,7 +381,10 @@ reading what actually got done means opening each non-empty bucket in turn —
 and the thing a status update or a one-to-one wants is the list itself, in the
 order the work happened. So this one is flat and already open: every finished
 task in the window, newest first, with the bucket as a chip on the row rather
-than as the heading above it. Same tasks, same window, same archive; nothing is
+than as the heading above it. It has one toggle of its own, around the whole
+list, because a month of finished work will push the report below it off the
+screen — but it starts open, since a list you have to open first is the thing
+this report exists not to be. Same tasks, same window, same archive; nothing is
 counted twice and nothing extra is fetched.
 
 The third report, **Weekly pace**, answers the question a single count cannot:

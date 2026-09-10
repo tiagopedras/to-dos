@@ -902,8 +902,12 @@
   .reportsview .done .tt.archived:hover{color:var(--ink-soft); text-decoration:none}
   .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
   /* The flat list is not evidence behind a count, so it is not indented under
-     anything and it is not opened to be read. */
+     anything. Its fold is open from the start and only ever closed by hand. */
   .reportsview .done.flat{margin:0 0 4px}
+  /* A fold that is the report rather than the evidence under one line of it, so
+     it keeps the left edge the headings have instead of the 21px indent every
+     other <details> here sits at. */
+  .reportsview details.whole{margin-left:0}
   /* In the flat list the bucket is on the row rather than above it, so the chip
      carries the colour the grouped list gets from its heading — the left edge
      alone is too thin to name a bucket by. */
@@ -1549,19 +1553,27 @@
   /* A long message, prompt, ticket or agenda would otherwise stretch the card
      past the rest of the column, so every kind clamps to the same three lines —
      Copy and the rest still carry the full text regardless of what shows on
-     screen; only Overview's own reading of the card is cut short. Three lines
+     screen; only Overview's own reading of the card is cut short. A line count
      rather than a pixel height because the column holds three cards and has to
      read as a list of them: a height cap tall enough to be worth having was
-     twenty lines of one card, which is a page of text, not a card. */
+     twenty lines of one card, which is a page of text, not a card.
+
+     Four lines rather than three. The truncation label below is drawn over the
+     bottom of the card, so at three the last line was under it and only two
+     could actually be read — the fourth line buys back what the label costs. */
   .ref .msg{
     margin:8px 0 0 21px; overflow:hidden;
-    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4;
   }
+  /* Room for the label to sit in on a card that was cut off, so it lands on
+     empty space rather than on the last line it is announcing. Only on .capped:
+     a card that fits has no label and should not carry the gap. */
+  .ref .msg.capped{padding-bottom:20px}
   /* Set by capMsgCards() once the card is in the DOM and its real height is
      known — a fade plus a label, so a card that was actually cut off reads
-     as cut off rather than as one that just happens to end on the third line.
+     as cut off rather than as one that just happens to end on the last line.
      The fade is only as tall as the label needs (11px text plus its padding),
-     because three lines at 13px on a 1.55 line-height is about 60px in total:
+     because four lines at 13px on a 1.55 line-height is about 80px in total:
      anything like the 60px this claimed under the old height cap would veil
      the whole message rather than the end of it. */
   .ref .msg.capped::after{
