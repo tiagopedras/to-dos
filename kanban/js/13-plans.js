@@ -203,7 +203,12 @@ const INBOX_FILTERS = [
 ];
 const DECIDED_FILTERS = [
   { key:'agreed',   label:'agreed',    match: p => p.status === 'agreed' },
-  { key:'redo',     label:'redo',      match: p => p.status === 'redo' },
+  /* Only the rejections still waiting on a replacement — see redoReplaced().
+     A spent one has no chip of its own, which is the point: it is filed with
+     the record rather than kept in front of him. When every redo has been
+     replaced the chip is not drawn at all, since planFilterBarHTML() only
+     draws chips with something behind them. */
+  { key:'redo',     label:'redo',      match: p => p.status === 'redo' && !redoReplaced(p) },
   { key:'actioned', label:'actioned',  match: p => p.status === 'actioned' },
 ];
 /* Which column a plan is in at all, decided by status rather than by chip —
@@ -213,6 +218,34 @@ const DECIDED_FILTERS = [
    that has been sent back sits under redo rather than staying in the Inbox
    asking a question he has already answered. */
 const DECIDED_STATUS = new Set(['agreed', 'redo', 'actioned']);
+
+/* Whether a plan he sent back has already been answered by a later one.
+
+   Sending a plan back does not park the task: `is_stale()`
+   (agents/night_agent/pick.py) treats `redo` as a reason to plan it again, so
+   the task goes straight back into the queue and the next run writes a fresh
+   plan under its own night. The rejected file keeps `status: redo` for good,
+   because the note on it is the only written record of what he asked for —
+   which left three cards on this column reading as work stalled when the
+   replacements had been sitting in the Inbox for days.
+
+   So a later plan for the same task is the replacement, and that is decided
+   from `planList` alone: every row carries the night it was written and the
+   task it is for, so this needs no route and no read of the night agent's
+   ledger. Deliberately measured against the whole list rather than the
+   bucket-filtered view — a replacement is a replacement whether or not its
+   bucket tab happens to be on. A plan carrying neither slug nor task cannot
+   be matched to one, so it counts as unreplaced and stays visible. */
+function planTaskKey(p){ return p.slug || p.task || ''; }
+
+function redoReplaced(p){
+  if (p.status !== 'redo') return false;
+  const key = planTaskKey(p);
+  if (!key) return false;
+  const when = p.night || p.date || '';
+  return (planList || []).some(o =>
+    o !== p && planTaskKey(o) === key && (o.night || o.date || '') > when);
+}
 /* One filter per column, so a chip picked in one does not reset the other. */
 let inboxFilter = 'all';
 let decidedFilter = 'all';
@@ -295,8 +328,13 @@ function renderPlanDecided(){
     ? all
     : all.filter(DECIDED_FILTERS.find(f => f.key === decidedFilter).match);
   const agreed = shown.filter(p => p.status === 'agreed');
-  const redo = shown.filter(p => p.status === 'redo');
-  const done = shown.filter(p => p.status === 'actioned');
+  const redo = shown.filter(p => p.status === 'redo' && !redoReplaced(p));
+  /* A replaced rejection is history, so it is filed with the actioned ones
+     rather than left in the redo group looking like work nobody picked up.
+     Its note goes with it — planItemHTML() is untouched — so opening the fold
+     still shows what he asked for and why. */
+  const replaced = shown.filter(p => p.status === 'redo' && redoReplaced(p));
+  const done = shown.filter(p => p.status === 'actioned').concat(replaced);
   out.innerHTML = planFilterBarHTML(all, DECIDED_FILTERS, decidedFilter) +
     (agreed.length
       ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
@@ -307,7 +345,8 @@ function renderPlanDecided(){
     /* Open when it is the thing being asked for: a chip that narrows to
        actioned and then hides the result behind a fold has done half a job. */
     (done.length ? '<details' + (decidedFilter === 'actioned' ? ' open' : '') +
-                   '><summary>' + done.length + ' actioned</summary>' +
+                   '><summary>' + done.length +
+                   (replaced.length ? ' actioned or replaced' : ' actioned') + '</summary>' +
                    done.map(planItemHTML).join('') + '</details>' : '') +
     (shown.length ? ''
                   : '<div class="empty">Nothing ruled on yet. Agreeing a plan, or sending one back, lands it here.</div>');

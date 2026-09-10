@@ -18,25 +18,35 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **A plan sent back stays in Decided forever, even once the night has
-  written the replacement it asked for.** `is_stale()`
-  (`agents/night_agent/pick.py:271`) treats `redo` as a reason to plan the task
-  again, so the next run writes a fresh plan into its own night folder and the
-  rejected one keeps `status: redo` — nothing anywhere clears it, unlike an
-  `agreed` card, which leaves the column the moment the work is done and the
-  plan turns `actioned`. So the redo group in `renderPlanDecided()`
-  (`kanban/js/13-plans.js:288`) only ever grows, and a reason he wrote weeks
-  ago sits at the same weight as one from last night. The board can already
-  tell which are spent without reading the night agent's ledger: every row
-  `plan_meta()` returns (`kanban/server.py:868-895`) carries `night` plus
-  `slug`/`task`, so a redo plan is superseded when another plan for the same
-  task carries a later `night`, which is the same `p.slug || p.task` key
-  `planItemHTML()` already builds at `13-plans.js:61`. Folding those behind the
-  `<details>` the actioned group already uses in that function — or dropping
-  them into it outright — leaves the redo group holding only the rejections
-  still waiting on a replacement. The reason itself must stay readable either
-  way: `rejection()` (`agents/night_agent/plan.py:185`) reads `redo_note` back
-  off that file, so a superseded card can be folded but never deleted.
+- ~~**A plan sent back stays in Decided forever, even once the night has
+  written the replacement it asked for.**~~ **Done, 10 Sep 2026.** A replaced
+  rejection is filed with the record instead of left in the redo group reading
+  as stalled work. `redoReplaced()` (`kanban/js/13-plans.js`) is the whole
+  test: a redo plan is spent when another plan for the same task carries a
+  later `night`, keyed on the `p.slug || p.task` that `planItemHTML()` already
+  builds. It needs no route and no read of the night agent's ledger, since
+  every row `plan_meta()` returns (`kanban/server.py`) already carries both
+  fields, and it is measured against the whole `planList` rather than the
+  bucket-filtered view — a replacement is a replacement whether or not its
+  bucket tab is on.
+
+  `renderPlanDecided()` puts those cards in the `<details>` beside the
+  actioned ones, whose summary now reads "N actioned or replaced" rather than
+  claiming they were actioned, and the `redo` chip counts only rejections
+  still waiting on a replacement — so when every one has been answered the
+  chip is not drawn at all, which is `planFilterBarHTML()`'s existing rule
+  doing the work. `planItemHTML()` is untouched, so `redo_note` still reads
+  inside the fold: a spent card is folded, never dropped, because that note is
+  the only written record of what was asked for and `rejection()`
+  (`agents/night_agent/plan.py`) reads it back off the file.
+
+  What prompted it was the three cards on the real list, all rejected 5 Sep,
+  all re-planned 9 Sep, all still showing as redo while their replacements sat
+  unread in the Inbox. Checked against the running board afterwards: the redo
+  chip is gone, the three are in a fold reading "5 actioned or replaced", and
+  the Decided column shows only the two agreed plans waiting on `/pa-do`.
+  `kanban/test_plans.mjs` gained seven checks and runs 79.
+
 
 - ~~**A project card on the Projects view is only clickable on its title row.**~~ **Built by the improvements agent, 10 Sep 2026.**
   `projectItemHTML()` (`kanban/js/26-projects.js:61-85`) puts `data-project` on

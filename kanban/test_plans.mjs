@@ -566,6 +566,71 @@ check('each column keeps its own status filter', await evalJS(`
   })()
 `))
 
+// --- a rejection the night has already answered ----------------------------
+// Sending a plan back puts the task straight back in the queue, so the next
+// run writes a replacement and the rejected card is history. It belongs with
+// the record rather than in the redo group reading as stalled work. Driven off
+// planList directly rather than a re-render, so nothing is re-fetched.
+await evalJS(`(() => {
+  planList = [
+    { name:'twice-old.md', night:'2026-09-03', url:'/x/twice-old.md', status:'redo',
+      title:'Planned twice', task:'Planned twice', slug:'planned-twice',
+      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      date:'2026-09-03', summary:'The first attempt.', redo_note:'Wrong scope.' },
+    { name:'twice-new.md', night:'2026-09-06', url:'/x/twice-new.md', status:'unread',
+      title:'Planned twice', task:'Planned twice', slug:'planned-twice',
+      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      date:'2026-09-06', summary:'The replacement.' },
+    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', status:'redo',
+      title:'Sent back last night', task:'Sent back last night', slug:'sent-back',
+      bucket:'People', column:'To do', ai:'full', agent:'plan-people',
+      date:'2026-09-06', summary:'Waiting on a replacement.', redo_note:'Try again.' },
+    { name:'rec.md', night:'2026-09-02', url:'/x/rec.md', status:'actioned',
+      title:'A record', task:'A record', slug:'a-record', bucket:'DS', column:'Done',
+      ai:'full', agent:'plan-design-system', date:'2026-09-02', summary:'Done.' }
+  ];
+  decidedFilter = 'all'; inboxFilter = 'all';
+  renderPlansList();
+  return 1;
+})()`)
+check('a replaced rejection is not in the redo group', await evalJS(`
+  [...document.querySelectorAll('#plansDecided > .repitem.redo')]
+    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Sent back last night'
+`))
+check('it is filed with the record instead', await evalJS(`
+  [...document.querySelectorAll('#plansDecided details .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).sort().join(',') ===
+  'A record,Planned twice'
+`))
+check('and the fold says so rather than claiming they were actioned', await evalJS(`
+  document.querySelector('#plansDecided details summary').textContent.trim() === '2 actioned or replaced'
+`))
+check('the reason he wrote is still readable inside the fold', await evalJS(`
+  document.querySelector('#plansDecided details .repitem.redo .planredo').textContent.includes('Wrong scope')
+`))
+check('the redo chip counts only what is still waiting on a replacement', await evalJS(`
+  [...document.querySelectorAll('#plansDecided [data-planfilter]')]
+    .map(b => b.textContent).join(' | ') === 'All3 | redo1 | actioned1'
+`))
+check('and the replacement itself is in the Inbox', await evalJS(`
+  [...document.querySelectorAll('#plansOut .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Planned twice'
+`))
+
+// Every rejection replaced: the chip goes altogether rather than sitting there
+// at zero, which is what planFilterBarHTML already does for any empty status.
+await evalJS(`(() => {
+  planList = planList.filter(p => p.name !== 'still-out.md');
+  decidedFilter = 'all';
+  renderPlansList();
+  return 1;
+})()`)
+check('with nothing left to redo the chip is not drawn at all', await evalJS(`
+  ![...document.querySelectorAll('#plansDecided [data-planfilter]')]
+    .some(b => b.dataset.planfilter === 'redo') &&
+  !document.querySelector('#plansDecided > .repitem.redo')
+`))
+
 // The whole point of the second guard.
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
