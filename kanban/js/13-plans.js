@@ -50,25 +50,50 @@ function planGeneratedLabel(p){
   return iso ? backupWhen(iso) : (p.night || '');
 }
 
+/* The two rows under the title. The task's name is the long thing here — long
+   enough to take a line on its own at this column width, and long enough that
+   letting it wrap in among everything else pushed the row to three ragged
+   lines. So it gets its own line, and everything else gets one: the scores and
+   then where the card sits, on a single line above it.
+
+   It used to be one run of text with the scores bolted on the front and the
+   link on the end, which put the two things worth scanning — a 🔥/S, and the
+   name of the card — at opposite ends of a line whose middle was a bucket he
+   had already filtered to.
+
+   The link carries the task's own title rather than the words "open the card",
+   which is what makes it worth reading rather than only worth clicking. It is
+   the task's title and not the plan's: the two are written the same today, so
+   most rows say it twice, but a task renamed since the night it was planned is
+   exactly the case where the row has to say which card it actually opens. */
 function planItemHTML(p){
   const folded = p.outcome === 'folded';
-  const meta = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' · ');
   const cls = (PLAN_CLASS[p.status] || '') + (folded ? ' folded' : '');
   // The plan's own task, if the underlying card can still be found by slug or
   // title — see findTaskByKey in 02-state.js. Not every plan resolves: the
-  // task might since have been renamed or deleted, so the button only shows
-  // up when there is somewhere for it to actually go.
-  const key = p.slug || p.task || '';
+  // task might since have been renamed or deleted, so the link falls back to
+  // the name the plan itself stored, and goToPlanTask says so on the click.
+  const key = planTaskKey(p);
+  const task = planTask(p);
+  const score = planScoreHTML(task);
+  const goto = key
+    ? '<button class="plangoto" data-plan-goto="' + esc(key) +
+      '" title="Open this task on the board">' + esc(task ? task.title : key) + ' \u2197</button>'
+    : '';
+  const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' · ');
   return '<article class="repitem planitem' + cls + '" data-plan="' + esc(p.url) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
       (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
       '<span class="repdate">' + esc(p.status === 'unread' ? 'new' : p.status) + '</span>' +
     '</button>' +
-    (meta || key
-      ? '<div class="repmeta">' + meta +
-        (key ? (meta ? ' · ' : '') + '<button class="plangoto" data-plan-goto="' + esc(key) +
-          '" title="Open this task on the board">open the card ↗</button>' : '') +
+    (score || goto || where
+      ? '<div class="repmeta planmeta">' +
+        (score || where
+          ? '<span class="planlead">' + score +
+            (where ? '<span class="planwhere">' + where + '</span>' : '') + '</span>'
+          : '') +
+        goto +
         '</div>'
       : '') +
     (p.summary ? '<div class="repsum">' + mdInline(p.summary) + '</div>' : '') +
@@ -238,6 +263,64 @@ const DECIDED_STATUS = new Set(['agreed', 'redo', 'actioned']);
    be matched to one, so it counts as unreplaced and stays visible. */
 function planTaskKey(p){ return p.slug || p.task || ''; }
 
+/* The card a plan is about, when it is still on the board. A plan is written
+   about exactly one task and carries it in its own frontmatter, so the scores
+   the board already holds — impact and effort — belong on the plan too rather
+   than being a second thing to go and look up. Nothing is copied into the plan
+   file: this reads the live task every render, so a re-score on the board shows
+   up here on the next paint and there is no second copy to drift.
+
+   Not every plan resolves. The task may have been renamed or ticked off since
+   the night it was written, and findTaskByKey answers null for both — which is
+   why the chips and the sort below each have to cope with there being no task.
+   Rendered on the row rather than the head, beside the bucket and the night it
+   was written, because that line is already the row's "which piece of work is
+   this" line. */
+function planTask(p){
+  const key = planTaskKey(p);
+  return key ? findTaskByKey(key) : null;
+}
+
+/* The task's own scores, drawn exactly as the board's own cards draw them —
+   see cardMetaHTML in 09-columns.js. Same emoji, same classes, so a row here
+   and a card there are read the same way rather than being two dialects of one
+   score. A task carrying only one of the two still shows it, with the board's
+   own "needs scoring" marker beside it, rather than the row going quiet and
+   reading as low. Takes the task rather than the plan: the caller has already
+   resolved it for the link beside these chips, and resolving one walks the
+   whole document. */
+function planScoreHTML(t){
+  if (!t) return '';
+  let out = '';
+  if (unscored(t) && !t.done) out += '<span class="tag needsscore">needs scoring</span>';
+  if (t.impact) out += '<span class="tag impact-' + esc(t.impact) + '" title="' +
+    esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
+  if (t.effort) out += '<span class="tag" title="' + esc(t.effort) + ' effort">' +
+    esc(t.effort) + '</span>';
+  return out ? '<span class="planscore">' + out + '</span>' : '';
+}
+
+/* What order the columns are in, and it is the task's priority rather than the
+   plan's date: impact ÷ effort, priorityScore() in core/todo.js, the same
+   arithmetic tier one and the matrix already sort by. A night writes five or
+   six plans and they arrive newest-first, which says when they were written and
+   nothing about which one is worth reading — so the answer to "what do I read
+   first" was buried in whichever night happened to be on top.
+
+   A plan whose task has no scores, or whose task is gone from the board
+   entirely, scores -1 and sinks below everything scored, which is what
+   priorityScore already does for an unscored task. The incoming order — newest
+   night first, straight from plan_listing() — is kept as the tie-break, so
+   within one priority the recent night still reads first. Held by index rather
+   than by leaning on sort stability, and the score is worked out once per plan
+   rather than once per comparison, since resolving a task walks the document. */
+function byTaskPriority(list){
+  return list
+    .map((p, i) => { const t = planTask(p); return { p, i, score: t ? priorityScore(t) : -1 }; })
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map(x => x.p);
+}
+
 function redoReplaced(p){
   if (p.status !== 'redo') return false;
   const key = planTaskKey(p);
@@ -296,11 +379,12 @@ function renderPlansList(){
 }
 
 /* The reading column. Flat, because every row in it asks the same thing, and
-   the chips are the only split it needs. */
+   the chips are the only split it needs — ordered by the priority of the task
+   each plan is about, so the top of it is what is worth reading first. */
 function renderPlanInbox(){
   const out = $('#plansOut');
   if (!out) return;
-  const all = plansShown(planList).filter(p => !DECIDED_STATUS.has(p.status));
+  const all = byTaskPriority(plansShown(planList).filter(p => !DECIDED_STATUS.has(p.status)));
   const active = INBOX_FILTERS.find(f => f.key === inboxFilter);
   if (active && !all.some(active.match)) inboxFilter = 'all';
   const shown = inboxFilter === 'all'
@@ -317,11 +401,12 @@ function renderPlanInbox(){
    work still owed, redo went back for another night, and actioned is a record.
    The three keep the grouping the one list already gave them — agreed lifted
    to the top under its own heading, actioned folded shut at the bottom — with
-   redo between them, which is where it always drew. */
+   redo between them, which is where it always drew. Inside each group the
+   ordering is the Inbox's: highest priority task first. */
 function renderPlanDecided(){
   const out = $('#plansDecided');
   if (!out) return;
-  const all = plansShown(planList).filter(p => DECIDED_STATUS.has(p.status));
+  const all = byTaskPriority(plansShown(planList).filter(p => DECIDED_STATUS.has(p.status)));
   const active = DECIDED_FILTERS.find(f => f.key === decidedFilter);
   if (active && !all.some(active.match)) decidedFilter = 'all';
   const shown = decidedFilter === 'all'

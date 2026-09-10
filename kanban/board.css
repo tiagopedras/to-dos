@@ -1310,6 +1310,24 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  /* A plan's meta block: two rows, always. The top one is everything short —
+     the task's scores, then where the card sits — and the bottom one is the
+     link, which carries the task's own name and is long enough to want a line
+     to itself at this column width. Stacked rather than wrapped, so the shape
+     is the same on every row instead of moving with the length of a title. */
+  .repmeta.planmeta{display:flex; flex-direction:column; align-items:flex-start; gap:4px}
+  /* The short row. Wraps in the narrowest column rather than overflowing. */
+  .planlead{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+  /* The task's impact and effort. The board's own .tag, shrunk a step: these sit
+     on an 11.5px meta line rather than on a card. */
+  .planscore{display:inline-flex; gap:4px; align-items:center}
+  .planscore .tag{padding:1px 5px}
+  /* Long titles wrap inside the link rather than pushing the row wide — a
+     button does not wrap its own label by default. Scoped to .planmeta so the
+     queue and Backlog rows, which use .plangoto for a fixed short label, are
+     left alone. */
+  .planmeta .plangoto{white-space:normal; text-align:left; max-width:100%}
+  .planwhere{color:var(--ink-faint)}
   /* Plans reuse the report item wholesale and add one thing reports do not
      have: a state. Unread carries the accent so a night's work is findable at a
      glance; actioned recedes, because it is kept as a record rather than as

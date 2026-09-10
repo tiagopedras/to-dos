@@ -631,6 +631,112 @@ check('with nothing left to redo the chip is not drawn at all', await evalJS(`
   !document.querySelector('#plansDecided > .repitem.redo')
 `))
 
+// --- the task's own priority, on the row and in the order -------------------
+// A plan is written about exactly one task, so the impact and effort the board
+// already holds for that task belong on the plan row too — and they are what
+// the column is ordered by, rather than the night the plan happened to be
+// written. Driven off planList directly, against demo.md's own tasks, so the
+// scores below are the ones actually in the fixture on disk.
+//
+//   Decide whether to open the mid-weight design role   high / S  = 3
+//   Close the Figma against code gap on buttons         high / M  = 1.5
+//   Rewrite the design career framework                 med  / L  = 0.67
+//   Update the design QA checklist for the new checkout  — unscored
+//   (and one plan whose task is not on the board at all)
+await evalJS(`(() => {
+  const plan = (name, task, status, night) => ({
+    name: name + '.md', night, url:'/x/' + name + '.md', status,
+    title: name, task, bucket:'DS', column:'To do', ai:'full',
+    agent:'plan-design-system', date: night, summary:'.' });
+  planList = [
+    plan('cheap-and-big', 'Decide whether to open the mid-weight design role', 'unread', '2026-09-01'),
+    plan('gone', 'A task nobody kept', 'unread', '2026-09-07'),
+    plan('unscored', 'Update the design QA checklist for the new checkout flow', 'unread', '2026-09-06'),
+    plan('middling', 'Close the Figma against code gap on buttons', 'read', '2026-09-07'),
+    plan('slow-burn', 'Rewrite the design career framework', 'unread', '2026-09-07')
+  ];
+  decidedFilter = 'all'; inboxFilter = 'all';
+  renderPlansList();
+  return 1;
+})()`)
+check('the highest priority task is at the top, not the newest night', await evalJS(`
+  [...document.querySelectorAll('#plansOut .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).join(',') ===
+  'cheap-and-big,middling,slow-burn,gone,unscored'
+`), await evalJS(`[...document.querySelectorAll('#plansOut .reptitle')].map(r => r.textContent).join(',')`))
+check('the task\'s impact and effort are on the row', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'middling');
+    const tags = [...row.querySelectorAll('.planscore .tag')];
+    return tags.length === 2 && tags[0].title === 'high impact' && tags[1].textContent === 'M';
+  })()
+`))
+check('and they are the board\'s own chips rather than a second kind', await evalJS(`
+  !!document.querySelector('#plansOut .planscore .tag.impact-high')
+`))
+check('a task carrying neither score says so', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'unscored');
+    return !!row.querySelector('.planscore .tag.needsscore');
+  })()
+`))
+check('a plan whose task is gone from the board carries no score at all', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'gone');
+    return !row.querySelector('.planscore') && !!row.querySelector('.repmeta');
+  })()
+`))
+// The meta row reads scores, then which card, then where it sits — and the
+// link is the card's own name rather than the words "open the card", so the
+// row says what it opens without being clicked.
+check('the link is named after the task it opens', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'middling');
+    const b = row.querySelector('.plangoto');
+    return b.textContent.trim() === 'Close the Figma against code gap on buttons \u2197' &&
+           b.dataset.planGoto === 'Close the Figma against code gap on buttons';
+  })()
+`))
+check('the scores and where the card sits share one line, the name gets its own', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'middling');
+    const parts = [...row.querySelector('.planmeta').children].map(n => n.className);
+    const lead = [...row.querySelector('.planlead').children].map(n => n.className);
+    return parts.join('|') === 'planlead|plangoto' &&
+           lead.join('|') === 'planscore|planwhere' &&
+           row.querySelector('.planwhere').textContent === 'DS · To do · 2026-09-07';
+  })()
+`))
+check('a plan whose task is gone still links, under the name it stored', await evalJS(`
+  (() => {
+    const row = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(r => r.querySelector('.reptitle').textContent === 'gone');
+    return row.querySelector('.plangoto').textContent.trim() === 'A task nobody kept \u2197';
+  })()
+`))
+// Same ordering in the verdict column, inside each of its groups rather than
+// across them — agreed is still lifted to the top whatever it scores.
+await evalJS(`(() => {
+  planList.forEach(p => { p.status = 'actioned'; });
+  planList.find(p => p.name === 'slow-burn.md').status = 'agreed';
+  decidedFilter = 'all';
+  renderPlansList();
+  return 1;
+})()`)
+check('the Decided column is ordered the same way inside its fold', await evalJS(`
+  [...document.querySelectorAll('#plansDecided details .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).join(',') ===
+  'cheap-and-big,middling,gone,unscored'
+`))
+check('and agreed is still lifted above it regardless of its score', await evalJS(`
+  document.querySelector('#plansDecided .planagreed .repitem .reptitle').textContent === 'slow-burn'
+`))
+
 // The whole point of the second guard.
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
