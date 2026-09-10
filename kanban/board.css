@@ -1714,11 +1714,15 @@
   .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
   .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
   .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
-  /* Live vs orphaned on a project card — a soft green nod rather than the
-     amber this file uses elsewhere for "needs an answer" (.repitem.folded,
-     .tag.needsscore): an orphaned folder is not urgent, it's just
-     unreferenced, so it gets the same neutral treatment as .tag.ai instead. */
+  /* Live, completed or orphaned on a project card — a soft green nod rather
+     than the amber this file uses elsewhere for "needs an answer"
+     (.repitem.folded, .tag.needsscore): an orphaned folder is not urgent,
+     it's just unreferenced, so it gets the same neutral treatment as .tag.ai
+     instead. Completed sits between the two, quieter than the green because
+     the green here marks work still in flight rather than work finished, and
+     louder than the faint grey because the folder is still being pointed at. */
   .tag.projlive{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
+  .tag.projcompleted{color:var(--ink-soft)}
   .tag.projorphan{color:var(--ink-faint)}
   /* Delegated to a person. Its own colour, because "someone else has this" is a
      different fact from every other chip on the card, all of which describe the

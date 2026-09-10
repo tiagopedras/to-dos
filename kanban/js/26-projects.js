@@ -69,11 +69,16 @@ function projectItemHTML(p){
   const status = !live ? 'nothing on the list points here'
     : open ? open + ' open task' + (open === 1 ? '' : 's')
     : 'all ' + rows.length + ' task' + (rows.length === 1 ? '' : 's') + ' done';
+  // The tag splits the same three ways the status line above does. A folder
+  // whose every task is ticked used to read "Live", which is the one of the
+  // three a glance down the column most needs told apart from the others.
+  const tagClass = !live ? 'projorphan' : open ? 'projlive' : 'projcompleted';
+  const tagLabel = !live ? 'Orphaned' : open ? 'Live' : 'Completed';
   const edited = cvWhen(p.modified);
   return '<article class="repitem projitem" data-project="' + esc(p.name) + '">' +
     '<button class="rephead">' +
       '<span class="reptitle">' + esc(p.name) + '</span>' +
-      '<span class="tag ' + (live ? 'projlive' : 'projorphan') + '">' + (live ? 'Live' : 'Orphaned') + '</span>' +
+      '<span class="tag ' + tagClass + '">' + tagLabel + '</span>' +
     '</button>' +
     '<code class="pcpath">data/projects/' + esc(p.name) + '/</code>' +
     '<div class="repmeta">' + esc(status) +
