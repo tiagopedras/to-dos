@@ -129,15 +129,38 @@ holds the detail. Three things about it are load-bearing:
   because it is the one running unattended stretches.
   Everything else in this repo still writes through a queue file or not at all.
 
-A plan reaches it by carrying `state: ready` with `owner: execution-agent`, set
-by him on the Plans view. Every queue in `~/Code` shares one shape since 11 Sep
-2026: six states, and an owner saying who is expected to move the item next.
-`PACKAGES/work_streams/CONTRACT.md` is the authority and
-`agents/night_agent/stream.json` is this stream's own manifest, holding its
-words for each state. There is nothing left to keep in step by hand: the
-vocabulary is read out of the manifest, and the one thing that writes it is
-`agents/night_agent/stream.py --apply`, which writes the plan file and its
-ledger row together.
+Work reaches it through a board of its own, the Execution view, added 12 Sep
+2026 and carrying the same four columns as the list itself.
+
+## The three boards, and why they are one shape
+
+Board, Plans, Execution. All three read Backlog, To do, Waiting for review,
+Done, and on all three **where a card sits is the instruction** rather than a
+label describing one. Backlog means leave it alone. To do means pick it up, and
+means it again for something already done once. Waiting for review is the
+agent's own column, which is why it takes no drops and draws with a dashed edge.
+Done means accepted.
+
+A card on Plans is a plan; a card on Execution is a **run**, one document per
+plan he accepted, in `data/<dataset>/runs/`. Two documents rather than one,
+because a plan he has accepted is finished as a plan and not started as a run —
+the same item cannot be in two columns at once, and a second `state:` on one
+file is exactly what `PACKAGES/work_streams/CONTRACT.md` exists to stop.
+Accepting a plan mints a run into Execution's Backlog; moving that run to To do
+is what `pa-do` works through.
+
+Every queue in `~/Code` shares one shape since 11 Sep 2026: six states, and an
+owner saying who is expected to move the item next. Each stream's own words live
+in its manifest — `agents/night_agent/stream.json` and
+`agents/execution_agent/stream.json` — and the only things that write them are
+`stream.py --apply` beside each. The board asks; the stream writes. Nothing here
+writes another stream's files, which is the arrangement
+`agents-dashboard/CONTRACT.md` already holds for schedules.
+
+`agents/execution_agent/stream.py --sync` is the other half of "Backlog is fed
+by everything in Plans' Done column": it mints a run for every accepted plan
+that has not got one, it is idempotent, and the Execution view calls it on every
+load.
 
 ## After changing `kanban/server.py`
 
@@ -195,10 +218,12 @@ with `node kanban/test_canvas.mjs`, or `BOARD_PORT=8799 node ...` against a
 server on another port.
 
 `kanban/test_plans.mjs` follows the same shape for the Plans view, and its
-blocked-writes list does double duty: Plans is the one view that writes
+blocked-writes list does double duty: Plans is one of the two views that write
 anything, so the recording is also how the test asserts it posts only
-`/plan/status` and `/queue/order` — the plan's own frontmatter and the nightly
-queue's ordering, both inside `plans/` — and never reaches `todo.md`. `kanban/test_schedule.mjs` is the
+`/stream/apply` and `/queue/order` — the plan's own frontmatter and the nightly
+queue's ordering, both inside `plans/` — and never reaches `todo.md`.
+`kanban/test_execution.mjs` is the same again for the Execution view, where the
+blocked list is asserted to hold nothing but transitions on the `runs` stream. `kanban/test_schedule.mjs` is the
 same again for the Schedule view.
 
 `kanban/test_projects.mjs` covers both halves of the Projects view — the tab
@@ -257,8 +282,10 @@ which ones it reached:
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
 python3 agents/night_agent/test_night_agent.py    # the schedule, the picker, the runner
+python3 agents/execution_agent/test_execution_agent.py   # the runs stream
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the four below need the board running
+node kanban/test_plans.mjs         # the five below need the board running
+node kanban/test_execution.mjs
 node kanban/test_schedule.mjs
 node kanban/test_canvas.mjs
 node kanban/test_projects.mjs

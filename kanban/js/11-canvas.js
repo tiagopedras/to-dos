@@ -892,8 +892,11 @@ function contextSection(){
   return html;
 }
 
-/* Four tabs. Each reference section is generated from the tags on the tasks,
-   so nothing here can name a task that is not on the board. */
+/* The tabs, in reading order. Plans and Execution are the two agent boards and
+   sit together: the first proposes, the second carries out, and a card crosses
+   from one to the other when he accepts a plan. Each reference section is
+   generated from the tags on the tasks, so nothing here can name a task that is
+   not on the board. */
 function viewDefs(){
   const defs = [
     { id:'overview', label:'Overview' },
@@ -903,6 +906,7 @@ function viewDefs(){
     { id:'timeline', label:'Timeline' },
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
+    { id:'execution', label:'Execution' },
     { id:'projects', label:'Projects' },
     { id:'sep2', sep:true }
   ];

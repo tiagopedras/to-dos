@@ -25,10 +25,10 @@
   },
   "states": {
     "backlog": "Backlog",
-    "ready": "Queue",
-    "doing": "Running",
-    "review": "Inbox",
-    "done": "Decided"
+    "ready": "To do",
+    "doing": "Doing",
+    "review": "Waiting for review",
+    "done": "Done"
   },
   "owners": [
     "me",
@@ -36,10 +36,11 @@
     "execution-agent"
   ],
   "hints": {
-    "Backlog": "held back, or excluded by a rule",
-    "Queue": "what tonight would plan, in order",
-    "Inbox": "waiting on a verdict from you",
-    "Decided": "you have ruled on it"
+    "Backlog": "leave it alone; held back by you, or excluded by a rule",
+    "To do": "plan it tonight, in this order",
+    "Doing": "an agent has it right now",
+    "Waiting for review": "the agent wrote one; it is waiting on you",
+    "Done": "accepted as written, and the acting agent's half starts"
   },
   "fields": [
     {

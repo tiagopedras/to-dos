@@ -291,14 +291,26 @@ def is_stale(task, ledger):
         # A ledger written before the six states. Read the old word rather than
         # refusing, the same permanent fallback the file format keeps.
         status = seen.get("status")
-        if status in ("actioned", "redo"):
-            return True, "last plan %s" % ("actioned" if status == "actioned" else "sent back")
+        if status == "redo":
+            return True, "last plan sent back"
+        if status == "actioned":
+            return False, "last plan actioned on %s" % seen.get("planned", "?")
         if status == "agreed":
             return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
         return False, "unchanged since %s" % seen.get("planned", "?")
 
     if state == "done":
-        return True, "last plan %s" % (seen.get("resolution") or "finished")
+        # Accepted. Since 12 Sep 2026 `done` is the end of the planning half
+        # rather than a reason to start it again: the plan he accepted is what
+        # the acting agent carries out, and writing a second opinion over it
+        # tonight would put two live plans on one task. It comes back into the
+        # queue when the task's own text changes, which the fingerprint above
+        # has already answered, or when he drags it back to To do.
+        if seen.get("resolution") == "superseded":
+            return True, "last plan was replaced"
+        return False, "plan accepted on %s" % seen.get("planned", "?")
+    if state == "backlog":
+        return False, "parked; the agent leaves it alone"
     if state == "ready" and owner == "night-agent":
         return True, "last plan sent back"
     if state == "ready" and owner == "execution-agent":

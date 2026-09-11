@@ -1,0 +1,94 @@
+{
+  "contract": "1.0",
+  "id": "runs",
+  "name": "The acting agent's work",
+  "blurb": "one document per plan he accepted; it carries out and reports back",
+  "container": {
+    "kind": "doc-folder",
+    "path": "data/<dataset>/runs",
+    "skip": [
+      "index.md",
+      "ledger.json"
+    ]
+  },
+  "groups": {
+    "kind": "field",
+    "key": "group",
+    "label": "bucket",
+    "note": "the bucket of the task the plan was about, not the day it was accepted"
+  },
+  "lanes": {
+    "kind": "state"
+  },
+  "states": {
+    "backlog": "Backlog",
+    "ready": "To do",
+    "doing": "Doing",
+    "review": "Waiting for review",
+    "done": "Done"
+  },
+  "owners": [
+    "me",
+    "execution-agent"
+  ],
+  "hints": {
+    "Backlog": "accepted, and the agent leaves it alone until you move it",
+    "To do": "you want the acting agent to carry this one out",
+    "Doing": "the agent has it right now",
+    "Waiting for review": "it did the work and wrote back; it is waiting on you",
+    "Done": "you have accepted what it did"
+  },
+  "fields": [
+    {
+      "key": "plan",
+      "type": "string",
+      "own": true,
+      "note": "the plan this run carries out, as <night>/<file.md>"
+    },
+    {
+      "key": "task",
+      "type": "string",
+      "own": true,
+      "note": "the title of the task as it stood when the plan was accepted"
+    },
+    {
+      "key": "slug",
+      "type": "string",
+      "own": true
+    },
+    {
+      "key": "summary",
+      "type": "string",
+      "own": true,
+      "note": "one line; the plan's own summary until the agent replaces it with what it did"
+    },
+    {
+      "key": "column",
+      "type": "string",
+      "own": true,
+      "advisory": true
+    },
+    {
+      "key": "session",
+      "type": "string",
+      "own": true,
+      "note": "the session the acting agent ran in, so the work can be read back"
+    }
+  ],
+  "writer": {
+    "who": "execution-agent",
+    "how": {
+      "kind": "subprocess",
+      "cwd": ".",
+      "apply": [
+        "python3",
+        "stream.py",
+        "--apply"
+      ]
+    },
+    "lock": "data/.execution-agent.lock"
+  },
+  "views": [
+    "execution"
+  ]
+}

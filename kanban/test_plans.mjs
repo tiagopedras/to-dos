@@ -186,11 +186,11 @@ await new Promise(r => setTimeout(r, 400))
 
 const live = await evalJS(`[...document.querySelectorAll('#plansOut > .repitem')].length`)
 check('unactioned plans are listed', live === 2, `${live} shown`)
-check('actioned ones are folded away, in the Decided column', await evalJS(`
+check('accepted ones are folded away, in the Done column', await evalJS(`
   !!document.querySelector('#plansDecided details') &&
-  document.querySelector('#plansDecided details summary').textContent.trim() === '1 actioned'
+  document.querySelector('#plansDecided details summary').textContent.trim() === '1 accepted'
 `))
-check('and the Inbox holds only what is still to be read', await evalJS(`
+check('and Waiting for review holds only what is still to be read', await evalJS(`
   ![...document.querySelectorAll('#plansOut .repitem')]
     .some(r => r.classList.contains('actioned') || r.classList.contains('agreed') ||
                r.classList.contains('redo'))
@@ -215,15 +215,21 @@ check('all five cards are drawn', await evalJS(`
   !!document.querySelector('#plansDecided') &&
   !!document.querySelector('#usageOut') && !!document.querySelector('#schedOut')
 `))
-check('the queue shows while nothing is running, not Doing', await evalJS(`
-  document.querySelector('#qdTitle').textContent === 'Queue' &&
+check('To do shows while nothing is running, not Doing', await evalJS(`
+  document.querySelector('#qdTitle').textContent === 'To do' &&
   !document.querySelector('#queueOut').classList.contains('hidden') &&
   document.querySelector('#doingOut').classList.contains('hidden')
 `))
-check('Backlog, Queue, Inbox, Decided, Token Session and the clock read left to right, top to bottom', await evalJS(`
+// The same four words as the board itself, in the same order. That parallel is
+// the whole point of the rename on 12 Sep 2026: where a card sits is the
+// instruction, and it means the same thing on both boards.
+check('Backlog, To do, Waiting for review, Done, Token Session and the clock read left to right, top to bottom', await evalJS(`
   [...document.querySelectorAll('.lists.pview .listcard')]
     .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Backlog | Queue | Inbox | Decided | Token Session | What runs on a clock')
+`) === 'Backlog | To do | Waiting for review | Done | Token Session | What runs on a clock')
+check('Waiting for review is drawn as the agent\'s own column', await evalJS(`
+  document.querySelector('#plansOut').closest('.listcard').classList.contains('agentcol')
+`))
 check('Token Session and the clock share the last track, stacked', await evalJS(`
   document.querySelector('.pvcol').children.length === 2 &&
   document.querySelector('.pvcol').children[0].querySelector('h3').textContent === 'Token Session' &&
@@ -441,7 +447,7 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('a run that died mid-task says so rather than looking live', await evalJS(`
-  document.querySelector('#qdTitle').textContent === 'Queue' &&
+  document.querySelector('#qdTitle').textContent === 'To do' &&
   document.querySelector('#doingOut').classList.contains('hidden') &&
   !document.querySelector('#qdOrphan').classList.contains('hidden') &&
   document.querySelector('#qdOrphan .err').textContent.includes('never finished')
@@ -519,33 +525,48 @@ check('opening marks it read', marked.includes('POST /stream/apply') && marked.i
 // travels as `group` rather than under a key only this stream would know.
 check('and names the night and the file', marked.includes('"group":"2026-09-05"') && marked.includes('"name":"add-caveat.md"'))
 
-// Actioned is a deliberate press, and it is the one the runner reads.
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'I did this myself').click()`)
+// The three moves, one per column a plan can be dragged into. Each one is a
+// button in the modal and a drop zone on the board, and both go through the
+// same confirm — a card landing somewhere and a button being pressed must not
+// come to mean different things.
+
+// Done. He accepts the plan as written, which is the end of the planning half:
+// the picker leaves the task alone from here, and the card feeds the execution
+// board's Backlog.
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Accept it').click()`)
+await new Promise(r => setTimeout(r, 200))
+check('Accept says the night agent stops re-planning it', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('leaves the task alone')
+`))
+check('and that nothing runs yet', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('Nothing runs now')
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, accept it').click()`)
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
-check('I did this myself finishes it as actioned', after.includes('"to":"done"') && after.includes('"resolution":"actioned"'))
-check('and the row moves out of the Inbox into the actioned fold', await evalJS(`
-  document.querySelector('#plansDecided details summary').textContent.trim() === '2 actioned' &&
+check('accepting finishes it as done', after.includes('"to":"done"') && after.includes('"resolution":"actioned"'))
+check('and the row moves out of Waiting for review into the accepted fold', await evalJS(`
+  document.querySelector('#plansDecided details summary').textContent.trim() === '2 accepted' &&
   !document.querySelector('#plansOut details')
 `))
 
-// Agree and Send back, the two moves the execution half runs on. Both go
-// through a confirm, and Send back refuses to post without a reason — which is
-// the whole feature, since the reason is what the next night's agent is given.
+// To do. The plan is wrong and tonight should write another, so the move has to
+// carry a reason — the reason is the whole feature, since it is what the next
+// night's agent is handed.
 await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
 await new Promise(r => setTimeout(r, 400))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Plan it again').click()`)
 await new Promise(r => setTimeout(r, 200))
-check('Send it back asks for a reason first', await evalJS(`!!document.querySelector('#redoWhy')`))
+check('Plan it again asks for a reason first', await evalJS(`!!document.querySelector('#redoWhy')`))
 const beforeEmpty = (await evalJS(`String(window.__blocked.length)`)) | 0
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, plan it again').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('and posts nothing when it is empty',
   ((await evalJS(`String(window.__blocked.length)`)) | 0) === beforeEmpty)
 
 await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
 await new Promise(r => setTimeout(r, 400))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Plan it again').click()`)
 await new Promise(r => setTimeout(r, 200))
 await evalJS(`(() => {
   const box = document.querySelector('#redoWhy');
@@ -553,57 +574,145 @@ await evalJS(`(() => {
   box.dispatchEvent(new Event('input'));
   return 1;
 })()`)
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, plan it again').click()`)
 await new Promise(r => setTimeout(r, 400))
 const sentBack = await evalJS(`window.__blocked.join(' | ')`)
-// Sending back is `ready` owned by the night agent: an agent may pick it up,
-// and owner says which. Not a state of its own — see 13-plans.js.
+// Going back is `ready` owned by the night agent: an agent may pick it up, and
+// owner says which. Not a state of its own — see 13-plans.js.
 check('with a reason it hands the task back to the night agent',
   sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"night-agent"'))
 check('and carries the reason with it', sentBack.includes('Wrong scope'))
-check('the reason is shown on the card without opening it', await evalJS(`
-  !!document.querySelector('#plansDecided .repitem.redo .planredo')
+// It lands in the To do column, under the queue, rather than in a verdict
+// column of its own — the task is already in the queue above it, and this is
+// the written half saying what tonight is working from.
+check('the plan is drawn in To do, under the queue', await evalJS(`
+  !!document.querySelector('#queueOut .repitem.redo .planredo') &&
+  document.querySelector('#queueOut .repitem.redo .planredo').textContent.includes('Wrong scope')
 `))
-// Sending it back emptied the Inbox — there were two plans and both have now
-// been ruled on, which is the state the split exists to make readable.
-check('an emptied Inbox says so rather than going blank', await evalJS(`
+// Sending it back emptied the review column — there were two plans and both
+// have now been ruled on.
+check('an emptied Waiting for review says so rather than going blank', await evalJS(`
   !!document.querySelector('#plansOut .empty') &&
   !document.querySelector('#plansOut .repitem')
 `))
 
-await evalJS(`document.querySelector('#plansDecided .repitem.redo [data-plan-open]').click()`)
+// Backlog. Not a verdict on the plan at all, so it does two things: parks the
+// plan, and holds the task itself back — the hold list being the only thing the
+// picker actually reads.
+await evalJS(`document.querySelector('#queueOut .repitem.redo [data-plan-open]').click()`)
 await new Promise(r => setTimeout(r, 400))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree, hand it over').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Leave it alone').click()`)
 await new Promise(r => setTimeout(r, 200))
-check('Agree confirms before it commits anything', await evalJS(`
-  document.querySelector('.mscrim .repdoc').textContent.includes('Nothing runs now')
+check('Leave it alone says the task is held too', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('held back from the queue')
 `))
-check('and says how it actually gets run', await evalJS(`
-  document.querySelector('.mscrim .repdoc').textContent.includes('/pa-do')
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, leave it alone').click()`)
+await new Promise(r => setTimeout(r, 500))
+const parked = await evalJS(`window.__blocked.join(' | ')`)
+check('parking a plan writes backlog', parked.includes('"to":"backlog"'))
+check('and holds its task in the same gesture', await evalJS(`
+  (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
+    .split(' ').slice(2).join(' ')).hold;
+    return hold.some(t => t.toLowerCase() === 'create an hr agent') })()
 `))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree it').click()`)
-await new Promise(r => setTimeout(r, 400))
-check('agreeing hands it to the acting agent', (await evalJS(`window.__blocked.join(' | ')`)).includes('"owner":"execution-agent"'))
-check('and the agreed plan is lifted to the top of the Decided column', await evalJS(`
-  !!document.querySelector('#plansDecided .planagreed .repitem.agreed') &&
-  !document.querySelector('#plansOut .planagreed')
+check('the parked plan is drawn in Backlog', await evalJS(`
+  !!document.querySelector('#backlogOut .repitem.parked')
 `))
+
 // The two chip rows are independent: a pick in one must not reset the other.
 check('each column keeps its own status filter', await evalJS(`
   (() => {
-    const inbox = document.querySelector('#plansOut [data-planfilter]');
     const dec = [...document.querySelectorAll('#plansDecided [data-planfilter]')]
       .find(b => b.dataset.planfilter === 'actioned');
     if (!dec) return false;
     dec.click();
-    if (decidedFilter !== 'actioned') return false;
-    if (inboxFilter !== 'all') return false;
+    if (doneFilter !== 'actioned') return false;
+    if (reviewFilter !== 'all') return false;
     // and the fold opens when it is the thing being asked for
     const open = !!document.querySelector('#plansDecided details[open]');
     document.querySelector('#plansDecided [data-planfilter=\"all\"]').click();
-    return open && decidedFilter === 'all';
+    return open && doneFilter === 'all';
   })()
 `))
+
+
+// --- dragging a plan between the columns ------------------------------------
+// The same three moves as the buttons above, reached the way the board itself
+// is worked. Waiting for review is the one column that takes no drop: filling
+// it is the agent's half of the arrangement.
+
+await evalJS(`(() => {
+  planList = [
+    { name:'drag-me.md', night:'2026-09-05', url:'/x/drag-me.md', state:'review', owner:'me', seen:true,
+      title:'A plan to drag', task:'A plan to drag', slug:'a-plan-to-drag',
+      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      date:'2026-09-05', summary:'Something to move about.' }
+  ];
+  reviewFilter = 'all'; doneFilter = 'all';
+  renderPlansList();
+  return 1;
+})()`)
+check('a plan row is draggable out of Waiting for review', await evalJS(`
+  document.querySelector('#plansOut .planitem').getAttribute('draggable') === 'true'
+`))
+const dropOn = (target) => `(() => {
+  const from = document.querySelector('#plansOut .planitem');
+  const to = document.querySelector('${target}');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const ev = new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true });
+  to.dispatchEvent(ev);
+  const drop = new DragEvent('drop', { dataTransfer: dt, bubbles:true, cancelable:true });
+  to.dispatchEvent(drop);
+  return ev.defaultPrevented;
+})()`
+check('dropping it on Done asks to accept it', await evalJS(dropOn('#plansDecided')))
+await new Promise(r => setTimeout(r, 300))
+check('through the same confirm the button uses', await evalJS(`
+  !!document.querySelector('.mscrim .repdoc') &&
+  document.querySelector('.mscrim .repdoc').textContent.includes('leaves the task alone')
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
+await new Promise(r => setTimeout(r, 200))
+
+check('dropping it on To do asks for a reason', await evalJS(dropOn('#queueOut')))
+await new Promise(r => setTimeout(r, 300))
+check('the reason box is the same one', await evalJS(`!!document.querySelector('#redoWhy')`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
+await new Promise(r => setTimeout(r, 200))
+
+check('dropping it on Backlog asks to park it', await evalJS(dropOn('#backlogOut')))
+await new Promise(r => setTimeout(r, 300))
+check('and says the task is held with it', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('held back from the queue')
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
+await new Promise(r => setTimeout(r, 200))
+
+// The one column that refuses. A drag over it is never accepted, so nothing
+// can be put into the agent's own column by hand.
+check('Waiting for review takes no drop at all', await evalJS(`(() => {
+  const from = document.querySelector('#plansOut .planitem');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const ev = new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true });
+  document.querySelector('#plansOut').dispatchEvent(ev);
+  from.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles:true }));
+  return !ev.defaultPrevented;
+})()`))
+
+// And a task card has nothing to accept, so Done refuses it in words rather
+// than swallowing the drop.
+check('a task dropped on Done is refused', await evalJS(`(() => {
+  const from = document.querySelector('#queueOut .qitem');
+  const to = document.querySelector('#plansDecided');
+  const dt = new DataTransfer();
+  from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  to.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true }));
+  to.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles:true, cancelable:true }));
+  return !document.querySelector('#plansDecided .qitem');
+})()`))
+await new Promise(r => setTimeout(r, 200))
 
 // --- a rejection the night has already answered ----------------------------
 // Sending a plan back puts the task straight back in the queue, so the next
@@ -631,30 +740,36 @@ await evalJS(`(() => {
       title:'A record', task:'A record', slug:'a-record', bucket:'DS', column:'Done',
       ai:'full', agent:'plan-design-system', date:'2026-09-02', summary:'Done.' }
   ];
-  decidedFilter = 'all'; inboxFilter = 'all';
+  doneFilter = 'all'; reviewFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
-check('a replaced rejection is not in the redo group', await evalJS(`
-  [...document.querySelectorAll('#plansDecided > .repitem.redo')]
+// A plan sent back is in To do now, under the queue, rather than in a verdict
+// column: it is work the night agent is about to redo, which is what To do
+// means on both boards.
+check('a plan still out for another night sits in To do', await evalJS(`
+  [...document.querySelectorAll('#queueOut .repitem.redo')]
     .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Sent back last night'
+`))
+check('and a replaced rejection is not there with it', await evalJS(`
+  !document.querySelector('#plansDecided > .repitem.redo')
 `))
 check('it is filed with the record instead', await evalJS(`
   [...document.querySelectorAll('#plansDecided details .repitem')]
     .map(r => r.querySelector('.reptitle').textContent).sort().join(',') ===
   'A record,Planned twice'
 `))
-check('and the fold says so rather than claiming they were actioned', await evalJS(`
-  document.querySelector('#plansDecided details summary').textContent.trim() === '2 actioned or replaced'
+check('and the fold says so rather than claiming they were all accepted', await evalJS(`
+  document.querySelector('#plansDecided details summary').textContent.trim() === '2 accepted or replaced'
 `))
 check('the reason he wrote is still readable inside the fold', await evalJS(`
   document.querySelector('#plansDecided details .repitem.redo .planredo').textContent.includes('Wrong scope')
 `))
-check('the redo chip counts only what is still waiting on a replacement', await evalJS(`
+check('Done counts only what he has accepted', await evalJS(`
   [...document.querySelectorAll('#plansDecided [data-planfilter]')]
-    .map(b => b.textContent).join(' | ') === 'All3 | redo1 | actioned1'
+    .map(b => b.textContent).join(' | ') === 'All2 | accepted1'
 `))
-check('and the replacement itself is in the Inbox', await evalJS(`
+check('and the replacement itself is in Waiting for review', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
     .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Planned twice'
 `))
@@ -663,7 +778,7 @@ check('and the replacement itself is in the Inbox', await evalJS(`
 // at zero, which is what planFilterBarHTML already does for any empty status.
 await evalJS(`(() => {
   planList = planList.filter(p => p.name !== 'still-out.md');
-  decidedFilter = 'all';
+  doneFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
@@ -698,7 +813,7 @@ await evalJS(`(() => {
     plan('middling', 'Close the Figma against code gap on buttons', true, '2026-09-07'),
     plan('slow-burn', 'Rewrite the design career framework', false, '2026-09-07')
   ];
-  decidedFilter = 'all'; inboxFilter = 'all';
+  doneFilter = 'all'; reviewFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
@@ -768,16 +883,16 @@ await evalJS(`(() => {
   planList.forEach(p => { p.state = 'done'; p.owner = 'me'; p.resolution = 'actioned'; });
   Object.assign(planList.find(p => p.name === 'slow-burn.md'),
                 { state:'ready', owner:'execution-agent', resolution:'' });
-  decidedFilter = 'all';
+  doneFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
-check('the Decided column is ordered the same way inside its fold', await evalJS(`
+check('the Done column is ordered the same way inside its fold', await evalJS(`
   [...document.querySelectorAll('#plansDecided details .repitem')]
     .map(r => r.querySelector('.reptitle').textContent).join(',') ===
   'cheap-and-big,middling,gone,unscored'
 `))
-check('and agreed is still lifted above it regardless of its score', await evalJS(`
+check('and one already handed over is still lifted above it regardless of its score', await evalJS(`
   document.querySelector('#plansDecided .planagreed .repitem .reptitle').textContent === 'slow-burn'
 `))
 

@@ -39,9 +39,16 @@ onto the tasks has thrown away the only part that compounds.
 an `index.md` summarising the night. Newest night first. `plans/actioned/` holds
 plans kept past their night and is not part of a review pass.
 
-Each plan carries frontmatter: `task`, `bucket`, `column`, `ai`, `agent`, `date`,
-`status`, `session` and a one-line `summary`. `status` is `unread`, `read` or
-`actioned`, and it is the only one of those this skill ever changes.
+Each plan carries frontmatter: `task`, `bucket`, `column`, `ai`, `agent`,
+`created`, `state`, `owner`, `seen`, `session` and a one-line `summary`. `state`
+and `owner` replaced a single `status` on 11 September 2026, and the Plans view
+was renamed onto the list's own four columns on 12 September: Backlog, To do,
+Waiting for review, Done. A plan sitting here is `state: review` with
+`owner: me`, and `seen` is what this skill sets as it goes.
+
+A plan written before that still carries `status: unread | read | actioned`.
+Read it rather than refusing it, the same permanent-fallback rule the file
+format keeps everywhere else.
 
 Read the folder directly rather than the board's `/plans.json`. The folder is
 the truth, it needs no server running, and this skill has to work on a morning
@@ -117,44 +124,52 @@ more than a handful pile up unwritten.
 
 **Close every plan with one line saying what happens to it.** Once his reaction
 is turned into one of the outcomes above, say plainly what that means for the
-plan and the task before moving to the next one: the status it's being set to,
-and whether a note went on the task (and roughly what it says, not the full
-text). "Marked read, no note — nothing to change" is as valid a closing line as
-"Marked actioned, dropping the task via pa." He should never have to ask
+plan and the task before moving to the next one: that it has been marked seen,
+which column it looks like it belongs in, and whether a note went on the task
+(and roughly what it says, not the full text). "Marked seen, no note — nothing
+to change" is as valid a closing line as "Marked seen; sounds like Done, which
+is yours to press, and I will drop the task via pa." He should never have to ask
 what just happened to something he reacted to.
 
 ## What this skill writes, and what it hands over
 
 Two different things, and the split matters.
 
-**Plan status, inside `plans/`: this skill's own.** Set it as you go.
+**Marking a plan seen, inside `plans/`: this skill's own.** Set it as you go,
+and set nothing else.
 
-- `read` once he has seen it and reacted. This is almost always the right one.
-- `actioned` only when the plan no longer describes outstanding work — he has
-  done it, or the task is going away. `actioned` is also what survives the prune
-  into `plans/actioned/`, so it is the flag for a plan worth keeping.
-- Leave it `unread` if he skipped past it without a reaction.
+- `seen: true` once he has looked at it and reacted. This is almost always the
+  only thing this skill writes.
+- Leave it unseen if he skipped past it without a reaction.
 
-Set it through the board's own route, never by editing the frontmatter:
+**Which column it ends up in is his, on the board.** Accepting a plan, sending
+it back for another night, or parking it are the three moves the Plans view
+makes through a confirm that says what each one means, and each one changes what
+the night agent does next. Do not make them from here on the strength of a
+reaction in conversation — say what he seems to want and let him press it.
+
+Set `seen` through the board's own route, never by editing the frontmatter:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8765/plan/status \
+curl -s -X POST http://127.0.0.1:8765/stream/apply \
   -H 'Content-Type: application/json' -H 'X-Board: 1' \
-  -d '{"night":"2026-09-05","name":"the-plan-file.md","status":"read"}'
+  -d '{"stream":"plans","item":{"group":"2026-09-05","name":"the-plan-file.md"},
+       "to":"review","owner":"me","seen":true}'
 ```
 
-`mark_plan` in `kanban/server.py` writes the frontmatter **and** the ledger
-`pick.py` reads, and neither can be derived from the other. Editing the file by
-hand does half the job and leaves the picker believing something it should not.
+That reaches `agents/night_agent/stream.py`, which writes the frontmatter **and**
+the ledger `pick.py` reads, together. Neither can be derived from the other, and
+editing the file by hand does half the job and leaves the picker believing
+something it should not.
 
 The `X-Board: 1` header is a CSRF guard, there to stop a web page in some other
 tab POSTing to `127.0.0.1` — see the note in `README.md`. A local script running
 with his consent is not that threat, so setting the header here is legitimate
 rather than a workaround.
 
-**If the server is not running**, say so and stop flipping statuses. Do not fall
-back to editing the frontmatter alone; a plan that says `read` against a ledger
-that says otherwise is worse than one still saying `unread`. The review itself
+**If the server is not running**, say so and stop marking anything. Do not fall
+back to editing the frontmatter alone; a plan that says seen against a ledger
+that says otherwise is worse than one still saying unseen. The review itself
 carries on regardless — the notes are the part that matters.
 
 **The note on the task: hand it to `pa`.** This skill does not touch

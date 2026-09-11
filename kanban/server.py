@@ -960,6 +960,74 @@ def plan_listing():
     return out
 
 
+def runs_dir(name=None):
+    """Where the acting agent's work sits, one document per plan Tiago accepted.
+
+    A separate folder from plans/ because it holds a separate work item. A plan
+    and the run that carries it out are two things about one task, and they are
+    in different columns at the same time — a plan he has accepted is finished
+    as a plan and not started as a run — so they cannot be one document with one
+    `state:`. See agents/execution_agent/stream.py, which is what writes in here.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "runs")
+
+
+def run_meta(path, name):
+    """One run, described from its frontmatter. Same reader as plan_meta and
+    deliberately not the same function: a run carries the plan it came from and
+    nothing about a night."""
+    fields = {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            if fh.readline().strip() != "---":
+                return None
+            for line in fh:
+                if line.strip() == "---":
+                    break
+                key, _, value = line.partition(":")
+                fields[key.strip().lower()] = value.strip()
+    except OSError:
+        return None
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return {
+        "name": name,
+        "url": "/%s/%s/runs/%s" % (DATA, current_dataset(), name),
+        "title": fields.get("title") or name[:-3].replace("-", " "),
+        "task": fields.get("task", ""),
+        "slug": fields.get("slug", ""),
+        "plan": fields.get("plan", ""),
+        "bucket": fields.get("group") or fields.get("bucket", ""),
+        "column": fields.get("column", ""),
+        "summary": fields.get("summary", ""),
+        "session": fields.get("session", ""),
+        "state": fields.get("state") or "backlog",
+        "owner": fields.get("owner") or "me",
+        "seen": (fields.get("seen") or "no").lower() in ("yes", "true", "1"),
+        "resolution": fields.get("resolution", ""),
+        "feedback": fields.get("feedback", ""),
+        "created": fields.get("created", ""),
+        "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="minutes"),
+    }
+
+
+def run_listing():
+    """Every run document, oldest first — the order they were accepted in."""
+    root = runs_dir()
+    if not os.path.isdir(root):
+        return []
+    out = []
+    for name in sorted(os.listdir(root)):
+        if not name.endswith(".md") or name == "index.md" or name.startswith("."):
+            continue
+        meta = run_meta(os.path.join(root, name), name)
+        if meta:
+            out.append(meta)
+    return out
+
+
 # What a plan's `status:` is allowed to say, and what each one means to the
 # thing that reads it.
 #
@@ -1652,6 +1720,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, meta)
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
+        # The acting agent's half. Read-only here, like every other listing:
+        # what mints and moves these documents is the runs stream's own writer,
+        # reached through /stream/apply.
+        if path == "/runs.json":
+            return self._json(200, {"runs": run_listing()})
         # Three routes rather than one, and split by how long each takes: the
         # queue is a parse of todo.md, the run is a tail of a log, and both are
         # instant. A checkout with no agents/night_agent/ answers 404 on the queue and the

@@ -15,10 +15,18 @@
    agents/night_agent/stream.json is this stream's manifest, holding its own word
    for each state.
 
-     review / me                waiting on him; `seen` says whether he has looked
-     ready  / execution-agent   approved, and the acting agent may carry it out
-     ready  / night-agent       sent back with a reason; tonight plans it again
-     done   / me                finished, `resolution` saying how
+   Since 12 Sep 2026 this view has the same four columns as the board itself,
+   and for the same reason: where he puts a card is the instruction, not a
+   label describing one. Backlog, To do, Waiting for review, Done.
+
+     backlog / me               leave it alone; the night agent does not touch it
+     ready   / night-agent      plan it tonight, with the reason he gave
+     review  / me               the agent has written one; `seen` says if he looked
+     done    / me               he accepts it, and the acting agent's half starts
+
+   Waiting for review is the one column he cannot drop into, because filling it
+   is the agent's half of the arrangement. It draws with a dashed edge so that
+   is visible before a drag is attempted rather than after.
 
    Five separate words did this until 11 Sep 2026: unread, read, agreed, redo,
    actioned. Two of them said the same thing about the plan — an agent has the
@@ -51,16 +59,31 @@ function planClass(p){
      record of what he asked for. */
   if (p.resolution === 'superseded') return ' redo';
   if (p.state === 'done') return ' actioned';
+  if (p.state === 'backlog') return ' parked';
   if (p.state === 'ready') return p.owner === 'night-agent' ? ' redo' : ' agreed';
   return p.seen ? ' read' : '';
 }
 
 /* One word for the state a card is in, for the badge. His words rather than the
-   canonical ones: "agreed" says more on a card than "ready" does. */
+   canonical ones, and the same four the columns are named after wherever the
+   card is sitting in the column that word describes. */
 function planWord(p){
-  if (p.state === 'done') return p.resolution === 'superseded' ? 'replaced' : 'actioned';
-  if (p.state === 'ready') return p.owner === 'night-agent' ? 'redo' : 'agreed';
+  if (p.state === 'done') return p.resolution === 'superseded' ? 'replaced' : 'accepted';
+  if (p.state === 'backlog') return 'parked';
+  if (p.state === 'ready') return p.owner === 'night-agent' ? 'planning again' : 'handed over';
   return p.seen ? 'read' : 'new';
+}
+
+/* Which of the four columns a plan draws in. One function, so the renderers,
+   the drop handlers and the counts can never disagree about where a card is. */
+const PLAN_COL = { backlog:'backlog', todo:'todo', review:'review', done:'done' };
+function planColumn(p){
+  if (p.state === 'backlog') return PLAN_COL.backlog;
+  if (p.state === 'ready' && p.owner === 'night-agent') return PLAN_COL.todo;
+  if (p.state === 'review') return PLAN_COL.review;
+  /* `done`, and the `ready / execution-agent` a plan agreed before 12 Sep 2026
+     still carries. Both mean he has accepted it, which is what Done says. */
+  return PLAN_COL.done;
 }
 
 /* Whether an agent may pick this up and which one. `ready` owned by the night
@@ -114,7 +137,10 @@ function planItemHTML(p){
       '" title="Open this task on the board">' + esc(task ? task.title : key) + ' \u2197</button>'
     : '';
   const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' · ');
-  return '<article class="repitem planitem' + cls + '" data-plan="' + esc(p.url) + '">' +
+  /* Draggable everywhere, including out of Waiting for review: that column
+     refuses drops, not drags. Taking a card out of it is how he answers it. */
+  return '<article class="repitem planitem' + cls + '" draggable="true"' +
+    ' data-plan="' + esc(p.url) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
       (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
@@ -145,58 +171,65 @@ function planItemHTML(p){
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
   const sub = [p.bucket, p.column, planGeneratedLabel(p), p.agent].filter(Boolean).map(esc).join(' · ');
-  /* Three buttons and only two of them are decisions. Agree and Send back are
-     the pair this view exists for, coloured for what they commit to — green
-     hands the work to the runner, red sends it away with a reason. I did this
-     myself stays for the plans he carries out on his own, which is still most
-     of them; it carries no colour because it isn't a verdict on the plan. The
-     modal's own × in the corner is the dismissal now, so there is no Close
+  /* One button per column he could drag the card into, named after the column
+     rather than after the verdict, so the two ways of moving a plan say the
+     same thing. Waiting for review has no button for the same reason it has no
+     drop zone: the card is already there and putting it back is not a move.
+     The modal's own × in the corner is the dismissal, so there is no Close
      button left to press by reflex on the way out. */
   openDocModal({
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    buttons: [{ label:'Agree, hand it over', agree:true, run: () => agreePlan(p) },
-              { label:'Send it back', reject:true, run: () => rejectPlan(p) },
-              { label:'I did this myself', run: () => movePlan(p, 'done', 'me', { resolution:'actioned' }) }]
+    buttons: [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
+              { label:'Plan it again', reject:true, run: () => replanPlan(p) },
+              { label:'Leave it alone', run: () => parkPlan(p) }]
   });
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
 }
 
-/* Agreeing is a claim that the work should happen, so it says what happens
-   next rather than flipping a label silently. Nothing runs from here: the
-   acting agent is invoked from a session, on purpose, so that a run he has not
-   asked for cannot start from a stray click on a board tab left open. */
-function agreePlan(p){
-  showModal('Agree this plan?', esc(p.title),
+/* The three moves, one per column he can put a plan in. Each one is the drop
+   handler and the modal button both, so dragging a card and pressing a button
+   cannot come to mean different things.
+
+   Nothing runs from any of them. The acting agent is invoked from a session,
+   on purpose, so that a run he has not asked for cannot start from a stray
+   click on a board tab left open overnight. */
+
+/* Done. He accepts the plan as written, which is the end of this board's
+   involvement and the start of the acting agent's: an accepted plan is what
+   feeds the execution board's Backlog. The night agent stops re-planning the
+   task from here, which is the change of meaning `done` carries since 12 Sep
+   2026 — it used to mean "actioned, so plan it fresh next time". */
+function acceptPlan(p){
+  showModal('Accept this plan?', esc(p.title),
     '<div class="repdoc">' +
-      '<p>It moves to <strong>agreed</strong> and waits. Nothing runs now.</p>' +
-      '<p>The night agent stops re-planning this task while it sits here, so ' +
-      'the plan you approved is the one that gets carried out rather than being ' +
-      'replaced by tonight\'s second opinion.</p>' +
-      '<p>To actually run it, start a session and use <code>/pa-do</code>.</p>' +
+      '<p>It moves to <strong>Done</strong>, and the night agent leaves the task ' +
+      'alone from here rather than writing a second opinion over it.</p>' +
+      '<p>Nothing runs now. It lands in the execution board\'s Backlog, and the ' +
+      'acting agent only picks it up once you move it to To do there.</p>' +
     '</div>',
-    [{ label:'Agree it', primary:true, run: () => movePlan(p, 'ready', 'execution-agent') },
+    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'actioned' }) },
      { label:'Cancel' }]);
 }
 
-/* A rejection has to carry a reason, because the reason is the whole feature:
-   it goes into the plan's frontmatter and the next run's agent is handed it,
-   which is what stops tomorrow night writing the same plan again. The server
-   refuses an empty one, and so does this, so the message about why arrives
-   before the press rather than after it. */
+/* To do. The plan is wrong and tonight should write another, so the move has to
+   carry a reason: it goes into the plan's frontmatter and the next run's agent
+   is handed it, which is what stops tomorrow night writing the same plan again.
+   The server refuses an empty one and so does this, so the message about why
+   arrives before the press rather than after it. */
 let redoText = '';
-function rejectPlan(p){
+function replanPlan(p){
   redoText = '';
-  showModal('Send this plan back?', esc(p.title),
+  showModal('Plan it again?', esc(p.title),
     '<div class="repdoc">' +
-      '<p>It gets planned again on the next run, and the agent is told what was ' +
-      'wrong with this one. Say what it got wrong, in a sentence.</p>' +
+      '<p>It goes back to <strong>To do</strong>, and tonight\'s run plans the task ' +
+      'again with this one told to it. Say what this plan got wrong, in a sentence.</p>' +
       '<textarea id="redoWhy" class="redowhy" rows="3" ' +
         'placeholder="Wrong scope: this is about the Foundations file, not the whole library."></textarea>' +
     '</div>',
-    [{ label:'Send it back', primary:true, run: () => {
+    [{ label:'Yes, plan it again', primary:true, run: () => {
         const why = redoText.trim();
-        if (!why) return showToast('A plan sent back needs a reason.', 'bad');
-        movePlan(p, 'ready', 'night-agent', { reason: why });
+        if (!why) return showToast('A plan going back needs a reason.', 'bad');
+        movePlan(p, 'ready', 'night-agent', { reason: why, release: true });
       } },
      { label:'Cancel' }]);
   const box = $('#redoWhy');
@@ -206,6 +239,22 @@ function rejectPlan(p){
     box.oninput = () => { redoText = box.value; };
     box.focus();
   }
+}
+
+/* Backlog. Not a verdict on the plan at all — it is him saying the agent should
+   leave this task be. So it does two things rather than one: the plan is parked,
+   and the task itself joins the hold list, which is the only thing agents/night_agent/pick.py
+   actually reads. Parking the plan and leaving the task queued would have
+   tonight write a fresh plan for a task he just took off the agent. */
+function parkPlan(p){
+  showModal('Leave this one alone?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>The plan is parked in <strong>Backlog</strong> and the task is held back ' +
+      'from the queue, so the night agent does not touch it until you move it ' +
+      'back to To do.</p>' +
+    '</div>',
+    [{ label:'Yes, leave it alone', primary:true, run: () => movePlan(p, 'backlog', 'me', { hold: true }) },
+     { label:'Cancel' }]);
 }
 
 /* The two sections of a plan that are not for him. `Context` is the night's
@@ -238,10 +287,32 @@ async function movePlan(p, state, owner, opts){
     p.state = state; p.owner = owner; p.seen = seen;
     if (opts.resolution) p.resolution = opts.resolution;
     if (opts.reason) p.feedback = opts.reason;
-    if (!opts.quiet) renderPlansList();
+    /* The task behind the plan, and the hold list that decides whether tonight
+       touches it. A plan's own state means nothing to agents/night_agent/pick.py — it reads
+       the ledger and the hold list — so a move that says "leave this alone" has
+       to say it where the picker looks. */
+    if (opts.hold || opts.release) {
+      await setTaskHeld(planTaskKey(p), !!opts.hold);
+    }
+    if (!opts.quiet) { renderPlansList(); renderQueue(); }
   } catch (err) {
     if (!opts.quiet) showToast('Could not move that plan: ' + (err.message || err), 'bad');
   }
+}
+
+/* Put one task on the hold list, or take it off, without touching the ordering.
+   The list is titles, matched case-insensitively by pick.key(), and it is the
+   one control over the night that lives outside todo.md. */
+async function setTaskHeld(title, on){
+  const norm = t => String(t || '').trim().toLowerCase();
+  const want = norm(title);
+  if (!want) return;
+  const has = queueHoldTitles.some(t => norm(t) === want);
+  if (on === has) return;
+  queueHoldTitles = on
+    ? queueHoldTitles.concat([title])
+    : queueHoldTitles.filter(t => norm(t) !== want);
+  await saveQueueOrder(false);
 }
 
 /* Filters any of the queue/backlog/plan lists down to whichever buckets the
@@ -278,13 +349,13 @@ function goToPlanTask(key){
    scans for first, so it sits in the Inbox row rather than in a second control
    beside it. A plan can be both folded and unread; a chip narrows to one
    question at a time, so it lands in whichever one he clicked. */
-const INBOX_FILTERS = [
+const REVIEW_FILTERS = [
   { key:'unread',   label:'new',       match: p => !p.seen },
   { key:'folded',   label:'needs you', match: p => !!p.needs_you },
   { key:'read',     label:'read',      match: p => !!p.seen },
 ];
-const DECIDED_FILTERS = [
-  { key:'agreed',   label:'agreed',    match: p => isAgreed(p) },
+const DONE_FILTERS = [
+  { key:'agreed',   label:'handed over', match: p => isAgreed(p) },
   /* Only the rejections still waiting on a replacement — see redoReplaced().
      A spent one has no chip of its own, which is the point: it is filed with
      the record rather than kept in front of him. When every redo has been
@@ -295,15 +366,11 @@ const DECIDED_FILTERS = [
      that a later plan replaced is also `done`, and calling that "actioned"
      would claim he did work he never did. It has no chip of its own, which is
      the point — it is filed with the record rather than kept in front of him. */
-  { key:'actioned', label:'actioned',  match: p => p.state === 'done' && !redoReplaced(p) },
+  { key:'actioned', label:'accepted',  match: p => p.state === 'done' && !redoReplaced(p) },
 ];
-/* Which column a plan is in at all, decided by its state rather than by chip —
-   the chips narrow a column, they do not choose it. Anything still waiting on
-   him is the Inbox; anything he has ruled on is Decided, whether that was
-   approving it, sending it back, or doing the work himself. A folded plan is in
-   whichever column its state puts it, so one that has been sent back sits under
-   redo rather than staying in the Inbox asking a question he has answered. */
-const decided = p => p.state !== 'review';
+/* The chips narrow a column; they never choose it. Which column a plan is in is
+   planColumn() and nothing else, so a folded plan sits wherever its state puts
+   it rather than staying in front of him asking a question he has answered. */
 
 /* Whether a plan he sent back has already been answered by a later one.
 
@@ -384,8 +451,8 @@ function byTaskPriority(list){
 
 function redoReplaced(p){ return p.state === 'done' && p.resolution === 'superseded'; }
 /* One filter per column, so a chip picked in one does not reset the other. */
-let inboxFilter = 'all';
-let decidedFilter = 'all';
+let reviewFilter = 'all';
+let doneFilter = 'all';
 
 /* Only chips with something behind them are drawn, which is what stops a chip
    ever leading to an empty column: the bucket tabs above narrow this list too,
@@ -423,73 +490,103 @@ function wirePlanColumn(out, setFilter){
   out.querySelectorAll('[data-plan-goto]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
+  wirePlanDrags(out);
 }
 
-/* A status change moves a plan from one column to the other, so both are
-   always redrawn together. */
+/* A move can land a card in any of the four, so all four are redrawn together
+   rather than each render guessing which two were touched. */
 function renderPlansList(){
-  renderPlanInbox();
-  renderPlanDecided();
+  renderPlanReview();
+  renderPlanDone();
+  renderQueueList();
+  renderBacklogList();
 }
 
-/* The reading column. Flat, because every row in it asks the same thing, and
+/* Waiting for review. Flat, because every row in it asks the same thing, and
    the chips are the only split it needs — ordered by the priority of the task
-   each plan is about, so the top of it is what is worth reading first. */
-function renderPlanInbox(){
+   each plan is about, so the top of it is what is worth reading first.
+
+   The one column with no drop zone. A plan arrives here because the agent put
+   it here, and the three ways out are the three other columns. */
+function renderPlanReview(){
   const out = $('#plansOut');
   if (!out) return;
-  const all = byTaskPriority(plansShown(planList).filter(p => !decided(p)));
-  const active = INBOX_FILTERS.find(f => f.key === inboxFilter);
-  if (active && !all.some(active.match)) inboxFilter = 'all';
-  const shown = inboxFilter === 'all'
+  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.review));
+  const active = REVIEW_FILTERS.find(f => f.key === reviewFilter);
+  if (active && !all.some(active.match)) reviewFilter = 'all';
+  const shown = reviewFilter === 'all'
     ? all
-    : all.filter(INBOX_FILTERS.find(f => f.key === inboxFilter).match);
-  out.innerHTML = planFilterBarHTML(all, INBOX_FILTERS, inboxFilter) +
+    : all.filter(REVIEW_FILTERS.find(f => f.key === reviewFilter).match);
+  out.innerHTML = planFilterBarHTML(all, REVIEW_FILTERS, reviewFilter) +
     (shown.length
       ? shown.map(planItemHTML).join('')
       : '<div class="empty">Nothing waiting to be read. Everything written has been ruled on.</div>');
-  wirePlanColumn(out, k => { inboxFilter = k; });
+  wirePlanColumn(out, k => { reviewFilter = k; });
 }
 
-/* The verdict column, and the reason the split was worth making: agreed is
-   work still owed, redo went back for another night, and actioned is a record.
-   The three keep the grouping the one list already gave them — agreed lifted
-   to the top under its own heading, actioned folded shut at the bottom — with
-   redo between them, which is where it always drew. Inside each group the
-   ordering is the Inbox's: highest priority task first. */
-function renderPlanDecided(){
+/* Done. He has accepted the plan as written, which is where this board's half
+   ends: an accepted plan is what feeds the execution board's Backlog, and the
+   night agent stops re-planning the task from here.
+
+   Three groups inside it. `handed over` is a plan already on the acting agent's
+   side — the `ready / execution-agent` written before 12 Sep 2026, and whatever
+   the execution board sets from now on — lifted to the top because it is the
+   only one with work still owed on it. Everything accepted folds shut at the
+   bottom, the replaced rejections filed with it. Inside each group the ordering
+   is the review column's: highest priority task first. */
+function renderPlanDone(){
   const out = $('#plansDecided');
   if (!out) return;
-  const all = byTaskPriority(plansShown(planList).filter(p => decided(p)));
-  const active = DECIDED_FILTERS.find(f => f.key === decidedFilter);
-  if (active && !all.some(active.match)) decidedFilter = 'all';
-  const shown = decidedFilter === 'all'
+  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done));
+  const active = DONE_FILTERS.find(f => f.key === doneFilter);
+  if (active && !all.some(active.match)) doneFilter = 'all';
+  const shown = doneFilter === 'all'
     ? all
-    : all.filter(DECIDED_FILTERS.find(f => f.key === decidedFilter).match);
+    : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
   const agreed = shown.filter(isAgreed);
-  const redo = shown.filter(p => isRedo(p) && !redoReplaced(p));
-  /* A replaced rejection is history, so it is filed with the actioned ones
-     rather than left in the redo group looking like work nobody picked up.
-     Its note goes with it — planItemHTML() is untouched — so opening the fold
-     still shows what he asked for and why. */
+  /* A replaced rejection is history, so it is filed with the accepted ones
+     rather than left looking like work nobody picked up. Its note goes with it
+     — planItemHTML() is untouched — so opening the fold still shows what he
+     asked for and why. */
   const replaced = shown.filter(redoReplaced);
   const done = shown.filter(p => p.state === 'done' && !redoReplaced(p)).concat(replaced);
-  out.innerHTML = planFilterBarHTML(all, DECIDED_FILTERS, decidedFilter) +
+  out.innerHTML = planFilterBarHTML(all, DONE_FILTERS, doneFilter) +
     (agreed.length
-      ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
+      ? '<div class="planagreed"><h4>Handed to the acting agent</h4>' +
         '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
         agreed.map(planItemHTML).join('') + '</div>'
       : '') +
-    redo.map(planItemHTML).join('') +
     /* Open when it is the thing being asked for: a chip that narrows to
-       actioned and then hides the result behind a fold has done half a job. */
-    (done.length ? '<details' + (decidedFilter === 'actioned' ? ' open' : '') +
+       accepted and then hides the result behind a fold has done half a job. */
+    (done.length ? '<details' + (doneFilter === 'actioned' ? ' open' : '') +
                    '><summary>' + done.length +
-                   (replaced.length ? ' actioned or replaced' : ' actioned') + '</summary>' +
+                   (replaced.length ? ' accepted or replaced' : ' accepted') + '</summary>' +
                    done.map(planItemHTML).join('') + '</details>' : '') +
     (shown.length ? ''
-                  : '<div class="empty">Nothing ruled on yet. Agreeing a plan, or sending one back, lands it here.</div>');
-  wirePlanColumn(out, k => { decidedFilter = k; });
+                  : '<div class="empty">Nothing accepted yet. A plan you accept lands here, and from ' +
+                    'here it feeds the execution board.</div>');
+  wirePlanColumn(out, k => { doneFilter = k; });
+  /* The one column that takes plans and nothing else: there is nothing to
+     accept about a task nobody has planned, so a task dropped here is refused
+     with a word rather than silently ignored. */
+  wireColumnDrop(out, d => {
+    const p = draggedPlan(d);
+    if (p) acceptPlan(p);
+  }, d => d.kind === 'plan');
+  out.ondragover = (orig => e => {
+    if (drag && drag.kind === 'task') { e.preventDefault(); out.classList.add('coldeny'); return; }
+    orig(e);
+  })(out.ondragover);
+  out.ondrop = (orig => e => {
+    out.classList.remove('coldeny');
+    if (drag && drag.kind === 'task') {
+      e.preventDefault();
+      drag = null;
+      showToast('Nothing has been planned for that yet, so there is nothing to accept.', 'bad');
+      return;
+    }
+    orig(e);
+  })(out.ondrop);
 }
 
 /* -------------------------------------------------------------------------
@@ -517,8 +614,17 @@ function renderPlanDecided(){
 let queueRows = [];      // what tonight would plan, in order
 let queueHeld = [];      // deliberately held back — lives in the Backlog column
 let queueSkipped = [];   // dropped by a rule — lives in the Backlog column too
-let queueOrder = [];     // the stored ordering, so held ranks survive a save
-let queueDrag = null;    // { title, from: 'queue' | 'held' } while a card is being dragged
+let queueOrder = [];      // the stored ordering, so held ranks survive a save
+/* The hold list as the file holds it, rather than rebuilt from whatever rows
+   happen to be on screen. A task can be held and not drawn — its plan is out
+   for review, or it went Blocked this week — and rebuilding from the rows
+   quietly released every one of those on the next save. */
+let queueHoldTitles = [];
+/* One card being dragged, of either kind. `task` is a row off the queue or the
+   Backlog; `plan` is a written plan. Both move between the same four columns,
+   so both travel in the same variable and every column's drop handler decides
+   what to do with whichever arrived. */
+let drag = null;         // { kind:'task'|'plan', title, from } | { kind:'plan', url, from }
 
 /* The same "open the card ↗" link a plan's own meta line carries — see
    goToPlanTask. A queue or Backlog row is the board's own task, not a plan
@@ -551,12 +657,83 @@ function renderQueueList(){
   const out = $('#queueOut');
   if (!out) return;
   const shown = plansShown(queueRows);
-  out.innerHTML = shown.length
+  /* Plans he has sent back sit in this column too, under the queue. The task
+     itself is already in the list above — is_stale() puts it straight back —
+     so this is the written half rather than a second copy of the work: what
+     was wrong with the last attempt, which is what tonight is working from. */
+  const back = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.todo));
+  out.innerHTML = (shown.length
     ? shown.map(queueRowHTML).join('')
     : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
-      'plan already, and none of them have changed since.</div>';
+      'plan already, and none of them have changed since.</div>') +
+    (back.length
+      ? '<h4 class="fhead">Going back for another night</h4>' +
+        back.map(planItemHTML).join('')
+      : '');
   wireQueue();
+  out.querySelectorAll('[data-plan-open]').forEach(btn => {
+    const p = planList.find(x => x.url === btn.dataset.planOpen);
+    btn.onclick = () => openPlanModal(p);
+  });
+  wireTodoColumn();
 }
+
+/* -------------------------------------------------------------------------
+   One drag, four columns.
+
+   Two kinds of card move around this view and they are not the same object. A
+   task row is a card off the board that has never been planned, or whose plan
+   has been superseded; a plan row is a written document about one. Both answer
+   the same question — what should the night agent do with this — so both move
+   between the same four columns, and one `drag` carries whichever was picked up.
+
+   Where a card lands is the instruction, and it means the same thing for both
+   kinds:
+
+     Backlog            leave it alone. Task: held. Plan: parked, task held.
+     To do              plan it tonight. Task: queued, at the rank dropped.
+                        Plan: sent back with a reason, task released.
+     Waiting for review not a drop target at all. Filling it is the agent's
+                        half, which is why it draws with a dashed edge.
+     Done               accepted. Plans only — there is nothing to accept about
+                        a task nobody has planned yet, so a task dropped here
+                        is refused with a word rather than silently ignored.
+   ------------------------------------------------------------------------- */
+
+/* Every column but Waiting for review takes drops. Wired once per render, on
+   the container rather than on its rows, so an empty column is still a target. */
+function wireColumnDrop(el, onDrop, canTake){
+  if (!el) return;
+  el.ondragover = e => {
+    if (!drag || (canTake && !canTake(drag))) return;
+    e.preventDefault();
+    el.classList.add('coldrop');
+  };
+  el.ondragleave = e => { if (e.target === el) el.classList.remove('coldrop'); };
+  el.ondrop = e => {
+    if (!drag || (canTake && !canTake(drag))) return;
+    e.preventDefault();
+    el.classList.remove('coldrop');
+    const d = drag;
+    drag = null;
+    onDrop(d);
+  };
+}
+
+/* Start a drag from a plan row, wherever it is drawn. */
+function wirePlanDrags(out){
+  out.querySelectorAll('.planitem[draggable="true"]').forEach(row => {
+    row.ondragstart = e => {
+      drag = { kind:'plan', url: row.dataset.plan, from: 'plan' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', row.dataset.plan);
+      row.classList.add('dragging');
+    };
+    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
+  });
+}
+
+const draggedPlan = d => planList.find(x => x.url === d.url);
 
 function wireQueue(){
   const out = $('#queueOut');
@@ -571,19 +748,20 @@ function wireQueue(){
   /* The same reorder gesture the sub-steps in the drawer use: drop above or
      below whichever card the cursor is over, decided by its midpoint. A card
      dragged in from the Backlog column lands the same way — the drop target
-     decides the position whichever list the card came from. */
+     decides the position whichever list the card came from. A plan dropped on
+     a row has no rank to take, so it goes through the column handler below. */
   const rows = out.querySelectorAll('.qitem');
   const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
   rows.forEach(row => {
     row.ondragstart = e => {
-      queueDrag = { title: row.dataset.qtitle, from: 'queue' };
+      drag = { kind:'task', title: row.dataset.qtitle, from: 'queue' };
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', row.dataset.qtitle);
       row.classList.add('dragging');
     };
-    row.ondragend = () => { queueDrag = null; clear(); };
+    row.ondragend = () => { drag = null; clear(); };
     row.ondragover = e => {
-      if (!queueDrag) return;
+      if (!drag || drag.kind !== 'task') return;
       e.preventDefault();
       const r = row.getBoundingClientRect();
       const after = e.clientY > r.top + r.height / 2;
@@ -592,7 +770,7 @@ function wireQueue(){
     };
     row.ondragleave = () => row.classList.remove('over-top','over-bottom');
     row.ondrop = e => {
-      if (!queueDrag) return;
+      if (!drag || drag.kind !== 'task') return;
       e.preventDefault(); e.stopPropagation();
       const r = row.getBoundingClientRect();
       const at = queueRows.findIndex(x => x.title === row.dataset.qtitle);
@@ -601,23 +779,26 @@ function wireQueue(){
       dropOnQueue(to);
     };
   });
-  // Dropping on the column itself rather than on any one card — an empty
-  // queue, or the gap below the last row — appends at the end.
-  out.ondragover = e => { if (queueDrag) e.preventDefault(); };
-  out.ondrop = e => {
-    if (!queueDrag) return;
-    e.preventDefault();
-    dropOnQueue(queueRows.length);
-  };
+  wirePlanDrags(out);
+}
+
+/* The To do column as a whole: a task dropped anywhere but on a row appends at
+   the end, and a plan dropped anywhere at all goes back for another night. */
+function wireTodoColumn(){
+  wireColumnDrop($('#queueOut'), d => {
+    if (d.kind === 'task') { drag = d; dropOnQueue(queueRows.length); return; }
+    const p = draggedPlan(d);
+    if (p) replanPlan(p);
+  });
 }
 
 /* The single place a card's position in the queue actually changes, whichever
    list it started in. `toIndex` is where it lands, in queueRows' own terms —
    wireQueue works it out from the drop target before calling in. */
 function dropOnQueue(toIndex){
-  if (!queueDrag) return;
-  const { title, from } = queueDrag;
-  queueDrag = null;
+  if (!drag || drag.kind !== 'task') return;
+  const { title, from } = drag;
+  drag = null;
   if (from === 'queue') {
     const at = queueRows.findIndex(r => r.title === title);
     if (at < 0) return;
@@ -631,6 +812,7 @@ function dropOnQueue(toIndex){
     const [row] = queueHeld.splice(at, 1);
     row.state = 'queued';
     row.why = '';
+    unhold(title);
     queueRows.splice(toIndex, 0, row);
   } else {
     return;
@@ -641,6 +823,14 @@ function dropOnQueue(toIndex){
   saveQueueOrder(true);
 }
 
+const sameTitle = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+function hold(title){
+  if (!queueHoldTitles.some(t => sameTitle(t, title))) queueHoldTitles.push(title);
+}
+function unhold(title){
+  queueHoldTitles = queueHoldTitles.filter(t => !sameTitle(t, title));
+}
+
 function holdTask(title){
   const at = queueRows.findIndex(r => r.title === title);
   if (at < 0) return;
@@ -648,6 +838,7 @@ function holdTask(title){
   row.state = 'held';
   row.why = 'held back from the board';
   queueHeld.push(row);
+  hold(title);
   queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
   renderBacklogList();
@@ -660,6 +851,7 @@ function releaseHeld(title){
   const [row] = queueHeld.splice(at, 1);
   row.state = 'queued';
   row.why = '';
+  unhold(title);
   queueRows.push(row);
   queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
@@ -702,10 +894,18 @@ function renderBacklogList(){
   if (!out) return;
   const held = plansShown(queueHeld);
   const skipped = plansShown(queueSkipped);
+  const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
   out.innerHTML =
     (held.length
-      ? '<p class="help listlead">Drag back into the queue to plan it tonight.</p>' +
+      ? '<p class="help listlead">Drag into To do to plan it tonight.</p>' +
         held.map(heldRowHTML).join('')
+      : '') +
+    /* A parked plan is the written half of the same instruction: the task is
+       held, and this is what the agent had already worked out about it. Kept
+       openable rather than filed away, since taking it out of Backlog later is
+       a decision better made having read it. */
+    (parked.length
+      ? '<h4 class="fhead">Plans parked here</h4>' + parked.map(planItemHTML).join('')
       : '') +
     (skipped.length
       ? '<details class="ufold"><summary>Not eligible (' + skipped.length + ')</summary>' +
@@ -714,46 +914,41 @@ function renderBacklogList(){
           '<em>' + esc(r.why) + '</em></div>'
         ).join('') + '</details>'
       : '') +
-    (!held.length && !skipped.length
+    (!held.length && !parked.length && !skipped.length
       ? '<div class="empty">Nothing held back, and nothing excluded right now.</div>'
       : '');
-  const wrap = $('#backlogOut');
+  const wrap = out;
   wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
   });
   wrap.querySelectorAll('[data-plan-goto]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
   });
+  wrap.querySelectorAll('[data-plan-open]').forEach(btn => {
+    const p = planList.find(x => x.url === btn.dataset.planOpen);
+    btn.onclick = () => openPlanModal(p);
+  });
+  wirePlanDrags(wrap);
   wrap.querySelectorAll('.qitem.held').forEach(row => {
     row.ondragstart = e => {
-      queueDrag = { title: row.dataset.qtitle, from: 'held' };
+      drag = { kind:'task', title: row.dataset.qtitle, from: 'held' };
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', row.dataset.qtitle);
       row.classList.add('dragging');
     };
-    row.ondragend = () => { queueDrag = null; row.classList.remove('dragging'); };
+    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
   });
 
   // Dropping a card from the queue anywhere on this column holds it back —
   // the drag equivalent of pressing Hold. There is nothing to position it
   // against, since a held card has no rank, so the whole column is the target
-  // rather than any one row within it.
-  wrap.ondragover = e => {
-    if (!queueDrag || queueDrag.from !== 'queue') return;
-    e.preventDefault();
-    wrap.classList.add('backlogdrop');
-  };
-  wrap.ondragleave = e => {
-    if (e.target === wrap) wrap.classList.remove('backlogdrop');
-  };
-  wrap.ondrop = e => {
-    if (!queueDrag || queueDrag.from !== 'queue') return;
-    e.preventDefault();
-    wrap.classList.remove('backlogdrop');
-    const title = queueDrag.title;
-    queueDrag = null;
-    holdTask(title);
-  };
+  // rather than any one row within it. A plan dropped here is parked, and its
+  // task held with it.
+  wireColumnDrop(wrap, d => {
+    if (d.kind === 'task') { if (d.from === 'queue') holdTask(d.title); return; }
+    const p = draggedPlan(d);
+    if (p) parkPlan(p);
+  }, d => d.kind === 'plan' || d.from === 'queue');
 }
 
 /* `ranked` says whether this save is him ordering the queue, and only a drag
@@ -778,7 +973,10 @@ async function saveQueueOrder(ranked){
     const seen = new Set(shown.map(norm));
     order = shown.concat(queueOrder.filter(t => !seen.has(norm(t))));
   }
-  const hold = queueHeld.map(r => r.title);
+  /* The hold list as held, not as drawn. A task can be held and off screen —
+     its plan is out for review, or it went Blocked this week — and rebuilding
+     this from the rows released every one of those on the next save. */
+  const hold = queueHoldTitles;
   try {
     await postJSON('/queue/order', { order, hold });
     queueOrder = order;
@@ -811,8 +1009,10 @@ async function renderQueue(){
     queueHeld = q.held || [];
     queueSkipped = q.skipped || [];
     queueOrder = q.order || [];
+    queueHoldTitles = q.hold || [];
     renderQueueList();
     renderBacklogList();
+    wireTodoColumn();
   } catch (err) {
     const msg = '<div class="err">Could not read the queue. ' +
       esc(String(err.message || err)) + '</div>';
@@ -857,11 +1057,11 @@ function flightRowHTML(r, kind){
    when nothing is going. */
 function renderQueueDoingHead(live, orphan){
   const title = $('#qdTitle');
-  if (title) title.textContent = live ? 'Doing' : 'Queue';
+  if (title) title.textContent = live ? 'Doing' : 'To do';
   const lead = $('#qdLead');
   if (lead) lead.textContent = live
     ? 'What the night agent is doing right now.'
-    : 'What tonight\'s run would plan, in order.';
+    : 'What tonight\'s run picks up, in order.';
   const btn = $('#runQueueBtn');
   // Only when nothing is going. run.sh holds a lock and would refuse a
   // second batch anyway, but it refuses by logging and exiting cleanly,
@@ -977,7 +1177,7 @@ function confirmNightAgentRun(){
       '<p>' + (n ? 'It will work through the <strong>' + n + '</strong> task' +
         (n === 1 ? '' : 's') + ' in the queue, in that order, one agent each'
         : 'There is nothing in the queue, so it will start and stop') +
-      ', and write a plan for each into the Plans column.</p>' +
+      ', and write a plan for each into Waiting for review.</p>' +
       '<p>Up to <strong>$12</strong> across the batch and <strong>$2</strong> a task, ' +
       'stopping early if either runs out. It ignores the clock and the usage window, ' +
       'so it will spend in whatever window is open now — including the one you are ' +
@@ -1033,11 +1233,12 @@ async function renderPlansView(){
   $('#lists').innerHTML =
     '<div class="lists pview">' +
       '<div class="listcard reportsview backlogview"><h3>Backlog</h3>' +
-        '<p class="help listlead">Held back from the board, or excluded by a rule.</p>' +
+        '<p class="help listlead">The agent leaves these alone. Held back by you, ' +
+          'or excluded by a rule.</p>' +
         '<div id="backlogOut">Loading…</div>' +
       '</div>' +
       '<div class="listcard reportsview queueview" id="queueDoingCard">' +
-        '<div class="cardhead"><h3 id="qdTitle">Queue</h3>' +
+        '<div class="cardhead"><h3 id="qdTitle">To do</h3>' +
           '<button class="btn mini qrun" id="runQueueBtn" type="button">Run now</button></div>' +
         '<div class="err hidden" id="nightAgentErr"></div>' +
         '<h4 class="fhead">Status</h4>' +
@@ -1047,13 +1248,15 @@ async function renderPlansView(){
         '<div id="queueOut">Loading…</div>' +
         '<div class="hidden" id="doingOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview processed"><h3>Inbox</h3>' +
+      '<div class="listcard reportsview processed agentcol"><h3>Waiting for review</h3>' +
         '<div id="doneStatsOut"></div>' +
-        '<p class="help listlead">What the night agent has worked out, waiting to be read.</p>' +
+        '<p class="help listlead">The agent\'s own column — what it has worked out, ' +
+          'waiting on you. Drag out of it, not into it.</p>' +
         '<div id="plansOut">Loading…</div>' +
       '</div>' +
-      '<div class="listcard reportsview decided"><h3>Decided</h3>' +
-        '<p class="help listlead">Already ruled on — agreed and waiting to run, sent back, or actioned.</p>' +
+      '<div class="listcard reportsview decided"><h3>Done</h3>' +
+        '<p class="help listlead">Accepted as written. From here it feeds the ' +
+          'execution board\'s Backlog.</p>' +
         '<div id="plansDecided">Loading…</div>' +
       '</div>' +
       '<div class="pvcol">' +

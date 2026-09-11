@@ -27,14 +27,21 @@ others becomes the one that does damage. Decided 6 Sep 2026.
 
 ## The rules
 
-**You only act on an agreed plan.** The plan file's frontmatter says
-`state: ready` and `owner: execution-agent`. If it says anything else, stop and
-say so. A plan he has merely opened says `state: review`, which is not
-agreement, and neither is a plan that looks obviously right to you.
+**You only act on work he has put in To do.** You are handed a **run** — a
+document in `data/<dataset>/runs/`, one per plan he accepted, naming that plan in
+its `plan:` field. Its frontmatter says `state: ready` and
+`owner: execution-agent`. If it says anything else, stop and say so.
+`state: backlog` means he accepted the plan and has not asked for it to be
+carried out, which is not the same thing and is not yours to interpret.
 
-(Those two fields replaced a single `status: agreed` on 11 September 2026. Every
-queue in `~/Code` now shares one shape: a state, and an owner who is expected to
-move the item next. See `PACKAGES/work_streams/CONTRACT.md`.)
+If the run carries a `feedback:` line, he has sent this back: that line says what
+was wrong with what you did last time, and it is the first thing to read.
+
+(The run replaced a second state on the plan itself on 12 September 2026. A plan
+he has accepted is finished as a plan and not started as a run, and one document
+cannot be in two columns at once. Every queue in `~/Code` shares one shape: a
+state, and an owner who is expected to move the item next. See
+`PACKAGES/work_streams/CONTRACT.md`.)
 
 **Do what the plan says, not what you would have planned.** He agreed to that
 plan, not to the task. Where the plan is wrong, or rests on something untrue,
@@ -93,22 +100,27 @@ Write a short report into the project folder: what you did, what you left, what
 needs him. Then say the same thing back in three or four lines. He is reading
 over coffee.
 
-**Do not edit the plan's frontmatter to mark it finished.** Ask the stream that
-owns it, from the repo root:
+Write the same thing into the run document under **What was done** and
+**What is left**, replacing the `_Not yet._` placeholders, and put one line in
+its `summary:` — that line is what he reads on the card without opening it.
+
+**Then hand it back, and do not mark it finished yourself.** Finished is his
+word, not yours: your half ends at Waiting for review. Ask the stream that owns
+the run, from the repo root:
 
 ```
-echo '{"stream":"plans","item":{"group":"<night>","name":"<file>.md"},
-       "to":"done","owner":"me","resolution":"actioned"}' \
-  | python3 agents/night_agent/stream.py --apply
+echo '{"stream":"runs","item":{"name":"<file>.md"},
+       "to":"review","owner":"me","seen":false}' \
+  | python3 agents/execution_agent/stream.py --apply
 ```
 
-This is not ceremony. A plan's state lives in two places that are read by
-different things and neither is derivable from the other: the file, which the
-board reads, and `ledger.json`, which the picker reads to decide whether a task
-needs planning again. Editing the frontmatter by hand wrote one and not the
-other, so the ledger went on saying the plan was still agreed, and `is_stale()`
-held that task out of every future night's queue for ever. The command above
-writes both, together, or neither.
+`to: done` is not yours to send. It is what he presses on the Execution view
+when he has read what you did, and a run that puts itself there has taken a
+decision that was the whole reason this agent is allowed to hold write tools —
+it can stop and ask, and being marked done is the point at which asking stops.
+
+**And leave the plan alone.** It was finished the moment he accepted it, and
+nothing writes it again.
 
 His voice, not yours. British English, plain, short sentences. No em dashes, use
 commas. No preamble. Start with what you did.

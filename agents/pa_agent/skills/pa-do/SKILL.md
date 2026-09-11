@@ -1,6 +1,6 @@
 ---
 name: pa-do
-description: Carry out the plans the owner has agreed on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the execution-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he agreed something, since agreeing a plan is what queues it for this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the night agent, which is the board's own Run now button.
+description: Carry out the work the owner has put in the To do column of the Execution view of his board, at Code/to-dos/data/<dataset>/runs/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the execution-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the night agent, which is the board's own Run now button.
 ---
 
 # Carrying out an agreed plan
@@ -14,35 +14,41 @@ recording a decision about it. Everything else here reads the list or writes to
 it after a conversation. This one hands a plan to an agent that will produce
 something.
 
-## What "agreed" means and why nothing runs without it
+## Which queue this is, and why nothing runs without him
 
-A plan carries a `state:` and an `owner:` in its frontmatter. The pair that
-matters here is `state: ready` with `owner: execution-agent`, which is what the
-Plans view writes when he agrees a plan, through a confirm that says what it
-means. Not by you, and never on the grounds that a plan looks right.
+Since 12 September 2026 there are two agent boards, and they carry the same four
+columns as his own: Backlog, To do, Waiting for review, Done. Plans is the
+night agent's; **Execution is this one**.
 
-Five separate words did this until 11 September 2026: `unread`, `read`,
-`agreed`, `redo`, `actioned`. Two of them, `agreed` and `redo`, said the same
-thing about the plan — an agent has the green light — and differed only in which
-agent, so they are one state with an owner now. The shape is shared by every
-queue in `~/Code` and written up in `PACKAGES/work_streams/CONTRACT.md`; this
-stream's own words for each state are in `agents/night_agent/stream.json`.
+A card here is a **run** — one document per plan he accepted, in
+`data/<dataset>/runs/`, carrying the plan it came from in its `plan:` field. Not
+the plan itself: a plan he has accepted is finished as a plan and not started as
+a run, and one document cannot be in two columns at once. The shape is shared by
+every queue in `~/Code` and written up in `PACKAGES/work_streams/CONTRACT.md`;
+this stream's own words are in `agents/execution_agent/stream.json`.
 
-While a plan sits at `ready` / `execution-agent`, `is_stale()` in
-`agents/night_agent/pick.py` leaves that task alone, so the plan he approved is
-the one that gets carried out rather than being replaced overnight by a second
-opinion.
+Accepting a plan mints a run into **Backlog**, where nothing happens to it. What
+starts the work is him moving it to **To do**, which is `state: ready` with
+`owner: execution-agent`. Not by you, and never on the grounds that a plan looks
+right.
+
+While a plan sits accepted, `is_stale()` in `agents/night_agent/pick.py` leaves
+that task alone, so the plan he approved is the one that gets carried out rather
+than being replaced overnight by a second opinion.
 
 ## Move 1: what is waiting
 
 Read `data/.current` for the dataset, then look through
-`data/<dataset>/plans/*/*.md` for frontmatter with `state: ready` and
-`owner: execution-agent`. Ignore `index.md`, and ignore `plans/actioned/`.
+`data/<dataset>/runs/*.md` for frontmatter with `state: ready` and
+`owner: execution-agent`. Ignore `index.md`. A run carrying a `feedback:` line
+is one he sent back — that line says what was wrong last time, and it is the
+first thing the agent needs.
 
-Report the count and list them: the task title, its bucket, the night it was
-written, and its `summary:` line. If there are none, say so and stop. Do not go
-looking for plans he might like to agree; that is a `pa-review-plans` session and it is
-his call, not yours.
+Report the count and list them: the task title, its bucket, and its `summary:`
+line. If there are none, say so and stop — and say whether anything is sitting in
+Backlog, since that is him not having moved it across rather than there being
+nothing to do. Do not go looking for plans he might like to accept; that is a
+`pa-review-plans` session and it is his call, not yours.
 
 ## Move 2: one at a time, and he picks
 
@@ -57,7 +63,10 @@ days ago, and the thing about to happen should not be a surprise.
 
 One `execution-agent` run per plan. Give it:
 
-- The full path to the plan file.
+- The full path to the plan file, which is `data/<dataset>/plans/` plus the run's
+  own `plan:` field.
+- The full path to the run document, which is where it writes back.
+- Its `feedback:` line, if it has one — that is him having sent this back.
 - The task's title, bucket and column, and its `Project:` note if it has one.
 - The path to the bucket's brief, `data/<dataset>/buckets/<stream>/<stream>.md`, worked out the
   way `bucket_stream()` in `agents/night_agent/plan.py` does it.
@@ -76,13 +85,14 @@ for you rather than for him, so summarise it rather than relaying it, and follow
 
 Two things to check before you call it done:
 
-- **The plan is now `state: done` with `resolution: actioned`.** The agent asks
-  the stream to set it, through `agents/night_agent/stream.py --apply`, which
-  writes the plan file and its ledger row together. If it did not, say so rather
-  than setting it yourself: a plan still owned by `execution-agent` means the
-  work did not finish, and editing the frontmatter by hand writes one of those
-  two places and not the other, which is the failure that used to hold a task
-  out of every future night's queue for ever.
+- **The run is now `state: review` with `owner: me`.** The agent asks the stream
+  to set it, through `agents/execution_agent/stream.py --apply`, which is the
+  only thing that writes these documents. If it did not, say so rather than
+  setting it yourself: a run still owned by `execution-agent` means the work did
+  not finish, and that is a fact worth him seeing rather than tidying away.
+  Accepting it is his move, on the Execution view, and it is not yours to make.
+  The plan it came from is left exactly as it is — it was finished the moment he
+  accepted it, and nothing writes it again.
 - **Anything it wrote is under `data/<dataset>/projects/`.** That folder is
   private and gitignored. Nothing from it goes into a commit, a report or a
   message.
@@ -96,8 +106,10 @@ write is holding a stale document, and a save from it would undo the change.
 
 ## What this skill never does
 
-- **It never agrees a plan.** If he says "that one looks fine, do it", that is
-  him agreeing it, and the agreement gets recorded on the Plans view first.
+- **It never accepts a plan, and it never accepts a run.** If he says "that one
+  looks fine, do it", that is him accepting it, and it gets recorded on the
+  Plans view first — then moved across on the Execution view. Both are moves he
+  makes on the board.
 - **It never runs the night agent.** That is the board's Run now button, and
   it spends money.
 - **It never runs unattended.** No cron, no schedule, no background. Decided

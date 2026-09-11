@@ -1013,6 +1013,14 @@
     min-width:1796px;
   }
   .lists.pview .listcard{margin:0}
+  /* Execution is the same four columns and none of the reference cards beside
+     them — there is no queue to order, no window to spend and no clock, since
+     nothing on this board runs on one. So four equal tracks rather than four
+     plus a sidebar, and it fits a normal window without scrolling sideways. */
+  .lists.pview.eview{
+    grid-template-columns:repeat(4, minmax(300px,1fr));
+    min-width:1280px;
+  }
   /* Token Session and "What runs on a clock" share a track, stacked, rather
      than each getting one — the clock card is rarely worth a glance, so it
      reads as an appendix under the chart instead of competing with it for
@@ -1079,11 +1087,29 @@
   }
   .qskip span{flex:1; min-width:0; color:var(--ink-soft)}
   .qskip em{flex:none; font-style:normal}
-  /* Dragging a queue card over the whole column, not any one row within it —
-     a held card has no rank to drop it against. */
-  #backlogOut.backlogdrop{
+  /* A column lit up as a drop target. Three of the four take drops — Backlog,
+     To do and Done — and each lights the whole column rather than a row within
+     it, since a card dropped on a column means "put it here" and only the To do
+     column has ranks to drop between. */
+  .coldrop{
     outline:2px dashed var(--accent); outline-offset:-4px; border-radius:10px;
   }
+  /* And one that will refuse what is being dragged: a task has nothing to
+     accept, so Done says no while the card is still in the air rather than
+     after it lands. */
+  .coldeny{
+    outline:2px dashed var(--red); outline-offset:-4px; border-radius:10px;
+  }
+  /* Waiting for review is the agent's own column and takes no drops at all.
+     The dashed edge is the whole tell, so it has to be on the card rather than
+     only on the rows inside it. */
+  .lists.pview .listcard.agentcol{
+    border-style:dashed;
+    background:color-mix(in srgb, var(--panel) 88%, var(--bg));
+  }
+  /* A plan row drags like a board card, out of whichever column it is in. */
+  .planitem{cursor:grab}
+  .planitem.dragging{opacity:.4}
 
   /* Doing. One card, because the runner runs one agent at a time — drawn
      into #doingOut only while renderQueueDoingHead has it showing; idle is
@@ -1365,9 +1391,15 @@
      border-color on every edge, and border-top here needs to win on that one
      edge regardless of which status a card is in. */
   .repitem.planitem{border-top:3px solid var(--red)}
+  /* Parked in Backlog: the same dashed treatment a held task row gets, for the
+     same reason — it is waiting rather than inert. After the border-top rule
+     above for the same reason that rule is where it is: it sets one edge on
+     every plan card, and a dashed card has to be dashed on all four or it reads
+     as a border someone forgot. */
+  .repitem.planitem.parked{border-style:dashed; opacity:.78}
   /* The way back to the card a plan is about. Text, not a button chrome — it
      reads as part of the meta line rather than a second action competing with
-     Agree/Send back/Mark actioned below. */
+     Accept/Plan it again/Leave it alone below. */
   .plangoto{
     background:transparent; border:0; padding:0; margin:0; font:inherit; font-size:inherit;
     color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
@@ -1416,7 +1448,7 @@
   .repdoc .repnum li{font-size:13.5px; line-height:1.5; color:var(--ink-soft)}
   .repdoc strong{color:var(--ink)}
   @media (max-width:1000px){
-    .lists.pview{grid-template-columns:1fr; min-width:0}
+    .lists.pview, .lists.pview.eview{grid-template-columns:1fr; min-width:0}
   }
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}

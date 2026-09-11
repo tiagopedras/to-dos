@@ -15,6 +15,9 @@ file.
 | File | What it is |
 | --- | --- |
 | `execution-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/execution-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
+| `stream.json` | The manifest for this half's queue — its four columns, its owners, and where its documents live. `PACKAGES/work_streams/CONTRACT.md` is the shape. |
+| `stream.py` | The only thing that writes those documents. `--apply` moves one between columns, `--sync` mints a run for every plan he has accepted, `--list` prints the columns at a terminal. |
+| `test_execution_agent.py` | What counts as accepted, what each move writes, and what the stream refuses. Runs entirely in a temporary folder. |
 
 ## The three things that are load-bearing
 
@@ -32,27 +35,49 @@ on a schedule, never in the background. The whole reason it is allowed to act is
 that it can stop and ask, which is exactly what the planners cannot do and why
 they fold into a report instead.
 
+The To do column is a list `pa-do` works through when he starts it, not a queue
+anything picks up on a clock. That was the open question when the board was
+built on 12 Sep 2026, and it was deliberately left open: the columns are laid
+out, and giving this half a runner later is a schedule file and a `run.sh` with
+nothing on the board to change. Whether it should have one is a separate
+decision from whether it should have a board.
+
 **It does not write `todo.md`.** That file belongs to the `pa` skill. This agent
 carries out a plan; where the work means the task itself should change, it asks
 for the change in its report, precisely enough to be applied, and `pa` makes it.
 One writer is the only rule the board's autosave survives, and the acting agent
 is the wrong one to be it because it is the one running unattended stretches.
 
-## How a plan reaches it
+## How work reaches it
 
-A plan carries `state: ready` with `owner: execution-agent`, set by him on the
-Plans view and nowhere else. `pa-do` looks for those, hands one over with the
-plan path, the task's bucket and column, and the bucket's brief.
+Through a board of its own since 12 Sep 2026 — the Execution view — carrying the
+same four columns as the to-do list itself: Backlog, To do, Waiting for review,
+Done.
 
-When it is done the agent does not edit the frontmatter. It asks the stream that
-owns the file, through `agents/night_agent/stream.py --apply`, which writes the
-plan and its ledger row together. Editing by hand wrote one of the two and not
-the other, and the ledger then said the plan was still agreed for ever, so the
-picker held that task out of every future night's queue.
+A card here is a **run**: one document in `data/<dataset>/runs/` per plan he
+accepted, naming that plan in its `plan:` field. Not the plan itself, and the
+reason is worth keeping. A plan he has accepted is finished as a plan and not
+started as a run, so the two are in different columns at the same time. One
+document cannot be in two columns at once, and a second `state:` bolted onto one
+file is exactly what the contract exists to stop. So an accepted plan mints a
+run, the run carries this half's state, and the plan file is never written again.
 
-The vocabulary is no longer scattered across three files that have to be edited
-together. It lives in `agents/night_agent/stream.json`, and the shape it belongs
-to is `PACKAGES/work_streams/CONTRACT.md`.
+Accepting a plan on the Plans view lands a run in **Backlog**, where nothing
+happens to it. Moving it to **To do** — `state: ready` with
+`owner: execution-agent` — is what `pa-do` works through. It hands one over with
+the plan path, the run path, the task's bucket and column, and the bucket's
+brief. When the work is done the agent writes what it did into the run and asks
+the stream to set `review` / `me`; accepting that is his press on the board, not
+the agent's.
+
+`stream.py --sync` is what makes "Backlog is fed by everything in Plans' Done
+column" true rather than nearly true: it mints a run for every accepted plan
+that has not got one, in all three spellings the Plans view has used for
+accepted, and it is idempotent, so the view calls it every time it loads.
+
+The vocabulary is not scattered across files that have to be edited together. It
+lives in `stream.json` beside this, and the shape it belongs to is
+`PACKAGES/work_streams/CONTRACT.md`.
 
 ## Where the rest of it is written down
 

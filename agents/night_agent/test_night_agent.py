@@ -132,8 +132,9 @@ def test_pick():
     check("and says why", why.get("Only half of it"), "tagged ai:partial, and only ai:full is planned")
     check("ai:none is dropped quietly", "Not for Claude" in why, False)
 
-    # The ledger: unchanged is skipped, changed is planned again, actioned comes
-    # back because the plan no longer describes outstanding work.
+    # The ledger: unchanged is skipped, changed is planned again, and an accepted
+    # plan is left alone — since 12 Sep 2026 `done` is the end of the planning
+    # half rather than a reason to start it over.
     tasks = {t.title: t for t in plan_}
     fp = pick.fingerprint(tasks["Startable now"])
     ledger = {"Startable now": {"fingerprint": fp, "planned": "2026-09-04", "status": "unread"}}
@@ -142,8 +143,31 @@ def test_pick():
     check("and says why", s2[0][1].startswith("unchanged"), True)
 
     ledger["Startable now"]["status"] = "actioned"
-    p3, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("actioned is planned again", titles(p3), ["Plain and plannable", "Startable now"])
+    p3, s3 = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
+    check("an accepted plan is left alone", titles(p3), ["Plain and plannable"])
+    check("and says so", [w for t, w in s3 if t.title == "Startable now"][0].startswith("last plan actioned"), True)
+
+    # The same question asked of the six states rather than the five words. Both
+    # readings have to agree, since a ledger written before 11 Sep 2026 still
+    # carries the words and nothing rewrites them.
+    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
+                               "state": "done", "owner": "me", "resolution": "actioned"}
+    pd, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
+    check("done is left alone", titles(pd), ["Plain and plannable"])
+
+    ledger["Startable now"]["resolution"] = "superseded"
+    ps, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
+    check("but a replaced one comes back", titles(ps), ["Plain and plannable", "Startable now"])
+
+    # Parked in Backlog. The hold list is what the picker actually reads, but a
+    # plan left in `backlog` must not pull the task back in on its own either.
+    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
+                               "state": "backlog", "owner": "me"}
+    pb, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
+    check("parked is left alone", titles(pb), ["Plain and plannable"])
+
+    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
+                               "status": "actioned"}
 
     # The two statuses added with the execution half, 6 Sep 2026. They pull in
     # opposite directions and both matter: a rejected plan has to come back, and
