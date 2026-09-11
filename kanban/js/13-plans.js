@@ -1038,6 +1038,10 @@ async function renderQueue(){
    ------------------------------------------------------------------------- */
 
 let flightTimer = null;
+/* The last payload renderNightAgent read. Kept because the run-results fold it
+   feeds lives in a modal that is shut most of the time: opening it has to draw
+   the fold from something, and the poll already has the only copy. */
+let lastNightAgent = null;
 
 function flightRowHTML(r, kind){
   return '<div class="frow ' + kind + '">' +
@@ -1210,6 +1214,7 @@ async function renderNightAgent(){
   let live = false;
   try {
     const n = await getJSON('/night-agent.json');
+    lastNightAgent = n;
     live = !!n.live;
     const errBox = $('#nightAgentErr');
     if (errBox) errBox.classList.add('hidden');
@@ -1229,17 +1234,52 @@ async function renderNightAgent(){
   }, live ? 10000 : 60000);
 }
 
+/* Token Session and the clock card, which took a fifth track beside the four
+   columns until 12 Sep 2026. Both are reference rather than decision — the
+   chart is a glance at spend, the clock card only changes when the plist does
+   — so they are a press away instead of costing the view a column and the
+   sideways scroll that came with it. Opened from the Backlog card's head,
+   which had a bare h3 where the queue already had a head with a button in it.
+
+   Everything in here draws by id, so the render calls come after showModal has
+   put the markup in the DOM; before that, each of them finds nothing and
+   returns. */
+function openRefCards(){
+  showModal('Spend, and what runs on a clock',
+    'Both are reference. Nothing on either changes what tonight does.',
+    '<div class="pvcol">' +
+      '<div class="listcard schedview usage"><h3>Token Session</h3>' +
+        '<div id="usageOut">Loading…</div>' +
+        '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
+          '<div id="runResultsOut"></div>' +
+        '</details>' +
+      '</div>' +
+      '<div class="listcard reportsview clockview"><h3>What runs on a clock</h3>' +
+        '<div id="schedOut">Loading…</div>' +
+      '</div>' +
+    '</div>',
+    [{ label:'Close', primary:true }], { wide:true });
+  renderSched();
+  renderUsage();
+  // The poll's own copy rather than a second fetch: the fold is a record of a
+  // run that has already finished, and renderNightAgent is the only thing that
+  // reads that route.
+  if (lastNightAgent) renderRunResults(lastNightAgent);
+}
+
 async function renderPlansView(){
   $('#lists').innerHTML =
     '<div class="lists pview">' +
-      '<div class="listcard reportsview backlogview"><h3>Backlog</h3>' +
+      '<div class="listcard reportsview backlogview">' +
+        '<div class="cardhead"><h3>Backlog</h3>' +
+          '<button class="btn mini" id="refCardsBtn" type="button">Spend and clocks</button></div>' +
         '<p class="help listlead">The agent leaves these alone. Held back by you, ' +
           'or excluded by a rule.</p>' +
         '<div id="backlogOut">Loading…</div>' +
       '</div>' +
       '<div class="listcard reportsview queueview" id="queueDoingCard">' +
         '<div class="cardhead"><h3 id="qdTitle">To do</h3>' +
-          '<button class="btn mini qrun" id="runQueueBtn" type="button">Run now</button></div>' +
+          '<button class="btn mini" id="runQueueBtn" type="button">Run now</button></div>' +
         '<div class="err hidden" id="nightAgentErr"></div>' +
         '<h4 class="fhead">Status</h4>' +
         '<div id="statusOut">Loading…</div>' +
@@ -1259,19 +1299,9 @@ async function renderPlansView(){
           'execution board\'s Backlog.</p>' +
         '<div id="plansDecided">Loading…</div>' +
       '</div>' +
-      '<div class="pvcol">' +
-        '<div class="listcard schedview usage"><h3>Token Session</h3>' +
-          '<div id="usageOut">Loading…</div>' +
-          '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
-            '<div id="runResultsOut"></div>' +
-          '</details>' +
-        '</div>' +
-        '<div class="listcard reportsview clockview"><h3>What runs on a clock</h3>' +
-          '<div id="schedOut">Loading…</div>' +
-        '</div>' +
-      '</div>' +
     '</div>';
   $('#runQueueBtn').onclick = () => confirmNightAgentRun();
+  $('#refCardsBtn').onclick = () => openRefCards();
   const out = $('#plansOut');
   try {
     const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });
@@ -1297,10 +1327,11 @@ async function renderPlansView(){
       esc(String(err.message || err)) + '</div>';
   }
   // The rest after the plans have painted: reconstructing a month of windows
-  // is about a second, and nothing else should wait on it.
+  // is about a second, and nothing else should wait on it. renderUsage() runs
+  // even with its chart shut away in the modal, because the same call is what
+  // feeds the Status line on the To do card — see renderStatus().
   renderQueue();
   renderNightAgent();
-  renderSched();
   renderUsage();
 }
 

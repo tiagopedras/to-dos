@@ -209,11 +209,16 @@ check('the summary is what the closed row shows', await evalJS(`
 // What tonight would plan, in the order it would plan it, and the two ways to
 // change that: drag to reorder, hold to take one out entirely.
 
-check('all five cards are drawn', await evalJS(`
+check('all four columns are drawn', await evalJS(`
   !!document.querySelector('#backlogOut') && !!document.querySelector('#queueOut') &&
   !!document.querySelector('#doingOut') && !!document.querySelector('#plansOut') &&
-  !!document.querySelector('#plansDecided') &&
-  !!document.querySelector('#usageOut') && !!document.querySelector('#schedOut')
+  !!document.querySelector('#plansDecided')
+`))
+// Token Session and the clock are behind a button, not a fifth column: neither
+// is a decision, and the view's work is the four columns.
+check('and the two reference cards are not on the view', await evalJS(`
+  !document.querySelector('#usageOut') && !document.querySelector('#schedOut') &&
+  !document.querySelector('.lists.pview .pvcol')
 `))
 check('To do shows while nothing is running, not Doing', await evalJS(`
   document.querySelector('#qdTitle').textContent === 'To do' &&
@@ -223,17 +228,33 @@ check('To do shows while nothing is running, not Doing', await evalJS(`
 // The same four words as the board itself, in the same order. That parallel is
 // the whole point of the rename on 12 Sep 2026: where a card sits is the
 // instruction, and it means the same thing on both boards.
-check('Backlog, To do, Waiting for review, Done, Token Session and the clock read left to right, top to bottom', await evalJS(`
+check('Backlog, To do, Waiting for review and Done read left to right', await evalJS(`
   [...document.querySelectorAll('.lists.pview .listcard')]
     .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Backlog | To do | Waiting for review | Done | Token Session | What runs on a clock')
+`) === 'Backlog | To do | Waiting for review | Done')
 check('Waiting for review is drawn as the agent\'s own column', await evalJS(`
   document.querySelector('#plansOut').closest('.listcard').classList.contains('agentcol')
 `))
-check('Token Session and the clock share the last track, stacked', await evalJS(`
-  document.querySelector('.pvcol').children.length === 2 &&
-  document.querySelector('.pvcol').children[0].querySelector('h3').textContent === 'Token Session' &&
-  document.querySelector('.pvcol').children[1].querySelector('h3').textContent === 'What runs on a clock'
+
+// The two reference cards, a press away on the Backlog card's head. Opening is
+// the only thing that puts #usageOut and #schedOut in the page, so everything
+// that draws into them is called by the opener rather than by the view.
+await evalJS(`document.querySelector('#refCardsBtn').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('the button opens both of them in one modal, stacked', await evalJS(`
+  document.querySelector('.mscrim .sheet').classList.contains('wide') &&
+  document.querySelector('.mscrim .pvcol').children.length === 2 &&
+  document.querySelector('.mscrim .pvcol').children[0].querySelector('h3').textContent === 'Token Session' &&
+  document.querySelector('.mscrim .pvcol').children[1].querySelector('h3').textContent === 'What runs on a clock'
+`))
+// The fold is drawn from the poll's own last payload, not a second fetch — the
+// fixture has a finished run in it, so there is something for it to say.
+check('and the latest run costs come with it', await evalJS(`
+  document.querySelector('#runResultsSummary').textContent.includes('$0.83')
+`))
+await evalJS(`closeModal()`)
+check('closing it takes them back out of the page', await evalJS(`
+  !document.querySelector('.mscrim') && !document.querySelector('#usageOut')
 `))
 
 check('every queued task is listed', await evalJS(`
@@ -412,9 +433,12 @@ check('progress through the batch is shown in Done', await evalJS(`
   document.querySelector('#doneStatsOut .schedmeta').textContent.includes('1 of 4')
 `))
 // The results of the run itself sit in Token Session, not here — this card
-// is only what's happening right now. Folded shut like "What runs on a
-// clock", with the cost on the fold's own summary line rather than a
+// is only what's happening right now. Token Session is behind the button, so
+// the fold has to be read there, drawn from the payload the poll just took.
+// Folded shut, with the cost on the fold's own summary line rather than a
 // heading inside it.
+await evalJS(`document.querySelector('#refCardsBtn').click()`)
+await new Promise(r => setTimeout(r, 300))
 check('what the run has written is listed in Token Session, with what it cost', await evalJS(`
   document.querySelector('#runResultsSummary').textContent.includes('Latest run costs') &&
   document.querySelector('#runResultsOut .frow.done .fmeta').textContent === '214s · $0.83'
@@ -429,6 +453,7 @@ check('and the fold is not hidden when there is something to show', await evalJS
 check('and a failure is separated from a success', await evalJS(`
   document.querySelector('#runResultsOut .frow.failed .fname').textContent === 'A task that blew up'
 `))
+await evalJS(`closeModal()`)
 check('a run already going is not offered a second one', await evalJS(`
   document.querySelector('#runQueueBtn').classList.contains('hidden')
 `))
