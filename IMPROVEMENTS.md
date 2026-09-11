@@ -67,22 +67,31 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `.repdates` span may not fit the card at narrow widths, so the row needs to
   wrap or the labels shorten.
 
-- **A plan spends most of its words before it gets to what to do.**
-  `agents/night_agent/PLAN-BRIEF.md` sets one budget, "under 400 words in
-  total", and splits it nowhere, so "What this actually involves" and "What
-  already exists" can take three hundred of them and the numbered steps arrive
-  after the point he has stopped reading. The brief actively encourages it too:
-  "What already exists" is described as "the section that earns the whole
-  exercise", which is true of the research and false of the plan he reads over
-  coffee. The fix is in that one file, no new outcome value and nothing to
-  change in `write_plan()` (`agents/night_agent/plan.py:394`) or the renderer at
-  `kanban/js/13-plans.js:922`: cap the two front sections at a short paragraph
-  each, say what a finding has to earn to be written down at all, and let the
-  course of action have the rest of the budget. It sits next to the entry below
-  about there being only two shapes, which is about which shape a plan picks
-  rather than the proportions inside the four-section one.
+- ~~**A plan spends most of its words before it gets to what to do.**~~
+  **Done, 11 Sep 2026**, by a different route than the one written here. Capping
+  the two front sections would have kept a plan carrying research he has no
+  reason to read twice, so the file now holds five sections and the board shows
+  three of them. `Context` is the night's research trail — what it read, the
+  standing constraints, what it ruled out and why, what it could not establish —
+  and `History` is one line per revision; `mdBlocks()`
+  (`kanban/js/12-reports.js`) takes a `drop` list and leaves both out of the
+  render, named rather than positional so a plan written before this still
+  draws. What is shown is `Summary`, which says what is proposed rather than
+  what the situation is, `Findings` as bullets, and `Proposed plan`, with
+  `Needs you` under it. Under 300 words of his reading against 450 before.
 
-- **A numbered list in a plan renders as one run-on paragraph.** `mdBlocks()`
+  The hidden half is not dead weight: the acting agent is handed the plan file
+  and reads `Context`, and so does the next night when he sends one back, which
+  is what the entry below this one turned out to be about.
+
+- ~~**A numbered list in a plan renders as one run-on paragraph.**~~
+  **Done, 11 Sep 2026**, as written here: an ordered branch beside the bullet
+  one, `flushList()` closing whichever kind is open, and a `.repdoc .repnum`
+  rule that leaves the browser's own numbering alone. It became urgent rather
+  than untidy once `Proposed plan` was one of the three sections he sees. The
+  original entry follows.
+
+  **A numbered list in a plan renders as one run-on paragraph.** `mdBlocks()`
   at `kanban/js/12-reports.js:598` knows one bullet shape,
   `/^[-*]\s+(.*)$/`, so a line opening `1.` misses it, falls through to the
   paragraph branch, and is joined to its neighbours with a space by
