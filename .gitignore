@@ -67,3 +67,6 @@ companion/dist/
 # this machine, not to the project, so a clone should build its own rather than
 # inherit ours.
 .claude/
+
+# writer claims — see PACKAGES/work_streams/writer.py
+*.lock

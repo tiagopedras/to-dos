@@ -20,6 +20,7 @@
     "headline",
     "chat",
     "repeat",
+    "stableId",
     "extra"
   ],
   "cases": [
@@ -48,6 +49,7 @@
         "headline": "the one thing",
         "chat": "7vysow",
         "repeat": "wed",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Every tag at once** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [ai:: partial] [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed`"
@@ -74,6 +76,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [x] **A finished one** [impact:: low] [effort:: S] `done:2026-09-02` [ai:: none]"
@@ -100,6 +103,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] A title with no bold on it [impact:: med] [effort:: L]"
@@ -126,6 +130,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Trailing whitespace and runs** [effort:: S]"
@@ -152,6 +157,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **No space after the box** [effort:: S]"
@@ -178,6 +184,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": [
           "`nonsense:kept`"
         ]
@@ -208,6 +215,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Blocked by one thing** `blocked-by:solo`"
@@ -238,6 +246,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Blocked by three, spaced** `blocked-by:a,b,c`"
@@ -264,6 +273,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] ****"
@@ -290,6 +300,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **"
@@ -316,6 +327,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] ***"
@@ -342,6 +354,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **x**"
@@ -368,6 +381,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Rank with junk on it** `rank:3`"
@@ -394,6 +408,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Rank that is pure junk**"
@@ -420,6 +435,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Rank written as a decimal** `rank:3`"
@@ -446,6 +462,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Timeline rank with junk on it** `tlrank:2`"
@@ -472,6 +489,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Slug is lowercased** `#mixedcase`"
@@ -498,6 +516,7 @@
         "headline": "",
         "chat": "7vysow",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Chat key is lowercased** `chat:7vysow`"
@@ -524,6 +543,7 @@
         "headline": "",
         "chat": "",
         "repeat": "wed2/3",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Repeat is lowercased** `repeat:wed2/3`"
@@ -550,6 +570,7 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [x] **A capital X ticks too** [effort:: S]"
@@ -576,9 +597,204 @@
         "headline": "",
         "chat": "",
         "repeat": "",
+        "stableId": "",
         "extra": []
       },
       "roundTrip": "- [ ] **Empty inline field** [effort:: S]"
+    },
+    {
+      "line": "- [ ] **Every tag at once, with an id** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [ai:: partial] [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed` `id:ab12cd`",
+      "expect": {
+        "done": false,
+        "title": "Every tag at once, with an id",
+        "bold": true,
+        "impact": "high",
+        "effort": "M",
+        "due": "2026-09-11",
+        "start": "2026-09-01",
+        "doneOn": "",
+        "ai": "partial",
+        "to": "Alex",
+        "urgent": true,
+        "week": true,
+        "slug": "allsorts",
+        "blockedBy": [
+          "one",
+          "two"
+        ],
+        "rank": 4,
+        "tlrank": 2,
+        "headline": "the one thing",
+        "chat": "7vysow",
+        "repeat": "wed",
+        "stableId": "ab12cd",
+        "extra": []
+      },
+      "roundTrip": "- [ ] **Every tag at once, with an id** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [ai:: partial] [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed` `id:ab12cd`"
+    },
+    {
+      "line": "- [ ] **An id and nothing else** `id:zz9zz9`",
+      "expect": {
+        "done": false,
+        "title": "An id and nothing else",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "zz9zz9",
+        "extra": []
+      },
+      "roundTrip": "- [ ] **An id and nothing else** `id:zz9zz9`"
+    },
+    {
+      "line": "- [ ] **No id at all, the way every task looked before today** [impact:: low]",
+      "expect": {
+        "done": false,
+        "title": "No id at all, the way every task looked before today",
+        "bold": true,
+        "impact": "low",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "",
+        "extra": []
+      },
+      "roundTrip": "- [ ] **No id at all, the way every task looked before today** [impact:: low]"
+    },
+    {
+      "line": "- [ ] **An id in the other syntax is read too** [id:: qq11qq]",
+      "expect": {
+        "done": false,
+        "title": "An id in the other syntax is read too",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "qq11qq",
+        "extra": []
+      },
+      "roundTrip": "- [ ] **An id in the other syntax is read too** `id:qq11qq`"
+    },
+    {
+      "line": "- [ ] **An id is lowercased like a slug and a chat key** `id:AB12CD`",
+      "expect": {
+        "done": false,
+        "title": "An id is lowercased like a slug and a chat key",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "ab12cd",
+        "extra": []
+      },
+      "roundTrip": "- [ ] **An id is lowercased like a slug and a chat key** `id:ab12cd`"
+    },
+    {
+      "line": "- [ ] **An unknown tag still rides along beside an id** `id:ab12cd` `mystery:7`",
+      "expect": {
+        "done": false,
+        "title": "An unknown tag still rides along beside an id",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "ab12cd",
+        "extra": [
+          "`mystery:7`"
+        ]
+      },
+      "roundTrip": "- [ ] **An unknown tag still rides along beside an id** `id:ab12cd` `mystery:7`"
+    },
+    {
+      "line": "- [x] **A finished task keeps its id** `done:2026-09-10` `id:ff00ff`",
+      "expect": {
+        "done": true,
+        "title": "A finished task keeps its id",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "2026-09-10",
+        "ai": "",
+        "to": "",
+        "urgent": false,
+        "week": false,
+        "slug": "",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "ff00ff",
+        "extra": []
+      },
+      "roundTrip": "- [x] **A finished task keeps its id** `done:2026-09-10` `id:ff00ff`"
     }
   ],
   "docs": [

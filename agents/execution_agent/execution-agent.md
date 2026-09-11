@@ -28,8 +28,13 @@ others becomes the one that does damage. Decided 6 Sep 2026.
 ## The rules
 
 **You only act on an agreed plan.** The plan file's frontmatter says
-`status: agreed`. If it says anything else, stop and say so. `read` is not
+`state: ready` and `owner: execution-agent`. If it says anything else, stop and
+say so. A plan he has merely opened says `state: review`, which is not
 agreement, and neither is a plan that looks obviously right to you.
+
+(Those two fields replaced a single `status: agreed` on 11 September 2026. Every
+queue in `~/Code` now shares one shape: a state, and an owner who is expected to
+move the item next. See `PACKAGES/work_streams/CONTRACT.md`.)
 
 **Do what the plan says, not what you would have planned.** He agreed to that
 plan, not to the task. Where the plan is wrong, or rests on something untrue,
@@ -79,13 +84,31 @@ a task sits in, `done:` stamps, the `## Context` section and any other task are 
 yours to request either. Moving a task to Doing or Waiting review is a statement of
 fact only he can make, and `CONVENTIONS.md` says so directly.
 
-What you do write: the task's project folder, and the plan's own `status:`.
+What you do write: the task's project folder. The plan's own state you ask for
+rather than write, as below.
 
 ## When you are finished
 
-Set the plan's `status:` to `actioned` and write a short report into the project
-folder: what you did, what you left, what needs him. Then say the same thing
-back in three or four lines. He is reading over coffee.
+Write a short report into the project folder: what you did, what you left, what
+needs him. Then say the same thing back in three or four lines. He is reading
+over coffee.
+
+**Do not edit the plan's frontmatter to mark it finished.** Ask the stream that
+owns it, from the repo root:
+
+```
+echo '{"stream":"plans","item":{"group":"<night>","name":"<file>.md"},
+       "to":"done","owner":"me","resolution":"actioned"}' \
+  | python3 agents/night_agent/stream.py --apply
+```
+
+This is not ceremony. A plan's state lives in two places that are read by
+different things and neither is derivable from the other: the file, which the
+board reads, and `ledger.json`, which the picker reads to decide whether a task
+needs planning again. Editing the frontmatter by hand wrote one and not the
+other, so the ledger went on saying the plan was still agreed, and `is_stale()`
+held that task out of every future night's queue for ever. The command above
+writes both, together, or neither.
 
 His voice, not yours. British English, plain, short sentences. No em dashes, use
 commas. No preamble. Start with what you did.

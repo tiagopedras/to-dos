@@ -16,21 +16,28 @@ something.
 
 ## What "agreed" means and why nothing runs without it
 
-A plan carries a `status:` in its frontmatter. `agreed` is the one that matters
-here, and it is set by him on the Plans view, through a confirm that says what
-it means. Not by you, and never on the grounds that a plan looks right.
+A plan carries a `state:` and an `owner:` in its frontmatter. The pair that
+matters here is `state: ready` with `owner: execution-agent`, which is what the
+Plans view writes when he agrees a plan, through a confirm that says what it
+means. Not by you, and never on the grounds that a plan looks right.
 
-The five statuses are `unread`, `read`, `agreed`, `redo`, `actioned`. They are
-documented in `kanban/js/13-plans.js`, validated in `kanban/server.py` and read
-by `is_stale()` in `agents/night_agent/pick.py`. While a plan sits at `agreed` the nightly
-runner leaves that task alone, so the plan he approved is the one that gets
-carried out rather than being replaced overnight by a second opinion.
+Five separate words did this until 11 September 2026: `unread`, `read`,
+`agreed`, `redo`, `actioned`. Two of them, `agreed` and `redo`, said the same
+thing about the plan — an agent has the green light — and differed only in which
+agent, so they are one state with an owner now. The shape is shared by every
+queue in `~/Code` and written up in `PACKAGES/work_streams/CONTRACT.md`; this
+stream's own words for each state are in `agents/night_agent/stream.json`.
+
+While a plan sits at `ready` / `execution-agent`, `is_stale()` in
+`agents/night_agent/pick.py` leaves that task alone, so the plan he approved is
+the one that gets carried out rather than being replaced overnight by a second
+opinion.
 
 ## Move 1: what is waiting
 
 Read `data/.current` for the dataset, then look through
-`data/<dataset>/plans/*/*.md` for frontmatter with `status: agreed`. Ignore
-`index.md`, and ignore `plans/actioned/`.
+`data/<dataset>/plans/*/*.md` for frontmatter with `state: ready` and
+`owner: execution-agent`. Ignore `index.md`, and ignore `plans/actioned/`.
 
 Report the count and list them: the task title, its bucket, the night it was
 written, and its `summary:` line. If there are none, say so and stop. Do not go
@@ -69,9 +76,13 @@ for you rather than for him, so summarise it rather than relaying it, and follow
 
 Two things to check before you call it done:
 
-- **The plan is now `actioned`.** The agent sets it. If it did not, say so
-  rather than setting it yourself, because a plan that is still `agreed` means
-  the work did not finish.
+- **The plan is now `state: done` with `resolution: actioned`.** The agent asks
+  the stream to set it, through `agents/night_agent/stream.py --apply`, which
+  writes the plan file and its ledger row together. If it did not, say so rather
+  than setting it yourself: a plan still owned by `execution-agent` means the
+  work did not finish, and editing the frontmatter by hand writes one of those
+  two places and not the other, which is the failure that used to hold a task
+  out of every future night's queue for ever.
 - **Anything it wrote is under `data/<dataset>/projects/`.** That folder is
   private and gitignored. Nothing from it goes into a commit, a report or a
   message.

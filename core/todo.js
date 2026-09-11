@@ -87,6 +87,7 @@ function parseTask(rawLines){
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
   let blockedBy = [], rank = null, tlrank = null, slug = '', headline = '', chat = '', repeat = '';
+  let stableId = '';
   /* Either syntax lands here, so a tag means the same thing whichever form it
      arrived in. `whole` is what goes into `extra`, which keeps an unrecognised
      tag exactly as it was written. */
@@ -113,6 +114,13 @@ function parseTask(rawLines){
        because the load-time roll has to read it on every task, and because two
        views ask about it — the card's chip and the Quick wins group. */
     else if (key === 'repeat') repeat = v.trim().toLowerCase();
+    /* The task's own identity, minted once and written here. Not `id` on the
+       object below, which is a fresh number every parse and means nothing
+       outside this tab — see uid(). This one is what a plan, a ledger row or a
+       queue position points at, and it is the whole reason renaming a task no
+       longer loses those. Six characters of base36, the same shape and the
+       same generator as a `chat:` key, which has held up. */
+    else if (key === 'id') stableId = v.trim().toLowerCase();
     else extra.push(whole);
     return ' ';
   };
@@ -145,11 +153,38 @@ function parseTask(rawLines){
        one task can be delegated to someone and still be drafted by Claude.
        Optional, and blank on almost everything, so nothing shows when it is. */
     to: tags.to || '',
-    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, extra,
+    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId, extra,
     body: rawLines.slice(1),
     raw: first,
     dirty: false
   };
+}
+
+/* A new stable id, avoiding everything already in use. Six characters of
+   base36: meaningless on its own, short enough to read on a line without
+   crowding the tags beside it, and the same shape as the chat keys in
+   ai_chat_engine, which this borrows wholesale rather than inventing a second
+   scheme for the same job.
+
+   `taken` is whatever the caller already knows about. Collisions are checked
+   rather than assumed away, because 36^6 is large but a task list is not
+   random and ids get copied between lines by hand. */
+function mintId(taken){
+  const used = taken instanceof Set ? taken : new Set(taken || []);
+  let key = '';
+  do { key = Math.random().toString(36).slice(2, 8); }
+  while (key.length < 6 || used.has(key));
+  return key;
+}
+
+/* Every stable id in a parsed document, for minting against. */
+function idsInDoc(doc){
+  const out = new Set();
+  for (const b of doc.buckets)
+    for (const tier of b.tiers)
+      for (const t of tier.tasks)
+        if (t.stableId) out.add(t.stableId);
+  return out;
 }
 
 function serializeTask(t){
@@ -179,6 +214,13 @@ function serializeTask(t){
     if (t.headline) tags.push('`headline:' + t.headline + '`');
     if (t.chat)   tags.push('`chat:' + t.chat + '`');
     if (t.repeat) tags.push('`repeat:' + t.repeat + '`');
+    /* Last among the tags this file knows, and that position is load-bearing.
+       Ids were added to a file of 137 existing tasks by appending this one
+       token to each line and changing nothing else, which only round-trips
+       through this function if the token belongs at the end. Moving it earlier
+       would rewrite every line the first time each task is edited, and would
+       have made that migration unreviewable. */
+    if (t.stableId) tags.push('`id:' + t.stableId + '`');
     if (t.extra && t.extra.length) tags.push.apply(tags, t.extra);
     first = '- ' + box + ' ' + [name].concat(tags).join(' ');
   }

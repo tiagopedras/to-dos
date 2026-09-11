@@ -38,6 +38,7 @@ from core/todo.py, which every reader of the list shares.
 
 import datetime as dt
 import hashlib
+import re
 import json
 import os
 import sys
@@ -68,15 +69,29 @@ NEARLY = {"partial"}
 NOT_PLANNABLE_WHY = "tagged ai:%s, and only ai:full is planned"
 
 
+# Tokens that say which task this is, not what it says. A fingerprint answers
+# "has this changed since I last looked", so identity has no business in it:
+# giving 137 tasks an id would otherwise have read as 137 changed tasks and
+# spent a whole night's budget re-planning work that was already planned.
+IDENTITY_TOKENS = re.compile(r"`(?:id|created):[^`]*`|\[(?:id|created)::[^\]]*\]")
+
+
 def fingerprint(task):
-    """A hash of the task exactly as written, title line and notes together.
+    """A hash of the task as written, title line and notes together.
 
     The whole block rather than the title, because the point is to notice that
     the task has changed — a new sub-step, a rewritten note, a moved date all
     make last night's plan stale, and none of them touch the title.
+
+    Two things are taken out first. Identity tokens, for the reason above. And
+    whitespace is flattened, because reflowing a paragraph is not a change of
+    mind: the improvements agent's reader has always said so in as many words,
+    this one did not, and re-wrapping one note line used to cost a whole plan.
+    One question deserves one answer, so both now flatten.
     """
     text = task.raw + "\n" + "\n".join(task.body)
-    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+    text = IDENTITY_TOKENS.sub("", text)
+    return hashlib.sha1(" ".join(text.split()).encode("utf-8")).hexdigest()[:12]
 
 
 def eligible(tasks, day, slugs=None, drops=None):
@@ -238,7 +253,7 @@ def in_order(tasks, order, today=None):
     def sort_key(t):
         due = todo.effective_due(t, today)
         return (
-            rank.get(key(t.title), back),
+            rank.get(key(key_of(t)), back),
             0 if t.headline else 1,
             (due - today).days if due else 10 ** 6,
             -todo.priority_score(t),
@@ -250,29 +265,58 @@ def in_order(tasks, order, today=None):
 def is_stale(task, ledger):
     """Whether this task needs a fresh plan.
 
-    Four ways to be worth planning: never planned, changed since the last plan,
-    the last plan was actioned and so no longer describes outstanding work, or
-    the last plan was sent back to be redone.
+    The question is `is this mine to pick up`, asked of the ledger row's owner,
+    rather than `what does the status word say`. Until 11 Sep 2026 there were
+    five words and this function knew three of them by name; now there are six
+    states shared by every stream, and which agent may act is `owner`.
 
-    `agreed` is deliberately not one of them. A plan he has approved is waiting
-    to be carried out, and planning the same task again tonight would spend a
-    slot writing a second opinion nobody asked for and put two live plans on one
-    task. It stays out of the queue until the work is done and the plan turns
-    actioned, which is the existing rule doing its job.
+    So: a row owned by this agent is one to plan. A row owned by the acting
+    agent is a plan he has approved and which is waiting to be carried out, and
+    planning the same task again tonight would spend a slot writing a second
+    opinion nobody asked for and put two live plans on one task. A row owned by
+    him is waiting on him, and is not ours either.
+
+    The row is keyed by task id since the same day, so a retitle no longer loses
+    it. Rows written before that are keyed by title and are read by the caller,
+    which tries the id first.
     """
-    seen = ledger.get(task.title)
+    seen = ledger.get(key_of(task)) or ledger.get(task.title)
     if not seen:
         return True, "never planned"
     if seen.get("fingerprint") != fingerprint(task):
         return True, "changed since %s" % seen.get("planned", "?")
-    status = seen.get("status")
-    if status == "actioned":
-        return True, "last plan actioned"
-    if status == "redo":
+
+    state, owner = seen.get("state"), seen.get("owner")
+    if state is None:
+        # A ledger written before the six states. Read the old word rather than
+        # refusing, the same permanent fallback the file format keeps.
+        status = seen.get("status")
+        if status in ("actioned", "redo"):
+            return True, "last plan %s" % ("actioned" if status == "actioned" else "sent back")
+        if status == "agreed":
+            return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
+        return False, "unchanged since %s" % seen.get("planned", "?")
+
+    if state == "done":
+        return True, "last plan %s" % (seen.get("resolution") or "finished")
+    if state == "ready" and owner == "night-agent":
         return True, "last plan sent back"
-    if status == "agreed":
+    if state == "ready" and owner == "execution-agent":
         return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
     return False, "unchanged since %s" % seen.get("planned", "?")
+
+
+def key_of(task):
+    """What the ledger and the queue order key a task by.
+
+    The id on the task's own line, falling back to the title for a list that
+    has not been through core/migrations/mint-ids.mjs. Titles were the key
+    until 11 Sep 2026, for the honest reason that no id existed and a second
+    identity scheme would have been a second thing to keep in step. One exists
+    now, it is written in the file, and it survives the retitle that used to
+    cost a task its ledger row and its place in the queue.
+    """
+    return getattr(task, "stable_id", "") or task.title
 
 
 def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
@@ -306,7 +350,7 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
         # Held beats everything, --all included. The ledger is a cache and --all
         # exists to ignore it; this is an instruction, and ignoring it would
         # mean the one control he has over the night quietly not working.
-        if key(t.title) in held:
+        if key(key_of(t)) in held:
             skip.append((t, "held back from the board"))
             continue
         if not use_ledger:

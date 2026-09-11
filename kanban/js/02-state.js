@@ -155,21 +155,26 @@ function parseHash(){
 }
 
 /* A task's `id` is minted fresh on every parse (see uid), so nothing outside
-   this tab can name a card by it. Two things in the file are stable enough to
-   link to: its `#slug` where it has one, and its title where it doesn't. Both
-   are tried, slug first — a slug is deliberate, a title is only as unique as he
-   happened to make it. */
+   this tab can name a card by it. Three things in the file are stable enough to
+   link to, and all three are tried in this order.
+
+   `stableId` first: written on the line, unique across the list, and the only
+   one that survives a retitle, which is why the plans ledger and the nightly
+   queue now key on it. Then `#slug`, which is deliberate where it exists but
+   optional. Then the title, which is only as unique as he happened to make it,
+   and is what every link written before ids existed still carries. */
 function findTaskByKey(key){
   if (!key || !state.doc) return null;
   const want = key.replace(/\s+/g, ' ').trim().toLowerCase();
-  let bySlug = null, byTitle = null;
+  let byId = null, bySlug = null, byTitle = null;
   for (const b of state.doc.buckets)
     for (const tier of b.tiers)
       for (const t of tier.tasks){
+        if (!byId && t.stableId && t.stableId === want) byId = t;
         if (!bySlug && t.slug && t.slug.toLowerCase() === want) bySlug = t;
         if (!byTitle && String(t.title || '').replace(/\s+/g, ' ').trim().toLowerCase() === want) byTitle = t;
       }
-  return bySlug || byTitle;
+  return byId || bySlug || byTitle;
 }
 
 /* The inverse of findTaskByKey, and the same choice companion/app.py's own
@@ -177,7 +182,7 @@ function findTaskByKey(key){
    link this tab writes into its own address bar is one findTaskByKey can read
    straight back, here or from the companion. */
 function taskKey(t){
-  return t.slug || t.title;
+  return t.stableId || t.slug || t.title;
 }
 
 /* encodeURIComponent leaves `!` untouched. parseHash() only ever splits on the
@@ -313,4 +318,38 @@ const TIER_HINT = {
    round, with a synthetic Handed to AI column ahead of Done on the far
    right for anything tagged ai:full and not yet done. */
 function boardColumns(){ return allTiers().slice().reverse().concat([AI_COL, DONE_COL]); }
+
+/* The five names above, and the two synthetic columns, are also written down in
+   stream.json, which is this list's manifest under the work-item contract. Two
+   copies of one vocabulary is exactly what that contract exists to stop, so
+   this checks them against each other on boot and says so in the console if
+   they have drifted.
+
+   Checked rather than derived, deliberately, and it is worth saying why. These
+   are `const`s read by twenty-odd scripts at the moment they first run, and the
+   manifest arrives over the network. Deriving them would mean either blocking
+   the board's first paint on a fetch or leaving every one of those scripts to
+   cope with the names not existing yet, which is a real cost for a vocabulary
+   that changes about once a year. A check costs nothing and catches the only
+   thing that actually goes wrong: someone editing one and not the other.
+
+   Silent when there is no manifest, because the static deployment has no
+   /streams.json and a board with no helper behind it is a normal state. */
+async function checkStreamManifest(){
+  try {
+    const res = await fetch('/streams.json');
+    if (!res.ok) return;
+    const found = (await res.json()).streams || [];
+    const mine = found.find(s => s.id === 'tasks');
+    if (!mine) return;
+    const drew = boardColumns();
+    const says = (mine.lanes || []).map(l => l.lane);
+    if (drew.join('|') !== says.join('|'))
+      console.warn('[work-streams] the board draws columns this manifest does not name.' +
+        '\n  board:    ' + drew.join(' | ') +
+        '\n  manifest: ' + says.join(' | ') +
+        '\n  One of stream.json and 02-state.js is out of date. See PACKAGES/work_streams/CONTRACT.md.');
+    for (const e of mine.errors || []) console.warn('[work-streams] stream.json: ' + e);
+  } catch (err) { /* no helper, or no package: both are normal */ }
+}
 

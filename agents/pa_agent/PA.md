@@ -164,7 +164,7 @@ instead of adding a second one, and it leaves whichever view is up alone. A
 file. Never write one.
 
 The link goes on the title and nowhere else. A bullet that reads
-`[Tim probation review](http://127.0.0.1:8765/kanban/index.html#!task=Tim%20probation%20review) —
+`[Casey probation review](http://127.0.0.1:8765/kanban/index.html#!task=Casey%20probation%20review) —
 rationale due Thursday` is the shape. Do not add a second link for the same task
 further down the same reply, and do not link a task the report only mentions in
 passing inside a sentence.

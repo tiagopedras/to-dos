@@ -589,12 +589,19 @@ const reportBodies = {};
    the inline marks mdInline already handles. Anything fancier is not something
    these files are allowed to contain.
 
-   Two options, both off by default so a report renders exactly as it always
-   did. The drawer's Description turns both on: `srcmap` stamps every block
-   with the lines of `text` it came from, which is how a click on the rendered
-   note finds its place in the Markdown behind it (see noteCaret in the
-   drawer), and `keepH1` keeps a single-hash heading, which is a real heading
-   in a note where in a report it is only the title repeated. */
+   Three options, all off by default so a report renders exactly as it always
+   did. The drawer's Description turns the first two on: `srcmap` stamps every
+   block with the lines of `text` it came from, which is how a click on the
+   rendered note finds its place in the Markdown behind it (see noteCaret in
+   the drawer), and `keepH1` keeps a single-hash heading, which is a real
+   heading in a note where in a report it is only the title repeated.
+
+   `drop` is a list of heading names whose whole section is left out of the
+   render. It exists for plans: a plan carries its research trail and its
+   revision history in the same file as the plan itself, because the acting
+   agent and the next night's re-plan both read them, and he does not. Left
+   out rather than folded into a `details`, since a fold is still an invitation
+   to open something written for a machine. */
 function mdBlocks(text, opts){
   const o = opts || {};
   // Frontmatter is metadata for the list, not part of the report.
@@ -606,23 +613,54 @@ function mdBlocks(text, opts){
   const at = (a, b) => o.srcmap ? ' data-src="' + (base + a) + ',' + (base + b) + '"' : '';
   const out = [];
   let para = [], paraAt = 0, list = null;
+  // Sections the caller does not want rendered at all. A heading whose text is
+  // named takes everything under it with it, as far as the next heading at its
+  // own level or above, so a subheading inside a dropped section goes too.
+  const drop = (o.drop || []).map(s => s.trim().toLowerCase());
+  let skipAt = 0;
   const flushPara = () => { if (para.length) {
     out.push('<p' + at(paraAt, paraAt + para.length - 1) + '>' + mdInline(para.join(' ')) + '</p>');
     para = [];
   } };
-  const flushList = () => { if (list) { out.push('<ul class="repbul">' + list.join('') + '</ul>'); list = null; } };
+  // Two list shapes, one open at a time. A plan's Proposed plan and Needs you
+  // are both numbered, and until the ordered branch existed every one of them
+  // fell through to the paragraph branch and came back as a run-on sentence.
+  let listTag = 'ul';
+  const flushList = () => { if (list) {
+    out.push('<' + listTag + ' class="' + (listTag === 'ol' ? 'repnum' : 'repbul') + '">' +
+             list.join('') + '</' + listTag + '>');
+    list = null;
+  } };
   body.split('\n').forEach((raw, i) => {
     const line = raw.trim();
-    if (!line) { flushPara(); flushList(); return; }
     const h = /^(#{1,4})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      if (skipAt && level <= skipAt) skipAt = 0;
+      if (!skipAt && drop.indexOf(h[2].trim().toLowerCase()) !== -1) {
+        flushPara(); flushList();
+        skipAt = level;
+        return;
+      }
+    }
+    if (skipAt) return;
+    if (!line) { flushPara(); flushList(); return; }
     if (h) {
       flushPara(); flushList();
       // The h1 is the report's own title, which the list already shows above it.
       if (h[1].length > 1 || o.keepH1) out.push('<h4' + at(i, i) + '>' + mdInline(h[2]) + '</h4>');
       return;
     }
-    const b = /^[-*]\s+(.*)$/.exec(line);
-    if (b) { flushPara(); (list = list || []).push('<li' + at(i, i) + '>' + mdInline(b[1]) + '</li>'); return; }
+    const b = /^[-*]\s+(.*)$/.exec(line) || /^(?:\d+[.)])\s+(.*)$/.exec(line);
+    if (b) {
+      const tag = /^[-*]/.test(line) ? 'ul' : 'ol';
+      // A list that changes kind mid-run closes and opens rather than mixing.
+      if (list && tag !== listTag) flushList();
+      listTag = tag;
+      flushPara();
+      (list = list || []).push('<li' + at(i, i) + '>' + mdInline(b[1]) + '</li>');
+      return;
+    }
     flushList();
     if (!para.length) paraAt = i;
     para.push(line);
@@ -661,12 +699,12 @@ function openDocModal(cfg){
   if (!cfg.cache[cfg.url]) cfg.load(cfg.url);
 }
 
-async function loadDocBody(url, cache, noun){
+async function loadDocBody(url, cache, noun, opts){
   let html;
   try {
     const res = await fetch(url + '?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) throw new Error(res.status);
-    html = mdBlocks(await res.text());
+    html = mdBlocks(await res.text(), opts);
     cache[url] = html;
   } catch (err) {
     html = '<div class="err">Could not read that ' + noun + '. ' + esc(String(err.message || err)) + '</div>';

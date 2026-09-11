@@ -1,6 +1,6 @@
 ---
 name: pa-retrieve-tasks
-description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of the DS WG", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to create new action items in the recorder, or to review the to-do list itself, which is pa-checkin. It is also called by pa-checkin at the start of the daily check-in, once a day, so the list is complete before it is read back to him.
+description: Pull the action items captured from the owner's meetings by whatever recorder was in the room, review them with him one by one, and add the ones he keeps to his master to-do list at Code/to-dos/data/todo.md. Jamie is the source configured today. Use whenever he asks what came out of his calls, what he was actioned with, what the recorder picked up, or asks to check today's, yesterday's or this week's meetings for tasks. Phrasings include "check my Jamie calls", "any tasks from today's meetings", "what did I get actioned with", "pull my action items", "what came out of that working group", "did I pick anything up in that call", and "add my meeting tasks to my list". Also use when he names one meeting and wants its actions. Do not use it to summarise a meeting he just wants to read, to create new action items in the recorder, or to review the to-do list itself, which is pa-checkin. It is also called by pa-checkin at the start of the daily check-in, once a day, so the list is complete before it is read back to him.
 ---
 
 # Meeting actions into the to-do list
@@ -178,7 +178,7 @@ whose work is contacting somebody, and the checker before delivering.
 
 Two things to pass through to it, since they come from here and it cannot know them:
 
-- **The provenance line.** Every task from a meeting carries a note saying which meeting and which date: "From the DS-Design WG on 27 Aug." It explains why the task exists to whoever reads it in three weeks, and it is what makes the next duplicate check work.
+- **The provenance line.** Every task from a meeting carries a note saying which meeting and which date: "From the Platform WG on 27 Aug." It explains why the task exists to whoever reads it in three weeks, and it is what makes the next duplicate check work.
 - **Anything the transcript said that the task text lost.** A deadline somebody named out loud, a person who has to be involved, the reason it was raised. That context is in the meeting and nowhere else, and it is the whole reason a task written from a transcript beats a task written from a title.
 
 New tasks go to **To do** or **Backlog**. Never to Doing, even when he agreed in the
@@ -199,7 +199,7 @@ once turned down.
 
 ## 2026-09-03 pull
 
-- **Send the Q3 board deck to Anu for review.** From the DS-Design WG on 27 Aug 2026.
+- **Send the Q3 board deck to Morgan for review.** From the Platform WG on 27 Aug 2026.
 ```
 
 One `## <date> pull` section per pull, the rewritten task text bolded exactly as it

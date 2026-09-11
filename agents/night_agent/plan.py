@@ -183,27 +183,147 @@ def read_front(path):
     return fields
 
 
-def rejection(prior):
-    """Why the last plan for this task was sent back, if it was.
+def plan_path(prior):
+    """Where the plan a ledger row points at actually is, or None.
 
-    The board writes `redo_note:` into the plan's own frontmatter when he
-    rejects it, and the ledger row already records which file that was. So the
-    link exists and this only follows it: no second store, and the reason stays
-    where a person reading the plan can see it.
-
-    Returns (summary, note) or None. The summary comes along because "do not
-    propose this again" means nothing without what was proposed.
+    Two places, for the same reason stream.py looks in two: a plan pruned into
+    `plans/actioned/` keeps the night it was written in its own frontmatter, so
+    it stays addressable by that night after the folder has gone.
     """
-    if not prior or prior.get("status") != "redo":
-        return None
-    night, name = prior.get("night"), prior.get("file")
+    night, name = (prior or {}).get("night"), (prior or {}).get("file")
     if not night or not name:
         return None
-    front = read_front(os.path.join(paths.plans_dir(), night, name))
-    note = front.get("redo_note")
+    path = os.path.join(paths.plans_dir(), night, name)
+    if os.path.isfile(path):
+        return path
+    alt = os.path.join(paths.plans_dir(), "actioned", "%s-%s" % (night, name))
+    return alt if os.path.isfile(alt) else None
+
+
+SECTION_RE = re.compile(r"^(#{1,4})\s+(.*?)\s*$")
+
+
+def read_sections(path, names):
+    """Named `##` sections of a plan file, as {lowercased name: text}.
+
+    The same rule the board renders by: a section runs to the next heading at
+    its own level or above. Kept here rather than imported from anywhere,
+    because this reads a file the board wrote and the board reads a file this
+    wrote, and neither should have to load the other to do it.
+    """
+    want = {n.strip().lower() for n in names}
+    found, current, buf, level = {}, None, [], 0
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return {}
+    for line in lines:
+        m = SECTION_RE.match(line)
+        if m:
+            if current and len(m.group(1)) <= level:
+                found[current] = "\n".join(buf).strip()
+                current, buf = None, []
+            if not current and m.group(2).strip().lower() in want:
+                current, buf, level = m.group(2).strip().lower(), [], len(m.group(1))
+                continue
+        if current:
+            buf.append(line)
+    if current:
+        found[current] = "\n".join(buf).strip()
+    return found
+
+
+def drop_section(body, name):
+    """`body` without its `## <name>` section, by the rule read_sections uses.
+
+    The runner owns History and writes it itself, so an agent that invented one
+    has it taken away rather than having two in the file.
+    """
+    want = name.strip().lower()
+    out, skip_at = [], 0
+    for line in body.splitlines():
+        m = SECTION_RE.match(line)
+        if m:
+            level = len(m.group(1))
+            if skip_at and level <= skip_at:
+                skip_at = 0
+            if not skip_at and m.group(2).strip().lower() == want:
+                skip_at = level
+                continue
+        if not skip_at:
+            out.append(line)
+    return "\n".join(out).strip()
+
+
+def history(prior, day, agent):
+    """The plan's History section: one line per revision, appended never rewritten.
+
+    Hidden on the board — see PLAN_UNSHOWN in kanban/js/13-plans.js — because it
+    is the file's own record rather than something to read over coffee. It is
+    here so that one plan file holds everything about one plan, including the
+    version of it he turned down and why.
+    """
+    path = plan_path(prior)
+    was = read_sections(path, ("History",)).get("history", "") if path else ""
+    front = read_front(path) if path else {}
+    try:
+        rev = int(front.get("revision", "1")) + 1
+    except ValueError:
+        rev = 2
+    if not path:
+        rev = 1
+    line = "- **%s, revision %d.** " % (day.isoformat(), rev)
+    said = rejection(prior)
+    if said and rev > 1:
+        line += "Re-planned by `%s` after revision %d was sent back: %s" % (
+            agent, rev - 1, said[1].rstrip("."))
+        if not line.endswith("."):
+            line += "."
+    else:
+        line += "Planned by `%s`." % agent
+    lines = [l for l in was.splitlines() if l.strip().startswith("-")] + [line]
+    return rev, "\n".join(lines)
+
+
+def rejection(prior):
+    """Why the last plan for this task was sent back, and what it had worked out.
+
+    The board writes the reason into the plan's own frontmatter when he rejects
+    it, and the ledger row records which file that was. So the link exists and
+    this only follows it: no second store, and the reason stays where a person
+    reading the plan can see it.
+
+    What comes back with it is the point. A summary and a rejection is not
+    enough to write a better plan than last night's — it says what not to
+    propose and nothing about what was already established, so the second night
+    spends its whole budget reading the same files to reach the same place. The
+    prior plan's Context and Proposed plan sections come too, which is the
+    second thing those sections are for.
+
+    Returns (summary, note, context, proposal) or None.
+
+    A rejection is `state: ready` owned by the night agent, one half of the six
+    states every queue here shares. `status: redo` is the word this stream used
+    until 11 Sep 2026 and is still read, because a ledger or a plan restored
+    from a backup written before then carries it.
+    """
+    if not prior:
+        return None
+    sent_back = (prior.get("state") == "ready"
+                 and prior.get("owner") == "night-agent") or prior.get("status") == "redo"
+    if not sent_back:
+        return None
+    path = plan_path(prior)
+    if not path:
+        return None
+    front = read_front(path)
+    note = front.get("feedback") or front.get("redo_note")
     if not note:
         return None
-    return front.get("summary", ""), note
+    was = read_sections(path, ("Context", "Proposed plan"))
+    return (front.get("summary", ""), note,
+            was.get("context", ""), was.get("proposed plan", ""))
 
 
 def build_prompt(task, prior=None):
@@ -241,15 +361,24 @@ def build_prompt(task, prior=None):
 
     said = rejection(prior)
     if said:
-        summary, note = said
+        summary, note, was_context, was_plan = said
         parts.append(
             "\nYou have planned this task before and he sent that plan back.\n\n"
-            "What it proposed: %s\n"
+            "What it proposed, in a line: %s\n"
             "Why he rejected it: %s\n\n"
             "Do not propose that again. Where his reason settles something the "
             "last plan was guessing at, use it. Where it means the task cannot be "
             "planned without another decision from him, fold and say which one.\n"
             % (summary or "(no summary was written)", note))
+        if was_context:
+            parts.append(
+                "\nWhat that night had already established. Start from it rather "
+                "than reading it all again, and correct it where his reason says "
+                "it was wrong.\n\n```markdown\n%s\n```\n" % was_context)
+        if was_plan:
+            parts.append(
+                "\nThe steps he rejected, in full:\n\n```markdown\n%s\n```\n"
+                % was_plan)
 
     parts.append(
         "\nResearch it and write the plan. Output the plan itself and nothing else, "
@@ -392,7 +521,7 @@ def _parse_reset(text):
 FRONT_RE = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
 
-def write_plan(task, text, session, day):
+def write_plan(task, text, session, day, prior=None):
     """One plan file, with the frontmatter completed rather than trusted.
 
     The agent is asked for frontmatter and usually gives it, but the fields the
@@ -419,11 +548,23 @@ def write_plan(task, text, session, day):
     if not summary:
         summary = "The agent wrote no summary line."
 
+    # History is the runner's to write, not the agent's: it spans revisions and
+    # an agent only ever sees one. Anything it wrote under that heading goes.
+    rev, told = history(prior, day, bucket_agent(task.bucket))
+    body = drop_section(body, "History")
+    body = (body.rstrip("\n") + "\n\n## History\n\n" + told).strip()
+
     front = [
         "---",
         "title: %s" % task.title,
         "task: %s" % task.title,
-        "bucket: %s" % task.bucket,
+        # Which task this is about, by the id on its own line, so a retitle
+        # tomorrow does not orphan the plan. `task:` above stays as the label
+        # the board falls back to when the task has gone from the list.
+        "about: task:%s" % getattr(task, "stable_id", ""),
+        "group: %s" % task.bucket,
+        # Advisory snapshots of where the task stood when this was written.
+        # Routinely stale by the time he reads it, and never read as truth.
         "column: %s" % task.column,
         "ai: %s" % (task.ai or ""),
         "agent: %s" % bucket_agent(task.bucket),
@@ -433,8 +574,14 @@ def write_plan(task, text, session, day):
         # every time mark_plan (kanban/server.py) flips its status, so neither
         # can answer "when was this generated" once a plan has been agreed or
         # sent back.
-        "generated: %s" % dt.datetime.now().isoformat(timespec="seconds"),
-        "status: unread",
+        "created: %s" % dt.datetime.now().isoformat(timespec="seconds"),
+        "night: %s" % day.isoformat(),
+        # A fresh plan is waiting on him and he has not seen it. The five words
+        # this stream used until 11 Sep 2026 are gone; what they meant is state
+        # plus owner plus seen. See PACKAGES/work_streams/CONTRACT.md.
+        "state: review",
+        "owner: me",
+        "seen: no",
     ]
     if task.slug:
         front.append("slug: %s" % task.slug)
@@ -443,7 +590,15 @@ def write_plan(task, text, session, day):
     # Kept as the agent wrote it. `folded` is the only value that means
     # anything to the runner; anything else is passed through and ignored,
     # rather than dropped, so a plan is never quieter than its own agent was.
-    if outcome:
+    # An agent that folded could not plan the task without a decision only he
+    # can make. That is the same fact the improvements backlog calls "needs
+    # you", so it is one canonical field rather than two words for one thing.
+    # Which attempt at this task this is. One file per revision still, since a
+    # plan belongs to the night that wrote it, and the History section inside
+    # each carries the ones before it.
+    front.append("revision: %d" % rev)
+    front.append("needs_you: %s" % ("yes" if outcome == FOLDED else "no"))
+    if outcome and outcome != FOLDED:
         front.append("outcome: %s" % outcome)
     front.append("summary: %s" % summary)
     front.append("---")
@@ -611,7 +766,12 @@ def write_run_record(day, written, skipped, stopped, spent, started):
 # decision rather than scratch state; `agreed` is a plan he has approved and
 # that has not been carried out yet, and deleting one of those on its thirtieth
 # day would silently drop work he had already said yes to.
-KEEP_STATUS = re.compile(r"^status:\s*(actioned|agreed)\s*$", re.M)
+# A plan worth keeping when its night is pruned: one that was carried out, and
+# one an agent still has to act on. Owner rather than a status word, so a third
+# agent needs no fourth word here. The old form is still matched, because a
+# backup restored from before 11 Sep 2026 carries it.
+KEEP_STATUS = re.compile(
+    r"^(?:state:\s*done\s*$|owner:\s*execution-agent\s*$|status:\s*(?:actioned|agreed)\s*$)", re.M)
 
 
 def prune(day):
@@ -758,7 +918,11 @@ def run(argv=None):
         # only one anybody watching actually wants named.
         log("  > %s (%s)" % (task.title[:60], agent))
         began = dt.datetime.now()
-        body, session, cost, err = run_agent(task, prior=ledger.get(task.title))
+        # The ledger is keyed by task id since 11 Sep 2026, so that a retitle
+        # keeps its row. Rows written before that are keyed by title, which is
+        # the fallback pick.is_stale reads by too.
+        prior = ledger.get(pick.key_of(task)) or ledger.get(task.title)
+        body, session, cost, err = run_agent(task, prior=prior)
         spent += cost or 0.0
         took = (dt.datetime.now() - began).seconds
 
@@ -779,17 +943,26 @@ def run(argv=None):
             skipped.append((task.title, "the run failed"))
             continue
 
-        out, summary, folded = write_plan(task, body, session, day)
+        out, summary, folded = write_plan(task, body, session, day, prior=prior)
         queue_attach(task, session)
         written.append((os.path.basename(out), task.title, summary, folded))
         if folded:
             log("  folded  %-50s needs a decision from him first" % task.title[:50])
-        ledger[task.title] = {
+        # Keyed by id, and in the six states every queue here shares, which is
+        # what the rest of this stream already reads. It was still writing a
+        # title key and `status: unread` after the 11 Sep migration, so a
+        # rejection could not be found again by the night that had to answer it.
+        ledger.pop(task.title, None)
+        ledger[pick.key_of(task)] = {
+            "title": task.title,
             "fingerprint": pick.fingerprint(task),
             "planned": day.isoformat(),
-            "status": "unread",
             "file": os.path.basename(out),
             "night": day.isoformat(),
+            "state": "review",
+            "owner": "me",
+            "seen": False,
+            "resolution": "",
         }
         pick.save_ledger(ledger)
         log("  planned %-50s %3ds  $%.2f" % (task.title[:50], took, cost or 0.0))

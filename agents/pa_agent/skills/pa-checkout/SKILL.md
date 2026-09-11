@@ -1,6 +1,6 @@
 ---
 name: pa-checkout
-description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with a count in each of the three states. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read, which is pa-checkin, or for a re-prioritisation, which is pa, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; the pa skill does the actual writing.
+description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with the total number of tasks it will go through and the count in each of the three states, then numbers them as it goes. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read, which is pa-checkin, or for a re-prioritisation, which is pa, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; the pa skill does the actual writing.
 ---
 
 # Unsticking Doing, Waiting review and Blocked
@@ -37,10 +37,11 @@ the task drawer's own Dependencies section are for.
 ### 1. Count
 
 Read the file, group by state, and open with the numbers before anything else:
-how many in Doing, how many in Waiting review, how many in Blocked, across which
-buckets. This is the one line he might just want and stop there — say it plainly
-enough that "3 in Doing, 2 waiting on Anu, 1 blocked" is a real answer on its own,
-not just a lead-in to the rest.
+the **total** he is about to walk through, then how many in Doing, how many in
+Waiting review, how many in Blocked, across which buckets. The total comes first
+and is said as a number of tasks — "6 to go through: 1 blocked, 2 waiting review,
+3 in Doing" — so he knows the length of the session before it starts. Say it
+plainly enough that it is a real answer on its own, not just a lead-in to the rest.
 
 If a state is empty, say so and skip it rather than asking him to sit through
 nothing.
@@ -62,6 +63,26 @@ actual reply before naming the next one. Do not describe several tasks and
 their questions in a single message and call that "walking through" them —
 that is a report, not the conversation this move is for. He answers, you react
 to what he actually said, then you move on.
+
+**Number them.** Every task opens with its position against the total from move
+1 — `3 of 6` — so he can see how far in he is without counting. The numbering
+runs across all three states in one sequence rather than restarting per state,
+and the total never changes mid-session even if something gets ticked on the way
+through.
+
+**How to react before moving on.** What you say about the task just discussed
+depends on whether it is settled:
+
+- **Settled** — one line, no more. What is being written, or that nothing is.
+  `Moved to Waiting review, noted Morgan has it.` Then the next task.
+- **Not settled** — stay on it. Ask the follow-up, as long as it needs to be,
+  and **do not show him the next task** until it has an outcome. A new task
+  named while the last one is still open turns the conversation into two at
+  once, which is the thing this move exists to avoid.
+
+**Leave two blank lines** between that one-line close on the previous task and
+the opening of the next one, so the two read as separate beats rather than one
+block of text.
 
 Order: Blocked first, then Waiting review, then Doing — the ones most likely to
 need a decision before the ones that are probably fine as they are. Within a

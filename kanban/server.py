@@ -26,6 +26,7 @@ import json
 import mimetypes
 import os
 import re
+import subprocess
 import shutil
 import sys
 import threading
@@ -131,6 +132,16 @@ def dataset_dir(name):
 def todo_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "todo.md")
 
+
+def migrating_path(name=None):
+    """The sentinel a migration drops beside todo.md while it works on it.
+
+    Its only job is to make do_PUT refuse. A migration runs with the board shut,
+    but a tab left open from before holds a whole pre-migration document and
+    autosaves it within four seconds of anything marking it dirty — which
+    rollRecurring does on every load, before he has touched anything.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), ".migrating")
 
 def backup_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "backups")
@@ -865,6 +876,14 @@ def plan_meta(path, name, night):
         st = os.stat(path)
     except OSError:
         return None
+    # A plan pruned into plans/actioned/ is not from a night called "actioned".
+    # It says which night it is from, in its own frontmatter, and that is what
+    # everything downstream needs: the marker validates a date, and the board
+    # sorted "actioned" above every real date when deciding whether a rejected
+    # plan had been replaced. Both were waiting to fire on 5 Oct 2026, when the
+    # first folder becomes old enough for prune() to move it.
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or ""):
+        night = fields.get("night") or fields.get("date") or night
     return {
         "name": name,
         "night": night,
@@ -876,6 +895,20 @@ def plan_meta(path, name, night):
         "agent": fields.get("agent", ""),
         "slug": fields.get("slug", ""),
         "date": fields.get("date", night),
+        # The canonical shape, since 11 Sep 2026. `status` is still read below
+        # so a plan restored from a backup taken before that still renders —
+        # the same permanent-fallback rule the tag syntax follows rather than a
+        # migration window.
+        "id": fields.get("id", ""),
+        "about": fields.get("about", ""),
+        "group": fields.get("group", fields.get("bucket", "")),
+        "state": fields.get("state", ""),
+        "owner": fields.get("owner", ""),
+        "seen": fields.get("seen", "") == "yes",
+        "needs_you": fields.get("needs_you", "") == "yes",
+        "resolution": fields.get("resolution", ""),
+        "feedback": fields.get("feedback", fields.get("redo_note", "")),
+        "created": fields.get("created", fields.get("generated", "")),
         # When the file was actually written, to the second. Missing on any
         # plan from before this field existed — the board falls back to
         # `modified` for those, which is the file's mtime and moves whenever
@@ -943,92 +976,16 @@ def plan_listing():
 # what these mean. A value this list does not know is refused rather than
 # written, since the picker would read it as "unchanged" and quietly stop
 # planning the task.
-PLAN_STATUS = ("unread", "read", "agreed", "redo", "actioned")
-
-
-def mark_plan(night, name, status, note=None):
-    """Flip one plan's `status:` in its own frontmatter, and in the ledger.
-
-    Both, because the two are read by different things and neither can be
-    derived from the other: the board reads the file, and the picker reads the
-    ledger to decide whether the task needs planning again. A plan marked
-    actioned is a task whose plan no longer describes outstanding work, so the
-    next night plans it afresh.
-
-    One of the two writes this view makes; set_queue_order below is the other.
-    Between them they write a plan file and a preferences file, both inside
-    plans/. Nothing here goes near todo.md.
-    """
-    if status not in PLAN_STATUS:
-        return None, {"error": "unknown status"}
-    # A rejection with no reason is the one thing the redo loop cannot use: the
-    # next run would plan the task again with nothing to go on and write much
-    # the same plan, having spent the money twice.
-    note = (note or "").strip()
-    if status == "redo" and not note:
-        return None, {"error": "a plan sent back needs a reason"}
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or "") or "/" in (name or "") or not name.endswith(".md"):
-        return None, {"error": "bad plan reference"}
-    path = os.path.join(plans_dir(), night, name)
-    if not os.path.isfile(path):
-        return None, {"error": "no such plan"}
-    with open(path, encoding="utf-8") as fh:
-        text = fh.read()
-    new, n = re.subn(r"^status:.*$", "status: " + status, text, count=1, flags=re.M)
-    if not n:
-        new = text.replace("---\n", "---\nstatus: " + status + "\n", 1)
-    # The reason he rejected it, written into the plan's own frontmatter rather
-    # than a store of its own. agents/night_agent/plan.py reads it back through the ledger
-    # row, which already records which file this is, and a person opening the
-    # plan sees it in the same place. Flattened to one line, since frontmatter
-    # here is one key per line and a newline would end the block.
-    new = re.sub(r"^redo_note:.*$\n?", "", new, count=1, flags=re.M)
-    if status == "redo":
-        flat = " ".join(note.split())[:500]
-        new = re.sub(r"^status: redo$", "status: redo\nredo_note: " + flat,
-                     new, count=1, flags=re.M)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as fh:
-        fh.write(new)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, path)
-
-    ledger = ledger_path()
-    try:
-        with open(ledger, encoding="utf-8") as fh:
-            rows = json.load(fh)
-    except (OSError, ValueError):
-        rows = None
-    if isinstance(rows, dict):
-        for title, row in rows.items():
-            if isinstance(row, dict) and row.get("file") == name and row.get("night") == night:
-                row["status"] = status
-        tmp = ledger + ".tmp"
-        with open(tmp, "w", encoding="utf-8", newline="") as fh:
-            json.dump(rows, fh, indent=2, sort_keys=True)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, ledger)
-    return {"ok": True, "status": status}, None
-
-
-# ---- The queue, and what the agent is doing with it right now ---------------
+# PLAN_STATUS and mark_plan() lived here until 11 Sep 2026. They were the board's
+# server writing the night agent's files, which is the arrangement
+# agents-dashboard/CONTRACT.md already refuses for schedules and for the same
+# reason: two programs writing one thing eventually give two different answers
+# about it. This stream had collected exactly that bug, where a plan's own
+# frontmatter and its ledger row disagreed for ever.
 #
-# The Plans view used to show only finished plans, which meant the one question
-# it could not answer was the one asked most: what is it going to work on
-# tonight, and can I change that. Both halves are here.
-#
-# Nothing is stored ahead of time and nothing is scheduled. The queue is
-# pick.select() run on demand against todo.md as it stands this second — the
-# same call the runner makes at 02:00, not a second implementation of the same
-# rules — so it cannot go stale and there is no queue file to keep in step. Tick
-# a task off and it leaves the queue on the next render.
-#
-# What is stored is only the ordering: plans/queue-order.json, written here when
-# a card is dragged, read by pick. That file is a preference, not a plan. Losing
-# it costs an ordering.
-
+# The writing is the night agent's, in agents/night_agent/stream.py, reached
+# through /stream/apply. The vocabulary is its manifest's, in
+# agents/night_agent/stream.json. Neither is duplicated here any more.
 def ledger_path():
     return os.path.join(plans_dir(), "ledger.json")
 
@@ -1440,6 +1397,24 @@ def backup_listing():
 AI_CHAT_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "ai_chat_engine"))
 STATIC_PREFIX = "/ai-chat/"
 
+# The work-item model every stream in here shares. Same wiring as AI_CHAT_DIR
+# above, and the same failure: a checkout without PACKAGES answers 404 on
+# /streams.json and /work-streams/* and serves the board exactly as it did
+# before either existed. Nothing the board needs in order to start may come
+# from here, because on the static deployment this path does not exist at all.
+WORK_STREAMS_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work_streams"))
+WS_PREFIX = "/work-streams/"
+if os.path.isdir(WORK_STREAMS_DIR):
+    sys.path.insert(0, WORK_STREAMS_DIR)
+try:
+    import manifest as ws_manifest
+except ImportError:
+    ws_manifest = None
+try:
+    import writer as ws_writer
+except ImportError:
+    ws_writer = None
+
 Engine = ChatEndpoints = None
 if os.path.isdir(AI_CHAT_DIR):
     sys.path.insert(0, AI_CHAT_DIR)
@@ -1485,6 +1460,89 @@ def ai_chat_static(rel_path):
     if not os.path.isfile(full):
         return None
     return full
+
+
+def work_streams_static(rel_path):
+    """A file under work_streams/interface/, or None. Kept to that one folder,
+    exactly like ai_chat_static above: a route for the package's own assets,
+    not a way to read a sibling directory."""
+    if not WORK_STREAMS_DIR or ".." in rel_path.split("/"):
+        return None
+    full = os.path.join(WORK_STREAMS_DIR, "interface", rel_path)
+    if not os.path.isfile(full):
+        return None
+    return full
+
+
+def plan_legacy_map():
+    """The five words this stream used until 11 Sep 2026, and what each means
+    now. Read out of the night agent's own manifest so there is one copy."""
+    if ws_manifest is None:
+        return {}
+    m, _ = ws_manifest.load(os.path.join(ROOT, "agents", "night_agent", "stream.json"))
+    return ((m or {}).get("legacy") or {}).get("map") or {}
+
+
+def stream_apply(stream_id, payload):
+    """Hand one transition to the stream that owns it, and return what it says.
+
+    The board never writes another stream's files. It asks, the stream writes,
+    the same split agents-dashboard/CONTRACT.md already uses for schedules. A
+    stream whose command fails is one error on one card rather than a page that
+    went blank.
+    """
+    if ws_manifest is None:
+        return 503, {"ok": False, "error": "the work_streams package is not on this machine"}
+    root = os.path.normpath(os.path.join(ROOT, ".."))
+    for path in ws_manifest.discover(root):
+        m, errors = ws_manifest.load(path)
+        if m is None or m.get("id") != stream_id:
+            continue
+        if errors:
+            return 500, {"ok": False, "error": "; ".join(errors)}
+        how = (m.get("writer") or {}).get("how") or {}
+        if how.get("kind") != "subprocess":
+            return 400, {"ok": False, "error": "the %s stream is not written this way" % stream_id}
+        cwd = os.path.normpath(os.path.join(os.path.dirname(path), how.get("cwd") or "."))
+        try:
+            proc = subprocess.run(how["apply"], cwd=cwd, input=json.dumps(payload),
+                                  capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired) as err:
+            return 502, {"ok": False, "error": "%s did not answer: %s" % (stream_id, err)}
+        try:
+            return (200 if proc.returncode == 0 else 400), json.loads(proc.stdout or "{}")
+        except ValueError:
+            first = (proc.stderr or proc.stdout or "").strip().splitlines()
+            return 502, {"ok": False, "error": first[0] if first else "no answer"}
+    return 404, {"ok": False, "error": "no stream called %r" % stream_id}
+
+
+def stream_listing():
+    """Every stream manifest under ~/Code, with whatever is wrong with each.
+
+    The errors travel with the manifest rather than being raised, so one badly
+    written stream is one card saying so rather than a blank page. Same choice
+    the agents dashboard makes about an agent whose state command fails.
+    """
+    if ws_manifest is None:
+        return {"streams": [], "problem": "the work_streams package is not on this machine"}
+    root = os.path.normpath(os.path.join(ROOT, ".."))
+    out = []
+    for path in ws_manifest.discover(root):
+        m, errors = ws_manifest.load(path)
+        if m is None:
+            out.append({"path": path, "errors": errors})
+            continue
+        out.append({
+            "id": m.get("id"), "name": m.get("name"), "blurb": m.get("blurb", ""),
+            "path": os.path.relpath(path, root),
+            "manifest": {k: v for k, v in m.items() if not k.startswith("_")},
+            "lanes": ws_manifest.lanes(m),
+            "ownsItsFile": ws_manifest.owns_its_file(m),
+            "errors": errors,
+        })
+    return {"streams": out, "contract": ws_manifest.CONTRACT,
+            "canonical": list(ws_manifest.CANONICAL)}
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -1604,6 +1662,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                               got if got is not None else {"error": "no night agent here"})
         if path == "/night-agent.json":
             return self._json(200, night_agent_run())
+        # Every stream manifest under ~/Code, with whatever is wrong with each.
+        # Read-only and read by nobody yet: the board still gets its columns
+        # from 02-state.js. This is here so the views can be moved onto it one
+        # at a time rather than all at once.
+        if path == "/streams.json":
+            return self._json(200, stream_listing())
         # Two routes rather than one, because the jobs are instant and the
         # windows are a second: the view paints the jobs and fetches the usage
         # after, instead of waiting on both.
@@ -1646,6 +1710,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # drawer's "Attach a session…" reads this list.
         if ai_chat and path == "/claude/attachable.json":
             return self._json(200, ai_chat.attachable())
+        # The work-item model's browser half, read straight from the package.
+        # Same shape as the ai-chat block below, and the same degradation: on a
+        # checkout or a deployment without PACKAGES this 404s and the board
+        # carries on, which is why nothing it needs to boot comes from here.
+        if path.startswith(WS_PREFIX):
+            full = work_streams_static(path[len(WS_PREFIX):])
+            if not full:
+                return self._json(404, {"error": "not found under work_streams/interface"})
+            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+            with open(full, "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         # The chat widget's own JS and CSS, read straight from ai_chat/ rather
         # than copied in — see AI_CHAT_DIR above.
         if ai_chat and path.startswith(STATIC_PREFIX):
@@ -1835,6 +1917,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload.get("cwd"), payload.get("title")
             )
             return self._json(400 if err else 200, err or got)
+        # One transition, handed to whichever stream owns the item. The generic
+        # route; /plan/status below is now a shim over it, kept so a board tab
+        # open from before this change still works.
+        if path == "/stream/apply":
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            code, out = stream_apply(payload.get("stream", ""), payload)
+            return self._json(code, out)
         if path == "/plan/status":
             # Same guard as every other write route: only the board asks.
             if self.headers.get("X-Board") != "1":
@@ -1844,9 +1939,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload = json.loads((data or b"{}").decode("utf-8"))
             except (UnicodeDecodeError, ValueError):
                 return self._json(400, {"error": "body was not valid JSON"})
-            got, err = mark_plan(payload.get("night"), payload.get("name"),
-                                 payload.get("status"), payload.get("note"))
-            return self._json(400 if err else 200, err or got)
+            # A shim over /stream/apply since 11 Sep 2026. The five status words
+            # are gone from the files; what they meant is state + owner + seen,
+            # and the mapping lives in the stream's own manifest rather than
+            # being written out a second time here. Kept so a board tab open
+            # from before the change still works, and so nothing else that
+            # learned this route breaks silently.
+            legacy = plan_legacy_map()
+            v = legacy.get(payload.get("status") or "")
+            if not v:
+                return self._json(400, {"error": "unknown status"})
+            code, out = stream_apply("plans", {
+                "stream": "plans",
+                "item": {"group": payload.get("night"), "name": payload.get("name")},
+                "to": v["state"], "owner": v["owner"], "seen": v["seen"],
+                "resolution": v.get("resolution", ""), "reason": payload.get("note") or "",
+            })
+            return self._json(code, out)
         if path == "/night_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.
@@ -1921,6 +2030,56 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         ds = current_dataset()
         path = todo_path(ds)
+
+        # A migration is working on this list directly, with the board shut. A
+        # tab left open from before it started holds the pre-migration document
+        # and would put it back. See migrating_path().
+        if os.path.exists(migrating_path(ds)):
+            return self._json(409, {"error": "a migration is running on this list, so nothing was written",
+                                    "migrating": True})
+
+        # The tab sends back the Last-Modified it last agreed with (state.diskStamp,
+        # set by rememberStamp in 24-autosave-watching.js). If the file has moved
+        # since, this document was built on a version that no longer exists and
+        # writing it whole would drop whatever changed in between.
+        #
+        # Until now there was no check of any kind here: do_PUT took a whole
+        # document from any tab and replaced the file with it. That is the hole
+        # both real losses went through, and the board already has a conflict
+        # modal (23-conflict-modal.js) built to answer the 409.
+        #
+        # Second precision, because that is all Last-Modified carries. The string
+        # is built the same way SimpleHTTPRequestHandler built the one the tab was
+        # given, so the two compare directly without parsing either.
+        # One writer per stream, checked rather than assumed. The board is the
+        # writer for this list, so it takes the claim and keeps it; what this
+        # refuses is a second live process writing underneath it. Advisory: a
+        # claim held by a process that has gone is ignored, so a crash cannot
+        # leave the board unable to save. See PACKAGES/work_streams/writer.py.
+        if ws_writer is not None:
+            lock = os.path.join(dataset_dir(ds), ".board.lock")
+            refusal = ws_writer.refusal(lock, "the board")
+            if refusal:
+                return self._json(409, {"error": refusal, "locked": True})
+            ws_writer.claim(lock, "the board")
+
+        since = self.headers.get("If-Unmodified-Since")
+        if not since:
+            # Required, not optional. Every legitimate writer has read the file
+            # first: loadFile() takes the stamp off its own GET, and a tab that
+            # has not read it is in demo mode and locked, so it cannot save at
+            # all. That makes a header-less PUT something no board ever sends —
+            # which is exactly what an ad-hoc script or a test harness sends,
+            # and those are what took the list both times.
+            return self._json(428, {"error": "a write must say which version of todo.md it is replacing "
+                                             "(If-Unmodified-Since); nothing was written",
+                                    "precondition": True})
+        if os.path.exists(path):
+            current = self.date_time_string(os.stat(path).st_mtime)
+            if since != current:
+                return self._json(409, {"error": "todo.md changed on disk since this tab last read it",
+                                        "stale": True, "disk": current})
+
         backup_name = None
 
         # A save is also a chance to notice the week turned over.

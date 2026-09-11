@@ -67,12 +67,12 @@ assumption is now written down.
 
 So before the sections below, ask one question:
 
-**Could you write the Proposed course of action without deciding something only
-he can decide?**
+**Could you write the Proposed plan without deciding something only he can
+decide?**
 
-If yes, write the plan. Open questions are normal and they belong in "What it
-needs from you" — a plan with three real steps and two open questions is a good
-plan. If no, **fold**.
+If yes, write the plan. Open questions are normal and they belong in "Needs
+you" — a plan with three real steps and two open questions is a good plan. If
+no, **fold**.
 
 Folding is a real answer and it is not a failure. A folded plan that names the
 two things he has to settle is more useful than four paragraphs of research
@@ -92,12 +92,12 @@ built on a guess about what the task meant.
 ### Do not fold when
 
 - You simply did not find much. Say you found little, that is a finding, and
-  the short form under "What to write" is where a small one goes.
+  the short form at the end of "What to write" is where a small one goes.
 - The open question is answerable by reading something you can reach. Read it.
 - The task is large. Large is not the same as unclear, and a big task with a
   clear first step is exactly what this is for.
 - Only the last step is ambiguous. Plan the steps you can and put the rest in
-  "What it needs from you".
+  "Needs you".
 
 ### Ask early rather than late
 
@@ -116,35 +116,12 @@ carry on.
 
 ### What a folded plan looks like
 
-The same frontmatter, with `outcome: folded` added, a `summary:` that names what
-is missing rather than what the task is about, and two sections instead of four:
-
-```
----
-title: <the task's exact title>
-task: <the task's exact title>
-bucket: <its bucket>
-column: <its state>
-ai: full
-date: <today, YYYY-MM-DD>
-status: unread
-outcome: folded
-summary: <what is missing, in one sentence — "Needs the scope settled: three
-          readings of 'improve the app' and they are different projects">
----
-
-### What I could establish
-
-Everything you did find, briefly. The research is not wasted just because the
-plan is not writable, and this is what stops the next night repeating it.
-
-### What I need before this can be planned
-
-Numbered. One line each. A specific question with, wherever you can, the two or
-three answers it could have, so he can settle it by picking rather than by
-writing an essay. Never more than four — if there are more than four, the task
-needs breaking up and that is the finding.
-```
+The same file as any other plan, with `outcome: folded` in the frontmatter and
+no **Proposed plan** section, because there is nothing to propose yet. Write
+**Context** as you would for any other plan: the research holds, and it is what
+stops the next night repeating it. Write **Summary** as what it would take to
+make this plannable rather than what the task is about. Put the questions in
+**Needs you**.
 
 Answering those questions is a note on the task, which is what he writes back.
 That changes the task's text, which is what makes tonight's picker plan it
@@ -152,13 +129,15 @@ afresh. So a fold is a question asked, not a task dropped.
 
 ## What to write
 
-Three shapes, and the size of the answer picks one. Most tasks take the four
-sections below. A task whose whole answer is one finding and one first step
-takes the short form under "When the answer is short". A task you could not
-plan takes the fold.
+One file, five sections, always in this order and always under these exact
+headings. Two of them are not shown to him: the board's plan modal leaves
+**Context** and **History** out of what it renders, because they are written
+for the agent that carries the plan out and for the night that has to plan it
+again. Everything else in the file is what he reads over coffee, and that is
+under 300 words in total.
 
-Frontmatter, then four sections, under 400 words in total. Short beats thorough:
-he reads these over coffee, and one nobody finishes is worth nothing.
+Do not write **History**. The runner writes it, and it spans revisions you
+cannot see.
 
 ```
 ---
@@ -168,67 +147,74 @@ bucket: <its bucket>
 column: <its state>
 ai: full
 date: <today, YYYY-MM-DD>
-status: unread
-summary: <one sentence — what this proposes and roughly what it takes>
+summary: <one sentence naming what you are proposing — the card in the list
+          shows this and nothing else>
 ---
 ```
 
-### What this actually involves
+### Context
 
-A paragraph. What the task really is once you have looked at it, as opposed to
-what its title suggests. If it turns out to be two tasks, or a decision wearing a
-task's clothes, say so here — that is a useful finding, not a failure.
+Not shown to him. Written for the acting agent that may carry this out, and for
+the next night if he sends this back, so write it as a trail rather than as
+prose. Four labelled paragraphs, each one line or a short list:
 
-### What already exists
+- **Read.** Every path you actually opened. Paths, not descriptions.
+- **Standing constraints.** Who is on leave, which dates cannot move, what is
+  waiting on somebody. Off `## Context` in `todo.md`, not from memory.
+- **Ruled out, and why.** The approach you considered and dropped. This is the
+  line that stops the next night proposing it again.
+- **Not established.** What you went looking for and could not find, each one
+  marked `[fill in]`.
 
-The section that earns the whole exercise. The skill that already does this, the
-snapshot already on disk, the earlier decision that settles the open question,
-the file that has half of it written. Name paths. If you genuinely found nothing,
-one line saying so is fine and is itself worth knowing.
+### Summary
 
-### Proposed course of action
+Shown. Two or three lines, and about what you are proposing rather than about
+the situation. He reads this first and decides from it whether to open the rest,
+so it says what would happen, roughly what it costs, and what is holding any of
+it up. The situation goes in Findings, underneath.
 
-Numbered steps. Each one has to be a thing that could actually be started —
-"decide the format" is not a step, "the format in `data/<dataset>/reports/`
-already works, reuse it" is. Say which steps are Claude's and which are his; that
-is what the `[ai:: ]` tag is claiming and it is often wrong once you look.
+### Findings
 
-### What it needs from you
+Shown. **Bullets, one finding each**, bold lead-in then the finding. This is the
+current state of things as you found it: what already exists, what is already
+done, what the earlier decision settled, what the task's title turns out to mean
+once you have looked. Name paths. A correction to something the task itself
+assumes goes here.
 
-The decisions, gaps and `[fill in]`s that stop this running unattended. Be
-specific: "which board, DSYS or WADE" rather than "needs a decision". **Empty is
-a valid and good answer**, and it means the work is ready to hand over as it
-stands — say so plainly when it is true.
+The bullets are the section that earns the whole exercise, so put the finding
+that makes the work smaller first. If you genuinely found little, say so in one
+bullet; that is itself worth knowing.
+
+### Proposed plan
+
+Shown. Numbered steps, each one a thing that could actually be started — "decide
+the format" is not a step, "the format in `data/<dataset>/reports/` already
+works, reuse it" is. Say which steps are Claude's and which are his; that is
+what the `[ai:: ]` tag is claiming and it is often wrong once you look.
+
+### Needs you
+
+Shown. The decisions and `[fill in]`s that stop this running unattended,
+numbered, one line each. Be specific: "which board, DSYS or WADE" rather than
+"needs a decision". **Empty is a valid and good answer**, and it means the work
+is ready to hand over as it stands — write one line saying so plainly when it
+is true.
 
 ### When the answer is short
 
-Some tasks are answered in a paragraph. A skill already does the whole of it,
-or one step covers it, and four sections around that would be three headings of
-padding. Write the short form: the same frontmatter, no `outcome:` line, and
-two sections, under 150 words in total.
-
-```
-### What I found
-
-What the task turns out to be once you have looked, and what already exists
-that covers it. Name paths.
-
-### The first step
-
-One step, or two. A line each, and say whose it is. If something still has to
-come from him, one more line saying what.
-```
-
-This is a finished plan and it comes back looking like one, `status: unread`
-with no badge on it. Reach for it when you have the answer and it is short, and
-write the four sections the moment you have a third thing to say.
+Some tasks are answered in a paragraph: a skill already does the whole of it, or
+one step covers it. Write the same five headings and keep Findings to one or two
+bullets and Proposed plan to one or two steps. Do not drop a heading to make it
+shorter — the board and the acting agent both look for them by name, and a
+missing one reads as a plan that forgot rather than a plan that was brief.
 
 ## Tone
 
 His, not yours. British English. Plain, direct, short sentences and short
 paragraphs. No em dashes, use commas. No "not X but Y" contrasts. Do not land a
 paragraph on a quotable line. Make positive claims rather than negating
-opposites. Prose by default, bullets only where naming specific things earns it.
+opposites. Findings is bullets by rule and Context is a trail; everywhere else
+is prose, and bullets there only where naming specific things earns it.
 
 Do not open with a summary of the task he wrote himself. He knows what it says.
-Start with what you found.
+Summary says what you propose to do about it, and Findings says what you found.

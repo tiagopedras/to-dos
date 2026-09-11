@@ -50,6 +50,33 @@ function unblockCount(t){
    starting it now means nothing is archived before it has been sat with for the
    full thirty days. Returns how many were stamped, to say so rather than quietly
    marking the file dirty. */
+/* Gives an id to any task that has not got one, on load.
+
+   The 137 tasks that existed when ids arrived were done in one pass by
+   core/migrations/mint-ids.mjs. This is what keeps it true afterwards: a task
+   added by the pa skill, pasted in, or restored from a backup taken before the
+   migration arrives without one, and picks one up the first time the board sees
+   it. The same shape as stampDoneDates and renameParked below, and it counts as
+   a tidy-up rather than his own work, so migratedOnly stays true and the
+   watcher may still reload over it.
+
+   Marks only the tasks it touches dirty, so a file where everything already has
+   an id is not rewritten at all. */
+function mintMissingIds(doc){
+  const taken = idsInDoc(doc);
+  let n = 0;
+  for (const b of doc.buckets)
+    for (const tier of b.tiers)
+      for (const t of tier.tasks){
+        if (t.stableId) continue;
+        t.stableId = mintId(taken);
+        taken.add(t.stableId);
+        t.dirty = true;
+        n++;
+      }
+  return n;
+}
+
 function stampDoneDates(doc){
   let n = 0;
   const now = ymd(today());

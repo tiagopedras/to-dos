@@ -40,14 +40,19 @@ is the wrong one to be it because it is the one running unattended stretches.
 
 ## How a plan reaches it
 
-A plan carries `status: agreed`, set by him on the Plans view and nowhere else.
-`pa-do` looks for those, hands one over with the plan path, the task's bucket and
-column, and the bucket's brief, and the agent sets the plan to `actioned` when it
-is done.
+A plan carries `state: ready` with `owner: execution-agent`, set by him on the
+Plans view and nowhere else. `pa-do` looks for those, hands one over with the
+plan path, the task's bucket and column, and the bucket's brief.
 
-The five statuses are documented in `kanban/js/13-plans.js` and known in two
-other places, `PLAN_STATUS` in `kanban/server.py` and `is_stale()` in
-`agents/night_agent/pick.py`. Change one and change all three.
+When it is done the agent does not edit the frontmatter. It asks the stream that
+owns the file, through `agents/night_agent/stream.py --apply`, which writes the
+plan and its ledger row together. Editing by hand wrote one of the two and not
+the other, and the ledger then said the plan was still agreed for ever, so the
+picker held that task out of every future night's queue.
+
+The vocabulary is no longer scattered across three files that have to be edited
+together. It lives in `agents/night_agent/stream.json`, and the shape it belongs
+to is `PACKAGES/work_streams/CONTRACT.md`.
 
 ## Where the rest of it is written down
 

@@ -112,12 +112,39 @@ async function saveFile(auto, forceBackup){
   if (state.locked || !state.doc || !state.dirty) return;
   const text = serializeDoc(state.doc);
   try {
+    /* The stamp this tab last agreed with, so the server can refuse a write
+       built on a version of the file that has since moved. Absent on the very
+       first save of a session, before any HEAD has run — the server treats a
+       missing header as "no opinion" and writes, which is the old behaviour and
+       the right one for a tab that has not yet read the file. */
+    const headers = { 'Content-Type':'text/markdown; charset=utf-8' };
+    if (state.diskStamp) headers['If-Unmodified-Since'] = state.diskStamp;
     const res = await fetch(FILE_URL + (forceBackup ? '?backup=force' : ''), {
-      method: 'PUT',
-      headers: { 'Content-Type':'text/markdown; charset=utf-8' },
-      body: text
+      method: 'PUT', headers, body: text
     });
     const info = await res.json().catch(() => ({}));
+    /* 409 is the file having moved under this tab, or a migration holding the
+       list. Handled here rather than thrown, because the catch below calls
+       markDirty() and the autosave would come straight back in four seconds and
+       get the same answer, forever.
+
+       Taking the server's stamp first is what stops the same loop through the
+       modal: reload() may leave his changes in place if he keeps them, and
+       without this the next autosave would still be carrying the old stamp. The
+       watcher takes a changed stamp once per outside change for the same
+       reason. */
+    if (res.status === 409) {
+      if (info.disk) state.diskStamp = info.disk;
+      if (info.migrating) {
+        markDirty();
+        autoStatus('not saved — a migration is running on this list. Your changes are still here.');
+        return;
+      }
+      markDirty();
+      autoStatus('not saved — todo.md changed on disk since this tab read it');
+      await reload();
+      return;
+    }
     if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
     state.originalText = text;
     lastSaveAt = Date.now();

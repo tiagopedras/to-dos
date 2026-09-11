@@ -9,26 +9,33 @@
    report says what happened, a plan proposes what to do, and a plan stops being
    true the moment it is acted on.
 
-   Five states, and the three at the end are decisions rather than reading:
+   A plan is a work item like any other and carries the shape every stream in
+   here now shares: a `state`, an `owner` who is expected to move it next, and a
+   `seen` flag. PACKAGES/work_streams/CONTRACT.md is the authority, and
+   agents/night_agent/stream.json is this stream's manifest, holding its own word
+   for each state.
 
-     unread    nobody has looked at it
-     read      looked at, doing nothing about it yet
-     agreed    approved to be carried out. This is what hands the work to the
-               acting agent, and it is the only status that says "yes, do it".
-     redo      rejected, with a reason. The next nightly run plans the task
-               again and the agent is told what was wrong with the last one,
-               so the second plan is not the first plan.
-     actioned  acted on, so it no longer describes outstanding work
+     review / me                waiting on him; `seen` says whether he has looked
+     ready  / execution-agent   approved, and the acting agent may carry it out
+     ready  / night-agent       sent back with a reason; tonight plans it again
+     done   / me                finished, `resolution` saying how
 
-   Setting a status is the only write in here, and it writes the plan file. The
-   runner's ledger picks it up: actioned and redo both make the task worth
-   planning again, agreed holds it back until the work is done. Nothing in this
-   view goes near todo.md.
+   Five separate words did this until 11 Sep 2026: unread, read, agreed, redo,
+   actioned. Two of them said the same thing about the plan — an agent has the
+   green light — and differed only in which agent, so they are one state and an
+   owner now. That is what stops a third agent needing a sixth word.
 
-   Why agreed is a status and not a flag: a plan is in exactly one of these
-   states at a time, and a second field would let a plan be agreed and rejected
-   at once, which means nothing. See PLAN_STATUS in kanban/server.py and
-   is_stale() in agents/night_agent/pick.py, the two other places these are known.
+   Why a single `state` rather than a flag beside it: a plan is in exactly one
+   of these at a time, and a second field would let one be agreed and rejected
+   at once, which means nothing. `owner` is single-valued for the same reason.
+
+   Setting a state is the only write in here, and it does not happen here. The
+   board posts the move to /stream/apply and the night agent's own stream.py
+   performs it, writing the plan file and its ledger row together. Until today
+   this view's server half wrote those files itself, which is the arrangement
+   agents-dashboard/CONTRACT.md already refuses for schedules, and it had
+   already produced the bug where a plan's status and its ledger row disagreed
+   for ever. Nothing in this view goes near todo.md.
    ========================================================================= */
 
 const planBodies = {};
@@ -38,7 +45,30 @@ let planList = [];
    see the folding rule in agents/night_agent/PLAN-BRIEF.md. It is marked here rather than
    left to read like any other, because the two want opposite things from him:
    a plan wants reading, a fold wants answering. */
-const PLAN_CLASS = { actioned:' actioned', read:' read', agreed:' agreed', redo:' redo' };
+function planClass(p){
+  /* A superseded plan still reads as the rejection it was. It is finished, but
+     what it carries is the reason he sent it back, and that is the only written
+     record of what he asked for. */
+  if (p.resolution === 'superseded') return ' redo';
+  if (p.state === 'done') return ' actioned';
+  if (p.state === 'ready') return p.owner === 'night-agent' ? ' redo' : ' agreed';
+  return p.seen ? ' read' : '';
+}
+
+/* One word for the state a card is in, for the badge. His words rather than the
+   canonical ones: "agreed" says more on a card than "ready" does. */
+function planWord(p){
+  if (p.state === 'done') return p.resolution === 'superseded' ? 'replaced' : 'actioned';
+  if (p.state === 'ready') return p.owner === 'night-agent' ? 'redo' : 'agreed';
+  return p.seen ? 'read' : 'new';
+}
+
+/* Whether an agent may pick this up and which one. `ready` owned by the night
+   agent is a plan he sent back; `ready` owned by the acting agent is one he
+   approved. Both mean the same thing about the plan, which is why they are one
+   state and not two. */
+const isRedo = p => p.state === 'ready' && p.owner === 'night-agent';
+const isAgreed = p => p.state === 'ready' && p.owner === 'execution-agent';
 
 /* When a plan was actually written, to the minute — `generated:` if the file
    has one, falling back to the file's own mtime for a plan written before
@@ -46,7 +76,7 @@ const PLAN_CLASS = { actioned:' actioned', read:' read', agreed:' agreed', redo:
    backupWhen's input, so it reads the same format the Backups list already
    uses for "when did this actually happen". */
 function planGeneratedLabel(p){
-  const iso = p.generated || p.modified;
+  const iso = p.created || p.generated || p.modified;
   return iso ? backupWhen(iso) : (p.night || '');
 }
 
@@ -67,8 +97,11 @@ function planGeneratedLabel(p){
    most rows say it twice, but a task renamed since the night it was planned is
    exactly the case where the row has to say which card it actually opens. */
 function planItemHTML(p){
-  const folded = p.outcome === 'folded';
-  const cls = (PLAN_CLASS[p.status] || '') + (folded ? ' folded' : '');
+  /* One canonical field across every stream: an unattended agent must not act
+     on this. It was `outcome: folded` here and `needs_you` in the improvements
+     backlog, which were two names for one fact. */
+  const folded = !!p.needs_you;
+  const cls = planClass(p) + (folded ? ' folded' : '');
   // The plan's own task, if the underlying card can still be found by slug or
   // title — see findTaskByKey in 02-state.js. Not every plan resolves: the
   // task might since have been renamed or deleted, so the link falls back to
@@ -85,7 +118,7 @@ function planItemHTML(p){
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
       (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
-      '<span class="repdate">' + esc(p.status === 'unread' ? 'new' : p.status) + '</span>' +
+      '<span class="repdate">' + esc(planWord(p)) + '</span>' +
     '</button>' +
     (score || goto || where
       ? '<div class="repmeta planmeta">' +
@@ -99,8 +132,11 @@ function planItemHTML(p){
     (p.summary ? '<div class="repsum">' + mdInline(p.summary) + '</div>' : '') +
     /* On a rejected plan the reason is worth more than the summary: it is what
        he told the agent, and it is what tonight's run will be working from. */
-    (p.status === 'redo' && p.redo_note
-      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.redo_note) + '</div>' : '') +
+    /* Shown wherever it exists rather than only while the plan is still out
+       with the agent: once a replacement has landed the old plan is finished,
+       and the reason is the thing worth keeping about it. */
+    (p.feedback
+      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.feedback) + '</div>' : '') +
   '</article>';
 }
 
@@ -120,9 +156,9 @@ function openPlanModal(p){
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
     buttons: [{ label:'Agree, hand it over', agree:true, run: () => agreePlan(p) },
               { label:'Send it back', reject:true, run: () => rejectPlan(p) },
-              { label:'I did this myself', run: () => setPlanStatus(p, 'actioned') }]
+              { label:'I did this myself', run: () => movePlan(p, 'done', 'me', { resolution:'actioned' }) }]
   });
-  if (p.status === 'unread') setPlanStatus(p, 'read', true);
+  if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
 }
 
 /* Agreeing is a claim that the work should happen, so it says what happens
@@ -138,7 +174,7 @@ function agreePlan(p){
       'replaced by tonight\'s second opinion.</p>' +
       '<p>To actually run it, start a session and use <code>/pa-do</code>.</p>' +
     '</div>',
-    [{ label:'Agree it', primary:true, run: () => setPlanStatus(p, 'agreed') },
+    [{ label:'Agree it', primary:true, run: () => movePlan(p, 'ready', 'execution-agent') },
      { label:'Cancel' }]);
 }
 
@@ -160,7 +196,7 @@ function rejectPlan(p){
     [{ label:'Send it back', primary:true, run: () => {
         const why = redoText.trim();
         if (!why) return showToast('A plan sent back needs a reason.', 'bad');
-        setPlanStatus(p, 'redo', false, why);
+        movePlan(p, 'ready', 'night-agent', { reason: why });
       } },
      { label:'Cancel' }]);
   const box = $('#redoWhy');
@@ -172,18 +208,39 @@ function rejectPlan(p){
   }
 }
 
-async function loadPlanBody(url){ return loadDocBody(url, planBodies, 'plan'); }
+/* The two sections of a plan that are not for him. `Context` is the night's
+   research trail — what it read, what it ruled out, what it could not
+   establish — and `History` is one line per revision. Both are in the plan
+   file because the acting agent reads one and the next re-plan reads the
+   other, and both stay out of the modal because reading them again is exactly
+   the noise that stops a plan being read at all. Named rather than positional,
+   so a plan written before this still renders. */
+const PLAN_UNSHOWN = ['Context', 'History'];
+
+async function loadPlanBody(url){
+  return loadDocBody(url, planBodies, 'plan', { drop: PLAN_UNSHOWN });
+}
 
 /* `quiet` is the read-on-open case: it should not redraw the list underneath an
    open modal, which would be a card shuffling itself while he is reading it. */
-async function setPlanStatus(p, status, quiet, note){
+async function movePlan(p, state, owner, opts){
+  opts = opts || {};
+  const seen = opts.seen !== undefined ? opts.seen : true;
   try {
-    await postJSON('/plan/status', { night: p.night, name: p.name, status, note });
-    p.status = status;
-    if (status === 'redo') p.redo_note = note || '';
-    if (!quiet) renderPlansList();
+    const res = await postJSON('/stream/apply', {
+      stream: 'plans',
+      item: { group: p.night, name: p.name },
+      to: state, owner, seen,
+      resolution: opts.resolution || '',
+      reason: opts.reason || ''
+    });
+    if (res && res.ok === false) throw new Error(res.error || 'the stream refused it');
+    p.state = state; p.owner = owner; p.seen = seen;
+    if (opts.resolution) p.resolution = opts.resolution;
+    if (opts.reason) p.feedback = opts.reason;
+    if (!opts.quiet) renderPlansList();
   } catch (err) {
-    if (!quiet) showToast('Could not mark that plan: ' + (err.message || err), 'bad');
+    if (!opts.quiet) showToast('Could not move that plan: ' + (err.message || err), 'bad');
   }
 }
 
@@ -222,27 +279,31 @@ function goToPlanTask(key){
    beside it. A plan can be both folded and unread; a chip narrows to one
    question at a time, so it lands in whichever one he clicked. */
 const INBOX_FILTERS = [
-  { key:'unread',   label:'new',       match: p => p.status === 'unread' },
-  { key:'folded',   label:'needs you', match: p => p.outcome === 'folded' },
-  { key:'read',     label:'read',      match: p => p.status === 'read' },
+  { key:'unread',   label:'new',       match: p => !p.seen },
+  { key:'folded',   label:'needs you', match: p => !!p.needs_you },
+  { key:'read',     label:'read',      match: p => !!p.seen },
 ];
 const DECIDED_FILTERS = [
-  { key:'agreed',   label:'agreed',    match: p => p.status === 'agreed' },
+  { key:'agreed',   label:'agreed',    match: p => isAgreed(p) },
   /* Only the rejections still waiting on a replacement — see redoReplaced().
      A spent one has no chip of its own, which is the point: it is filed with
      the record rather than kept in front of him. When every redo has been
      replaced the chip is not drawn at all, since planFilterBarHTML() only
      draws chips with something behind them. */
-  { key:'redo',     label:'redo',      match: p => p.status === 'redo' && !redoReplaced(p) },
-  { key:'actioned', label:'actioned',  match: p => p.status === 'actioned' },
+  { key:'redo',     label:'redo',      match: p => isRedo(p) && !redoReplaced(p) },
+  /* Genuinely acted on, rather than everything that has finished: a rejection
+     that a later plan replaced is also `done`, and calling that "actioned"
+     would claim he did work he never did. It has no chip of its own, which is
+     the point — it is filed with the record rather than kept in front of him. */
+  { key:'actioned', label:'actioned',  match: p => p.state === 'done' && !redoReplaced(p) },
 ];
-/* Which column a plan is in at all, decided by status rather than by chip —
-   the chips narrow a column, they do not choose it. The five statuses split
-   cleanly in two: unread and read are still being read, these three have had a
-   verdict. A folded plan is in whichever column its status puts it, so one
-   that has been sent back sits under redo rather than staying in the Inbox
-   asking a question he has already answered. */
-const DECIDED_STATUS = new Set(['agreed', 'redo', 'actioned']);
+/* Which column a plan is in at all, decided by its state rather than by chip —
+   the chips narrow a column, they do not choose it. Anything still waiting on
+   him is the Inbox; anything he has ruled on is Decided, whether that was
+   approving it, sending it back, or doing the work himself. A folded plan is in
+   whichever column its state puts it, so one that has been sent back sits under
+   redo rather than staying in the Inbox asking a question he has answered. */
+const decided = p => p.state !== 'review';
 
 /* Whether a plan he sent back has already been answered by a later one.
 
@@ -321,14 +382,7 @@ function byTaskPriority(list){
     .map(x => x.p);
 }
 
-function redoReplaced(p){
-  if (p.status !== 'redo') return false;
-  const key = planTaskKey(p);
-  if (!key) return false;
-  const when = p.night || p.date || '';
-  return (planList || []).some(o =>
-    o !== p && planTaskKey(o) === key && (o.night || o.date || '') > when);
-}
+function redoReplaced(p){ return p.state === 'done' && p.resolution === 'superseded'; }
 /* One filter per column, so a chip picked in one does not reset the other. */
 let inboxFilter = 'all';
 let decidedFilter = 'all';
@@ -384,7 +438,7 @@ function renderPlansList(){
 function renderPlanInbox(){
   const out = $('#plansOut');
   if (!out) return;
-  const all = byTaskPriority(plansShown(planList).filter(p => !DECIDED_STATUS.has(p.status)));
+  const all = byTaskPriority(plansShown(planList).filter(p => !decided(p)));
   const active = INBOX_FILTERS.find(f => f.key === inboxFilter);
   if (active && !all.some(active.match)) inboxFilter = 'all';
   const shown = inboxFilter === 'all'
@@ -406,20 +460,20 @@ function renderPlanInbox(){
 function renderPlanDecided(){
   const out = $('#plansDecided');
   if (!out) return;
-  const all = byTaskPriority(plansShown(planList).filter(p => DECIDED_STATUS.has(p.status)));
+  const all = byTaskPriority(plansShown(planList).filter(p => decided(p)));
   const active = DECIDED_FILTERS.find(f => f.key === decidedFilter);
   if (active && !all.some(active.match)) decidedFilter = 'all';
   const shown = decidedFilter === 'all'
     ? all
     : all.filter(DECIDED_FILTERS.find(f => f.key === decidedFilter).match);
-  const agreed = shown.filter(p => p.status === 'agreed');
-  const redo = shown.filter(p => p.status === 'redo' && !redoReplaced(p));
+  const agreed = shown.filter(isAgreed);
+  const redo = shown.filter(p => isRedo(p) && !redoReplaced(p));
   /* A replaced rejection is history, so it is filed with the actioned ones
      rather than left in the redo group looking like work nobody picked up.
      Its note goes with it — planItemHTML() is untouched — so opening the fold
      still shows what he asked for and why. */
-  const replaced = shown.filter(p => p.status === 'redo' && redoReplaced(p));
-  const done = shown.filter(p => p.status === 'actioned').concat(replaced);
+  const replaced = shown.filter(redoReplaced);
+  const done = shown.filter(p => p.state === 'done' && !redoReplaced(p)).concat(replaced);
   out.innerHTML = planFilterBarHTML(all, DECIDED_FILTERS, decidedFilter) +
     (agreed.length
       ? '<div class="planagreed"><h4>Agreed, waiting to be run</h4>' +
