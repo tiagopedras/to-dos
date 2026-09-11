@@ -18,6 +18,39 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **Board, Matrix and Timeline take three tabs for three ways of drawing the same
+  tasks.** `viewDefs()` at `kanban/js/11-canvas.js:901-912` lists them as three
+  peers between separators, and `renderView()` at `kanban/js/18-timeline.js:734`
+  renders every def as its own `.tab` button — so a third of the strip is spent on
+  what is one view under three renderers. Collapse them into a single tab carrying
+  the name of whichever is current plus a chevron on its right, opening a
+  `.dropdown-panel` of the three, built the way the header's `Data ▾` menu already
+  is (`kanban/index.html:33`, wired at `kanban/js/25-archiving.js:117-126` — closes
+  on picking an item, on a click elsewhere, and on Escape). The view ids stay as
+  they are, so `isKnownView()` (`kanban/js/11-canvas.js:925`), the `#matrix` and
+  `#timeline` fragments and `syncHash()` need no change; what changes is only how
+  the three are offered. `kanban/test_canvas.mjs:126` and
+  `kanban/test_schedule.mjs:357` both read the on-tab out of `#viewToggle .tab`,
+  so whatever the collapsed control renders has to keep that selector meaningful
+  or both need rewriting.
+
+- **Token Session and "What runs on a clock" take a whole track on Plans for two
+  cards nobody reads across.** `renderPlansView()` at `kanban/js/13-plans.js:1262-1273`
+  wraps both in a `.pvcol` fifth grid track, and `.lists.pview` in
+  `kanban/board.css:1010-1015` pays `minmax(320px,420px)` plus its share of the
+  `min-width:1796px` for it — on a view whose actual work is the four columns to
+  its left. Both are reference rather than decision: the chart is a glance at
+  spend, the clock card changes only when the plist does. Move both card strings
+  into a `showModal()` body (`kanban/js/23-conflict-modal.js:19`, the `wide`
+  variant the written reports already use), opened by a `btn mini` in a
+  `.cardhead` on the Inbox card, which is the one that currently has a bare `<h3>`
+  where Queue has a head with a button in it. The grid then drops to four tracks
+  and the `min-width` comes down with it. `renderUsage()` and `renderSched()`
+  already draw into `#usageOut`/`#schedOut` by id, so they need no change as long
+  as the modal is in the DOM before they run. `kanban/test_plans.mjs:233-237` and
+  `kanban/test_schedule.mjs:148-152` both assert the two cards sit in a `.pvcol`
+  in the last track, so both have to be rewritten against the modal.
+
 - **`plans/actioned/` is read as though it were a night, and two things break on
   5 October 2026 when the first folder is old enough for `prune()` to make it.**
   `prune()` in `agents/night_agent/plan.py` moves agreed and actioned plans into
@@ -324,8 +357,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   him a night's capacity", which reads as a reason to write around the gap rather
   than name it on the first pass. Two edits to that one file would cover both,
   with no new outcome value and nothing to change in `write_plan()`
-  (`agents/night_agent/plan.py:394`) or the "needs you" badge
-  (`kanban/js/13-plans.js:65`): a third shape for a task whose whole answer is a
+  (`agents/night_agent/plan.py:524`) or the "needs you" badge
+  (`kanban/js/13-plans.js:146`): a third shape for a task whose whole answer is a
   finding and a first step, and a fold bar phrased as ask early rather than as a
   last resort.
 
@@ -871,10 +904,10 @@ they settled is written up in the README rather than left here:
   claimed as done.
 
   The view is the Plans view with its sources swapped. `renderPlansView()`
-  (`kanban/js/13-plans.js:812`) already draws Backlog, Queue and Done beside a
+  (`kanban/js/13-plans.js:1232`) already draws Backlog, To do and Done beside a
   fourth column for the agent's own state, and four things about it change.
   Approval runs the other way: in Plans everything eligible is queued by rule and
-  `holdTask()` (`:424`) is the only way to say no, whereas nothing here gets
+  `holdTask()` (`:834`) is the only way to say no, whereas nothing here gets
   built unless it is dragged into the queue, which turns `queue-order.json` from
   an ordering plus a hold list into an explicit build list and makes reusing that
   format verbatim the obvious mistake. Done reads git rather than a status field,
