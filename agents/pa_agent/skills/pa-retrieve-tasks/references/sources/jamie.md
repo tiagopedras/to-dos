@@ -61,9 +61,10 @@ in one page, and a truncated pull that reads as complete is worse than no pull.
 `email`. The email is `null` for plenty of people, so the name is the only field
 that is reliably there.
 
-**Recognising him.** He is `Tiago Pedras`, `tiagopedras@gmail.com`. That is his
-personal address rather than his Twinkl one, because the recorder joins under the
-account that owns the Jamie subscription. Match on either field.
+**Recognising him.** Match on the assignee `name`. Do not match on the email: the
+recorder joins under the account that owns the Jamie subscription, so the address
+on his tasks is his personal one rather than his Twinkl one, and a filter written
+against the work address finds nothing.
 
 **Getting more context.** `get_meeting` with the `meetingId` returns the summary,
 the participants, the tags and the full task list for one call, with a long
@@ -73,7 +74,7 @@ order, a page at a time, following `nextCursor` until `isFinal`.
 describes a meeting rather than naming it.
 
 **Provenance.** `meetingTitle` plus the date off `startTime`, written as a short
-note: "From the DS-Design WG on 27 Aug." Titles carry emoji, so strip them.
+note: "From the Platform WG on 27 Aug." Titles carry emoji, so strip them.
 
 ## What this source gets wrong
 

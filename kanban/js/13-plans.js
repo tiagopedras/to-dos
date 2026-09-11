@@ -208,7 +208,18 @@ function rejectPlan(p){
   }
 }
 
-async function loadPlanBody(url){ return loadDocBody(url, planBodies, 'plan'); }
+/* The two sections of a plan that are not for him. `Context` is the night's
+   research trail — what it read, what it ruled out, what it could not
+   establish — and `History` is one line per revision. Both are in the plan
+   file because the acting agent reads one and the next re-plan reads the
+   other, and both stay out of the modal because reading them again is exactly
+   the noise that stops a plan being read at all. Named rather than positional,
+   so a plan written before this still renders. */
+const PLAN_UNSHOWN = ['Context', 'History'];
+
+async function loadPlanBody(url){
+  return loadDocBody(url, planBodies, 'plan', { drop: PLAN_UNSHOWN });
+}
 
 /* `quiet` is the read-on-open case: it should not redraw the list underneath an
    open modal, which would be a card shuffling itself while he is reading it. */

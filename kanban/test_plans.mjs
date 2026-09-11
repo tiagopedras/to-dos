@@ -153,7 +153,17 @@ await evalJS(`(() => {
       return Promise.resolve(new Response('{"available":false}', {status:200}));
     }
     if (String(url).startsWith('/x/')) {
-      return Promise.resolve(new Response('---\\ntitle: t\\n---\\n\\n## What already exists\\n\\nCaveat is in Foundations.\\n', {status:200}));
+      // A plan in the shape PLAN-BRIEF.md asks for: five sections, two of them
+      // written for an agent rather than for him.
+      return Promise.resolve(new Response([
+        '---', 'title: t', '---', '',
+        '## Context', '', '**Read.** ds-inventory/snapshots/figma/2026-09-04/.', '',
+        '### A subheading inside it', '', 'Still not his to read.', '',
+        '## Summary', '', 'Confirm the weights, hold the brand half.', '',
+        '## Findings', '', '- Caveat is in Foundations.', '',
+        '## Proposed plan', '', '1. Run ds-analyst.', '2. Write the options.', '',
+        '## History', '', '- **2026-09-05, revision 1.** Planned.', ''
+      ].join('\\n'), {status:200}));
     }
     return real(url, opts);
   };
@@ -470,7 +480,31 @@ check('it opens in the wide modal', await evalJS(`!!document.querySelector('.msc
 // own title, which the modal already shows above it.
 check('the body is rendered as Markdown', await evalJS(`
   !!document.querySelector('.mscrim .repdoc h4') &&
-  document.querySelector('.mscrim .repdoc h4').textContent === 'What already exists'
+  document.querySelector('.mscrim .repdoc h4').textContent === 'Summary'
+`))
+// The two sections written for an agent are left out of the render rather than
+// folded: Context is the night's research trail, which the acting agent reads,
+// and History spans revisions. Both stay in the file; neither is his to read.
+check('the sections written for an agent are not rendered', await evalJS(`
+  [...document.querySelectorAll('.mscrim .repdoc h4')].map(h => h.textContent).join(',')
+    === 'Summary,Findings,Proposed plan'
+`))
+check('and nothing under them leaks through either', await evalJS(`
+  (t => !t.includes('ds-inventory') && !t.includes('revision 1') &&
+        !t.includes('Still not his to read'))(document.querySelector('.mscrim .repdoc').textContent)
+`))
+check('a dropped section takes its own subheadings with it', await evalJS(`
+  !document.querySelector('.mscrim .repdoc').textContent.includes('A subheading inside it')
+`))
+check('the findings are a list', await evalJS(`
+  !!document.querySelector('.mscrim .repdoc ul.repbul li')
+`))
+// Numbered steps were falling through to the paragraph branch and coming back
+// as one run-on sentence, which every plan hits: the proposed steps and the
+// open questions are both written numbered.
+check('and the proposed steps are a numbered one', await evalJS(`
+  !!document.querySelector('.mscrim .repdoc ol.repnum li') &&
+  document.querySelector('.mscrim .repdoc ol.repnum li').textContent === 'Run ds-analyst.'
 `))
 check('and the frontmatter is not part of it', await evalJS(`
   !document.querySelector('.mscrim .repdoc').textContent.includes('title: t')

@@ -1410,6 +1410,10 @@
   .repdoc .repbul{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
   .repdoc .repbul li{font-size:13.5px; line-height:1.5; color:var(--ink-soft); padding-left:14px; position:relative}
   .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
+  /* Numbered lists keep the browser's own numbering — .repbul turns it off and
+     draws a middot, which would swallow the step numbers a plan is written in. */
+  .repdoc .repnum{margin:0 0 10px; padding-left:20px; display:flex; flex-direction:column; gap:5px}
+  .repdoc .repnum li{font-size:13.5px; line-height:1.5; color:var(--ink-soft)}
   .repdoc strong{color:var(--ink)}
   @media (max-width:1000px){
     .lists.pview{grid-template-columns:1fr; min-width:0}

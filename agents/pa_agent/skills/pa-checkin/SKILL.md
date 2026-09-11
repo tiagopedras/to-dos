@@ -91,7 +91,7 @@ Do not write anything yourself first, including `Last updated` and the watermark
 
 ## Judgement calls that come up
 
-**He only wants the meeting prep.** "Get me ready for the Anu 1:1", "what do I need to raise on Wednesday". That is not a check-in. Go straight to `pa`, which writes agendas, and skip everything here.
+**He only wants the meeting prep.** "Get me ready for the Morgan 1:1", "what do I need to raise on Wednesday". That is not a check-in. Go straight to `pa`, which writes agendas, and skip everything here.
 
 **He reports progress on one task and nothing else.** Also not a check-in. That is `pa` on its own, one change and one line back.
 

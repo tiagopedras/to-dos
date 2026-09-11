@@ -581,6 +581,53 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Every agent here is rationed by an allowance none of them can read, and the
+  only way to read it headlessly is a throwaway terminal.** `core/windows.py`
+  reconstructs the five-hour windows from `~/.claude/projects/*/*.jsonl`, and
+  `record_limit()` (`agents/night_agent/plan.py:325`) says in its own docstring
+  that `limit_tok` is "the one measurement of the session allowance this machine
+  can make" — a floor revised upward by being refused, never a figure. So the
+  batch loop at `:733` gates on `expiry` alone: it asks how long the window has
+  left and never how full the account is, which are the two halves of the
+  question that decides how much work a night can carry.
+
+  Measured on 11 Sep 2026, the official figure is absent from everything an
+  unattended process can reach. Not in the transcripts, not in any of the 34
+  hook events, and not among the 25 keys a `claude -p --output-format json` run
+  returns. `~/.claude.json` holds `cachedUsageUtilization` with
+  `utilization.five_hour.utilization`, but a headless run does not refresh it —
+  it read 76 minutes stale at 11% while the live figure was 32% — so it is a
+  cache only an interactive session fills. The `Usage for Claude` app on
+  `127.0.0.1` answers `/session` with a `percentUsed` that does track, but it is
+  the app's own derivation and lags by minutes. The one authoritative source is
+  Claude Code's `statusLine` payload, which carries
+  `rate_limits.five_hour.used_percentage` and `seven_day` straight from the
+  server, and which a headless run never fires because a status line is screen
+  furniture. What works is giving Claude Code a terminal to draw into: a pty, a
+  real session with its own throwaway `statusLine`, one word sent, `rate_limits`
+  caught, session killed. About 17 seconds and one Haiku call. A working
+  implementation sits outside the repo at `~/.claude/usage/`, with the
+  leaked-epoch (#52326), rollover and tombstone guards taken from
+  `claude_monitor/output/official.py`, and two traps worth keeping: it must run
+  from a directory Claude Code already trusts, or the trust prompt appears
+  instead of a session, and the pty must be drained throughout or the TUI blocks
+  on write and never reaches its first API response.
+
+  This is not the night agent's to own. `improve_agent` and
+  `agents/night_agent/` are two claimants on one allowance and a third would be
+  a third, so the harvester belongs in `PACKAGES/` by the rule in
+  `~/Code/CLAUDE.md` — anything two apps depend on moves there — and each agent
+  reads it rather than carrying a copy. Two decisions before it can be built.
+  What an agent does with the number: advisory, with `core/windows.py` staying
+  the gate, or authoritative, in which case a night that cannot harvest has to
+  choose between declining to start and running blind. And where the reading is
+  written: `limit_tok` and the window state are one file today, and a percentage
+  sampled twice a night is a series rather than a state, so it either grows into
+  a small log beside the plans or it overwrites and keeps only the last night.
+  The API call is what forces that shape — it makes the harvest a once-per-batch
+  reading rather than a per-task one, so it cannot catch a window filling up
+  mid-night.
+
 - **The board can start a conversation about a task but not about the list, so
   every PA sitting means leaving it for a terminal.** `newChat()`
   (`kanban/js/10-reference-sections.js:1048`) mints an owner key on a task and
@@ -599,34 +646,6 @@ they settled is written up in the README rather than left here:
   lock cannot lose an edit and a race can. Which of the ten `pa-*` skills are
   reachable this way is the second question: `pa-checkin` and `pa-checkout` are
   sittings that suit a panel, `pa-mobile` has no business here at all.
-
-- **The night is sized against a ceiling nobody can read, when the exact
-  percentage is available over localhost.** `record_limit()` at
-  `agents/night_agent/plan.py:325` says so in its own docstring: `limit_tok` is
-  "the one measurement of the session allowance this machine can make", and the
-  only way to take it is to be refused, so it is a floor revised upward and
-  never a figure. The batch loop at `:733` gates on `expiry` alone, meaning the
-  runner asks how long the window has left and never how full it is. Those are
-  the two halves of the question that decides how much work a night can carry,
-  and only one of them is being asked. The `Usage for Claude` app already
-  installed at `/Applications/Usage for Claude.app` serves the other half on
-  `GET http://127.0.0.1:<port>/session` as `percentUsed`, bound to loopback,
-  read-only, no credential in reach of anything here; its own contract is
-  bundled at `Contents/Resources/claude-usage.skill.md`. Reading it before and
-  after a batch, into the same state file `windows.read_state()` already keeps,
-  turns "was the night full" from a token estimate into the server's own
-  number, and gives `plan.py` a second gate: stop at a percentage rather than
-  only at a floor of minutes.
-
-  Two decisions before it can be built. The reading comes from an App Store
-  app that has to be running with its Local API switched on, which is a
-  dependency this repo has never had, so what happens when the call fails
-  decides the shape: either the percentage is advisory and `core/windows.py`
-  stays the gate, or it becomes the gate and a night with no reading declines
-  to start. The second is where the reading is written. `limit_tok` and the
-  window state are one file today, and a percentage sampled twice a night is a
-  series rather than a state, so it either grows into a small log beside the
-  plans or it overwrites and keeps only the last night.
 
 - ~~**The companion is a menu, and a menu is why the plans half had to come
   back out of it.**~~ **Done, 10 Sep 2026.** Rebuilt as an Electron app —

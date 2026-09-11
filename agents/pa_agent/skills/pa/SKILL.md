@@ -146,7 +146,7 @@ Some of the list comes round on a cycle rather than being finished once: the sta
 **How a recurring task works, so you do not fight the board over it.** One tag and one card.
 
 ```
-- [ ] **Prepare for 1:1 with Anu** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
+- [ ] **Prepare for 1:1 with Morgan** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
 ```
 
 `repeat:wed` is every Wednesday, `repeat:wed-9:15` adds the time, `repeat:15` is the 15th of every month, `repeat:wd5` is the fifth working day of every month — for something dated by working days rather than by the calendar, which the AOP status update is — and `repeat:tue2` is the 2nd Tuesday of every month, for something pinned to a weekday rather than a day of the month, taking a time the same way: `repeat:tue2-15:00`. A `~` in front of any of them, `repeat:~fri-15:00`, says the day is the usual shape rather than a rule, for a meeting that is real but gets rebooked. `[due:: ]` is the occurrence the card is currently pointing at.
@@ -190,7 +190,7 @@ Agenda
 
 The date of the meeting in full, on its own line. A blank line. The word `Agenda` on its own line. Then the topics, both levels as bullets. The board builds that from the block and the task's date, and it also puts an HTML flavour on the clipboard so a paste into Google Docs keeps both levels as real bullets rather than as hyphens. Nothing about that is yours to write — write the block, and the format follows. It matters only because it tells you what the topics have to survive being read as: a heading and a list in somebody else's document.
 
-**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Anu 1:1 that means anything in Waiting review or due around the meeting date that touches her or her team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
+**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Morgan 1:1 that means anything in Waiting review or due around the meeting date that touches them or their team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
 
 Rules for the writing itself:
 
