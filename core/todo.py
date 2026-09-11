@@ -68,8 +68,8 @@ class Task:
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
                  "ai", "to", "urgent", "week", "slug", "blocked_by", "rank",
-                 "tlrank", "headline", "chat", "repeat", "extra", "body", "raw",
-                 "bucket", "column")
+                 "tlrank", "headline", "chat", "repeat", "stable_id", "extra",
+                 "body", "raw", "bucket", "column")
 
     def __init__(self):
         self.done = False
@@ -78,6 +78,9 @@ class Task:
         self.done_on = self.ai = self.to = ""
         self.urgent = self.week = False
         self.slug = self.headline = self.chat = self.repeat = ""
+        # The task's own identity, minted once and written on the line. See
+        # `id` in core/todo.js, which is where it is generated.
+        self.stable_id = ""
         self.blocked_by = []
         self.rank = None
         self.tlrank = None
@@ -130,6 +133,8 @@ def parse_task(raw_lines):
             task.chat = val.lower()
         elif key == "repeat":
             task.repeat = val.lower()
+        elif key == "id":
+            task.stable_id = val.lower()
         else:
             task.extra.append(whole)
             return " "

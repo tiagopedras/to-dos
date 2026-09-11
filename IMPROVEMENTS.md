@@ -18,6 +18,39 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **`plans/actioned/` is read as though it were a night, and two things break on
+  5 October 2026 when the first folder is old enough for `prune()` to make it.**
+  `prune()` in `agents/night_agent/plan.py` moves agreed and actioned plans into
+  `plans/actioned/` as `<night>-<file>.md`, and `plan_listing()` in
+  `kanban/server.py` iterates every non-dotted directory under `plans/`, so those
+  come back carrying `night: "actioned"`. Two things then go wrong. `mark_plan()`
+  validates `night` against `^\d{4}-\d{2}-\d{2}$`, so a pruned plan can never be
+  marked again from the board. And `redoReplaced()` in `kanban/js/13-plans.js`
+  compares `(o.night || o.date || '') > when` as strings, where `"actioned"` sorts
+  above every date, so once one pruned plan exists every rejected plan reads as
+  already replaced and drops out of the Decided column into history. Neither has
+  fired yet only because no night folder has reached `KEEP_DAYS = 30`; the
+  `2026-09-05` folder does on 5 Oct 2026. The fix is to stop the folder name being
+  identity, which is also what the stream contract does when plans migrate, so it
+  is worth doing in that pass rather than twice.
+
+- **The companion shows the plans the night wrote and says nothing about the
+  run that wrote them.** `planListing()` (`companion/src/main/plans.ts:52`)
+  walks the plan files, and the renderer's plans section
+  (`companion/src/renderer/src/App.tsx:180`) draws a card per open one, so a
+  night that planned nothing and a night that never woke up look identical —
+  an empty section. The night already writes the answer:
+  `write_run_record()` (`agents/night_agent/plan.py:579`) leaves a `run.json`
+  beside the plans with the start and finish times, the cost, whether it was
+  cut short, and a row per task tagged planned, folded or skipped with the
+  reason. Reading that file in a new `companion/src/main/night.ts`, hanging it
+  off `Snapshot` (`companion/src/shared/types.ts`) alongside `plans` where the
+  snapshot is assembled (`companion/src/main/index.ts:173`), and drawing one
+  summary line above the cards would say what happened without opening the
+  board. `run.json` is per-night and pruned with its folder, so the companion
+  has to cope with the newest night's folder having no record at all — which
+  is itself the thing worth saying, since it means the agent did not finish.
+
 - **The Reports window picker is a dropdown, so the seven ranges it holds are
   invisible until it is opened.** `reportWindowSelectHTML()`
   (`kanban/js/12-reports.js:760`) writes a `<select>` over the seven entries in
@@ -547,6 +580,53 @@ they settled is written up in the README rather than left here:
   Context section. The board is the authority, so `todo.py` moved in all three.
 
 ## Big
+
+- **The board can start a conversation about a task but not about the list, so
+  every PA sitting means leaving it for a terminal.** `newChat()`
+  (`kanban/js/10-reference-sections.js:1048`) mints an owner key on a task and
+  hands it to `chat.openNew()`, and `Runner.run()`
+  (`PACKAGES/ai_chat_engine/engine.py:472`) shells `claude -p <prompt>` in the
+  configured cwd — so `/pa-checkin` typed into that modal would run today, and
+  what is missing is a chat that belongs to the board rather than to one card,
+  plus somewhere in the header to open it. The decision it is waiting on is the
+  writer rule: `todo.md` has exactly one writer, and a PA turn is a second one
+  firing inside a tab whose `autosaveTick()`
+  (`kanban/js/24-autosave-watching.js:38`) is four seconds from overwriting
+  whatever it just wrote. `watchTick()` (`:47`) already covers the shape of it,
+  reloading quietly on an outside change and asking only when the tab has
+  unsaved work of its own, so the choice is between trusting that and setting
+  `state.locked` for the length of the turn — the harder, safer option, since a
+  lock cannot lose an edit and a race can. Which of the ten `pa-*` skills are
+  reachable this way is the second question: `pa-checkin` and `pa-checkout` are
+  sittings that suit a panel, `pa-mobile` has no business here at all.
+
+- **The night is sized against a ceiling nobody can read, when the exact
+  percentage is available over localhost.** `record_limit()` at
+  `agents/night_agent/plan.py:325` says so in its own docstring: `limit_tok` is
+  "the one measurement of the session allowance this machine can make", and the
+  only way to take it is to be refused, so it is a floor revised upward and
+  never a figure. The batch loop at `:733` gates on `expiry` alone, meaning the
+  runner asks how long the window has left and never how full it is. Those are
+  the two halves of the question that decides how much work a night can carry,
+  and only one of them is being asked. The `Usage for Claude` app already
+  installed at `/Applications/Usage for Claude.app` serves the other half on
+  `GET http://127.0.0.1:<port>/session` as `percentUsed`, bound to loopback,
+  read-only, no credential in reach of anything here; its own contract is
+  bundled at `Contents/Resources/claude-usage.skill.md`. Reading it before and
+  after a batch, into the same state file `windows.read_state()` already keeps,
+  turns "was the night full" from a token estimate into the server's own
+  number, and gives `plan.py` a second gate: stop at a percentage rather than
+  only at a floor of minutes.
+
+  Two decisions before it can be built. The reading comes from an App Store
+  app that has to be running with its Local API switched on, which is a
+  dependency this repo has never had, so what happens when the call fails
+  decides the shape: either the percentage is advisory and `core/windows.py`
+  stays the gate, or it becomes the gate and a night with no reading declines
+  to start. The second is where the reading is written. `limit_tok` and the
+  window state are one file today, and a percentage sampled twice a night is a
+  series rather than a state, so it either grows into a small log beside the
+  plans or it overwrites and keeps only the last night.
 
 - ~~**The companion is a menu, and a menu is why the plans half had to come
   back out of it.**~~ **Done, 10 Sep 2026.** Rebuilt as an Electron app —

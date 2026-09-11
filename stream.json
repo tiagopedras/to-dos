@@ -1,0 +1,65 @@
+{
+  "contract": "1.0",
+  "id": "tasks",
+  "name": "My to-do list",
+  "blurb": "the master list, one file, one writer",
+
+  "container": { "kind": "list-file", "path": "data/<dataset>/todo.md" },
+  "groups": { "kind": "heading", "level": 2, "numbered": true, "label": "bucket" },
+  "lanes":  { "kind": "heading", "level": 3 },
+
+  "states": {
+    "backlog": "Backlog",
+    "ready":   "To do",
+    "doing":   "Doing",
+    "blocked": "Blocked",
+    "review":  "Waiting review",
+    "done":    "Done"
+  },
+  "reserved": ["Backlog", "To do", "Doing", "Waiting review", "Done"],
+  "on_demand": ["Blocked"],
+  "hints": {
+    "Backlog":        "no time pressure yet",
+    "To do":          "two to four weeks out",
+    "Doing":          "current focus, next two weeks",
+    "Blocked":        "can't move until something changes",
+    "Waiting review": "done, waiting on someone else",
+    "Done":           "ticked off",
+    "Handed to AI":   "tagged ai:: full, not done yet"
+  },
+  "synthetic": [
+    { "lane": "Handed to AI", "before": "done", "draggable": false,
+      "when": { "field": "ai", "is": "full" },
+      "note": "drawn from the ai tag, never a heading in the file" },
+    { "lane": "Done", "state": "done", "draggable": true,
+      "when": { "field": "done", "is": true },
+      "note": "an item is ticked where it sits; there is no Done heading" }
+  ],
+
+  "fields": [
+    { "key": "impact", "syntax": "inline", "values": ["high", "med", "low"] },
+    { "key": "effort", "syntax": "inline", "values": ["S", "M", "L"] },
+    { "key": "due",    "syntax": "inline", "type": "date" },
+    { "key": "ai",     "syntax": "inline", "values": ["full", "partial", "none"] },
+    { "key": "to",     "syntax": "inline", "type": "string" },
+    { "key": "start",  "syntax": "span",   "type": "date" },
+    { "key": "done",   "syntax": "span",   "type": "date" },
+    { "key": "slug",       "syntax": "span", "own": true },
+    { "key": "blocked-by", "syntax": "span", "own": true },
+    { "key": "rank",       "syntax": "span", "own": true },
+    { "key": "tlrank",     "syntax": "span", "own": true },
+    { "key": "headline",   "syntax": "span", "own": true },
+    { "key": "chat",       "syntax": "span", "own": true },
+    { "key": "repeat",     "syntax": "span", "own": true },
+    { "key": "urgent",     "syntax": "bare", "own": true },
+    { "key": "week",       "syntax": "bare", "own": true }
+  ],
+
+  "writer": {
+    "who": "board",
+    "how": { "kind": "http-put", "path": "/data/todo.md" },
+    "lock": "data/<dataset>/.board.lock",
+    "note": "the four inline fields are read by Dataview in views.md and must stay bracketed"
+  },
+  "views": ["overview", "board", "matrix", "timeline"]
+}

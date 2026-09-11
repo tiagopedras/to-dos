@@ -16,6 +16,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -335,7 +336,14 @@ def test_folding():
         check("a folded plan is recognised", folded, True)
         check("and keeps the agent's summary", summary, "Needs the scope settled.")
         text = open(out, encoding="utf-8").read()
-        check("outcome survives into the file", "outcome: folded" in text, True)
+        # `outcome: folded` was this stream's own word for it until 11 Sep 2026.
+        # It is `needs_you` now, which is the same fact the improvements backlog
+        # already carried under that name: an unattended agent must not act on
+        # this. One canonical field, two streams. See work_streams/CONTRACT.md.
+        check("folding survives into the file", "needs_you: yes" in text, True)
+        check("and a plan nobody folded says so", "needs_you: no" in
+              open(plan.write_plan(task, "---\nsummary: Fine.\n---\n\nBody.\n", "", day)[0],
+                   encoding="utf-8").read(), True)
 
         plain = "---\nstatus: unread\nsummary: Do the thing.\n---\n\nBody.\n"
         _, _, folded = plan.write_plan(task, plain, "", day)
@@ -527,22 +535,67 @@ def test_server():
             check("and resolves to one dataset deep, not two",
                   resolved.count("/test/"), 1)
 
-            got, err = server.mark_plan("2026-09-05", "a-planned-thing.md", "actioned")
-            check("marking succeeds", err, None)
-            check("the file now says actioned",
-                  server.plan_listing()[0]["status"], "actioned")
-            with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
-                check("and so does the ledger, which is what the picker reads",
-                      json.load(fh)["A planned thing"]["status"], "actioned")
+            # The writing is the stream's own, since 11 Sep 2026. The board
+            # asks and this performs it, which is what keeps one writer per
+            # file — see agents/night_agent/stream.py and, for why, the note
+            # where mark_plan() used to be in kanban/server.py.
+            import stream as plans_stream
+            real_pd, real_lp = plans_stream.paths.plans_dir, plans_stream.paths.ledger_path
+            plans_stream.paths.plans_dir = lambda: tmp
+            plans_stream.paths.ledger_path = lambda: os.path.join(tmp, "ledger.json")
+            try:
+                out = plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "done", "owner": "me", "resolution": "actioned"})
+                check("the move succeeds", out.get("ok"), True)
+                check("the file now says done", server.plan_listing()[0]["state"], "done")
+                check("and says how it finished", server.plan_listing()[0]["resolution"], "actioned")
+                with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
+                    row = json.load(fh)["A planned thing"]
+                # Both halves in one call. Writing the file and not the ledger
+                # is the bug this replaced: the picker reads the ledger, so a
+                # plan finished only in its own frontmatter left the task held
+                # out of every future night's queue for ever.
+                check("and so does the ledger, which is what the picker reads", row["state"], "done")
+                check("the ledger carries the owner too", row["owner"], "me")
 
-            # The three ways a bad reference gets refused, since these come off
-            # a URL and one of them is a path climbing out of the folder.
-            for night, name in [("nope", "a.md"), ("2026-09-05", "../x.md"),
-                                ("2026-09-05", "missing.md")]:
-                _, err = server.mark_plan(night, name, "read")
-                check("refuses %r/%r" % (night, name), bool(err), True)
-            _, err = server.mark_plan("2026-09-05", "a-planned-thing.md", "banana")
-            check("refuses an unknown status", bool(err), True)
+                # The three ways a bad reference gets refused, since these come
+                # off a URL and one of them climbs out of the folder.
+                for night, name in [("nope", "a.md"), ("2026-09-05", "../x.md"),
+                                    ("2026-09-05", "missing.md")]:
+                    out = plans_stream.apply({"item": {"group": night, "name": name},
+                                              "to": "review", "owner": "me"})
+                    check("refuses %r/%r" % (night, name), out.get("ok"), False)
+                check("refuses a state this stream does not have",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "banana"}).get("ok"), False)
+                # An owner is not decoration: an item nobody owns is one nothing
+                # will ever pick up.
+                check("refuses a state its owner cannot hold",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "review", "owner": "night-agent"}).get("ok"), False)
+                check("refuses sending one back with no reason",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "ready", "owner": "night-agent"}).get("ok"), False)
+                # The claim. Advisory on purpose: a claim held by a process
+                # that has gone is ignored, because being unable to write your
+                # own list after a crash is a worse failure than the one the
+                # lock prevents. See PACKAGES/work_streams/writer.py.
+                import writer as ws_writer
+                lock = os.path.join(tmp, ".plans.lock")
+                with open(lock, "w", encoding="utf-8") as fh:
+                    # Somebody else's pid, and a live one: a process never
+                    # locks itself out, which is why os.getpid() would pass here.
+                    json.dump({"who": "something live", "pid": os.getppid(), "at": time.time()}, fh)
+                check("refuses a write while something live holds the claim",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "review", "owner": "me"}).get("ok"), False)
+                with open(lock, "w", encoding="utf-8") as fh:
+                    json.dump({"who": "a crashed run", "pid": 999999, "at": time.time()}, fh)
+                check("but a claim whose process has gone locks nobody out",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "review", "owner": "me"}).get("ok"), True)
+            finally:
+                plans_stream.paths.plans_dir, plans_stream.paths.ledger_path = real_pd, real_lp
         finally:
             server.plans_dir, server.current_dataset = real_dir, real_ds
     finally:

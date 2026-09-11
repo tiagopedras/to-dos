@@ -11,6 +11,7 @@ function load(text, name, opts){
   state.doc = doc;
   const renamed = renameParked(state.doc);
   const stamped = stampDoneDates(state.doc);
+  const minted = mintMissingIds(state.doc);
   /* Never on a document that cannot be written back. The demo and a backup
      preview are both records of something else, and rolling their dates forward
      would show dates that are nowhere on disk — the demo would also silently
@@ -41,6 +42,8 @@ function load(text, name, opts){
   state.migratedOnly = false;
   renderView();
   if (renamed) { markDirty(); $('#status').textContent = 'renamed “Parked” to “Backlog” — save to apply'; }
+  if (minted) { markDirty(); $('#status').textContent = 'gave ' + minted + ' task' + (minted === 1 ? '' : 's') +
+    ' an id — save to apply'; }
   if (stamped) {
     markDirty();
     $('#status').textContent = 'dated ' + stamped + ' finished task' + (stamped === 1 ? '' : 's') +

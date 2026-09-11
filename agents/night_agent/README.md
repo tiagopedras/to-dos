@@ -127,19 +127,27 @@ statement that the task is his and the card already says so.
 
 ## What happens to a plan afterwards
 
-A plan carries a `status:`, and three of the five are decisions rather than
-reading:
+A plan carries a `state:` and an `owner:` saying who is expected to move it
+next, the same pair every queue in `~/Code` now shares:
 
-| Status | What it means |
+| State and owner | What it means |
 | --- | --- |
-| `unread` / `read` | Nobody has looked at it, or has and is doing nothing yet |
-| `agreed` | Approved to be carried out. `execution-agent` picks these up, and the picker leaves the task alone until the work is done |
-| `redo` | Rejected, with `redo_note:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
-| `actioned` | Acted on, so it no longer describes outstanding work |
+| `review` / `me` | Waiting on him. `seen:` says whether he has opened it yet |
+| `ready` / `execution-agent` | Approved to be carried out. `execution-agent` picks these up, and the picker leaves the task alone until the work is done |
+| `ready` / `night-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
+| `done` / `me` | Finished, with `resolution:` saying how: `actioned`, or `superseded` where a later plan replaced it |
 
-These are known in three places and all three have to stay in step:
-`PLAN_STATUS` in `kanban/server.py`, the buttons in `kanban/js/13-plans.js`, and
-`is_stale()` in `agents/night_agent/pick.py`.
+Five separate words did this until 11 September 2026: `unread`, `read`,
+`agreed`, `redo`, `actioned`. Two of them said the same thing about the plan —
+an agent has the green light — and differed only in which agent. Folding them
+into one state with an owner is what stops a third agent needing a sixth word.
+
+They are no longer known in several places that have to be edited together. The
+vocabulary lives in `agents/night_agent/stream.json`, this stream's manifest,
+and the shape it belongs to is `PACKAGES/work_streams/CONTRACT.md`. The one
+thing that writes it is `agents/night_agent/stream.py --apply`, which writes the
+plan file and its ledger row in the same call because the two are read by
+different things and neither can be derived from the other.
 
 The acting half is `execution-agent`, in `agents/execution_agent/`. There is one
 of it rather than one per bucket, because the per-bucket knowledge lives in the

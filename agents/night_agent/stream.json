@@ -1,0 +1,139 @@
+{
+  "contract": "1.0",
+  "id": "plans",
+  "name": "The night agent's plans",
+  "blurb": "one document per proposal; it proposes and never executes",
+  "container": {
+    "kind": "doc-folder",
+    "path": "data/<dataset>/plans",
+    "skip": [
+      "index.md",
+      "ledger.json",
+      "queue-order.json",
+      "night-agent.log",
+      "run.json"
+    ]
+  },
+  "groups": {
+    "kind": "field",
+    "key": "group",
+    "label": "bucket",
+    "note": "the bucket of the task this plan is about, not the night it was written"
+  },
+  "lanes": {
+    "kind": "state"
+  },
+  "states": {
+    "backlog": "Backlog",
+    "ready": "Queue",
+    "doing": "Running",
+    "review": "Inbox",
+    "done": "Decided"
+  },
+  "owners": [
+    "me",
+    "night-agent",
+    "execution-agent"
+  ],
+  "hints": {
+    "Backlog": "held back, or excluded by a rule",
+    "Queue": "what tonight would plan, in order",
+    "Inbox": "waiting on a verdict from you",
+    "Decided": "you have ruled on it"
+  },
+  "fields": [
+    {
+      "key": "agent",
+      "type": "string",
+      "own": true,
+      "note": "which brief wrote it"
+    },
+    {
+      "key": "session",
+      "type": "string",
+      "own": true
+    },
+    {
+      "key": "summary",
+      "type": "string",
+      "own": true
+    },
+    {
+      "key": "task",
+      "type": "string",
+      "own": true,
+      "note": "the title as it stood when written, the fallback label when about: resolves to nothing"
+    },
+    {
+      "key": "column",
+      "type": "string",
+      "own": true,
+      "advisory": true
+    },
+    {
+      "key": "ai",
+      "type": "string",
+      "own": true,
+      "advisory": true
+    }
+  ],
+  "order": {
+    "kind": "sidecar",
+    "path": "data/<dataset>/plans/queue-order.json",
+    "holds": true
+  },
+  "writer": {
+    "who": "night-agent",
+    "how": {
+      "kind": "subprocess",
+      "cwd": ".",
+      "apply": [
+        "python3",
+        "stream.py",
+        "--apply"
+      ]
+    },
+    "lock": "data/.night-agent.lock"
+  },
+  "views": [
+    "plans"
+  ],
+  "legacy": {
+    "key": "status",
+    "note": "the five words this stream used until 11 Sep 2026, and what each becomes. agreed and redo are both ready: an agent may pick either up, and owner says which.",
+    "map": {
+      "unread": {
+        "state": "review",
+        "owner": "me",
+        "seen": false
+      },
+      "read": {
+        "state": "review",
+        "owner": "me",
+        "seen": true
+      },
+      "agreed": {
+        "state": "ready",
+        "owner": "execution-agent",
+        "seen": true
+      },
+      "redo": {
+        "state": "ready",
+        "owner": "night-agent",
+        "seen": true
+      },
+      "actioned": {
+        "state": "done",
+        "owner": "me",
+        "seen": true,
+        "resolution": "actioned"
+      }
+    },
+    "fields": {
+      "outcome: folded": "needs_you",
+      "redo_note": "feedback",
+      "generated": "created",
+      "bucket": "group"
+    }
+  }
+}

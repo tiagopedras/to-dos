@@ -81,15 +81,15 @@ await evalJS(`(() => {
   const real = window.fetch;
   window.__blocked = [];
   window.__plans = [
-    { name:'add-caveat.md', night:'2026-09-05', url:'/x/add-caveat.md', status:'unread',
+    { name:'add-caveat.md', night:'2026-09-05', url:'/x/add-caveat.md', state:'review', owner:'me', seen:false,
       title:'Add Caveat to the design system type stack', task:'Add Caveat to the design system type stack',
       bucket:'Design System', column:'To do', ai:'partial', agent:'plan-design-system',
       date:'2026-09-05', summary:'Caveat is already in the Foundations file as a loose style.' },
-    { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', status:'read',
+    { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', state:'review', owner:'me', seen:true,
       title:'Create an HR agent', task:'Create an HR agent', bucket:'Processes', column:'To do',
       ai:'partial', agent:'plan-processes', date:'2026-09-05',
       summary:'Five of the six pieces exist as skills already.' },
-    { name:'old.md', night:'2026-09-04', url:'/x/old.md', status:'actioned',
+    { name:'old.md', night:'2026-09-04', url:'/x/old.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'Something already dealt with', task:'Something already dealt with',
       bucket:'Strategic', column:'Backlog', ai:'partial', agent:'plan-strategic',
       date:'2026-09-04', summary:'Done and dusted.' }
@@ -480,20 +480,22 @@ check('the subhead names the agent that wrote it', await evalJS(`
 `))
 
 const marked = await evalJS(`window.__blocked.join(' | ')`)
-check('opening marks it read', marked.includes('POST /plan/status') && marked.includes('"status":"read"'), marked.slice(0, 120))
-check('and names the night and the file', marked.includes('"night":"2026-09-05"') && marked.includes('"name":"add-caveat.md"'))
+check('opening marks it read', marked.includes('POST /stream/apply') && marked.includes('"seen":true'), marked.slice(0, 160))
+// The contract addresses an item by its group and its name, so the night
+// travels as `group` rather than under a key only this stream would know.
+check('and names the night and the file', marked.includes('"group":"2026-09-05"') && marked.includes('"name":"add-caveat.md"'))
 
 // Actioned is a deliberate press, and it is the one the runner reads.
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'I did this myself').click()`)
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
-check('I did this myself posts actioned', after.includes('"status":"actioned"'))
+check('I did this myself finishes it as actioned', after.includes('"to":"done"') && after.includes('"resolution":"actioned"'))
 check('and the row moves out of the Inbox into the actioned fold', await evalJS(`
   document.querySelector('#plansDecided details summary').textContent.trim() === '2 actioned' &&
   !document.querySelector('#plansOut details')
 `))
 
-// Agree and Send back, the two statuses the execution half runs on. Both go
+// Agree and Send back, the two moves the execution half runs on. Both go
 // through a confirm, and Send back refuses to post without a reason — which is
 // the whole feature, since the reason is what the next night's agent is given.
 await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
@@ -520,7 +522,10 @@ await evalJS(`(() => {
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Send it back').click()`)
 await new Promise(r => setTimeout(r, 400))
 const sentBack = await evalJS(`window.__blocked.join(' | ')`)
-check('with a reason it posts redo', sentBack.includes('"status":"redo"'))
+// Sending back is `ready` owned by the night agent: an agent may pick it up,
+// and owner says which. Not a state of its own — see 13-plans.js.
+check('with a reason it hands the task back to the night agent',
+  sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"night-agent"'))
 check('and carries the reason with it', sentBack.includes('Wrong scope'))
 check('the reason is shown on the card without opening it', await evalJS(`
   !!document.querySelector('#plansDecided .repitem.redo .planredo')
@@ -544,7 +549,7 @@ check('and says how it actually gets run', await evalJS(`
 `))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Agree it').click()`)
 await new Promise(r => setTimeout(r, 400))
-check('agreeing posts agreed', (await evalJS(`window.__blocked.join(' | ')`)).includes('"status":"agreed"'))
+check('agreeing hands it to the acting agent', (await evalJS(`window.__blocked.join(' | ')`)).includes('"owner":"execution-agent"'))
 check('and the agreed plan is lifted to the top of the Decided column', await evalJS(`
   !!document.querySelector('#plansDecided .planagreed .repitem.agreed') &&
   !document.querySelector('#plansOut .planagreed')
@@ -573,19 +578,22 @@ check('each column keeps its own status filter', await evalJS(`
 // planList directly rather than a re-render, so nothing is re-fetched.
 await evalJS(`(() => {
   planList = [
-    { name:'twice-old.md', night:'2026-09-03', url:'/x/twice-old.md', status:'redo',
+    // Superseded is written on the plan now rather than worked out by
+    // comparing night names, which used to break the moment prune() created
+    // plans/actioned/ — "actioned" sorts above every date.
+    { name:'twice-old.md', night:'2026-09-03', url:'/x/twice-old.md', state:'done', owner:'me', seen:true, resolution:'superseded', feedback:'Wrong scope: the Foundations file, not the whole library.',
       title:'Planned twice', task:'Planned twice', slug:'planned-twice',
       bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
       date:'2026-09-03', summary:'The first attempt.', redo_note:'Wrong scope.' },
-    { name:'twice-new.md', night:'2026-09-06', url:'/x/twice-new.md', status:'unread',
+    { name:'twice-new.md', night:'2026-09-06', url:'/x/twice-new.md', state:'review', owner:'me', seen:false,
       title:'Planned twice', task:'Planned twice', slug:'planned-twice',
       bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
       date:'2026-09-06', summary:'The replacement.' },
-    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', status:'redo',
+    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', state:'ready', owner:'night-agent', seen:true,
       title:'Sent back last night', task:'Sent back last night', slug:'sent-back',
       bucket:'People', column:'To do', ai:'full', agent:'plan-people',
       date:'2026-09-06', summary:'Waiting on a replacement.', redo_note:'Try again.' },
-    { name:'rec.md', night:'2026-09-02', url:'/x/rec.md', status:'actioned',
+    { name:'rec.md', night:'2026-09-02', url:'/x/rec.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'A record', task:'A record', slug:'a-record', bucket:'DS', column:'Done',
       ai:'full', agent:'plan-design-system', date:'2026-09-02', summary:'Done.' }
   ];
@@ -644,16 +652,17 @@ check('with nothing left to redo the chip is not drawn at all', await evalJS(`
 //   Update the design QA checklist for the new checkout  — unscored
 //   (and one plan whose task is not on the board at all)
 await evalJS(`(() => {
-  const plan = (name, task, status, night) => ({
-    name: name + '.md', night, url:'/x/' + name + '.md', status,
+  const plan = (name, task, seen, night) => ({
+    name: name + '.md', night, url:'/x/' + name + '.md',
+    state:'review', owner:'me', seen,
     title: name, task, bucket:'DS', column:'To do', ai:'full',
     agent:'plan-design-system', date: night, summary:'.' });
   planList = [
-    plan('cheap-and-big', 'Decide whether to open the mid-weight design role', 'unread', '2026-09-01'),
-    plan('gone', 'A task nobody kept', 'unread', '2026-09-07'),
-    plan('unscored', 'Update the design QA checklist for the new checkout flow', 'unread', '2026-09-06'),
-    plan('middling', 'Close the Figma against code gap on buttons', 'read', '2026-09-07'),
-    plan('slow-burn', 'Rewrite the design career framework', 'unread', '2026-09-07')
+    plan('cheap-and-big', 'Decide whether to open the mid-weight design role', false, '2026-09-01'),
+    plan('gone', 'A task nobody kept', false, '2026-09-07'),
+    plan('unscored', 'Update the design QA checklist for the new checkout flow', false, '2026-09-06'),
+    plan('middling', 'Close the Figma against code gap on buttons', true, '2026-09-07'),
+    plan('slow-burn', 'Rewrite the design career framework', false, '2026-09-07')
   ];
   decidedFilter = 'all'; inboxFilter = 'all';
   renderPlansList();
@@ -722,8 +731,9 @@ check('a plan whose task is gone still links, under the name it stored', await e
 // Same ordering in the verdict column, inside each of its groups rather than
 // across them — agreed is still lifted to the top whatever it scores.
 await evalJS(`(() => {
-  planList.forEach(p => { p.status = 'actioned'; });
-  planList.find(p => p.name === 'slow-burn.md').status = 'agreed';
+  planList.forEach(p => { p.state = 'done'; p.owner = 'me'; p.resolution = 'actioned'; });
+  Object.assign(planList.find(p => p.name === 'slow-burn.md'),
+                { state:'ready', owner:'execution-agent', resolution:'' });
   decidedFilter = 'all';
   renderPlansList();
   return 1;
@@ -743,7 +753,7 @@ check('nothing reached todo.md', await evalJS(`
 `))
 check('and every write was a plan status, a queue ordering or a run', await evalJS(`
   window.__blocked.every(b =>
-    b.startsWith('POST /plan/status') || b.startsWith('POST /queue/order') ||
+    b.startsWith('POST /stream/apply') || b.startsWith('POST /queue/order') ||
     b.startsWith('POST /night_agent/run'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
 // The whole queue column writes to exactly one place, and it is not the list.

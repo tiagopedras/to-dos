@@ -12,6 +12,9 @@ loadFile();
 loadJira();
 loadDatasets();
 loadBucketColors();
+// Says so in the console if stream.json and the column names here have drifted
+// apart. Never blocks anything; see checkStreamManifest in 02-state.js.
+checkStreamManifest();
 // Is there a Claude Code CLI behind the helper, and what is it allowed to
 // do. Everything about this can fail and none of it matters: a 404 on a
 // static host, a helper too old to know the endpoint, a machine with no CLI

@@ -423,7 +423,13 @@ def write_plan(task, text, session, day):
         "---",
         "title: %s" % task.title,
         "task: %s" % task.title,
-        "bucket: %s" % task.bucket,
+        # Which task this is about, by the id on its own line, so a retitle
+        # tomorrow does not orphan the plan. `task:` above stays as the label
+        # the board falls back to when the task has gone from the list.
+        "about: task:%s" % getattr(task, "stable_id", ""),
+        "group: %s" % task.bucket,
+        # Advisory snapshots of where the task stood when this was written.
+        # Routinely stale by the time he reads it, and never read as truth.
         "column: %s" % task.column,
         "ai: %s" % (task.ai or ""),
         "agent: %s" % bucket_agent(task.bucket),
@@ -433,8 +439,14 @@ def write_plan(task, text, session, day):
         # every time mark_plan (kanban/server.py) flips its status, so neither
         # can answer "when was this generated" once a plan has been agreed or
         # sent back.
-        "generated: %s" % dt.datetime.now().isoformat(timespec="seconds"),
-        "status: unread",
+        "created: %s" % dt.datetime.now().isoformat(timespec="seconds"),
+        "night: %s" % day.isoformat(),
+        # A fresh plan is waiting on him and he has not seen it. The five words
+        # this stream used until 11 Sep 2026 are gone; what they meant is state
+        # plus owner plus seen. See PACKAGES/work_streams/CONTRACT.md.
+        "state: review",
+        "owner: me",
+        "seen: no",
     ]
     if task.slug:
         front.append("slug: %s" % task.slug)
@@ -443,7 +455,11 @@ def write_plan(task, text, session, day):
     # Kept as the agent wrote it. `folded` is the only value that means
     # anything to the runner; anything else is passed through and ignored,
     # rather than dropped, so a plan is never quieter than its own agent was.
-    if outcome:
+    # An agent that folded could not plan the task without a decision only he
+    # can make. That is the same fact the improvements backlog calls "needs
+    # you", so it is one canonical field rather than two words for one thing.
+    front.append("needs_you: %s" % ("yes" if outcome == FOLDED else "no"))
+    if outcome and outcome != FOLDED:
         front.append("outcome: %s" % outcome)
     front.append("summary: %s" % summary)
     front.append("---")
@@ -611,7 +627,12 @@ def write_run_record(day, written, skipped, stopped, spent, started):
 # decision rather than scratch state; `agreed` is a plan he has approved and
 # that has not been carried out yet, and deleting one of those on its thirtieth
 # day would silently drop work he had already said yes to.
-KEEP_STATUS = re.compile(r"^status:\s*(actioned|agreed)\s*$", re.M)
+# A plan worth keeping when its night is pruned: one that was carried out, and
+# one an agent still has to act on. Owner rather than a status word, so a third
+# agent needs no fourth word here. The old form is still matched, because a
+# backup restored from before 11 Sep 2026 carries it.
+KEEP_STATUS = re.compile(
+    r"^(?:state:\s*done\s*$|owner:\s*execution-agent\s*$|status:\s*(?:actioned|agreed)\s*$)", re.M)
 
 
 def prune(day):

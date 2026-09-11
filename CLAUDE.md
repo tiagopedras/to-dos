@@ -129,10 +129,15 @@ holds the detail. Three things about it are load-bearing:
   because it is the one running unattended stretches.
   Everything else in this repo still writes through a queue file or not at all.
 
-A plan reaches it by carrying `status: agreed`, set by him on the Plans view.
-The five statuses are documented in `kanban/js/13-plans.js` and known in two
-other places — `PLAN_STATUS` in `kanban/server.py` and `is_stale()` in
-`agents/night_agent/pick.py`. Change one and change all three.
+A plan reaches it by carrying `state: ready` with `owner: execution-agent`, set
+by him on the Plans view. Every queue in `~/Code` shares one shape since 11 Sep
+2026: six states, and an owner saying who is expected to move the item next.
+`PACKAGES/work_streams/CONTRACT.md` is the authority and
+`agents/night_agent/stream.json` is this stream's own manifest, holding its
+words for each state. There is nothing left to keep in step by hand: the
+vocabulary is read out of the manifest, and the one thing that writes it is
+`agents/night_agent/stream.py --apply`, which writes the plan file and its
+ledger row together.
 
 ## After changing `kanban/server.py`
 
