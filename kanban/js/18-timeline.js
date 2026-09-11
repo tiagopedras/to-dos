@@ -700,6 +700,61 @@ function capMsgCards(){
   });
 }
 
+/* The tab strip. Most defs draw one tab each; the ones carrying a `group`
+   (11-canvas.js) draw a single tab naming one of them, with a chevron opening a
+   panel of the rest. The panel is built the way the header's Data menu is — same
+   .dropdown-panel, same three ways out: pick an item, click elsewhere, Escape. */
+const groupPicks = {};   // group -> which member the collapsed tab is named after
+
+function renderViewTabs(defs){
+  const drawn = new Set();
+  const tab = (d, attrs) => '<button class="tab' + (d.id === state.view ? ' on' : '') + '" ' +
+    attrs + '>' + esc(d.label) + '</button>';
+
+  $('#viewToggle').innerHTML = defs.map(d => {
+    if (d.sep) return '<span class="tabsep"></span>';
+    if (!d.group) return tab(d, 'data-view="' + d.id + '"');
+    if (drawn.has(d.group)) return '';      // the group's first member already drew it
+    drawn.add(d.group);
+    const members = defs.filter(m => m.group === d.group);
+    const current = members.find(m => m.id === state.view);
+    // Off the group entirely — on Plans, on Reports — the tab keeps the name of
+    // the last member picked rather than falling back to the first, so a
+    // timeline left an hour ago is one click away rather than two.
+    if (current) groupPicks[d.group] = current.id;
+    const shown = members.find(m => m.id === groupPicks[d.group]) || members[0];
+    return '<span class="menugroup dropdown" id="viewMenu">' +
+      '<button class="tab' + (current ? ' on' : '') + '" id="viewMenuBtn" ' +
+              'aria-haspopup="true" aria-expanded="false">' + esc(shown.label) + ' ▾</button>' +
+      '<div class="dropdown-panel hidden" id="viewMenuPanel" role="menu" aria-label="How to draw the tasks">' +
+        members.map(m => '<button class="dropdown-item" role="menuitem" data-view="' + m.id + '"' +
+          (m.id === state.view ? ' aria-current="true"' : '') + '>' + esc(m.label) + '</button>').join('') +
+      '</div>' +
+    '</span>';
+  }).join('');
+
+  // One selector for both, since a panel item and a tab mean the same thing.
+  // Picking one re-draws the strip, which is what closes the panel.
+  $('#viewToggle').querySelectorAll('[data-view]').forEach(b => {
+    b.onclick = () => { state.view = b.dataset.view; renderView(); };
+  });
+  const btn = $('#viewMenuBtn');
+  if (btn) btn.onclick = () => {
+    btn.setAttribute('aria-expanded', String($('#viewMenuPanel').classList.toggle('hidden') === false));
+  };
+}
+
+function closeViewMenu(){
+  const panel = $('#viewMenuPanel');
+  if (!panel) return;      // the strip hasn't been drawn yet, or has no group in it
+  panel.classList.add('hidden');
+  $('#viewMenuBtn').setAttribute('aria-expanded', 'false');
+}
+// On document rather than on the panel: both of these are about what happens
+// away from the menu, and the panel itself is replaced on every render.
+document.addEventListener('click', e => { if (!e.target.closest('#viewMenu')) closeViewMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewMenu(); });
+
 /* Two views: the board, and the hand-written summaries from the end of the file.
    The bucket tabs, the AI filter and search only make sense on the board. */
 function renderView(){
@@ -731,12 +786,7 @@ function renderView(){
   // return just below. state.view is finalised above this point, so whichever
   // branch runs next syncs the URL to the right value.
 
-  $('#viewToggle').innerHTML = defs.map(d => d.sep ? '<span class="tabsep"></span>' :
-    '<button class="tab' + (d.id === state.view ? ' on' : '') + '" data-view="' + d.id + '">' + esc(d.label) + '</button>'
-  ).join('');
-  $('#viewToggle').querySelectorAll('.tab').forEach(b => {
-    b.onclick = () => { state.view = b.dataset.view; renderView(); };
-  });
+  renderViewTabs(defs);
 
   const isCanvas = def.id === 'canvas';
   $('#board').classList.toggle('hidden', !isBoard);
