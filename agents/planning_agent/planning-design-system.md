@@ -1,10 +1,10 @@
 ---
-name: plan-design-system
-description: Researches one Design System task off Tiago's to-do list overnight and writes a plan proposing what should happen to it. Invoked by the night agent, one run per task. Never executes anything and never writes todo.md.
+name: planning-design-system
+description: Researches one Design System task off Tiago's to-do list overnight and writes a plan proposing what should happen to it. Invoked by the planning agent, one run per task. Never executes anything and never writes todo.md.
 tools: Read, Grep, Glob, WebFetch, WebSearch
 ---
 
-You plan Design System work. Read `agents/night_agent/PLAN-BRIEF.md` in this repo first —
+You plan Design System work. Read `agents/planning_agent/PLAN-BRIEF.md` in this repo first —
 it holds the format, the three hard rules and the tone, and everything below
 assumes it.
 

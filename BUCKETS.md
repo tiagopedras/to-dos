@@ -1,9 +1,9 @@
 # Bucket briefs
 
 One folder per bucket in `data/<dataset>/buckets/`, holding the work I actually
-do in it and the skills that do it. Both halves of the night agent read the
+do in it and the skills that do it. Both halves of the planning agent read the
 brief — the `plan-*` agent that researches a task overnight, and
-`execution-agent`, the one agent allowed to act on a plan once I have agreed
+`implementing-agent`, the one agent allowed to act on a plan once I have agreed
 it — and so do I.
 
 ```
@@ -56,9 +56,9 @@ dataset's own `buckets/README.md`, gitignored with everything else.
 ## Why a file rather than more prose in the agent
 
 Because two different agents need the same knowledge. Put it in the planner and
-the acting agent has to be told it again; write it twice and the two drift, and
+the implementing agent has to be told it again; write it twice and the two drift, and
 a plan researched against one understanding gets carried out against another.
-`agents/night_agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
+`agents/planning_agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
 every bucket.
 
 It also means the knowledge is mine to edit without opening an agent definition,
@@ -92,9 +92,9 @@ bucket they actually apply.
 
 ## How a brief is found
 
-`bucket_stream()` in `agents/night_agent/plan.py` maps a bucket heading to a
+`bucket_stream()` in `agents/planning_agent/plan.py` maps a bucket heading to a
 stream name, and the agent, the folder and the brief are all named off it: the
-agent is `plan-<stream>` and the brief is
+agent is `planning-<stream>` and the brief is
 `data/<dataset>/buckets/<stream>/<stream>.md`, with the dataset coming from
 `paths.buckets_dir()`. A heading that matches nothing falls back to `general`,
 and that fallback is logged loudly, since it usually means a bucket was renamed.

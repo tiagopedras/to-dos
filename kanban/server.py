@@ -51,17 +51,17 @@ try:
     import windows
 except ImportError:
     windows = None
-# The night agent's own two modules, imported the same way and for the same
+# The planning agent's own two modules, imported the same way and for the same
 # reason. `pick` is what decides which tasks tonight would plan, and the board's
 # queue column is that decision rendered rather than a second guess at it —
 # there is one selection rule and this is it. `plan` comes along for the bucket
 # mapping alone, so the queue can name the agent each task would go to.
-sys.path.insert(0, os.path.join(ROOT, "agents", "night_agent"))
+sys.path.insert(0, os.path.join(ROOT, "agents", "planning_agent"))
 try:
-    import pick as night_agent_pick
-    import plan as night_agent_plan
+    import pick as planning_agent_pick
+    import plan as planning_agent_plan
 except ImportError:
-    night_agent_pick = night_agent_plan = None
+    planning_agent_pick = planning_agent_plan = None
 # The list and everything derived from it live in one folder, and that folder is
 # the only thing git ignores. Before this, the private half of the repo was four
 # separate ignore rules — todo.md, backups/, todo-backup-*.md, views.md — and
@@ -507,7 +507,7 @@ def weekly_backup_watcher(every=1800):
 #   Live   whether a job is installed and armed, and when it fires next. Only
 #          the system knows that, and a log will happily describe a job that was
 #          unloaded a week ago.
-#   Ledger what actually happened. launchctl cannot tell you the night agent
+#   Ledger what actually happened. launchctl cannot tell you the planning agent
 #          wrote three plans and stopped on a usage limit.
 #
 # Everything here is read-only and local. `launchctl` is shelled out to with a
@@ -515,7 +515,7 @@ def weekly_backup_watcher(every=1800):
 # error: an uninstalled job is exactly the thing this view is most useful for
 # saying out loud.
 
-NIGHTLY_LABEL = "com.tiagopedras.todos-night-agent"
+PLANNING_LABEL = "com.tiagopedras.todos-planning-agent"
 
 
 def _launchctl(args, timeout=3):
@@ -536,12 +536,12 @@ def _tail(path, n=12):
         return []
 
 
-def _night_agent_job():
-    """The night agent: twelve launchd wakes, 19:00 to 06:00."""
-    plist = os.path.join(ROOT, "agents", "night_agent", "com.tiagopedras.todos-night-agent.plist")
+def _planning_agent_job():
+    """The planning agent: twelve launchd wakes, 19:00 to 06:00."""
+    plist = os.path.join(ROOT, "agents", "planning_agent", "com.tiagopedras.todos-planning-agent.plist")
     installed = os.path.exists(os.path.expanduser(
-        "~/Library/LaunchAgents/%s.plist" % NIGHTLY_LABEL))
-    printed = _launchctl(["print", "gui/%d/%s" % (os.getuid(), NIGHTLY_LABEL)])
+        "~/Library/LaunchAgents/%s.plist" % PLANNING_LABEL))
+    printed = _launchctl(["print", "gui/%d/%s" % (os.getuid(), PLANNING_LABEL)])
     loaded = bool(printed)
 
     hours = sorted(int(h) for h in re.findall(
@@ -569,12 +569,12 @@ def _night_agent_job():
         last = next((h for h in hours if (h + 1) % 24 not in hs), hours[-1])
         span = "%d wakes, %02d:00–%02d:00" % (len(hours), first, last)
 
-    log = _tail(os.path.join(plans_dir(), "night-agent.log"), 40)
+    log = _tail(os.path.join(plans_dir(), "planning-agent.log"), 40)
     ran = [l for l in log if " start:" in l or " done:" in l or " wake" in l]
     last_done = next((l for l in reversed(log) if " done:" in l), "")
     return {
-        "id": "night-agent",
-        "name": "Night agent",
+        "id": "planning-agent",
+        "name": "Planning agent",
         "what": "Plans every task tagged ai:full or ai:partial, one agent each.",
         "schedule": span or "not configured",
         "armed": loaded,
@@ -584,9 +584,9 @@ def _night_agent_job():
         "last": last_done,
         "recent": ran[-6:],
         "hint": ("" if loaded else
-                 "ln -s agents/night_agent/%s.plist ~/Library/LaunchAgents/ && "
+                 "ln -s agents/planning_agent/%s.plist ~/Library/LaunchAgents/ && "
                  "launchctl load ~/Library/LaunchAgents/%s.plist"
-                 % (NIGHTLY_LABEL, NIGHTLY_LABEL)),
+                 % (PLANNING_LABEL, PLANNING_LABEL)),
     }
 
 
@@ -651,7 +651,7 @@ def _weekly_job():
 
 def schedule_listing():
     out = []
-    for fn in (_night_agent_job, _companion_job, _weekly_job):
+    for fn in (_planning_agent_job, _companion_job, _weekly_job):
         try:
             out.append(fn())
         except Exception as exc:                     # noqa: BLE001
@@ -829,7 +829,7 @@ def usage_summary(days=30, ttl=60):
             "turns": w["turns"],
             "open": w["end"] > datetime.datetime.now().astimezone(),
             # A window that both starts and ends inside the night is one the
-            # night agent could have spent in without touching the morning.
+            # planning agent could have spent in without touching the morning.
             "night": w["start"].hour >= 19 or w["start"].hour < 7,
             # How the spend arrived across the five hours — see window_shape.
             "shape": window_shape(w),
@@ -840,7 +840,7 @@ def usage_summary(days=30, ttl=60):
 
 
 def plans_dir(name=None):
-    """Where the night agent leaves what it worked out overnight.
+    """Where the planning agent leaves what it worked out overnight.
 
     A different folder from reports/ on purpose, and not a candidate for being
     merged into it. A report is Tiago's own record of what happened, written in
@@ -850,6 +850,35 @@ def plans_dir(name=None):
     which is a view of his own writing.
     """
     return os.path.join(dataset_dir(name or current_dataset()), "plans")
+
+
+_owner_alias = {}
+
+
+def owner_now(owner):
+    """What a document's `owner:` is called today.
+
+    The two agents were renamed on 12 Sep 2026 — `night-agent` was named for
+    the hour it ran and `execution-agent` for the job, which is two axes for
+    one pair — so a plan or a run written before then names an owner nothing
+    on the board matches any more, and every card of it draws as though it
+    were owned by nobody. `core/migrations/migrate-agent-names.py` rewrites
+    what is on disk; this is what reads the one the migration never reached, a
+    file restored from a backup being the obvious case.
+
+    The map is each stream's own, in its manifest beside the `legacy` block
+    that already does this for the five status words, so there is one copy of
+    it and it is the stream's to change.
+    """
+    if not _owner_alias:
+        for folder in ("planning_agent", "implementing_agent"):
+            try:
+                with open(os.path.join(ROOT, "agents", folder, "stream.json"), encoding="utf-8") as fh:
+                    m = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            _owner_alias.update(((m.get("owner_legacy") or {}).get("map") or {}))
+    return _owner_alias.get(owner, owner)
 
 
 def plan_meta(path, name, night):
@@ -903,7 +932,7 @@ def plan_meta(path, name, night):
         "about": fields.get("about", ""),
         "group": fields.get("group", fields.get("bucket", "")),
         "state": fields.get("state", ""),
-        "owner": fields.get("owner", ""),
+        "owner": owner_now(fields.get("owner", "")),
         "seen": fields.get("seen", "") == "yes",
         "needs_you": fields.get("needs_you", "") == "yes",
         "resolution": fields.get("resolution", ""),
@@ -918,7 +947,7 @@ def plan_meta(path, name, night):
         "status": fields.get("status", "unread"),
         # An agent that decided the task could not be planned without a
         # decision only he can make writes `outcome: folded`. See the folding
-        # rule in agents/night_agent/PLAN-BRIEF.md. Passed through as written rather than
+        # rule in agents/planning_agent/PLAN-BRIEF.md. Passed through as written rather than
         # reduced to a boolean, so a value this server has never heard of
         # reaches the board instead of being swallowed here.
         "outcome": fields.get("outcome", ""),
@@ -937,7 +966,7 @@ def plan_meta(path, name, night):
 
 
 def plan_listing():
-    """Every plan the night agent has written, newest night first.
+    """Every plan the planning agent has written, newest night first.
 
     index.md is skipped: it is the night's own contents page, useful to read on
     disk and noise in a list that already shows every plan it points at.
@@ -961,13 +990,13 @@ def plan_listing():
 
 
 def runs_dir(name=None):
-    """Where the acting agent's work sits, one document per plan Tiago accepted.
+    """Where the implementing agent's work sits, one document per plan Tiago accepted.
 
     A separate folder from plans/ because it holds a separate work item. A plan
     and the run that carries it out are two things about one task, and they are
     in different columns at the same time — a plan he has accepted is finished
     as a plan and not started as a run — so they cannot be one document with one
-    `state:`. See agents/execution_agent/stream.py, which is what writes in here.
+    `state:`. See agents/implementing_agent/stream.py, which is what writes in here.
     """
     return os.path.join(dataset_dir(name or current_dataset()), "runs")
 
@@ -1004,7 +1033,7 @@ def run_meta(path, name):
         "summary": fields.get("summary", ""),
         "session": fields.get("session", ""),
         "state": fields.get("state") or "backlog",
-        "owner": fields.get("owner") or "me",
+        "owner": owner_now(fields.get("owner") or "me"),
         "seen": (fields.get("seen") or "no").lower() in ("yes", "true", "1"),
         "resolution": fields.get("resolution", ""),
         "feedback": fields.get("feedback", ""),
@@ -1033,27 +1062,27 @@ def run_listing():
 #
 #   unread    nobody has looked at it
 #   read      looked at, doing nothing about it yet
-#   agreed    approved to be carried out. execution-agent picks these up, the picker
+#   agreed    approved to be carried out. implementing-agent picks these up, the picker
 #             leaves the task alone until the work is done, and prune keeps it.
 #   redo      rejected, with `redo_note:` saying why. The picker plans the task
 #             again on the next run and the reason is fed to the agent, so the
 #             next plan is not the same plan.
 #   actioned  acted on, so it no longer describes outstanding work
 #
-# Kept in step with is_stale() in agents/night_agent/pick.py, which is the other half of
+# Kept in step with is_stale() in agents/planning_agent/pick.py, which is the other half of
 # what these mean. A value this list does not know is refused rather than
 # written, since the picker would read it as "unchanged" and quietly stop
 # planning the task.
 # PLAN_STATUS and mark_plan() lived here until 11 Sep 2026. They were the board's
-# server writing the night agent's files, which is the arrangement
+# server writing the planning agent's files, which is the arrangement
 # agents-dashboard/CONTRACT.md already refuses for schedules and for the same
 # reason: two programs writing one thing eventually give two different answers
 # about it. This stream had collected exactly that bug, where a plan's own
 # frontmatter and its ledger row disagreed for ever.
 #
-# The writing is the night agent's, in agents/night_agent/stream.py, reached
+# The writing is the planning agent's, in agents/planning_agent/stream.py, reached
 # through /stream/apply. The vocabulary is its manifest's, in
-# agents/night_agent/stream.json. Neither is duplicated here any more.
+# agents/planning_agent/stream.json. Neither is duplicated here any more.
 def ledger_path():
     return os.path.join(plans_dir(), "ledger.json")
 
@@ -1062,13 +1091,13 @@ def queue_order_path():
     return os.path.join(plans_dir(), "queue-order.json")
 
 
-NIGHTLY_LOCK = os.path.join(ROOT, DATA, ".night-agent.lock")
+PLANNING_LOCK = os.path.join(ROOT, DATA, ".planning-agent.lock")
 
 
 def _queue_row(task, ledger, position=0, state="queued", why=""):
     seen = ledger.get(task.title) if isinstance(ledger, dict) else None
-    if not why and night_agent_pick:
-        _, why = night_agent_pick.is_stale(task, ledger or {})
+    if not why and planning_agent_pick:
+        _, why = planning_agent_pick.is_stale(task, ledger or {})
     return {
         "title": task.title,
         "bucket": task.bucket,
@@ -1077,7 +1106,7 @@ def _queue_row(task, ledger, position=0, state="queued", why=""):
         "slug": task.slug or "",
         "impact": getattr(task, "impact", "") or "",
         "effort": getattr(task, "effort", "") or "",
-        "agent": night_agent_plan.bucket_agent(task.bucket) if night_agent_plan else "",
+        "agent": planning_agent_plan.bucket_agent(task.bucket) if planning_agent_plan else "",
         "position": position,
         "state": state,
         "why": why,
@@ -1091,11 +1120,11 @@ def _queue_row(task, ledger, position=0, state="queued", why=""):
 def queue_listing():
     """What tonight would plan, in the order it would plan it.
 
-    Returns None when the night agent is not in this checkout, which the route
+    Returns None when the planning agent is not in this checkout, which the route
     answers as a 404 — the same shape the Ask Claude routes use, and the board
     draws no queue column rather than an error.
     """
-    if night_agent_pick is None or todo is None:
+    if planning_agent_pick is None or todo is None:
         return None
     try:
         with open(todo_path(), encoding="utf-8") as fh:
@@ -1104,7 +1133,7 @@ def queue_listing():
         return {"queue": [], "held": [], "skipped": [], "order": [], "hold": [],
                 "error": "no todo.md to read"}
 
-    order = night_agent_pick.load_order(queue_order_path())
+    order = planning_agent_pick.load_order(queue_order_path())
     try:
         with open(ledger_path(), encoding="utf-8") as fh:
             ledger = json.load(fh)
@@ -1113,13 +1142,13 @@ def queue_listing():
     if not isinstance(ledger, dict):
         ledger = {}
 
-    queue, skipped = night_agent_pick.select(text, order=order, ledger=ledger)
-    holds = {night_agent_pick.key(t) for t in order.get("hold") or []}
+    queue, skipped = planning_agent_pick.select(text, order=order, ledger=ledger)
+    holds = {planning_agent_pick.key(t) for t in order.get("hold") or []}
 
     rows = [_queue_row(t, ledger, i + 1) for i, t in enumerate(queue)]
     held, other = [], []
     for task, why in skipped:
-        if night_agent_pick.key(task.title) in holds:
+        if planning_agent_pick.key(task.title) in holds:
             held.append(_queue_row(task, ledger, 0, "held", why))
         else:
             other.append(_queue_row(task, ledger, 0, "skipped", why))
@@ -1132,19 +1161,19 @@ def queue_listing():
 def set_queue_order(order, hold):
     """Write the board's ordering. The second write either surface makes.
 
-    It writes a file the night agent owns and nothing else reads. Both lists
+    It writes a file the planning agent owns and nothing else reads. Both lists
     are taken as given rather than validated against the current queue: a title
     in here that no longer exists is never matched and costs nothing, whereas
     dropping unknown titles would quietly lose the ordering of a task that is
     merely Blocked this week and back next.
     """
-    if night_agent_pick is None:
-        return None, {"error": "no night agent in this checkout"}
+    if planning_agent_pick is None:
+        return None, {"error": "no planning agent in this checkout"}
     if not isinstance(order, list) or not isinstance(hold, list):
         return None, {"error": "order and hold must both be lists"}
     if len(order) + len(hold) > 500:
         return None, {"error": "too many titles"}
-    body = night_agent_pick.save_order({"order": order, "hold": hold},
+    body = planning_agent_pick.save_order({"order": order, "hold": hold},
                                    queue_order_path())
     return {"ok": True, "order": body["order"], "hold": body["hold"],
             "saved": body["saved"]}, None
@@ -1164,7 +1193,7 @@ _DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
 _FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
 
 
-def start_night_agent_run():
+def start_planning_agent_run():
     """Kick off a batch now, from the board's button.
 
     `--force`, which is the whole point: it skips the clock gate and the window
@@ -1183,12 +1212,12 @@ def start_night_agent_run():
     started something it did not is worse than one that refuses.
     """
     import subprocess
-    if night_agent_pick is None:
-        return None, {"error": "no night agent in this checkout"}
-    script = os.path.join(ROOT, "agents", "night_agent", "run.sh")
+    if planning_agent_pick is None:
+        return None, {"error": "no planning agent in this checkout"}
+    script = os.path.join(ROOT, "agents", "planning_agent", "run.sh")
     if not os.path.isfile(script):
-        return None, {"error": "agents/night_agent/run.sh is not here"}
-    if os.path.isdir(NIGHTLY_LOCK):
+        return None, {"error": "agents/planning_agent/run.sh is not here"}
+    if os.path.isdir(PLANNING_LOCK):
         return None, {"error": "a run is already going"}
     try:
         subprocess.Popen(
@@ -1197,13 +1226,13 @@ def start_night_agent_run():
             stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError as exc:
         return None, {"error": "could not start it: %s" % exc}
-    sys.stdout.write("night agent: forced a run from the board\n")
+    sys.stdout.write("planning agent: forced a run from the board\n")
     sys.stdout.flush()
     return {"ok": True, "started": True}, None
 
 
-def night_agent_run():
-    """What the night agent is doing, or did last, from its lock and its log.
+def planning_agent_run():
+    """What the planning agent is doing, or did last, from its lock and its log.
 
     Two sources again, and neither is enough alone. The lock directory says
     whether a run is going on right now — it is held for the life of the batch
@@ -1214,17 +1243,17 @@ def night_agent_run():
     Only ever one task is in flight: plan.py runs its agents one at a time, on
     purpose, so this is a single card rather than a list of them.
     """
-    live = os.path.isdir(NIGHTLY_LOCK)
+    live = os.path.isdir(PLANNING_LOCK)
     since = ""
     if live:
         try:
             since = datetime.datetime.fromtimestamp(
-                os.path.getmtime(NIGHTLY_LOCK)).isoformat(timespec="minutes")
+                os.path.getmtime(PLANNING_LOCK)).isoformat(timespec="minutes")
         except OSError:
             live = False
 
     lines = []
-    for raw in _tail(os.path.join(plans_dir(), "night-agent.log"), 400):
+    for raw in _tail(os.path.join(plans_dir(), "planning-agent.log"), 400):
         m = _LOG_RE.match(raw)
         if m:
             lines.append((m.group(1), m.group(2).strip()))
@@ -1544,10 +1573,10 @@ def work_streams_static(rel_path):
 
 def plan_legacy_map():
     """The five words this stream used until 11 Sep 2026, and what each means
-    now. Read out of the night agent's own manifest so there is one copy."""
+    now. Read out of the planning agent's own manifest so there is one copy."""
     if ws_manifest is None:
         return {}
-    m, _ = ws_manifest.load(os.path.join(ROOT, "agents", "night_agent", "stream.json"))
+    m, _ = ws_manifest.load(os.path.join(ROOT, "agents", "planning_agent", "stream.json"))
     return ((m or {}).get("legacy") or {}).get("map") or {}
 
 
@@ -1720,21 +1749,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, meta)
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
-        # The acting agent's half. Read-only here, like every other listing:
+        # The implementing agent's half. Read-only here, like every other listing:
         # what mints and moves these documents is the runs stream's own writer,
         # reached through /stream/apply.
         if path == "/runs.json":
             return self._json(200, {"runs": run_listing()})
         # Three routes rather than one, and split by how long each takes: the
         # queue is a parse of todo.md, the run is a tail of a log, and both are
-        # instant. A checkout with no agents/night_agent/ answers 404 on the queue and the
+        # instant. A checkout with no agents/planning_agent/ answers 404 on the queue and the
         # board simply draws one fewer column.
         if path == "/queue.json":
             got = queue_listing()
             return self._json(404 if got is None else 200,
-                              got if got is not None else {"error": "no night agent here"})
-        if path == "/night-agent.json":
-            return self._json(200, night_agent_run())
+                              got if got is not None else {"error": "no planning agent here"})
+        if path == "/planning-agent.json":
+            return self._json(200, planning_agent_run())
         # Every stream manifest under ~/Code, with whatever is wrong with each.
         # Read-only and read by nobody yet: the board still gets its columns
         # from 02-state.js. This is here so the views can be moved onto it one
@@ -2029,12 +2058,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "resolution": v.get("resolution", ""), "reason": payload.get("note") or "",
             })
             return self._json(code, out)
-        if path == "/night_agent/run":
+        if path == "/planning_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.
             if self.headers.get("X-Board") != "1":
                 return self._json(403, {"error": "not from the board"})
-            got, err = start_night_agent_run()
+            got, err = start_planning_agent_run()
             return self._json(409 if err else 200, err or got)
         if path == "/queue/order":
             # Same guard as every other write route: only the board asks.

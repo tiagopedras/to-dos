@@ -1,7 +1,7 @@
 {
   "contract": "1.0",
   "id": "plans",
-  "name": "The night agent's plans",
+  "name": "The planning agent's plans",
   "blurb": "one document per proposal; it proposes and never executes",
   "container": {
     "kind": "doc-folder",
@@ -10,7 +10,7 @@
       "index.md",
       "ledger.json",
       "queue-order.json",
-      "night-agent.log",
+      "planning-agent.log",
       "run.json"
     ]
   },
@@ -33,15 +33,22 @@
   },
   "owners": [
     "me",
-    "night-agent",
-    "execution-agent"
+    "planning-agent",
+    "implementing-agent"
   ],
+  "owner_legacy": {
+    "note": "the two agents were renamed on 12 Sep 2026 \u2014 night-agent for the hour it ran, execution-agent for the job, onto one axis as planning-agent and implementing-agent. core/migrations/migrate-agent-names.py rewrites what is on disk; this is what reads a document that migration never reached, such as one restored from a backup.",
+    "map": {
+      "night-agent": "planning-agent",
+      "execution-agent": "implementing-agent"
+    }
+  },
   "hints": {
     "Backlog": "leave it alone; held back by you, or excluded by a rule",
     "To do": "plan it tonight, in this order",
     "Doing": "an agent has it right now",
     "Waiting for review": "the agent wrote one; it is waiting on you",
-    "Ready to be produced": "accepted as written, and the acting agent's half starts",
+    "Ready to be produced": "accepted as written, and the implementing agent's half starts",
     "Done": "the work it describes is finished"
   },
   "fields": [
@@ -86,7 +93,7 @@
     "holds": true
   },
   "writer": {
-    "who": "night-agent",
+    "who": "planning-agent",
     "how": {
       "kind": "subprocess",
       "cwd": ".",
@@ -96,14 +103,14 @@
         "--apply"
       ]
     },
-    "lock": "data/.night-agent.lock"
+    "lock": "data/.planning-agent.lock"
   },
   "views": [
     "plans"
   ],
   "legacy": {
     "key": "status",
-    "note": "the five words this stream used until 11 Sep 2026, and what each becomes. redo is ready, owned by the night agent. agreed and actioned are both accepted: he had approved them and the acting agent's half had not finished, which is what accepted means since 12 Sep 2026 \u2014 neither was ever the terminal done this stream now has.",
+    "note": "the five words this stream used until 11 Sep 2026, and what each becomes. redo is ready, owned by the planning agent. agreed and actioned are both accepted: he had approved them and the implementing agent's half had not finished, which is what accepted means since 12 Sep 2026 \u2014 neither was ever the terminal done this stream now has.",
     "map": {
       "unread": {
         "state": "review",
@@ -117,17 +124,17 @@
       },
       "agreed": {
         "state": "accepted",
-        "owner": "execution-agent",
+        "owner": "implementing-agent",
         "seen": true
       },
       "redo": {
         "state": "ready",
-        "owner": "night-agent",
+        "owner": "planning-agent",
         "seen": true
       },
       "actioned": {
         "state": "accepted",
-        "owner": "execution-agent",
+        "owner": "implementing-agent",
         "seen": true,
         "resolution": "actioned"
       }

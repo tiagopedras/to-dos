@@ -13,7 +13,7 @@ the environment of every session, and the working directory from the current
 process unless --cwd overrides it — the board needs both to find this
 session's transcript again later. `--session` overrides the environment, for
 the one caller that is filing somebody else's session rather than its own:
-the night agent, which gets the id back in the JSON result of each headless
+the planning agent, which gets the id back in the JSON result of each headless
 run it starts and has no environment variable to read it from. Appends rather than replaces: the board
 drains and clears this file on its next load (see attach_queue_path() in
 kanban/server.py), so a queue this script finds non-empty is one the board

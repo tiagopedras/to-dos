@@ -1,9 +1,9 @@
 #!/bin/bash
-# The night agent's entry point. launchd wakes this every hour, all day; almost
+# The planning agent's entry point. launchd wakes this every hour, all day; almost
 # every wake costs a few milliseconds and stops.
 #
 # Every hour rather than only at night, and that is deliberate. The schedule
-# lives in data/night-agent-schedule.json, where the agents dashboard can edit
+# lives in data/planning-agent-schedule.json, where the agents dashboard can edit
 # it, and a plist that only woke between certain hours would silently override
 # whatever the dashboard said. So the wake is dumb and hourly, the schedule
 # decides, and twenty-four wakes a day cost a few milliseconds each.
@@ -23,23 +23,23 @@
 # day's first request landed, so it moves, and hours could not be set against
 # it. The schedule and its floor are what keep the morning clear now.
 #
-#   ./agents/night_agent/run.sh              a real run, if both gates pass
-#   ./agents/night_agent/run.sh --dry-run    the batch, no spend, any hour
-#   ./agents/night_agent/run.sh --task "..." one task by hand, skipping the schedule
-#   ./agents/night_agent/run.sh --force      ignore the schedule, spend anyway
+#   ./agents/planning_agent/run.sh              a real run, if both gates pass
+#   ./agents/planning_agent/run.sh --dry-run    the batch, no spend, any hour
+#   ./agents/planning_agent/run.sh --task "..." one task by hand, skipping the schedule
+#   ./agents/planning_agent/run.sh --force      ignore the schedule, spend anyway
 
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Two levels up, not one. This agent moved from night_agent/ to
-# agents/night_agent/ and this line did not move with it, so ROOT became
+# Two levels up, not one. This agent moved from planning_agent/ to
+# agents/planning_agent/ and this line did not move with it, so ROOT became
 # to-dos/agents — a folder with no core/ and no data/ in it. The damage was
 # silent and total: mkdir on a lock inside a directory that does not exist
 # fails, the failure path reads a failed mkdir as "someone else holds it", and
 # every wake from 6 Sep to 9 Sep 2026 logged "a run is already going" and
 # stopped. Nothing ran and nothing said so.
 ROOT="$(dirname "$(dirname "$HERE")")"
-PY="${NIGHTLY_PYTHON:-python3}"
+PY="${PLANNING_PYTHON:-python3}"
 cd "$ROOT" || exit 1
 
 DRY=0; FORCE=0; MANUAL=0; ARGS=()
@@ -67,7 +67,7 @@ logline() {
 # scheduler asking whether this is one of the hours it was told to work.
 #
 # The hours used to be written here as `19` and `7`, and again as twelve entries
-# in the plist. Now they are in data/night-agent-schedule.json, where the agents
+# in the plist. Now they are in data/planning-agent-schedule.json, where the agents
 # dashboard can edit them, and the plist is woken every hour so that the file
 # can mean what it says. schedule.py holds the floor that no schedule can go
 # under, so this still refuses to start in the working day however the file has
@@ -80,7 +80,7 @@ if [ "$DRY" -eq 0 ] && [ "$FORCE" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
 fi
 
 # --- 2. the lock -------------------------------------------------------------
-LOCK="$ROOT/data/.night-agent.lock"
+LOCK="$ROOT/data/.planning-agent.lock"
 PIDFILE="$LOCK/pid"
 if [ "$DRY" -eq 0 ]; then
   # The parent, first. `mkdir` on a lock whose parent is missing fails the same

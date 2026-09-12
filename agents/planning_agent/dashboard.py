@@ -15,10 +15,10 @@ One target, itself. The improvements agent has one target per repo it serves;
 this one plans against a single list, so it sends a list of one rather than a
 different shape, which is what keeps the page from needing a special case.
 
-    python3 agents/night_agent/dashboard.py --state     what the page should draw
-    python3 agents/night_agent/dashboard.py --apply     one change, on stdin
-    python3 agents/night_agent/dashboard.py --run       one action, on stdin
-    python3 agents/night_agent/dashboard.py --activity  what it did in a window, on stdin
+    python3 agents/planning_agent/dashboard.py --state     what the page should draw
+    python3 agents/planning_agent/dashboard.py --apply     one change, on stdin
+    python3 agents/planning_agent/dashboard.py --run       one action, on stdin
+    python3 agents/planning_agent/dashboard.py --activity  what it did in a window, on stdin
 """
 
 import argparse
@@ -38,7 +38,7 @@ import paths  # noqa: E402
 import pick  # noqa: E402
 import schedule  # noqa: E402
 
-PLIST = "com.tiagopedras.todos-night-agent"
+PLIST = "com.tiagopedras.todos-planning-agent"
 
 
 def launchd(label):
@@ -127,7 +127,7 @@ def target():
         problems.append("Could not read todo.md, so tonight's queue is unknown.")
 
     out = {
-        "id": "night-agent",
+        "id": "planning-agent",
         # Named for the list it plans against rather than for the agent. The
         # agent's own name is already on the band above this card, and repeating
         # it here read as a stutter; the dataset is also the one thing about
@@ -180,8 +180,8 @@ def tail_log(n):
 def state():
     s = schedule.load()
     return {
-        "id": "night-agent",
-        "name": "to-dos night agent",
+        "id": "planning-agent",
+        "name": "to-dos planning agent",
         "blurb": "one log, in the dataset it plans against",
         "summary": "$%.2f a night · plans only, nothing is ever executed" % s["budget"],
         "job": launchd(PLIST),
@@ -189,7 +189,7 @@ def state():
         # reports one any more: the usage window stopped being a gate on 9 Sep
         # 2026, so an answer about it would be a fact with no consequence on a
         # card about what runs tonight. The schedule below is the whole gate.
-        "running": os.path.isdir(os.path.join(ROOT, "data", ".night-agent.lock")),
+        "running": os.path.isdir(os.path.join(ROOT, "data", ".planning-agent.lock")),
         "log": tail_log(60),
         # The floor, which is the one thing on this card the page cannot write.
         # `run.sh` refuses to start inside the working day whatever the schedule
@@ -209,8 +209,8 @@ def state():
 
 
 def apply(body):
-    if (body.get("target") or "night-agent") != "night-agent":
-        return {"ok": False, "error": "this agent has one target, %r" % "night-agent"}
+    if (body.get("target") or "planning-agent") != "planning-agent":
+        return {"ok": False, "error": "this agent has one target, %r" % "planning-agent"}
     s = schedule.load()
     for key, value in (body.get("changes") or {}).items():
         if key == "on":
@@ -406,7 +406,7 @@ def activity(body):
             continue
         spent += run["cost"]
         runs.append(run)
-    out = {"id": "night-agent", "name": "to-dos night agent",
+    out = {"id": "planning-agent", "name": "to-dos planning agent",
            "since": since.isoformat(), "cost": round(spent, 4), "unit": "$",
            "runs": runs,
            "note": "every one of these is a proposal; nothing here has been carried out"}

@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================================
-   4b2c. Execution — the acting agent's half, drawn as the same four columns.
+   4b2c. Execution — the implementing agent's half, drawn as the same four columns.
 
    Three boards in this app now and they are deliberately one shape: Backlog,
    To do, Waiting for review, Done. Where a card sits is the instruction, and it
@@ -9,7 +9,7 @@
 
      Backlog            the agent leaves it alone. Everything he accepted on the
                         Plans view lands here, and nothing happens to it.
-     To do              he wants the acting agent to carry this one out.
+     To do              he wants the implementing agent to carry this one out.
      Waiting for review it did the work and wrote back. His column to empty, not
                         to fill — so it takes no drops and draws dashed.
      Done               he accepts what it did.
@@ -23,10 +23,10 @@
    run and the plan file is never written again.
 
    Nothing here runs anything, and that is load-bearing rather than incidental.
-   The acting agent holds write tools, and the whole reason it is allowed to is
+   The implementing agent holds write tools, and the whole reason it is allowed to is
    that it can stop and ask — which it can only do from a session Tiago is in.
    So To do is a list `/pa-do` works through when he starts it, not a queue
-   anything picks up on a clock. See agents/execution_agent/README.md.
+   anything picks up on a clock. See agents/implementing_agent/README.md.
    ========================================================================= */
 
 const runBodies = {};
@@ -141,13 +141,13 @@ let runAgainText = '';
 function queueRun(r){
   const again = r.state === 'review' || r.state === 'done';
   if (!again) {
-    showModal('Hand this to the acting agent?', esc(r.title),
+    showModal('Hand this to the implementing agent?', esc(r.title),
       '<div class="repdoc">' +
         '<p>It moves to <strong>To do</strong> and waits there. Nothing runs now.</p>' +
         '<p>To actually run it, start a session and use <code>/pa-do</code>, which ' +
         'works through this column one at a time.</p>' +
       '</div>',
-      [{ label:'Yes, hand it over', primary:true, run: () => moveRun(r, 'ready', 'execution-agent') },
+      [{ label:'Yes, hand it over', primary:true, run: () => moveRun(r, 'ready', 'implementing-agent') },
        { label:'Cancel' }]);
     return;
   }
@@ -162,7 +162,7 @@ function queueRun(r){
     [{ label:'Yes, do it again', primary:true, run: () => {
         const why = runAgainText.trim();
         if (!why) return showToast('Sending work back needs a reason.', 'bad');
-        moveRun(r, 'ready', 'execution-agent', { reason: why, again: true });
+        moveRun(r, 'ready', 'implementing-agent', { reason: why, again: true });
       } },
      { label:'Cancel' }]);
   const box = $('#runWhy');
@@ -174,7 +174,7 @@ function acceptRun(r){
     '<div class="repdoc">' +
       '<p>It moves to <strong>Done</strong> and nothing else happens to it.</p>' +
       '<p>Where the work means the task itself should change, that change is in ' +
-      'the report — the acting agent never writes <code>todo.md</code>. Run ' +
+      'the report — the implementing agent never writes <code>todo.md</code>. Run ' +
       '<code>/pa</code> to apply it.</p>' +
     '</div>',
     [{ label:'Yes, accept it', primary:true, run: () => moveRun(r, 'done', 'me', { resolution:'actioned' }) },

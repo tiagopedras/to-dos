@@ -4,7 +4,7 @@
    4b2c. What runs on a clock, and what the usage windows are doing.
 
    Three things around this app run on a schedule rather than on demand: the
-   night agent's twelve launchd wakes, the companion's morning briefing,
+   planning agent's twelve launchd wakes, the companion's morning briefing,
    and the weekly backup thread inside this server. Used to be a view of its
    own; both halves now live behind one button on the Plans tab instead, since
    that is where the question "would it even run tonight" comes up, and neither
@@ -290,7 +290,7 @@ async function renderUsage(){
           r.label + '</button>').join('') +
       '</div>' +
       /* The five-hour rule, the 07:00 boundary and the 02:00 cutoff used to be
-         spelled out here in a paragraph. They are in agents/night_agent/README.md, and the
+         spelled out here in a paragraph. They are in agents/planning_agent/README.md, and the
          Status line on the Queue/Doing card already says what they add up to
          tonight. */
       usageChart(u) +

@@ -29,7 +29,7 @@ became `pa-checkout`, and the four skills this was written against are nine.
 Two things in this document are now wrong and left as the record of what was
 proposed. `board-read` was not built, and it remains the one job here that would
 suit a subagent, since it never writes and so never needs to ask. And the line
-under **The one writer rule survives** says `execution-agent` may write
+under **The one writer rule survives** says `implementing-agent` may write
 `todo.md`. It may not, and never could: it hands the change up as a request and
 `pa` applies it.
 
@@ -230,7 +230,7 @@ than as a side effect of tidying.
 
 Everything above is about the modes he drives himself. This is the other half,
 decided in one sitting on 6 Sep and built the same day: what happens to a plan
-the night agent wrote once he has agreed with it.
+the planning agent wrote once he has agreed with it.
 
 It is not a new PA. It is the same list, the same conventions and the same
 brief, with one agent added that can act and one skill that drives it.
@@ -239,14 +239,14 @@ brief, with one agent added that can act and one skill that drives it.
 
 | Piece | What it is |
 | --- | --- |
-| `data/<dataset>/buckets/<stream>/<stream>.md` | One brief per bucket, holding the processes he runs in it, what each produces and which skill already does it. Read by the planners and by the acting agent. Templates only until he writes them. |
-| Plan status `agreed` | His approval, set on the Plans view. The only thing that queues work for the acting agent. |
+| `data/<dataset>/buckets/<stream>/<stream>.md` | One brief per bucket, holding the processes he runs in it, what each produces and which skill already does it. Read by the planners and by the implementing agent. Templates only until he writes them. |
+| Plan status `agreed` | His approval, set on the Plans view. The only thing that queues work for the implementing agent. |
 | Plan status `redo` | A rejection with a reason, written into the plan's own frontmatter. The next nightly run plans the task again and the agent is handed what was wrong with the last one. |
-| `execution-agent` | One agent, not one per bucket. It never writes `todo.md`: a change to the list is asked for in its report and made by the PA agent. |
+| `implementing-agent` | One agent, not one per bucket. It never writes `todo.md`: a change to the list is asked for in its report and made by the PA agent. |
 | `pa-do` | The skill that finds agreed plans and hands them over, one at a time, in a session he is sitting in. |
 
-**Why one acting agent rather than six.** The six planners are safe to duplicate
-because they are read-only, and their differences are real. An acting agent
+**Why one implementing agent rather than six.** The six planners are safe to duplicate
+because they are read-only, and their differences are real. An implementing agent
 holds the dangerous half, and six copies of the same guard rails is six chances
 for one of them to be edited without the others. The per-bucket knowledge sits
 in the brief files instead, which both halves read, so it is written once and
@@ -264,11 +264,11 @@ separate approved flag would let a plan be agreed and rejected at once, which
 means nothing, and it would need its own reader in three places that already
 read `status:`. The five values are documented in `kanban/js/13-plans.js`,
 validated in `kanban/server.py` and acted on by `is_stale()` in
-`agents/night_agent/pick.py`, and those three have to stay in step.
+`agents/planning_agent/pick.py`, and those three have to stay in step.
 
 **The one writer rule survives, and is now written down.** The board autosaves
 `todo.md` within seconds of anything marking it dirty, and it has taken the real
-list twice. `execution-agent` may write it, and it is the only agent that may. Before
+list twice. `implementing-agent` may write it, and it is the only agent that may. Before
 any write it asks, shows the before and after, hashes the file, edits only the
 lines it named, and tells him to press Reload rather than save. Nothing else in
 this system writes that file, including the planners, the companion and the
@@ -282,7 +282,7 @@ board's own queue column.
   for what it does, and renaming is cheapest before anything else moves.
 - Does `board-write` refuse a change it cannot express, or write it and flag it. The
   first is safer and will occasionally be annoying.
-- Whether `board-write`, if it is ever built, and `execution-agent` are the same
+- Whether `board-write`, if it is ever built, and `implementing-agent` are the same
   writer. Both would own writing `todo.md`, and two owners of one file is the
-  arrangement this whole document exists to avoid. `execution-agent` holds that job
+  arrangement this whole document exists to avoid. `implementing-agent` holds that job
   today because it was the one that needed it first.

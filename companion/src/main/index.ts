@@ -2,7 +2,7 @@
    AppKit menu bar app that used to live at companion/app.py (retired
    alongside this). Same contract as before — reads data/twinkl/todo.md and
    friends straight off disk, never writes todo.md, says one thing each
-   working morning — with room to actually show the night agent's plans
+   working morning — with room to actually show the planning agent's plans
    instead of only saying "it happened".
 
    Run it in dev with `npm run dev` (dev.command), or:

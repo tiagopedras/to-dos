@@ -13,7 +13,7 @@ This skill owns the to-do list. Everything that changes the file happens here, w
 
 `todo.md` has one writer and this is it. The board holds the whole document in the browser and writes all of it back when it saves, within seconds of anything marking the document dirty. So a second thing editing the file underneath an open tab is overwritten silently, and it has taken the real list twice.
 
-Every other part of this system is arranged around that. The companion reads and never writes. The night agent writes plans and a queue file. `pa-attach` writes a queue file the board drains. `execution-agent` carries out an agreed plan and asks for the list change in its report rather than making it. The other `pa-*` skills hold the conversation and hand the outcome here.
+Every other part of this system is arranged around that. The companion reads and never writes. The planning agent writes plans and a queue file. `pa-attach` writes a queue file the board drains. `implementing-agent` carries out an agreed plan and asks for the list change in its report rather than making it. The other `pa-*` skills hold the conversation and hand the outcome here.
 
 That means two things for you. Apply what you are handed rather than re-opening the decision, since the conversation already happened. And never spawn a subagent to do the writing: a subagent cannot stop and ask, and it would be a second writer.
 
@@ -300,7 +300,7 @@ template that tried to would be a second copy of them.
 | `pa-retrieve-tasks` | Pulls action items from the meeting recorder and reviews them one by one. Hands you the ones he kept, each with its provenance line. |
 | `pa-checkout` | Walks Doing, Waiting review and Blocked. Hands you what he decided about each. |
 | `pa-focus` | Walks To do and Doing, asking what is honestly in flight. Hands you what goes back to Backlog. |
-| `pa-review-plans` | Goes through the night agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
+| `pa-review-plans` | Goes through the planning agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
 | `pa-mobile` | Any of the above, from a phone, asked as multiple choice and reported from the mobile templates. Hands you the same changes. |
-| `pa-do` | Hands an agreed plan to `execution-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
+| `pa-do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Nothing reaches you. |

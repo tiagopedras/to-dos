@@ -11,7 +11,7 @@ and wrote these files: a second program writing another program's data, which is
 exactly what agents-dashboard/CONTRACT.md refuses to do for schedules, and for
 the same reason. Two writers of one file eventually give two different answers
 about it, and this stream had already collected a bug of precisely that kind:
-the acting agent was told to set a plan's status by editing the frontmatter,
+the implementing agent was told to set a plan's status by editing the frontmatter,
 which left the ledger saying `agreed` for ever, so is_stale() held the task out
 of every future night's queue and it was never planned again.
 
@@ -42,14 +42,14 @@ MANIFEST = os.path.join(HERE, "stream.json")
 # item nothing will ever pick up.
 OWNERS = {
     "backlog":  ("me",),
-    "ready":    ("me", "night-agent", "execution-agent"),
-    "doing":    ("night-agent", "execution-agent"),
+    "ready":    ("me", "planning-agent", "implementing-agent"),
+    "doing":    ("planning-agent", "implementing-agent"),
     "review":   ("me",),
     # Accepting a plan is the last move he makes on it. What happens next is the
-    # run it minted, so the acting agent owns it from here, and it stays owned
+    # run it minted, so the implementing agent owns it from here, and it stays owned
     # by the agent until the work is finished rather than coming back to him to
     # be moved on a second time.
-    "accepted": ("execution-agent",),
+    "accepted": ("implementing-agent",),
     "done":     ("me",),
 }
 # `completed` arrived with the `accepted` state on 12 Sep 2026. Until then
@@ -94,7 +94,7 @@ def apply(req):
     item = req.get("item") or {}
     night, name = item.get("group") or item.get("night"), item.get("name")
     state = req.get("to")
-    owner = req.get("owner") or ("execution-agent" if state == "accepted"
+    owner = req.get("owner") or ("implementing-agent" if state == "accepted"
                                  else "me" if state in ("review", "done", "backlog") else None)
     seen = req.get("seen")
     resolution = req.get("resolution", "")
@@ -111,7 +111,7 @@ def apply(req):
     # A rejection with no reason is the one thing the loop cannot use: the next
     # run would plan the task again with nothing to go on and write much the
     # same plan, having spent the money twice.
-    if state == "ready" and owner == "night-agent" and not reason:
+    if state == "ready" and owner == "planning-agent" and not reason:
         return {"ok": False, "error": "sending a plan back needs a reason"}
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or ""):
         return {"ok": False, "error": "bad plan reference"}
@@ -132,10 +132,10 @@ def apply(req):
     # run that died holding it blocks nothing. See work_streams/writer.py.
     lock = os.path.join(paths.plans_dir(), ".plans.lock")
     if ws_writer is not None:
-        refusal = ws_writer.refusal(lock, "the night agent")
+        refusal = ws_writer.refusal(lock, "the planning agent")
         if refusal:
             return {"ok": False, "error": refusal}
-        ws_writer.claim(lock, "the night agent")
+        ws_writer.claim(lock, "the planning agent")
 
     text = open(path, encoding="utf-8").read()
     plan_id = (re.search(r"^id:\s*(\S+)$", text, re.M) or [None, ""])[1]

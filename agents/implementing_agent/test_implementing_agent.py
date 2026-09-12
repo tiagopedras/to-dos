@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The runs stream: what mints a run, and what each column move writes.
 
-    python3 agents/execution_agent/test_execution_agent.py
+    python3 agents/implementing_agent/test_implementing_agent.py
 
 Everything happens inside a temporary folder. `paths.data_dir` is pointed at it
 before anything is imported that would read the real one, so there is no path
@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "night_agent"))
+sys.path.insert(0, os.path.join(HERE, "..", "planning_agent"))
 sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
@@ -67,7 +67,7 @@ try:
     plan("2026-09-05", "parked.md", title="Parked", task="Left alone",
          state="backlog", owner="me")
     plan("2026-09-05", "sentback.md", title="Sent back", task="Another night",
-         state="ready", owner="night-agent")
+         state="ready", owner="planning-agent")
     plan("2026-09-04", "legacy.md", title="Agreed the old way", task="An old one",
          status="agreed")
     plan("2026-09-04", "replaced.md", title="Replaced", task="Superseded one",
@@ -94,8 +94,8 @@ try:
     check("it is given an id of its own", len(field(run, "id") or ""), 6)
 
     # --- the columns ---------------------------------------------------------
-    out = stream.apply({"item": {"name": run}, "to": "ready", "owner": "execution-agent"})
-    check("handing it over is ready, owned by the acting agent", out.get("ok"), True)
+    out = stream.apply({"item": {"name": run}, "to": "ready", "owner": "implementing-agent"})
+    check("handing it over is ready, owned by the implementing agent", out.get("ok"), True)
     check("and that is what lands in the file", field(run, "state"), "ready")
 
     out = stream.apply({"item": {"name": run}, "to": "review", "owner": "me", "seen": False})
@@ -105,9 +105,9 @@ try:
     # Sending work back has to carry a reason, the same rule the planning half
     # holds: without one the agent does the same thing again, twice the money.
     out = stream.apply({"item": {"name": run}, "to": "ready",
-                        "owner": "execution-agent", "again": True})
+                        "owner": "implementing-agent", "again": True})
     check("sending it back with nothing said is refused", out.get("ok"), False)
-    out = stream.apply({"item": {"name": run}, "to": "ready", "owner": "execution-agent",
+    out = stream.apply({"item": {"name": run}, "to": "ready", "owner": "implementing-agent",
                         "again": True, "reason": "It never touched the docs."})
     check("with a reason it goes back", out.get("ok"), True)
     check("and the reason is on the file", field(run, "feedback"), "It never touched the docs.")
@@ -125,7 +125,7 @@ try:
           stream.apply({"item": {"name": run}, "to": "nowhere", "owner": "me"}).get("ok"), False)
     check("an agent owning a column that is his",
           stream.apply({"item": {"name": run}, "to": "review",
-                        "owner": "execution-agent"}).get("ok"), False)
+                        "owner": "implementing-agent"}).get("ok"), False)
     check("a name that walks out of the folder",
           stream.apply({"item": {"name": "../todo.md"}, "to": "backlog",
                         "owner": "me"}).get("ok"), False)

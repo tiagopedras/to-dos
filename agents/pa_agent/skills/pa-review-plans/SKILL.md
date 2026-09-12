@@ -1,13 +1,13 @@
 ---
 name: pa-review-plans
-description: Go through the plans the night agent wrote against the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one plan at a time, and turn his reaction to each into a note on the task it belongs to. Use whenever he asks what the agent came up with overnight, what is waiting on the Plans tab, to go through, read, review, assess or triage the plans, or says something like "what did it plan", "any good plans this morning", "let's go through last night's", "review the overnight plans", "what's the agent suggesting", or names one task and asks what the plan for it says. Also use when he wants to tell the agent it got something wrong, since the way to do that is a note on the task and this is the skill that writes one. Do not use it to run the night agent, which is the board's own Run now button, and do not use it for a general status read of the list, which is pa-checkin, or for a re-prioritisation, which is pa.
+description: Go through the plans the planning agent wrote against the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one plan at a time, and turn his reaction to each into a note on the task it belongs to. Use whenever he asks what the agent came up with overnight, what is waiting on the Plans tab, to go through, read, review, assess or triage the plans, or says something like "what did it plan", "any good plans this morning", "let's go through last night's", "review the overnight plans", "what's the agent suggesting", or names one task and asks what the plan for it says. Also use when he wants to tell the agent it got something wrong, since the way to do that is a note on the task and this is the skill that writes one. Do not use it to run the planning agent, which is the board's own Run now button, and do not use it for a general status read of the list, which is pa-checkin, or for a re-prioritisation, which is pa.
 ---
 
-# Reviewing what the night agent proposed
+# Reviewing what the planning agent proposed
 
 **Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
-Read `~/Code/to-dos/agents/night_agent/README.md` too, at least the part describing what a
+Read `~/Code/to-dos/agents/planning_agent/README.md` too, at least the part describing what a
 plan is. A plan proposes and never executes, so nothing in this session is a
 status report on work that happened — it is a review of suggestions, and the
 only thing that changes as a result is what the list says.
@@ -17,8 +17,8 @@ only thing that changes as a result is what the list says.
 The obvious reading of this skill is that it helps him get through a folder of
 plans. That is the smaller half.
 
-`agents/night_agent/pick.py` hashes each task **including its notes**, and re-plans anything
-whose hash has moved. `agents/night_agent/plan.py` pastes the task's title line and its
+`agents/planning_agent/pick.py` hashes each task **including its notes**, and re-plans anything
+whose hash has moved. `agents/planning_agent/plan.py` pastes the task's title line and its
 notes into the agent's prompt verbatim, because that is where the reasoning
 lives. Put those two together and a note written here does three things in one
 move:
@@ -60,7 +60,7 @@ when the board is shut.
 
 Open with the numbers before anything else: how many plans, from which night,
 how many still unread, and across which buckets. If a night stopped early on
-budget, `index.md` and `plans/night-agent.log` say so — name that here, because a
+budget, `index.md` and `plans/planning-agent.log` say so — name that here, because a
 short night is a fact about the list, not a fault to investigate.
 
 One or two sentences. "9 plans from last night, 7 unread, 6 of them Design
@@ -145,7 +145,7 @@ and set nothing else.
 **Which column it ends up in is his, on the board.** Accepting a plan, sending
 it back for another night, or parking it are the three moves the Plans view
 makes through a confirm that says what each one means, and each one changes what
-the night agent does next. Do not make them from here on the strength of a
+the planning agent does next. Do not make them from here on the strength of a
 reaction in conversation — say what he seems to want and let him press it.
 
 Set `seen` through the board's own route, never by editing the frontmatter:
@@ -157,7 +157,7 @@ curl -s -X POST http://127.0.0.1:8765/stream/apply \
        "to":"review","owner":"me","seen":true}'
 ```
 
-That reaches `agents/night_agent/stream.py`, which writes the frontmatter **and**
+That reaches `agents/planning_agent/stream.py`, which writes the frontmatter **and**
 the ledger `pick.py` reads, together. Neither can be derived from the other, and
 editing the file by hand does half the job and leaves the picker believing
 something it should not.

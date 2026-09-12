@@ -5,18 +5,18 @@ Usage runs in rolling 5-hour windows. A window opens on the first request after
 the previous one expired and lasts five hours, so windows are anchored to when
 work starts rather than sitting on a fixed grid.
 
-This module used to decide whether the night agent was allowed to spend, against
+This module used to decide whether the planning agent was allowed to spend, against
 one test — the window being spent in must expire by 07:00, so nothing the agent
 did overnight came out of Tiago's morning. That rule was removed on 9 Sep 2026.
 A window is anchored to whenever the day's first request happened to land, so it
 moves every night, and a schedule cannot be set against something that lands
 somewhere different each time: the same hours rode on Monday and stopped on
 Tuesday for no reason visible from outside. Keeping the morning clear is done by
-`agents/night_agent/schedule.py` instead — hours, plus a floor that refuses the
+`agents/planning_agent/schedule.py` instead — hours, plus a floor that refuses the
 working day whatever the schedule file says.
 
 What is left here is measurement rather than permission. Two readers:
-`agents/night_agent/plan.py` asks how much of the current window is left before
+`agents/planning_agent/plan.py` asks how much of the current window is left before
 it starts another task, and the board's usage chart asks what every window in
 the last month spent.
 
@@ -199,11 +199,11 @@ def main(argv):
     if "--history" in argv:
         _history()
         return 0
-    # The state file lives with the night agent's other state, so this reaches
+    # The state file lives with the planning agent's other state, so this reaches
     # sideways for it. The module itself has no opinion about where that is —
     # every caller passes the state in — and this is only for the command line.
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, os.path.join(root, "agents", "night_agent"))
+    sys.path.insert(0, os.path.join(root, "agents", "planning_agent"))
     import paths  # noqa: E402
 
     now = dt.datetime.now().astimezone()

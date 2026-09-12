@@ -13,8 +13,8 @@ What changes, and why it is not a rename of five words:
 
     unread    ->  review / me              not seen
     read      ->  review / me              seen
-    agreed    ->  ready  / execution-agent
-    redo      ->  ready  / night-agent     keeps its feedback
+    agreed    ->  ready  / implementing-agent
+    redo      ->  ready  / planning-agent     keeps its feedback
     actioned  ->  done   / me              resolution: actioned
 
 `agreed` and `redo` are both `ready`, because both mean an agent may pick this
@@ -85,14 +85,14 @@ def main():
 
     if not DRY:
         for cmd, what in (("pgrep -f kanban/server.py", "the board helper"),
-                          ("pgrep -f 'night_agent/plan.py'", "the night agent")):
+                          ("pgrep -f 'planning_agent/plan.py'", "the planning agent")):
             if subprocess.run(cmd, shell=True, capture_output=True).returncode == 0:
                 die("%s is running. Stop it first." % what)
-        if os.path.exists(os.path.join(ROOT, "data", ".night-agent.lock")):
-            die("data/.night-agent.lock exists, so a run thinks it holds these files.")
+        if os.path.exists(os.path.join(ROOT, "data", ".planning-agent.lock")):
+            die("data/.planning-agent.lock exists, so a run thinks it holds these files.")
         ok("nothing else is holding the plans")
 
-    legacy = ws.load(os.path.join(ROOT, "agents", "night_agent", "stream.json"))[0]["legacy"]["map"]
+    legacy = ws.load(os.path.join(ROOT, "agents", "planning_agent", "stream.json"))[0]["legacy"]["map"]
 
     # Task ids, so `about:` can point at something that survives a retitle.
     tasks = todo.parse_doc(open(os.path.join(ROOT, "data", dataset, "todo.md"), encoding="utf-8").read())

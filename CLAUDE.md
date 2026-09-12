@@ -70,13 +70,21 @@ be missing at the moment it is first needed — and keep it free of `window`,
 `document` and `state`, since `test_todo.mjs` runs it in a bare `vm` context
 with none of them.
 
-## The night agent
+## The planning agent
 
-`agents/night_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
+`agents/planning_agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
 `[ai:: partial]`, and writes a plan for each into `data/<dataset>/plans/`. It
-proposes and never executes. Read [agents/night_agent/README.md](agents/night_agent/README.md) before
+proposes and never executes. Read [agents/planning_agent/README.md](agents/planning_agent/README.md) before
 changing any of it — particularly the schedule and its floor, which are the
 whole of what keeps it out of the working day.
+
+It was `night_agent` until 12 Sep 2026, named for the hour it happens to wake
+at, which is the one incidental thing about it. The pair now say what each half
+does: this one plans, the one below implements. The names it writes into its own
+documents moved with it — `night-agent` is `planning-agent` in every `owner:` —
+and `core/migrations/migrate-agent-names.py` rewrote what was already on disk.
+Nothing depends on that having run: both manifests carry an `owner_legacy` map,
+so a document restored from a backup taken before the rename still reads.
 
 Two things to keep true:
 
@@ -91,25 +99,26 @@ Two things to keep true:
   window that expired before 07:00 — and it went because a window moves with
   whenever the day's first request landed, so hours could not be set against it.
   `schedule.py` holds the hours plus a floor the dashboard cannot write under,
-  and `python3 agents/night_agent/test_night_agent.py` covers both. Run it after
+  and `python3 agents/planning_agent/test_planning_agent.py` covers both. Run it after
   touching either. `core/windows.py` is still there and no longer refuses
   anything: `plan.py` reads it to see whether there is room for another task,
   and the board's chart draws it.
 
-Its six per-bucket planners live beside it, `agents/night_agent/plan-<stream>.md`,
+Its six per-bucket planners live beside it, `agents/planning_agent/planning-<stream>.md`,
 rather than in `~/.claude/agents/`, so they version with the runner that invokes
 them. They moved in here on 7 Sep 2026 and dropped their `pa-` prefix at the same
-time: they are the night agent's, not the PA's, and sitting loose in `agents/`
+time: they are the planning agent's, not the PA's, and sitting loose in `agents/`
 implied otherwise. Claude Code only reads agent definitions from inside
 `.claude/agents/`, so each file there is a symlink back to its real copy — one
 per file, not a folder symlink, so `agents/` stays free to be organised however
 it needs to be without changing what Claude Code sees.
 
-## The acting agent
+## The implementing agent
 
-`execution-agent` is the other half, added 6 Sep 2026 and given its own folder,
-`agents/execution_agent/`, on 7 Sep. The planners propose; this one carries out a
-plan he has already agreed to. Its own [README](agents/execution_agent/README.md)
+`implementing-agent` is the other half, added 6 Sep 2026 and given its own folder,
+`agents/implementing_agent/`, on 7 Sep, and its present name on 12 Sep when the
+two agents were put on one axis. The planners propose; this one carries out a
+plan he has already agreed to. Its own [README](agents/implementing_agent/README.md)
 holds the detail. Three things about it are load-bearing:
 
 - **There is one of it.** Not one per bucket. The per-bucket knowledge lives in
@@ -122,10 +131,10 @@ holds the detail. Three things about it are load-bearing:
   Never on a schedule, never in the background. The whole reason it can act at
   all is that it can stop and ask, which is what the planners cannot do.
 - **It does not write `todo.md`.** That file belongs to the `pa` skill, run in a
-  session with him in it. `execution-agent` carries out a plan; where the work
+  session with him in it. `implementing-agent` carries out a plan; where the work
   means the task itself should change, it asks for the change in its report,
   precisely enough to be applied, and `pa` makes it. One writer is the only rule
-  the board's autosave survives, and the acting agent is the wrong one to be it
+  the board's autosave survives, and the implementing agent is the wrong one to be it
   because it is the one running unattended stretches.
   Everything else in this repo still writes through a queue file or not at all.
 
@@ -176,13 +185,13 @@ those files, and nothing needs it to.
 
 Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and
 an owner saying who is expected to move the item next. Each stream's own words live
-in its manifest — `agents/night_agent/stream.json` and
-`agents/execution_agent/stream.json` — and the only things that write them are
+in its manifest — `agents/planning_agent/stream.json` and
+`agents/implementing_agent/stream.json` — and the only things that write them are
 `stream.py --apply` beside each. The board asks; the stream writes. Nothing here
 writes another stream's files, which is the arrangement
 `agents-dashboard/CONTRACT.md` already holds for schedules.
 
-`agents/execution_agent/stream.py --sync` is the other half of "Backlog is fed
+`agents/implementing_agent/stream.py --sync` is the other half of "Backlog is fed
 by everything in Plans' Ready to be produced column": it mints a run for every
 accepted plan that has not got one, it is idempotent, and the Execution view
 calls it on every load.
@@ -306,8 +315,8 @@ which ones it reached:
 ```
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
-python3 agents/night_agent/test_night_agent.py    # the schedule, the picker, the runner
-python3 agents/execution_agent/test_execution_agent.py   # the runs stream
+python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
+python3 agents/implementing_agent/test_implementing_agent.py   # the runs stream
 python3 companion/test_companion.py
 node kanban/test_plans.mjs         # the five below need the board running
 node kanban/test_execution.mjs

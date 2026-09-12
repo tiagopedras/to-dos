@@ -1,5 +1,5 @@
 /* Drains data/<dataset>/notify-queue.json — the channel companion/notify.py
-   and anything else (the night agent, a pa skill) appends to when they want a
+   and anything else (the planning agent, a pa skill) appends to when they want a
    banner. Port of drain_notifications in the old app.py
    (companion/app.py:496-565). The time-of-day gate is the only rule here;
    the calendar (weekends, holidays) deliberately does not apply to this

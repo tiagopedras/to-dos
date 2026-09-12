@@ -31,9 +31,9 @@ plans only what changed.
 No format knowledge lives here. Everything about how todo.md is written comes
 from core/todo.py, which every reader of the list shares.
 
-    python3 agents/night_agent/pick.py            what tonight would plan, in order
-    python3 agents/night_agent/pick.py --all      ignore the ledger
-    python3 agents/night_agent/pick.py --json     the same, for the runner
+    python3 agents/planning_agent/pick.py            what tonight would plan, in order
+    python3 agents/planning_agent/pick.py --all      ignore the ledger
+    python3 agents/planning_agent/pick.py --json     the same, for the runner
 """
 
 import datetime as dt
@@ -317,9 +317,9 @@ def is_stale(task, ledger):
         return False, "plan accepted on %s" % seen.get("planned", "?")
     if state == "backlog":
         return False, "parked; the agent leaves it alone"
-    if state == "ready" and owner == "night-agent":
+    if state == "ready" and owner == "planning-agent":
         return True, "last plan sent back"
-    if state == "ready" and owner == "execution-agent":
+    if state == "ready" and owner == "implementing-agent":
         return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
     return False, "unchanged since %s" % seen.get("planned", "?")
 

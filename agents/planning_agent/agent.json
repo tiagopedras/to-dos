@@ -1,7 +1,7 @@
 {
   "contract": "1.1",
-  "id": "night-agent",
-  "name": "to-dos night agent",
+  "id": "planning-agent",
+  "name": "to-dos planning agent",
   "cwd": ".",
   "state": ["python3", "dashboard.py", "--state"],
   "apply": ["python3", "dashboard.py", "--apply"],

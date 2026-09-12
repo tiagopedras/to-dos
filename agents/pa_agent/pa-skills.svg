@@ -65,7 +65,7 @@
   <rect class="card" x="684" y="150" width="196" height="88" rx="10"/>
   <text class="name" x="704" y="180">pa-do</text>
   <text class="sub" x="704" y="201">Hands one agreed plan</text>
-  <text class="sub" x="704" y="218">to the acting agent.</text>
+  <text class="sub" x="704" y="218">to the implementing agent.</text>
 
   <!-- checkin calls retrieve-tasks -->
   <path class="flow" d="M342 150 C342 120, 562 120, 562 150" marker-end="url(#a)"/>
@@ -84,12 +84,12 @@
 
   <rect class="card" x="684" y="262" width="196" height="86" rx="10"/>
   <text class="name" x="704" y="292">pa-review-plans</text>
-  <text class="sub" x="704" y="313">Triages the night agent's</text>
+  <text class="sub" x="704" y="313">Triages the planning agent's</text>
   <text class="sub" x="704" y="330">plans, one at a time.</text>
 
-  <!-- ============ the acting agent ============ -->
+  <!-- ============ the implementing agent ============ -->
   <rect class="ghost" x="920" y="150" width="240" height="88" rx="10"/>
-  <text class="name" x="940" y="180">execution-agent</text>
+  <text class="name" x="940" y="180">implementing-agent</text>
   <text class="sub" x="940" y="201">Carries out the plan. Only</text>
   <text class="sub" x="940" y="218">ever from a live session.</text>
   <path class="flow" d="M880 194 H916" marker-end="url(#a)"/>

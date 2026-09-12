@@ -154,7 +154,7 @@ summary: <one sentence naming what you are proposing — the card in the list
 
 ### Context
 
-Not shown to him. Written for the acting agent that may carry this out, and for
+Not shown to him. Written for the implementing agent that may carry this out, and for
 the next night if he sends this back, so write it as a trail rather than as
 prose. Four labelled paragraphs, each one line or a short list:
 
@@ -205,7 +205,7 @@ is true.
 Some tasks are answered in a paragraph: a skill already does the whole of it, or
 one step covers it. Write the same five headings and keep Findings to one or two
 bullets and Proposed plan to one or two steps. Do not drop a heading to make it
-shorter — the board and the acting agent both look for them by name, and a
+shorter — the board and the implementing agent both look for them by name, and a
 missing one reads as a plan that forgot rather than a plan that was brief.
 
 ## Tone

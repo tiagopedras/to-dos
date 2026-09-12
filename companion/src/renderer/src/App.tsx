@@ -38,7 +38,7 @@ function nightLabel(night: string): string {
   return Number.isNaN(date.getTime()) ? night : dueLabel(night)
 }
 
-/* What the night agent did, in one line. This sits on the home screen rather
+/* What the planning agent did, in one line. This sits on the home screen rather
    than inside the plans section because the section card for an empty section
    cannot be opened — and a night that ran and planned nothing, a night that
    never woke up, and a night that died halfway are all an empty section. */

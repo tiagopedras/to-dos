@@ -1,9 +1,9 @@
-# to-dos/agents/execution_agent
+# to-dos/agents/implementing_agent
 
-The acting half. `agents/night_agent/` researches a task overnight and proposes;
+The acting half. `agents/planning_agent/` researches a task overnight and proposes;
 this is what happens after Tiago reads one of those plans and says yes.
 
-Given its own folder on 7 Sep 2026. It was a loose `execution-agent.md` at the
+Given its own folder on 7 Sep 2026. It was a loose `implementing-agent.md` at the
 root of `agents/` until then, sitting among the six planners, which read as
 though it were one of them. It is not: the planners are read-only and run
 unattended, and this one holds write tools and only ever runs with him in the
@@ -14,16 +14,16 @@ file.
 
 | File | What it is |
 | --- | --- |
-| `execution-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/execution-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
+| `implementing-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/implementing-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
 | `stream.json` | The manifest for this half's queue — its four columns, its owners, and where its documents live. `PACKAGES/work_streams/CONTRACT.md` is the shape. |
 | `stream.py` | The only thing that writes those documents. `--apply` moves one between columns, `--sync` mints a run for every plan he has accepted, `--list` prints the columns at a terminal. |
-| `test_execution_agent.py` | What counts as accepted, what each move writes, and what the stream refuses. Runs entirely in a temporary folder. |
+| `test_implementing_agent.py` | What counts as accepted, what each move writes, and what the stream refuses. Runs entirely in a temporary folder. |
 
 ## The three things that are load-bearing
 
 **There is one of it.** Not one per bucket. The six planners, in
-`../night_agent/`, are safe to duplicate because they are read-only and their
-differences are real; an acting agent holds the dangerous half, and six copies
+`../planning_agent/`, are safe to duplicate because they are read-only and their
+differences are real; an implementing agent holds the dangerous half, and six copies
 of one set of guard rails is six chances for one to be edited without the
 others. The per-bucket knowledge sits
 in `data/<dataset>/buckets/<stream>/<stream>.md`, which both halves read, so it is written once
@@ -45,7 +45,7 @@ decision from whether it should have a board.
 **It does not write `todo.md`.** That file belongs to the `pa` skill. This agent
 carries out a plan; where the work means the task itself should change, it asks
 for the change in its report, precisely enough to be applied, and `pa` makes it.
-One writer is the only rule the board's autosave survives, and the acting agent
+One writer is the only rule the board's autosave survives, and the implementing agent
 is the wrong one to be it because it is the one running unattended stretches.
 
 ## How work reaches it
@@ -64,7 +64,7 @@ run, the run carries this half's state, and the plan file is never written again
 
 Accepting a plan on the Plans view lands a run in **Backlog**, where nothing
 happens to it. Moving it to **To do** — `state: ready` with
-`owner: execution-agent` — is what `pa-do` works through. It hands one over with
+`owner: implementing-agent` — is what `pa-do` works through. It hands one over with
 the plan path, the run path, the task's bucket and column, and the bucket's
 brief. When the work is done the agent writes what it did into the run and asks
 the stream to set `review` / `me`; accepting that is his press on the board, not
@@ -81,9 +81,9 @@ lives in `stream.json` beside this, and the shape it belongs to is
 
 ## Where the rest of it is written down
 
-- [../night_agent/README.md](../night_agent/README.md) — the planning half, the
+- [../planning_agent/README.md](../planning_agent/README.md) — the planning half, the
   window rule, and the status table.
-- [../night_agent/PLAN-BRIEF.md](../night_agent/PLAN-BRIEF.md) — the shape of the
+- [../planning_agent/PLAN-BRIEF.md](../planning_agent/PLAN-BRIEF.md) — the shape of the
   plan this agent is handed.
 - [../pa_agent/skills/pa-do/SKILL.md](../pa_agent/skills/pa-do/SKILL.md) — the
   skill that invokes it, and what it does with what comes back.

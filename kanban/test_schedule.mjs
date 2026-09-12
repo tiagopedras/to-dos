@@ -81,10 +81,10 @@ await evalJS(`(() => {
   const iso = ms => new Date(ms).toISOString();
   const day = ms => new Date(ms).toISOString().slice(0, 10);
   window.__jobs = [
-    { id:'night-agent', name:'Night agent', armed:false, state:'not installed',
+    { id:'planning-agent', name:'Planning agent', armed:false, state:'not installed',
       what:'Plans every task tagged ai:full or ai:partial, one agent each.',
       schedule:'12 wakes, 19:00–06:00', next:'', last:'',
-      recent:[], hint:'ln -s agents/night_agent/x.plist ~/Library/LaunchAgents/' },
+      recent:[], hint:'ln -s agents/planning_agent/x.plist ~/Library/LaunchAgents/' },
     { id:'companion', name:'Desktop companion', armed:true, state:'running',
       what:'One briefing each working morning.',
       schedule:'08:30 on a working day', next:iso(now + 864e5),
@@ -133,7 +133,7 @@ await evalJS(`(() => {
     if (u.startsWith('/usage.json')) return Promise.resolve(new Response(JSON.stringify(window.__usage), {status:200}));
     if (u.startsWith('/plans.json')) return Promise.resolve(new Response(JSON.stringify({plans: window.__plans}), {status:200}));
     if (u.startsWith('/queue.json')) return Promise.resolve(new Response(JSON.stringify(window.__queue), {status:200}));
-    if (u.startsWith('/night-agent.json')) return Promise.resolve(new Response(JSON.stringify(window.__nightAgent), {status:200}));
+    if (u.startsWith('/planning-agent.json')) return Promise.resolve(new Response(JSON.stringify(window.__nightAgent), {status:200}));
     return real(url, opts);
   };
   return 'locked and stubbed';
@@ -194,7 +194,7 @@ check('and nothing on it reads as a verdict any more', await evalJS(`
 `))
 // The usage card itself carries no explanatory prose: the Status line
 // (elsewhere now) says what there is to spend and
-// agents/night_agent/README.md holds the reasoning.
+// agents/planning_agent/README.md holds the reasoning.
 check('the usage card explains itself with the chart, not a paragraph', await evalJS(`
   !document.querySelector('#usageOut .help')
 `))

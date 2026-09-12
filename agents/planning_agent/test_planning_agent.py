@@ -7,7 +7,7 @@ are tested against fabricated nights rather than against whatever happens to be
 in ~/.claude today, which is the only way to check the 02:00 cutoff without
 waiting until 02:00.
 
-    python3 agents/night_agent/test_night_agent.py
+    python3 agents/planning_agent/test_planning_agent.py
 """
 
 import datetime as dt
@@ -164,7 +164,7 @@ def test_pick():
     # does: two live plans on one task is the thing being prevented, and that
     # is just as true while the run is still going as after it ends.
     ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
-                               "state": "accepted", "owner": "execution-agent"}
+                               "state": "accepted", "owner": "implementing-agent"}
     pac, sac = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
     check("accepted is left alone", titles(pac), ["Plain and plannable"])
     check("and says it was accepted",
@@ -401,30 +401,30 @@ def test_folding():
 
 def test_agents():
     for bucket, want in [
-        ("People", "plan-people"),
-        ("1. People", "plan-people"),
-        ("Design System", "plan-design-system"),
-        ("DS", "plan-design-system"),
-        ("3. DS", "plan-design-system"),
-        ("BAU", "plan-work-oversight"),
-        ("Work oversight", "plan-work-oversight"),
-        ("Strategic", "plan-strategic"),
-        ("Processes", "plan-processes"),
-        ("Something new", "plan-general"),
-        ("", "plan-general"),
+        ("People", "planning-people"),
+        ("1. People", "planning-people"),
+        ("Design System", "planning-design-system"),
+        ("DS", "planning-design-system"),
+        ("3. DS", "planning-design-system"),
+        ("BAU", "planning-work-oversight"),
+        ("Work oversight", "planning-work-oversight"),
+        ("Strategic", "planning-strategic"),
+        ("Processes", "planning-processes"),
+        ("Something new", "planning-general"),
+        ("", "planning-general"),
     ]:
         check("bucket %r maps" % bucket, plan.bucket_agent(bucket), want)
 
     for bucket in list(plan.STREAMS) + ["x"]:
         agent = plan.bucket_agent(bucket)
-        path = os.path.join(ROOT, "agents", "night_agent", agent + ".md")
+        path = os.path.join(ROOT, "agents", "planning_agent", agent + ".md")
         check("%s exists on disk" % agent, os.path.exists(path), True)
 
     # The acting half. One agent, not one per bucket — see the note at the top
     # of its own definition for why.
-    check("execution-agent exists on disk",
+    check("implementing-agent exists on disk",
           os.path.exists(os.path.join(
-              ROOT, "agents", "execution_agent", "execution-agent.md")), True)
+              ROOT, "agents", "implementing_agent", "implementing-agent.md")), True)
 
     # A brief is offered only when it has actually been written. This is built
     # against a temporary tree rather than the real briefs, because they live
@@ -509,7 +509,7 @@ task: A planned thing
 bucket: Design System
 column: To do
 ai: partial
-agent: plan-design-system
+agent: planning-design-system
 date: 2026-09-05
 status: unread
 summary: One line about it.
@@ -572,7 +572,7 @@ def test_server():
 
             # The writing is the stream's own, since 11 Sep 2026. The board
             # asks and this performs it, which is what keeps one writer per
-            # file — see agents/night_agent/stream.py and, for why, the note
+            # file — see agents/planning_agent/stream.py and, for why, the note
             # where mark_plan() used to be in kanban/server.py.
             import stream as plans_stream
             real_pd, real_lp = plans_stream.paths.plans_dir, plans_stream.paths.ledger_path
@@ -597,7 +597,7 @@ def test_server():
                 # it and the run it feeds has not finished, which is the gap
                 # the state was added for on 12 Sep 2026. It needs no
                 # resolution, because nothing has closed yet, and it defaults
-                # to the acting agent rather than to him, because the next
+                # to the implementing agent rather than to him, because the next
                 # move on it is a run rather than a decision.
                 out = plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
                                           "to": "accepted"})
@@ -605,7 +605,7 @@ def test_server():
                 check("and lands in accepted", server.plan_listing()[0]["state"], "accepted")
                 with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
                     row = json.load(fh)["A planned thing"]
-                check("owned by the acting agent by default", row["owner"], "execution-agent")
+                check("owned by the implementing agent by default", row["owner"], "implementing-agent")
                 # He is not the next mover on an accepted plan, so he cannot
                 # hold it — the same rule that refuses every other pairing.
                 check("refuses accepted owned by him",
@@ -629,10 +629,10 @@ def test_server():
                 # will ever pick up.
                 check("refuses a state its owner cannot hold",
                       plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
-                                          "to": "review", "owner": "night-agent"}).get("ok"), False)
+                                          "to": "review", "owner": "planning-agent"}).get("ok"), False)
                 check("refuses sending one back with no reason",
                       plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
-                                          "to": "ready", "owner": "night-agent"}).get("ok"), False)
+                                          "to": "ready", "owner": "planning-agent"}).get("ok"), False)
                 # The claim. Advisory on purpose: a claim held by a process
                 # that has gone is ignored, because being unable to write your
                 # own list after a crash is a worse failure than the one the
@@ -660,7 +660,7 @@ def test_server():
 
 
 def test_queue_routes():
-    """queue_listing, set_queue_order and night_agent_run, against a temp folder.
+    """queue_listing, set_queue_order and planning_agent_run, against a temp folder.
 
     Same plumbing as test_server and for the same reason: everything the board
     reads here follows data/.current, and a test that reads the real one would
@@ -686,18 +686,18 @@ def test_queue_routes():
             fh.write(DOC)
 
         real = (server.plans_dir, server.current_dataset, server.todo_path,
-                server.NIGHTLY_LOCK)
+                server.PLANNING_LOCK)
         server.plans_dir = lambda name=None: plans
         server.current_dataset = lambda: "test"
         server.todo_path = lambda name=None: todo_file
-        server.NIGHTLY_LOCK = os.path.join(tmp, ".night-agent.lock")
+        server.PLANNING_LOCK = os.path.join(tmp, ".planning-agent.lock")
         try:
             q = server.queue_listing()
             check("the queue is what pick would plan",
                   sorted(r["title"] for r in q["queue"]),
                   ["Plain and plannable", "Startable now"])
             check("each row carries the agent it would go to",
-                  q["queue"][0]["agent"].startswith("plan-"), True)
+                  q["queue"][0]["agent"].startswith("planning-"), True)
             check("and why it is being planned", q["queue"][0]["why"], "never planned")
             check("nothing is held to begin with", q["held"], [])
 
@@ -722,34 +722,34 @@ def test_queue_routes():
             # The run log. Parsed rather than exported from plan.py, so this is
             # the check that keeps the two in step: these are plan.py's own
             # format strings, filled in.
-            with open(os.path.join(plans, "night-agent.log"), "w", encoding="utf-8") as fh:
+            with open(os.path.join(plans, "planning-agent.log"), "w", encoding="utf-8") as fh:
                 fh.write(
                     "2026-09-05 01:05:00  wake — ride: his window runs to 04:00\n"
                     "2026-09-05 02:05:00  start: 3 to plan, 1 skipped\n"
-                    "2026-09-05 02:05:01    > Startable now (plan-people)\n"
+                    "2026-09-05 02:05:01    > Startable now (planning-people)\n"
                     "2026-09-05 02:08:20    planned Startable now"
                     "                                      199s  $0.74\n"
-                    "2026-09-05 02:08:21    > Plain and plannable (plan-processes)\n"
+                    "2026-09-05 02:08:21    > Plain and plannable (planning-processes)\n"
                     "2026-09-05 02:09:00    failed Plain and plannable"
                     "                             the agent timed out\n"
-                    "2026-09-05 02:09:01    > Third thing (plan-strategic)\n")
+                    "2026-09-05 02:09:01    > Third thing (planning-strategic)\n")
             long_title = "A task with a title fifty characters long, exactly"
             check("the fixture title really is fifty characters", len(long_title), 50)
-            with open(os.path.join(plans, "night-agent.log"), "a", encoding="utf-8") as fh:
+            with open(os.path.join(plans, "planning-agent.log"), "a", encoding="utf-8") as fh:
                 fh.write("2026-09-05 02:09:02    failed %-50s %s\n"
                          % (long_title, "the agent hit an error"))
-            n = server.night_agent_run()
+            n = server.planning_agent_run()
             check("a title that fills the log's field is not eaten by the reason",
                   [f["title"] for f in n["failed"]][-1], long_title)
             check("and the reason survives intact",
                   n["failed"][-1]["why"], "the agent hit an error")
 
-            with open(os.path.join(plans, "night-agent.log"), encoding="utf-8") as fh:
+            with open(os.path.join(plans, "planning-agent.log"), encoding="utf-8") as fh:
                 kept = [l for l in fh if long_title not in l]
-            with open(os.path.join(plans, "night-agent.log"), "w", encoding="utf-8") as fh:
+            with open(os.path.join(plans, "planning-agent.log"), "w", encoding="utf-8") as fh:
                 fh.writelines(kept)
 
-            n = server.night_agent_run()
+            n = server.planning_agent_run()
             check("with no lock, nothing is claimed to be running", n["live"], False)
             check("a run that stopped mid-task is called out",
                   (n["orphan"] or {}).get("title"), "Third thing")
@@ -763,38 +763,38 @@ def test_queue_routes():
             check("and the batch size comes off the start line", n["toPlan"], 3)
             check("so the remainder is arithmetic rather than a guess", n["left"], 1)
 
-            os.makedirs(server.NIGHTLY_LOCK)
-            n = server.night_agent_run()
+            os.makedirs(server.PLANNING_LOCK)
+            n = server.planning_agent_run()
             check("the lock is what makes a run live", n["live"], True)
             check("and the task in flight is then a real one",
-                  (n["current"] or {}).get("agent"), "plan-strategic")
+                  (n["current"] or {}).get("agent"), "planning-strategic")
             check("with nothing orphaned", n["orphan"], None)
 
             # Everything before the last `start:` belongs to a previous night.
-            with open(os.path.join(plans, "night-agent.log"), "a", encoding="utf-8") as fh:
+            with open(os.path.join(plans, "planning-agent.log"), "a", encoding="utf-8") as fh:
                 fh.write("2026-09-06 02:05:00  start: 1 to plan, 4 skipped\n")
-            n = server.night_agent_run()
+            n = server.planning_agent_run()
             check("a new run does not inherit the last one's tally", n["done"], [])
             check("nor its failures", n["failed"], [])
 
             # The button. Only the refusals are checked here — the success path
             # spends real money on real agents, which is not a thing a test
             # suite gets to do.
-            _, err = server.start_night_agent_run()
+            _, err = server.start_planning_agent_run()
             check("it will not start a second run on top of one going",
                   (err or {}).get("error"), "a run is already going")
-            os.rmdir(server.NIGHTLY_LOCK)
+            os.rmdir(server.PLANNING_LOCK)
 
             real_root = server.ROOT
-            server.ROOT = tmp                 # no agents/night_agent/run.sh under here
+            server.ROOT = tmp                 # no agents/planning_agent/run.sh under here
             try:
-                _, err = server.start_night_agent_run()
+                _, err = server.start_planning_agent_run()
                 check("nor one with no runner to start", bool(err), True)
             finally:
                 server.ROOT = real_root
         finally:
             (server.plans_dir, server.current_dataset, server.todo_path,
-             server.NIGHTLY_LOCK) = real
+             server.PLANNING_LOCK) = real
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -943,7 +943,7 @@ def test_runner():
     # definition — a definition is a request, the flag is what holds.
     check("and pins the tools on the command line", "--allowedTools" in src, True)
     check("with no Bash among them", "\"Bash\"" in src, False)
-    planners = os.path.join(ROOT, "agents", "night_agent")
+    planners = os.path.join(ROOT, "agents", "planning_agent")
     for p in sorted(os.listdir(planners)):
         if not p.startswith("plan-"):
             continue
@@ -974,7 +974,7 @@ def test_schedule():
     tmp = tempfile.mkdtemp()
     real_path = sched.path
     try:
-        path = os.path.join(tmp, "night-agent-schedule.json")
+        path = os.path.join(tmp, "planning-agent-schedule.json")
         sched.path = lambda: path
 
         # A file naming a barred hour — edited by hand, or written before the
@@ -1007,7 +1007,7 @@ def test_schedule():
 def test_runner_root():
     """ROOT in run.sh, pinned because getting it wrong killed the agent silently.
 
-    The agent moved from night_agent/ to agents/night_agent/ and this line did
+    The agent moved from planning_agent/ to agents/planning_agent/ and this line did
     not move with it, so ROOT became to-dos/agents — no core/, no data/. mkdir
     on a lock whose parent does not exist fails exactly like a lock that is
     held, so every wake from 6 to 9 September 2026 logged "a run is already
@@ -1030,7 +1030,7 @@ def test_runner_root():
           "-lt 19 " in sh, False)
     # The plist is dumb now. Twelve wakes there would silently override whatever
     # the dashboard wrote into the schedule file.
-    plist = open(os.path.join(HERE, "com.tiagopedras.todos-night-agent.plist"),
+    plist = open(os.path.join(HERE, "com.tiagopedras.todos-planning-agent.plist"),
                  encoding="utf-8").read()
     check("the plist wakes all twenty-four hours",
           plist.count("<key>Hour</key>"), 24)

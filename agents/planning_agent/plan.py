@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Runs one planning agent per task and files what comes back.
 
-The middle of the night agent. `agents/night_agent/schedule.py` says whether it
+The middle of the planning agent. `agents/planning_agent/schedule.py` says whether it
 may start, `core/windows.py` says how much of the current usage window is left,
 `pick.py` says on what, and this runs the agents and writes the results.
 
@@ -15,9 +15,9 @@ given read-only tools and told not to write todo.md, and then the file is hashed
 before the batch and checked after every single task anyway. Belt and braces is
 warranted when the failure is silent and the file is irreplaceable.
 
-    python3 agents/night_agent/plan.py --dry-run       what it would do, no spend
-    python3 agents/night_agent/plan.py                 the batch
-    python3 agents/night_agent/plan.py --task "..."    one task, by hand
+    python3 agents/planning_agent/plan.py --dry-run       what it would do, no spend
+    python3 agents/planning_agent/plan.py                 the batch
+    python3 agents/planning_agent/plan.py --task "..."    one task, by hand
 """
 
 import argparse
@@ -46,7 +46,7 @@ import windows  # noqa: E402
 # rather than quietly planned by a generalist.
 # Bucket heading -> the stream it belongs to. One table rather than two,
 # because everything per-bucket is named off this: the planning agent is
-# `plan-<stream>`, beside this file, and the bucket brief is
+# `planning-<stream>`, beside this file, and the bucket brief is
 # `data/<dataset>/buckets/<stream>/<stream>.md`.
 # A second table keyed the same way is a second thing to keep in step, and the
 # headings move — People, BAU, DS, Strategic and Processes are what the file
@@ -68,7 +68,7 @@ STREAMS = {
     "tasks": "general",
 }
 FALLBACK_STREAM = "general"
-FALLBACK_AGENT = "plan-general"
+FALLBACK_AGENT = "planning-general"
 
 # The line every bucket brief ships with, and the one line that has to come out
 # before the brief counts as written. See BUCKETS.md.
@@ -76,7 +76,7 @@ BRIEF_EMPTY = "<!-- NOT FILLED IN YET -->"
 
 TASK_TIMEOUT = 10 * 60        # one agent's ceiling, seconds
 BUDGET_PER_TASK = 2.00        # dollars, handed to --max-budget-usd
-NIGHT_AGENT_BUDGET = 12.00        # dollars across the whole batch
+PLANNING_AGENT_BUDGET = 12.00        # dollars across the whole batch
 
 # What the agent writes into its own frontmatter when it decides the task
 # cannot be planned without a decision only Tiago can make. See the folding
@@ -110,7 +110,7 @@ def bucket_stream(bucket):
 
 
 def bucket_agent(bucket):
-    return "plan-%s" % bucket_stream(bucket)
+    return "planning-%s" % bucket_stream(bucket)
 
 
 def bucket_brief(bucket):
@@ -119,7 +119,7 @@ def bucket_brief(bucket):
     One folder per stream under `data/<dataset>/buckets/`, holding the processes
     Tiago actually runs in that bucket, what each produces and which skill
     already does it, plus that bucket's own skills. Both the planners and the
-    acting agent read it, and he reaches for it himself.
+    implementing agent read it, and he reaches for it himself.
 
     Scoped to the dataset because a brief is only true of one list: `twinkl` and
     `personal` have different buckets, different processes and different people,
@@ -303,7 +303,7 @@ def rejection(prior):
 
     Returns (summary, note, context, proposal) or None.
 
-    A rejection is `state: ready` owned by the night agent, one half of the six
+    A rejection is `state: ready` owned by the planning agent, one half of the six
     states every queue here shares. `status: redo` is the word this stream used
     until 11 Sep 2026 and is still read, because a ledger or a plan restored
     from a backup written before then carries it.
@@ -311,7 +311,7 @@ def rejection(prior):
     if not prior:
         return None
     sent_back = (prior.get("state") == "ready"
-                 and prior.get("owner") == "night-agent") or prior.get("status") == "redo"
+                 and prior.get("owner") == "planning-agent") or prior.get("status") == "redo"
     if not sent_back:
         return None
     path = plan_path(prior)
@@ -340,7 +340,7 @@ def build_prompt(task, prior=None):
     """
     block = "\n".join([task.raw] + list(task.body))
     parts = [
-        "Plan this one task from the to-do list. Read agents/night_agent/PLAN-BRIEF.md first "
+        "Plan this one task from the to-do list. Read agents/planning_agent/PLAN-BRIEF.md first "
         "for the format and the rules, then your own agent definition applies on "
         "top of it.\n\n"
         "The task, exactly as it stands in %s:\n\n"
@@ -771,7 +771,7 @@ def write_run_record(day, written, skipped, stopped, spent, started):
 # agent needs no fourth word here. The old form is still matched, because a
 # backup restored from before 11 Sep 2026 carries it.
 KEEP_STATUS = re.compile(
-    r"^(?:state:\s*done\s*$|owner:\s*execution-agent\s*$|status:\s*(?:actioned|agreed)\s*$)", re.M)
+    r"^(?:state:\s*done\s*$|owner:\s*implementing-agent\s*$|status:\s*(?:actioned|agreed)\s*$)", re.M)
 
 
 def prune(day):
@@ -848,7 +848,7 @@ def announce(written, skipped, stopped):
     # Pressing it lands on the Plans tab, which is where the night's output
     # actually is. Not on a single plan: the banner counts a batch, and opening
     # one of several would answer a question it did not ask.
-    notify.queue("Night agent", body, view="plans")
+    notify.queue("Planning agent", body, view="plans")
 
 
 def run(argv=None):
@@ -856,7 +856,7 @@ def run(argv=None):
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--all", action="store_true", help="ignore the ledger")
     ap.add_argument("--task", default=None, help="plan exactly one, by title")
-    ap.add_argument("--budget", type=float, default=NIGHT_AGENT_BUDGET)
+    ap.add_argument("--budget", type=float, default=PLANNING_AGENT_BUDGET)
     args = ap.parse_args(argv)
 
     day = dt.date.today()
@@ -880,7 +880,7 @@ def run(argv=None):
         orphans = sorted({t.bucket for t in plan if bucket_agent(t.bucket) == FALLBACK_AGENT})
         if orphans:
             print("\n%d bucket(s) have no agent: %s" % (len(orphans), ", ".join(orphans)))
-            print("Either add an alias to AGENTS in agents/night_agent/plan.py, or write the agent.")
+            print("Either add an alias to AGENTS in agents/planning_agent/plan.py, or write the agent.")
         for title, why in skipped:
             print("  skip  %-58s %s" % (title[:58], why))
         return 0
@@ -911,7 +911,7 @@ def run(argv=None):
         agent = bucket_agent(task.bucket)
         if agent == FALLBACK_AGENT:
             log("  NO AGENT for bucket %r — planning %r with the fallback. Add an "
-                "alias to AGENTS in agents/night_agent/plan.py." % (task.bucket, task.title[:50]))
+                "alias to AGENTS in agents/planning_agent/plan.py." % (task.bucket, task.title[:50]))
         # Logged before the run, not only after. An agent takes minutes, so
         # without this the log — and the board's Schedule view, which reads it —
         # says nothing at all about the one currently in flight, which is the

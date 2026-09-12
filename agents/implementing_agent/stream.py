@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""The runs stream's own writer — the acting agent's half of the board.
+"""The runs stream's own writer — the implementing agent's half of the board.
 
     echo '{"item": {...}, "to": "ready", ...}' | python3 stream.py --apply
     python3 stream.py --sync        mint a run for every plan he has accepted
     python3 stream.py --list        what is in each column, for a terminal
 
 One transition on stdin, the write performed here, `{"ok": true}` back — the
-same arrangement `../night_agent/stream.py` has, and for the same reason:
+same arrangement `../planning_agent/stream.py` has, and for the same reason:
 the board asks, the stream writes, and no program writes another program's
 files. See PACKAGES/work_streams/CONTRACT.md.
 
@@ -15,7 +15,7 @@ two work items about one task, and they are in different places at the same
 time: a plan he has accepted is *done* as a plan and *not started* as a run.
 Carrying both on one document would mean two `state:` fields on one file, which
 is the thing the contract exists to stop. So an accepted plan mints a run, the
-run carries the acting agent's state, and the plan file is never written again.
+run carries the implementing agent's state, and the plan file is never written again.
 
 Nothing here runs anything. `--sync` mints documents and `--apply` moves them
 between columns; the agent itself is invoked by the `pa-do` skill from a session
@@ -30,9 +30,9 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "night_agent"))
+sys.path.insert(0, os.path.join(HERE, "..", "planning_agent"))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..", "..", "PACKAGES", "work_streams")))
-import paths                       # noqa: E402  — the night agent's, since both hang off data/.current
+import paths                       # noqa: E402  — the planning agent's, since both hang off data/.current
 try:
     import manifest as ws
 except ImportError:
@@ -49,8 +49,8 @@ MANIFEST = os.path.join(HERE, "stream.json")
 # item nothing will ever pick up.
 OWNERS = {
     "backlog": ("me",),
-    "ready":   ("execution-agent",),
-    "doing":   ("execution-agent",),
+    "ready":   ("implementing-agent",),
+    "doing":   ("implementing-agent",),
     "review":  ("me",),
     "done":    ("me",),
 }
@@ -130,7 +130,7 @@ def accepted(fields):
     state, owner = fields.get("state"), fields.get("owner")
     if state in ("accepted", "done"):
         return fields.get("resolution") != "superseded"
-    if state == "ready" and owner == "execution-agent":
+    if state == "ready" and owner == "implementing-agent":
         return True
     if state is None:
         return fields.get("status") in ("actioned", "agreed")
@@ -218,7 +218,7 @@ def mint(ref, fields):
         "plan: %s" % ref,
         "group: %s" % (fields.get("group") or fields.get("bucket") or ""),
         "column: %s" % fields.get("column", ""),
-        "agent: execution-agent",
+        "agent: implementing-agent",
         "state: backlog",
         "owner: me",
         "seen: no",
@@ -295,10 +295,10 @@ def apply(req):
     # nothing. See work_streams/writer.py.
     lock = os.path.join(runs_dir(), ".runs.lock")
     if ws_writer is not None:
-        refusal = ws_writer.refusal(lock, "the acting agent")
+        refusal = ws_writer.refusal(lock, "the implementing agent")
         if refusal:
             return {"ok": False, "error": refusal}
-        ws_writer.claim(lock, "the acting agent")
+        ws_writer.claim(lock, "the implementing agent")
 
     text = open(path, encoding="utf-8").read()
     run_id = (re.search(r"^id:\s*(\S+)$", text, re.M) or [None, ""])[1]

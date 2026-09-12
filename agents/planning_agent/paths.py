@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Where everything the night agent touches lives.
+"""Where everything the planning agent touches lives.
 
 One module so that the dataset pointer is read in one place. `data/.current`
 names the list the board's dropdown is currently pointed at, and every path
@@ -75,7 +75,7 @@ def window_path():
 
 
 def log_path():
-    return os.path.join(plans_dir(), "night-agent.log")
+    return os.path.join(plans_dir(), "planning-agent.log")
 
 
 def attach_queue_path():
@@ -87,7 +87,7 @@ def order_path():
 
     A sidecar rather than anything in todo.md, because todo.md has exactly one
     writer and the board dragging a card in the Plans view must not become a
-    second one. Nothing outside the night agent reads it, and losing it costs
+    second one. Nothing outside the planning agent reads it, and losing it costs
     an ordering rather than any work.
     """
     return os.path.join(plans_dir(), "queue-order.json")

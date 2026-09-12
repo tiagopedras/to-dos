@@ -296,7 +296,7 @@ No hint, no sort, no count on any Plans column. Every one carries a description.
 **Three of these are new work, not just restyling:**
 
 - **`Doing`** — a column the Plans view does not have. It is the run that is happening now: what the
-  night agent has picked up and is working through. Today `13-plans.js` shows run state as a
+  planning agent has picked up and is working through. Today `13-plans.js` shows run state as a
   `Status` block inside the To do column (`14:28 — window open, 55 min left`); this promotes it to a
   column of its own.
 - **`Ready to be produced`** — this is what the current `Done` column holds: accepted plans that
@@ -305,7 +305,7 @@ No hint, no sort, no count on any Plans column. Every one carries a description.
   Ready to be produced.
 
 So the Plans pipeline goes **Backlog → To do → Doing → Waiting for review → Ready to be produced →
-Done**, mirroring the Board's six. That is a change to `agents/night_agent` territory as much as to
+Done**, mirroring the Board's six. That is a change to `agents/planning_agent` territory as much as to
 the view: `stream.json` and `PACKAGES/work_streams/CONTRACT.md` define the states a plan can be in,
 and two of these columns do not exist there yet. **Check the contract before building the view** —
 per `CLAUDE.md`, the board asks and the stream writes, and nothing here writes another stream's
@@ -517,7 +517,7 @@ file is edited by script again:
   instances lost their main components when the old card sets were deleted) — visually identical,
   and it is a frozen snapshot, so it was left alone.
 - ❓ **Unknown**: whether the three new Plans columns (Doing, Ready to be produced, Done) need new
-  states in the night agent's stream contract, or whether they are views onto states that already
+  states in the planning agent's stream contract, or whether they are views onto states that already
   exist. See "The column setup to build" above.
 
 ## Decisions taken (previously open)
@@ -547,7 +547,7 @@ and to Execution, which has the same four columns and the same filtering.
 ## Next steps
 
 1. **Check the stream contract** against the three new Plans columns (Doing, Ready to be produced,
-   Done) — `agents/night_agent/stream.json` and `PACKAGES/work_streams/CONTRACT.md`. If they need
+   Done) — `agents/planning_agent/stream.json` and `PACKAGES/work_streams/CONTRACT.md`. If they need
    new states, that lands before any view work.
 2. **Do the column skeleton first** — one `.col` with `.colhead` + `.colbody`, used by Board, Plans
    and Execution. It is the change with the widest reach and everything else sits inside it.
@@ -559,8 +559,8 @@ and to Execution, which has the same four columns and the same filtering.
    against:
    ```
    python3 core/test_todo.py     node core/test_todo.mjs
-   python3 agents/night_agent/test_night_agent.py
-   python3 agents/execution_agent/test_execution_agent.py
+   python3 agents/planning_agent/test_planning_agent.py
+   python3 agents/implementing_agent/test_implementing_agent.py
    python3 companion/test_companion.py
    node kanban/test_plans.mjs    node kanban/test_execution.mjs
    node kanban/test_schedule.mjs node kanban/test_canvas.mjs

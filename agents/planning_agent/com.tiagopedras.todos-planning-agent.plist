@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  The night agent's schedule.
+  The planning agent's schedule.
 
   Woken every hour, all day, and told nothing about when to work. The hours are
-  in data/night-agent-schedule.json and the agents dashboard is their editor;
+  in data/planning-agent-schedule.json and the agents dashboard is their editor;
   before 9 Sep 2026 they were written here as twelve entries and again as a
   clock check in run.sh, and changing them meant editing both and reloading this.
 
@@ -21,21 +21,21 @@
   mistake is the right number for something that spends money unattended.
 
   Install:
-    ln -s ~/Code/to-dos/agents/night_agent/com.tiagopedras.todos-night-agent.plist \
-          ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
-    launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+    ln -s ~/Code/to-dos/agents/planning_agent/com.tiagopedras.todos-planning-agent.plist \
+          ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
+    launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
 
   Stop it:
-    launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+    launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
 -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.tiagopedras.todos-night-agent</string>
+  <string>com.tiagopedras.todos-planning-agent</string>
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/tiagopedras/Code/to-dos/agents/night_agent/run.sh</string>
+    <string>/Users/tiagopedras/Code/to-dos/agents/planning_agent/run.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -50,7 +50,7 @@
   </dict>
 
   <!-- Twenty-four wakes, not twelve. The hours themselves live in
-       data/night-agent-schedule.json, where the agents dashboard writes them,
+       data/planning-agent-schedule.json, where the agents dashboard writes them,
        and a plist that only woke between certain hours would silently override
        whatever the dashboard said. So the wake is dumb and hourly and run.sh
        asks the schedule; almost every one of these costs a few milliseconds. -->
@@ -83,11 +83,11 @@
   </array>
 
   <!-- Both go to data/, which is gitignored, because a stray line of agent
-       output could name somebody. plans/night-agent.log is the readable record;
+       output could name somebody. plans/planning-agent.log is the readable record;
        these two are for when something has gone wrong with the runner itself. -->
   <key>StandardOutPath</key>
-  <string>/Users/tiagopedras/Code/to-dos/data/night-agent.out.log</string>
+  <string>/Users/tiagopedras/Code/to-dos/data/planning-agent.out.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/tiagopedras/Code/to-dos/data/night-agent.err.log</string>
+  <string>/Users/tiagopedras/Code/to-dos/data/planning-agent.err.log</string>
 </dict>
 </plist>

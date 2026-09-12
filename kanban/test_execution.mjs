@@ -82,7 +82,7 @@ await evalJS(`(() => {
     { name:'2026-09-05-b.md', url:'/x/b.md', title:'Write the HR agent brief',
       task:'Write the HR agent brief', slug:'', plan:'2026-09-05/b.md',
       bucket:'Processes', column:'To do', summary:'Handed over.',
-      state:'ready', owner:'execution-agent', seen:true, resolution:'', feedback:'', created:'2026-09-06' },
+      state:'ready', owner:'implementing-agent', seen:true, resolution:'', feedback:'', created:'2026-09-06' },
     { name:'2026-09-04-c.md', url:'/x/c.md', title:'Close the buttons gap',
       task:'Close the buttons gap', slug:'', plan:'2026-09-04/c.md',
       bucket:'Design System', column:'Doing', summary:'It did the work.',
@@ -173,7 +173,7 @@ check('loading it asks the runs stream to catch up', await evalJS(`
 
 // --- handing one over -------------------------------------------------------
 // Nothing starts here. The confirm has to say so, because "hand it over" reads
-// like starting it and the whole safety of the acting agent is that it only
+// like starting it and the whole safety of the implementing agent is that it only
 // runs from a session he is in.
 await evalJS(`document.querySelector('#runBacklog [data-run-open]').click()`)
 await new Promise(r => setTimeout(r, 400))
@@ -189,8 +189,8 @@ check('and says how it actually gets run', await evalJS(`
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, hand it over').click()`)
 await new Promise(r => setTimeout(r, 400))
 const handed = await evalJS(`window.__blocked.join(' | ')`)
-check('it goes to the acting agent as ready',
-  handed.includes('"to":"ready"') && handed.includes('"owner":"execution-agent"'))
+check('it goes to the implementing agent as ready',
+  handed.includes('"to":"ready"') && handed.includes('"owner":"implementing-agent"'))
 check('and the card moves into To do', await evalJS(`
   document.querySelectorAll('#runTodo .planitem').length === 2 &&
   document.querySelectorAll('#runBacklog .planitem').length === 0
@@ -232,7 +232,7 @@ check('which the card then shows without being opened', await evalJS(`
 `))
 
 // --- accepting ---------------------------------------------------------------
-// And the one thing the acting agent may not do itself: change the task. The
+// And the one thing the implementing agent may not do itself: change the task. The
 // confirm says where that change actually gets made.
 await evalJS(`document.querySelector('#runTodo [data-run-open]').click()`)
 await new Promise(r => setTimeout(r, 400))

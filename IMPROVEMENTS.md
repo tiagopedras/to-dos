@@ -24,18 +24,18 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   recording a decision about it" — while the other eight under
   `agents/pa_agent/skills/` all read `todo.md` or write it after a conversation.
   Execution is already its own thing with its own manifest, board, owner and
-  lock: `agents/execution_agent/stream.json`, `kanban/js/27-execution.js`,
-  `data/.execution-agent.lock`, and `agents/execution_agent/execution-agent.md`
+  lock: `agents/implementing_agent/stream.json`, `kanban/js/27-execution.js`,
+  `data/.implementing-agent.lock`, and `agents/implementing_agent/implementing-agent.md`
   for the agent itself. None of that is the PA's, and the `pa-` prefix is what
   sends the next reader looking for it in the PA's brief, where nothing about
-  execution lives. Moving it to `agents/execution_agent/skills/` under a name
+  execution lives. Moving it to `agents/implementing_agent/skills/` under a name
   without the prefix costs the folder move, repointing the
   `~/.claude/skills/pa-do` symlink, and the eleven references that name it by
   string — `CLAUDE.md:121` and `:167`, `agents/pa_agent/CLAUDE.md:24`,
   `agents/pa_agent/PA-PLAN.md:246` and `:259`,
-  `agents/pa_agent/skills/pa/SKILL.md:305`, `agents/night_agent/README.md:154`,
-  `agents/execution_agent/README.md:33`, `:38`, `:67`,
-  `agents/execution_agent/stream.py:21`, plus the label in
+  `agents/pa_agent/skills/pa/SKILL.md:305`, `agents/planning_agent/README.md:154`,
+  `agents/implementing_agent/README.md:33`, `:38`, `:67`,
+  `agents/implementing_agent/stream.py:21`, plus the label in
   `agents/pa_agent/pa-skills.svg:66` and the assertion in
   `kanban/test_execution.mjs:187`.
 
@@ -62,14 +62,14 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `.addsub`. Worth doing with `ai_canvas` open beside it rather than blind.
 
 - **The night's size is set in dollars, and nothing says how many plans he
-  wants.** The batch loop in `run()` (`agents/night_agent/plan.py:898`) stops on
+  wants.** The batch loop in `run()` (`agents/planning_agent/plan.py:898`) stops on
   two things only — under `FLOOR` minutes of window left (`:87`) and
-  `spent >= args.budget` against `NIGHT_AGENT_BUDGET` of $12 (`:79`) — so the
+  `spent >= args.budget` against `PLANNING_AGENT_BUDGET` of $12 (`:79`) — so the
   count that lands is whatever $12 happens to buy that night — 10 plans on the
   first full batch, against 24 eligible. A third stop, `len(written) >=
   args.max_plans`, is two lines beside the budget one, and reuses the same
   `stopped` message shape. The setting has further to go than the check: the
-  schedule file's existing `budget` key (`agents/night_agent/schedule.py:31`) is
+  schedule file's existing `budget` key (`agents/planning_agent/schedule.py:31`) is
   read by `dashboard.py` alone — `run.sh:133` calls `plan.py` with nothing but
   the flags it was given — so a `max_plans` key added to `DEFAULTS`, `load()`
   and the dashboard's `fields` list (`dashboard.py:146`) still needs `run.sh` to
@@ -110,7 +110,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 - **`plans/actioned/` is read as though it were a night, and two things break on
   5 October 2026 when the first folder is old enough for `prune()` to make it.**
-  `prune()` in `agents/night_agent/plan.py` moves agreed and actioned plans into
+  `prune()` in `agents/planning_agent/plan.py` moves agreed and actioned plans into
   `plans/actioned/` as `<night>-<file>.md`, and `plan_listing()` in
   `kanban/server.py` iterates every non-dotted directory under `plans/`, so those
   come back carrying `night: "actioned"`. Two things then go wrong. `mark_plan()`
@@ -130,7 +130,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   (`companion/src/renderer/src/App.tsx:180`) draws a card per open one, so a
   night that planned nothing and a night that never woke up look identical —
   an empty section. The night already writes the answer:
-  `write_run_record()` (`agents/night_agent/plan.py:579`) leaves a `run.json`
+  `write_run_record()` (`agents/planning_agent/plan.py:579`) leaves a `run.json`
   beside the plans with the start and finish times, the cost, whether it was
   cut short, and a row per task tagged planned, folded or skipped with the
   reason. Reading that file in a new `companion/src/main/night.ts`, hanging it
@@ -170,7 +170,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   what the situation is, `Findings` as bullets, and `Proposed plan`, with
   `Needs you` under it. Under 300 words of his reading against 450 before.
 
-  The hidden half is not dead weight: the acting agent is handed the plan file
+  The hidden half is not dead weight: the implementing agent is handed the plan file
   and reads `Context`, and so does the next night when he sends one back, which
   is what the entry below this one turned out to be about.
 
@@ -185,7 +185,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   at `kanban/js/12-reports.js:598` knows one bullet shape,
   `/^[-*]\s+(.*)$/`, so a line opening `1.` misses it, falls through to the
   paragraph branch, and is joined to its neighbours with a space by
-  `flushPara()`. Every plan hits it: `agents/night_agent/PLAN-BRIEF.md` asks
+  `flushPara()`. Every plan hits it: `agents/planning_agent/PLAN-BRIEF.md` asks
   for the course of action and the open questions as numbered steps and the
   planners write them that way, so the file on disk is right and the renderer
   is what is wrong, which also means fixing it once beats editing six planner
@@ -203,7 +203,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   as stalled work. `redoReplaced()` (`kanban/js/13-plans.js`) is the whole
   test: a redo plan is spent when another plan for the same task carries a
   later `night`, keyed on the `p.slug || p.task` that `planItemHTML()` already
-  builds. It needs no route and no read of the night agent's ledger, since
+  builds. It needs no route and no read of the planning agent's ledger, since
   every row `plan_meta()` returns (`kanban/server.py`) already carries both
   fields, and it is measured against the whole `planList` rather than the
   bucket-filtered view — a replacement is a replacement whether or not its
@@ -217,7 +217,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   doing the work. `planItemHTML()` is untouched, so `redo_note` still reads
   inside the fold: a spent card is folded, never dropped, because that note is
   the only written record of what was asked for and `rejection()`
-  (`agents/night_agent/plan.py`) reads it back off the file.
+  (`agents/planning_agent/plan.py`) reads it back off the file.
 
   What prompted it was the three cards on the real list, all rejected 5 Sep,
   all re-planned 9 Sep, all still showing as redo while their replacements sat
@@ -384,19 +384,19 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `completedRecently()` and the Show-window picker are already shared across
   the tab.
 
-- **The night agent's lock can sit held for a full day with nothing wrong,
+- **The planning agent's lock can sit held for a full day with nothing wrong,
   because staleness is judged by age alone.** `run.sh`'s stale-lock check
-  (`agents/night_agent/run.sh:62`) only ever asks `find "$LOCK" -maxdepth 0
+  (`agents/planning_agent/run.sh:62`) only ever asks `find "$LOCK" -maxdepth 0
   -mmin +120` — how old the directory is — never whether the process that
   made it is still alive. That's fine for a crash, but a laptop put to sleep
   mid-run suspends the holder rather than killing it: `plan.py`'s own
-  10-minute per-task ceiling (`TASK_TIMEOUT` at `agents/night_agent/plan.py:71`)
+  10-minute per-task ceiling (`TASK_TIMEOUT` at `agents/planning_agent/plan.py:71`)
   can't fire while the process isn't scheduled, so it comes back exactly
   where it left off once the lid opens, and every hourly wake in between logs
   "a run is already going" (`run.sh:66`) rather than ever clearing it — caught
   8 Sep 2026, where the lock held from 06:05 on the 6th to the morning of the
-  8th with zero output in `night-agent.log` and nothing in either
-  `night-agent.err.log` or `.out.log`, across a stretch the log itself shows
+  8th with zero output in `planning-agent.log` and nothing in either
+  `planning-agent.err.log` or `.out.log`, across a stretch the log itself shows
   the machine awake for on the hour throughout. The fix is to write the
   holder's PID alongside the lock when `mkdir "$LOCK"` succeeds (`run.sh:59`)
   and have the staleness branch test that PID with `kill -0` before trusting
@@ -405,7 +405,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   only as the fallback for when no PID was recorded to check.
 
 - **Every plan comes back the same shape and the same length, whether the task
-  needed three sentences or three days.** `agents/night_agent/PLAN-BRIEF.md`
+  needed three sentences or three days.** `agents/planning_agent/PLAN-BRIEF.md`
   offers exactly two shapes under "What to write": four sections up to 400 words,
   or a fold, whose bar it then sets "deliberately high" on purpose. A small task
   has nowhere to land between them — it is plannable, so folding is ruled out,
@@ -414,7 +414,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   him a night's capacity", which reads as a reason to write around the gap rather
   than name it on the first pass. Two edits to that one file would cover both,
   with no new outcome value and nothing to change in `write_plan()`
-  (`agents/night_agent/plan.py:524`) or the "needs you" badge
+  (`agents/planning_agent/plan.py:524`) or the "needs you" badge
   (`kanban/js/13-plans.js:146`): a third shape for a task whose whole answer is a
   finding and a first step, and a fold bar phrased as ask early rather than as a
   last resort.
@@ -525,11 +525,11 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   sets one row at a time. A one-off sort, not a standing rule: a later drag
   on any row overwrites its own rank same as before.
 
-- ~~**The night agent's first full batch spent the whole night on one
+- ~~**The planning agent's first full batch spent the whole night on one
   bucket.**~~ **Done, 5 Sep 2026** (`dcbc109`). Found on the first real
   24-task run — Design System is 13 of the 24 and sorted first, so all 10
   plans the budget paid for were DS and three buckets got nothing. `in_order`
-  in `agents/night_agent/pick.py` now sorts on the board's own order, headline, date, then
+  in `agents/planning_agent/pick.py` now sorts on the board's own order, headline, date, then
   impact against effort — bucket is not a key at any level, so a short night
   interleaves instead of draining one bucket before the next starts. Also
   settles the open question of whether DS wants splitting into five streams:
@@ -537,7 +537,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 - ~~**A plan whose agent wrote no `summary:` lists as `[fill in]`, and the
   file itself is worse than the symptom shows.**~~ **Done**, alongside the
-  fold/hold work in `f540acd`. `write_plan` in `agents/night_agent/plan.py` now strips the
+  fold/hold work in `f540acd`. `write_plan` in `agents/planning_agent/plan.py` now strips the
   agent's own frontmatter entirely and writes one rebuilt block, so there is
   never a placeholder header sitting in front of a real summary two blocks
   down. A missing summary now reads plainly as "The agent wrote no summary
@@ -545,14 +545,14 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   things.
 
 - ~~**The nightly budget is set from figures four times too low.**~~
-  **Done — closed, 7 Sep 2026.** `NIGHT_AGENT_BUDGET`
-  in `agents/night_agent/plan.py` is $12, chosen against two runs that cost $0.29 and
+  **Done — closed, 7 Sep 2026.** `PLANNING_AGENT_BUDGET`
+  in `agents/planning_agent/plan.py` is $12, chosen against two runs that cost $0.29 and
   $0.67. The first full batch averaged $1.23 across 10 plans and stopped on
   budget with 14 left. The whole 24 is around $30. $12 is a defensible ceiling,
   but it should be set against $1.23 rather than against $0.48.
 
   **Decided, 5 Sep 2026: leave it at $12.** Cost is already logged per plan and
-  per night in `data/<dataset>/plans/night-agent.log` (`agents/night_agent/plan.py`'s own
+  per night in `data/<dataset>/plans/planning-agent.log` (`agents/planning_agent/plan.py`'s own
   `log()` calls), so there's a real record to assess the ceiling against once
   more nights have run, rather than resetting it on two nights' figures.
 
@@ -579,11 +579,11 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `companion/notify.py` appends to `data/<dataset>/notify-queue.json` and the
   companion drains it on its next tick. Same shape as `attach-queue.json` — a
   JSON array anything appends to, drained by the one thing that can act on it.
-  It holds anything queued outside 08:30–20:00, so the night agent finishing at
+  It holds anything queued outside 08:30–20:00, so the planning agent finishing at
   02:00 is heard about in the morning instead of at 02:00. It does *not* hold for
   weekends and holidays, unlike the morning briefing: that one is a scheduled
   interruption about a working day, this one answers something that just
-  happened. The night agent is its first caller.
+  happened. The planning agent is its first caller.
 
 - ~~A card limit per column, with a "load more" at the bottom.~~ **Dropped,
   5 Sep 2026.** Would have interacted badly with drag-and-drop — dropping past
@@ -680,49 +680,81 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **The two agents are named on different axes: one says when it runs, the
-  other says what it does.** `night_agent` is named for the hour, which is the
-  one thing about it that is incidental, and `execution_agent` for the job.
-  Renaming them `planning_agent` and `implementing_agent` makes them a pair and
-  says what each half of the pipeline is for. The cost is spread wide rather
-  than deep: 56 files mention the night agent and 28 the execution agent,
-  including both `stream.json` manifests (`id` and `writer.who`), the lock paths
-  `data/.night-agent.lock` and `data/.execution-agent.lock`, the agent
-  definition `agents/execution_agent/execution-agent.md` and the
-  `.claude/agents/` symlink into it, `planColumn()` and `runColumn()`
-  (`kanban/js/13-plans.js:125`, `kanban/js/27-execution.js:36`), `CLAUDE.md`,
-  `agents/pa_agent/PA-PLAN.md`, the three READMEs, `agents/pa_agent/pa-skills.svg`
-  and the assertions in `kanban/test_plans.mjs` and `kanban/test_execution.mjs`.
+- **Every column on the Plans view is ordered one way — the priority of the
+  task the plan is about — and there is no control to ask for another.**
+  `byTaskPriority()` (`kanban/js/13-plans.js:541`) runs unconditionally inside
+  `renderPlanReview()` (`:644`), `renderPlanDoing()` (`:669`),
+  `renderPlanProduced()` (`:697`) and `renderPlanDone()` (`:735`), so a column
+  holding three weeks of plans reads in score order and the one written last
+  night sits wherever its task happens to rank. Half the wiring exists already:
+  `colHTML()` takes a `sort` slot in the head (`kanban/js/09-columns.js:387`)
+  that only the board fills, the button itself is built by the caller in
+  `renderBoard()` (`kanban/js/18-timeline.js:981`), and the state behind it is
+  `sortMode()`/`setSortMode()` (`kanban/js/03-tier-one-impact-effort.js:22-25`).
 
-  Two parts are not a find-and-replace. The live data carries 17 frontmatter
-  values reading `execution-agent` and 3 reading `night-agent` across
-  `data/twinkl/plans/` and `data/twinkl/runs/`, so this needs a migration beside
-  the ones in `core/migrations/`, and the `legacy` block in
-  `agents/night_agent/stream.json:104` has to keep resolving the old spellings
-  or every plan written before the rename stops reading. And the name reaches
-  outside the repo: `agent.json` declares `"id": "night-agent"`, which is how
-  `agentsd/discover.py` in `agents-dashboard` finds it, with
-  `agents-dashboard/CONTRACT.md`, its README and `test_agentsd.py` naming it
-  too, plus `improve_agent/improve/registry.py` and `run.sh` and the launchd
-  plist `com.tiagopedras.todos-night-agent.plist`.
+  Two things stop it being a slot to fill. `state.sort` is keyed by bare column
+  name under a single `SORT_KEY = 'todo-board-sort'`, and four of Plans' six
+  names — Backlog, To do, Waiting for review, Done — are the board's names too,
+  so a sort set on one view would flip the other unless Plans carries a key of
+  its own; `PROJECT_SORT_KEY` (`kanban/js/26-projects.js:25`) is the precedent
+  for that. And the board's button toggles between priority and his own file
+  order, which Plans has no equivalent of — a folder of plan files carries no
+  hand order — so the second order has to be picked rather than inherited: date
+  written (`p.night`, read by `planGeneratedLabel()` at `:167`), bucket
+  (`p.bucket`), or state. Nothing here reaches disk, so
+  `kanban/test_plans.mjs`'s assertion that the view posts only `/stream/apply`
+  and `/queue/order` still holds.
 
-  The open call is whether the dashboard `id` changes with the folder or stays
-  `night-agent` as a stable key while the display name moves. Keeping it is much
-  cheaper and means the plist is never unloaded. The other is whether the six
-  `plan-*.md` definitions are renamed as well or left as they are.
+- ~~**The two agents are named on different axes: one says when it runs, the
+  other says what it does.**~~ **Done, 12 Sep 2026.** `night_agent` is
+  `planning_agent` and `execution_agent` is `implementing_agent`, and the six
+  planners went with them — `plan-<stream>.md` is `planning-<stream>.md`, so
+  every definition under the planning agent carries the family name. Both open
+  calls were settled the same way, which is that the new name goes everywhere:
+  the dashboard `id` changed from `night-agent` to `planning-agent` rather than
+  being kept as a stable key, and the launchd job was unloaded, relabelled
+  `com.tiagopedras.todos-planning-agent` and loaded again.
 
-- **The acting agent cannot delegate a lookup, so every expensive read happens
-  in the context that is also doing the writing.** `execution-agent` holds
+  What the rename reached, beyond a find-and-replace over 57 files in here and
+  15 more across `agents-dashboard`, `improve_agent`, `SKILLS.md` and
+  `~/Code/CLAUDE.md`:
+
+  - **The data.** `core/migrations/migrate-agent-names.py` rewrote 65 `owner:`
+    and `agent:` lines across 44 plans, runs and `ledger.json`. Nothing depends
+    on it having been run: both manifests now carry an `owner_legacy` map
+    beside the `legacy` block that already does this for the five status words,
+    and `owner_now()` (`kanban/server.py:858`) resolves an old spelling on the
+    way out of `plan_meta()` and `run_meta()`. A plan restored from a backup
+    taken before today still draws in the column it belongs in.
+  - **The files on disk that carried the name.** The lock
+    (`data/.planning-agent.lock`), the schedule the dashboard writes
+    (`data/planning-agent-schedule.json`), the readable log
+    (`plans/planning-agent.log`) and launchd's two
+    (`data/planning-agent.{out,err}.log`), all moved rather than recreated, so
+    no night's history was dropped.
+  - **The shared package.** `PACKAGES/work_streams/fixtures/generate.mjs` reads
+    the plans manifest by absolute path and its fixture embeds a copy, so the
+    fixture was regenerated and both `work_streams` suites re-run.
+  - **The symlinks.** Seven in `.claude/agents/`, one per definition, plus the
+    launchd one in `~/Library/LaunchAgents/`.
+
+  Two things were deliberately left. `data/twinkl/todo.md` names both agents in
+  four places and the `pa` skill is the only thing that writes it, so those are
+  his to change. And the prose reflow: "night" became "planning" and "execution"
+  became "implementing" inside wrapped paragraphs all over the repo, so a few
+  hundred comment and Markdown lines now run a word past the margin.
+- **The implementing agent cannot delegate a lookup, so every expensive read happens
+  in the context that is also doing the writing.** `implementing-agent` holds
   `tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch`
-  (`agents/execution_agent/execution-agent.md:4`) and no Agent tool, so a run
+  (`agents/implementing_agent/implementing-agent.md:4`) and no Agent tool, so a run
   that needs a number out of a design system snapshot reads the whole capture
   itself. Read-only consultants for exactly that shape already exist outside
   this repo — `ds-analyst` is granted `Bash, Read, Grep, Glob` and answers a
-  question about a snapshot without writing anything — and the acting agent has
+  question about a snapshot without writing anything — and the implementing agent has
   no way to reach one.
 
   This is not the per-bucket proposal settled on 6 Sep 2026 and recorded above
-  as "One acting agent, `execution-agent`, not one per bucket"
+  as "One implementing agent, `implementing-agent`, not one per bucket"
   (`IMPROVEMENTS.md:1471`). That was declined because six agents with write
   tools is six copies of one set of guard rails, and a consultant has no write
   tools to copy. The evidence is on disk: the six planners in `.claude/agents/`
@@ -741,7 +773,7 @@ they settled is written up in the README rather than left here:
 - **Plans and Execution are two boards holding one pipeline, and the seam
   between them is a second manual gate on work he has already approved.**
   Accepting a plan writes `state: accepted` on the plan document, and `sync()`
-  (`agents/execution_agent/stream.py:238`) mints a second document into
+  (`agents/implementing_agent/stream.py:238`) mints a second document into
   `data/<dataset>/runs/` that lands in Execution's Backlog, where nothing
   happens until he drags it to To do. On 12 Sep 2026 six plans stood accepted,
   all six had runs minted, and two were still sitting in Backlog untouched —
@@ -758,38 +790,38 @@ they settled is written up in the README rather than left here:
   name. Folding Execution in means `renderPlansView()`
   (`kanban/js/13-plans.js:1472`) growing the execution half onto the same cards,
   `runColumn()` and `renderExecutionView()` (`kanban/js/27-execution.js:36`,
-  `:255`) going with the view, and `agents/execution_agent/stream.json` either
+  `:255`) going with the view, and `agents/implementing_agent/stream.json` either
   retiring or shrinking to the agent definition alone.
 
   Two things have to be decided before any of it. What happens to the seven
   documents already in `data/twinkl/runs/` — two are `done`, three carry the
-  acting agent's full written reports in their bodies which would have to move
+  implementing agent's full written reports in their bodies which would have to move
   onto their plan, and two are empty stubs. And what replaces the gate, since
   removing it is only safe while something else stops six approved plans running
   at once. Settled 12 Sep 2026 and explicitly not the answer: a nightly drain of
-  `accepted`. The overnight entry below still holds, so the acting agent runs
+  `accepted`. The overnight entry below still holds, so the implementing agent runs
   only from a session he is sitting in, and collapsing the boards does not make
   `accepted` a queue anything empties by itself.
 
 - **A finished run and a dead one are the same document, because the acting
-  agent cannot move its own card.** `execution-agent` is defined with `tools:
+  agent cannot move its own card.** `implementing-agent` is defined with `tools:
   Read, Grep, Glob, Write, Edit, WebFetch, WebSearch` and no Bash
-  (`.claude/agents/execution-agent.md:4`), and the runs stream's writer is a
-  subprocess — `agents/execution_agent/stream.json` names `python3 stream.py
+  (`.claude/agents/implementing-agent.md:4`), and the runs stream's writer is a
+  subprocess — `agents/implementing_agent/stream.json` names `python3 stream.py
   --apply`, and `CONTRACT.md` allows exactly one writer per stream. So the
   agent has no way to run it. `pa-do` nevertheless says the transition is the
   agent's to make: "The agent asks the stream to set it, through
-  `agents/execution_agent/stream.py --apply`"
+  `agents/implementing_agent/stream.py --apply`"
   (`agents/pa_agent/skills/pa-do/SKILL.md:88`), and then tells the driving
   session not to do it instead — "say so rather than setting it yourself: a run
-  still owned by `execution-agent` means the work did not finish". Both halves
+  still owned by `implementing-agent` means the work did not finish". Both halves
   cannot be true. The only party instructed to move the run is the only party
   that cannot, and the reading the skill gives the resulting state is the
   opposite of what it means: every completed run looks like a session that died
   mid-work.
 
   Confirmed on disk 12 Sep 2026 — three runs handed over and reported on in
-  full, all three sitting in `ready / execution-agent`, indistinguishable from
+  full, all three sitting in `ready / implementing-agent`, indistinguishable from
   abandoned. The reports are in the run documents and are real work.
 
   Three ways out and they are not equivalent. Give the agent Bash, which is the
@@ -806,16 +838,16 @@ they settled is written up in the README rather than left here:
   flight.** The smaller half of the entry above, and it survives whichever fix
   that one takes. `runColumn()` (`kanban/js/27-execution.js`) folds `doing` in
   with `ready` and the view draws four columns for the five states
-  `agents/execution_agent/stream.json` declares. The Plans view got its own
+  `agents/implementing_agent/stream.json` declares. The Plans view got its own
   Doing column on 12 Sep 2026 for exactly this reason — a run in flight and a
   queue waiting to run are two different answers — and Execution did not,
   because nothing was writing `doing` for it to draw. Five columns, and
   `runColumn()` stops folding.
 
-- **A plan he does not want has nowhere to go but back to the night agent.**
+- **A plan he does not want has nowhere to go but back to the planning agent.**
   `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept
   it, Plan it again, Leave it alone — and every one of them keeps the task
-  alive: `replanPlan()` (`:315`) sends it to `ready / night-agent` to be
+  alive: `replanPlan()` (`:315`) sends it to `ready / planning-agent` to be
   written again, `parkPlan()` (`:344`) drops it into Backlog where the picker
   can still reach the task, and there is no way to say the idea itself is
   turned down. So a plan he has read and rejected outright either sits in
@@ -831,7 +863,7 @@ they settled is written up in the README rather than left here:
   replaced rejection — so a third, `declined`, is the cheaper answer and the
   one the contract's own test for an eighth state points at. **The second is
   what the column is called**, since Plans' six words are its own rather than
-  the board's, and `states` in `agents/night_agent/stream.json` is where they
+  the board's, and `states` in `agents/planning_agent/stream.json` is where they
   live.
 
   The work after that is contained but touches four places that have to agree.
@@ -841,8 +873,8 @@ they settled is written up in the README rather than left here:
   exists would draw as accepted. `planWord()` (`:75`) and `planStripe()`
   (`:108`) need the word and the colour. `renderPlansView()` (`:1461`) gains a
   seventh `colHTML()` block and a `#plansDeclined` body, and the drop wiring at
-  `:880` gains it as a target. The acting agent needs nothing: `stream.py
-  --sync` in `agents/execution_agent/` mints runs from accepted plans only, so
+  `:880` gains it as a target. The implementing agent needs nothing: `stream.py
+  --sync` in `agents/implementing_agent/` mints runs from accepted plans only, so
   a declined one never reaches Execution. `kanban/test_plans.mjs` wants the
   column in its count and the new move in its blocked-writes list.
 
@@ -926,7 +958,7 @@ they settled is written up in the README rather than left here:
 
   One piece does not depend on any of the above and is worth doing first. The
   board guards a save with mtime and the conflict modal, both in the tab;
-  `agents/night_agent/plan.py` guards the same file with `file_hash()` before a
+  `agents/planning_agent/plan.py` guards the same file with `file_hash()` before a
   batch and after every task. Both real overwrites of the live list got past
   the tab-side guard. If `PUT /data/todo.md` carried the hash the tab last read
   and `do_PUT` (`kanban/server.py:2083`) refused a mismatch, the check would
@@ -939,7 +971,7 @@ they settled is written up in the README rather than left here:
 - **Every agent here is rationed by an allowance none of them can read, and the
   only way to read it headlessly is a throwaway terminal.** `core/windows.py`
   reconstructs the five-hour windows from `~/.claude/projects/*/*.jsonl`, and
-  `record_limit()` (`agents/night_agent/plan.py:325`) says in its own docstring
+  `record_limit()` (`agents/planning_agent/plan.py:325`) says in its own docstring
   that `limit_tok` is "the one measurement of the session allowance this machine
   can make" — a floor revised upward by being refused, never a figure. So the
   batch loop at `:733` gates on `expiry` alone: it asks how long the window has
@@ -968,8 +1000,8 @@ they settled is written up in the README rather than left here:
   instead of a session, and the pty must be drained throughout or the TUI blocks
   on write and never reaches its first API response.
 
-  This is not the night agent's to own. `improve_agent` and
-  `agents/night_agent/` are two claimants on one allowance and a third would be
+  This is not the planning agent's to own. `improve_agent` and
+  `agents/planning_agent/` are two claimants on one allowance and a third would be
   a third, so the harvester belongs in `PACKAGES/` by the rule in
   `~/Code/CLAUDE.md` — anything two apps depend on moves there — and each agent
   reads it rather than carrying a copy. Two decisions before it can be built.
@@ -1065,12 +1097,12 @@ they settled is written up in the README rather than left here:
   That is the same gap the `core/render.py` entry below already argues for
   filling once in `core/`, with `check_overdue()`
   (`agents/pa_agent/skills/pa/scripts/check_todo.py:638`) and `select()`
-  (`agents/night_agent/pick.py:278`) as the two half-written copies to fold in —
+  (`agents/planning_agent/pick.py:278`) as the two half-written copies to fold in —
   this wants the same aggregation pointed at a past window rather than at today,
   so the two entries should be built as one piece of work or not at all.
 
   Where it runs is the easier half. A weekly render is unattended work on a
-  budget, which is `agents/night_agent/`'s machinery — the clock and lock gates
+  budget, which is `agents/planning_agent/`'s machinery — the clock and lock gates
   in `run.sh`, the window arithmetic in `core/windows.py` — but not its contract:
   `eligible()` (`pick.py:82`) only ever yields open `ai:full` tasks, and a report
   is about finished ones. It is a pass of its own, the way the briefing entry
@@ -1089,7 +1121,7 @@ they settled is written up in the README rather than left here:
   the foot of `todo.md`; and, since 8 Sep 2026, `buckets/<stream>/<stream>.md`
   plus the `buckets/README.md` saying which buckets the list has. Worse, a
   bucket heading invented at the prompt is invisible to `STREAMS`
-  (`agents/night_agent/plan.py:53-72`) until someone edits that table by hand, so
+  (`agents/planning_agent/plan.py:53-72`) until someone edits that table by hand, so
   every task in the new list plans against the `general` fallback and logs
   loudly for it — which is how `personal` has behaved since it was made. What
   this wants is a sequence rather than a prompt: ask for the buckets as well as
@@ -1102,7 +1134,7 @@ they settled is written up in the README rather than left here:
   heading to itself. So `bucket_stream()` slugifies the heading instead: strip
   the leading number, lowercase, and that is the stream. `3. DS` becomes `ds`,
   `2. BAU` becomes `bau`, and the two files that no longer match get renamed to
-  match — `plan-design-system.md` to `plan-ds.md` and `plan-work-oversight.md`
+  match — `planning-design-system.md` to `plan-ds.md` and `planning-work-oversight.md`
   to `plan-bau.md`, with `buckets/design-system/` and `buckets/work-oversight/`
   renamed alongside them and the `.claude/agents/` symlinks repointed once.
   After that a new bucket needs nothing written down anywhere: the heading is
@@ -1112,7 +1144,7 @@ they settled is written up in the README rather than left here:
   What is lost with the table is the whitelist half — an unmapped heading used
   to reach `general` and log loudly, which is how a renamed bucket got noticed.
   A slugified heading always resolves, so the loud log moves to the missing
-  file instead: `bucket_agent()` naming a `plan-<stream>.md` that is not on disk
+  file instead: `bucket_agent()` naming a `planning-<stream>.md` that is not on disk
   is the same signal one step later, and it is a stronger one, since it names
   the file to create rather than a table row to add.
 
@@ -1152,7 +1184,7 @@ they settled is written up in the README rather than left here:
   while the to-do list beside it has a whole agent working its backlog
   overnight.**~~ **Built, 8 Sep 2026 — and not in this repo.** It serves every
   repo here that keeps an `IMPROVEMENTS.md`, so it lives at the root of `~/Code`
-  as `improve_agent/` rather than inside `agents/` beside the night agent. Four
+  as `improve_agent/` rather than inside `agents/` beside the planning agent. Four
   repos have one today and only this one calls its sections `## Small` and
   `## Big`, so the headings are a per-repo setting, guessed on discovery and
   corrected on a dashboard — which is also where each repo is switched on and
@@ -1165,7 +1197,7 @@ they settled is written up in the README rather than left here:
   per entry carrying the strikethrough alongside the change, and a build whose
   tests fail stays on the branch with the failure named. The window arithmetic
   came across as a deliberate copy rather than an import: `core/windows.py`
-  reaches into `agents/night_agent/paths.py`, and the hours are a per-repo
+  reaches into `agents/planning_agent/paths.py`, and the hours are a per-repo
   setting over there where they are a constant here.
 
   Three things were decided differently once it was real. The agent gets **no
@@ -1186,10 +1218,10 @@ they settled is written up in the README rather than left here:
   real outcome and it changes nothing.
 
   What the entry originally argued, kept because it is the reasoning the thing
-  was built from: `agents/night_agent/` picks tasks by rule, spends only in a usage
+  was built from: `agents/planning_agent/` picks tasks by rule, spends only in a usage
   window that expires before 07:00 (`core/windows.py`), skips anything whose text
   has not moved since it was last reached (`ledger[task.title]`,
-  `agents/night_agent/plan.py:684-690`) and writes a plan per task. Most of that
+  `agents/planning_agent/plan.py:684-690`) and writes a plan per task. Most of that
   machinery is generic and points at this file with nothing new: the clock and
   lock gates in `run.sh`, the window arithmetic, the per-task budget and the
   twenty-minute floor all survive as they are, and only the picker is replaced,
@@ -1199,7 +1231,7 @@ they settled is written up in the README rather than left here:
   decision before anything can be built. They move into a shared reader rather
   than being described in a second place.
 
-  What separates it from the night agent is that this one can finish the work.
+  What separates it from the planning agent is that this one can finish the work.
   That agent proposes because its subject is `todo.md`, where `pa` is the only
   writer and a mistake is unrecoverable. Here the subject is code in a git repo,
   git is the undo, and this file's own definition of Small, a sitting change with
@@ -1229,7 +1261,7 @@ they settled is written up in the README rather than left here:
   instead of a date someone types (`kanban/js/26-projects.js`). There is no Merge
   button to begin with, because that is a server route running `git merge` and
   `kanban/server.py` does nothing of the kind today. And the state cannot sit at
-  `data/<dataset>/plans/queue-order.json` the way the night agent's does, because
+  `data/<dataset>/plans/queue-order.json` the way the planning agent's does, because
   this file is not dataset-scoped: `data/build/`, beside the datasets and
   gitignored the same way, holds the queue, the ledger, and one `index.md` a
   night listing everything attempted, what the diff touched, which suites ran,
@@ -1244,8 +1276,8 @@ they settled is written up in the README rather than left here:
   recognise as a sub-step: free prose interleaved with tag lines, dates and a
   `- Project: data/projects/<name>` pointer (`:79-93`), never written to be
   read as a briefing because nothing about the format asks it to be. The
-  night agent hits the same field and does something different with it:
-  `build_prompt()` (`agents/night_agent/plan.py:199`) pastes `task.raw` plus
+  planning agent hits the same field and does something different with it:
+  `build_prompt()` (`agents/planning_agent/plan.py:199`) pastes `task.raw` plus
   the same `body` verbatim into its own prompt, on the stated belief that a
   paraphrase is exactly the context that gets lost — right for an agent
   spending ten minutes researching, and no help to a person opening a chat
@@ -1270,11 +1302,11 @@ they settled is written up in the README rather than left here:
   `attach-queue.json`, `canvas.json` and `sessions.json` already use, which
   keeps generated prose out of the file he hand-edits and out of the
   one-writer rule entirely. Staleness is `pick.fingerprint(task)`
-  (`agents/night_agent/pick.py:71`) against the stored one, the same hash
+  (`agents/planning_agent/pick.py:71`) against the stored one, the same hash
   `ledger[task.title]` (`plan.py:684-690`) already uses to know a plan has
   been overtaken.
 
-  The night agent writes it, but not as a by-product of planning, because it
+  The planning agent writes it, but not as a by-product of planning, because it
   never sees most of the list: `eligible()` (`pick.py:82`) drops everything
   that is not an open `ai:full` task, so a pass riding along with the planners
   would brief a tenth of the board. It is a pass of its own, before the
@@ -1443,11 +1475,11 @@ they settled is written up in the README rather than left here:
   tasks into `overdue`, `due_this_week`, `quick_wins` and the rest, and it is
   already written twice in partial form, in `check_overdue`
   (`agents/pa_agent/skills/pa/scripts/check_todo.py:638`) and in `pick.py`'s
-  headline-first ranking (`agents/night_agent/pick.py:242`), agreeing with each
+  headline-first ranking (`agents/planning_agent/pick.py:242`), agreeing with each
   other by hand rather than by sharing code.
 
   It goes in `core/`, beside `todo.py`, with fixtures of its own the way the
-  format has: both callers are equals, and `pick.py` is the night agent's, so
+  format has: both callers are equals, and `pick.py` is the planning agent's, so
   filing the aggregation under `agents/pa_agent/` would have one agent
   importing out of another's folder. It does not breach the rule that the
   format lives in exactly two places — that rule is about parsing and
@@ -1485,7 +1517,7 @@ they settled is written up in the README rather than left here:
   that shows delegated work today is a derived list rather than a place on the
   board: `delegateSection()` (`kanban/js/10-reference-sections.js:577`) is an
   Overview column of `ai:full` tasks in `rank:` order, and the Plans view's
-  Queue for tonight is what the night agent will pick. It stays synthetic,
+  Queue for tonight is what the planning agent will pick. It stays synthetic,
   the way `DONE_COL` (`kanban/js/02-state.js:237`) already is — the board
   draws the column straight from the `ai:` tag without `todo.md` knowing about
   it, so the tag stays the single source and the format doesn't change. The
@@ -1516,7 +1548,7 @@ they settled is written up in the README rather than left here:
     `unread`/`read`/`actioned`. A status rather than a flag, because a plan is
     in one state at a time. Known in three places that have to stay in step:
     `PLAN_STATUS` in `kanban/server.py`, the modal buttons in
-    `kanban/js/13-plans.js`, and `is_stale()` in `agents/night_agent/pick.py`. `agreed`
+    `kanban/js/13-plans.js`, and `is_stale()` in `agents/planning_agent/pick.py`. `agreed`
     deliberately does **not** make a task stale — a plan waiting to be carried
     out must not be replaced overnight by a second opinion, which would put two
     live plans on one task.
@@ -1526,7 +1558,7 @@ they settled is written up in the README rather than left here:
     `file`/`night` pointer to read it back and pastes it into the next run's
     prompt, so a rejected plan comes back different rather than identical. The
     server refuses a `redo` with no reason, since a reason is the entire point.
-  - **One acting agent, `execution-agent`**, not one per bucket. The entry said
+  - **One implementing agent, `implementing-agent`**, not one per bucket. The entry said
     "scoped per bucket"; that was reconsidered on 6 Sep and the per-bucket
     knowledge went into brief files both halves read instead. Six agents with
     write tools is six copies of one set of guard rails, and the first one
@@ -1542,20 +1574,20 @@ they settled is written up in the README rather than left here:
   into the design system directly. Both named in the entry below as TBD, both
   still TBD.
 
-- ~~**Three changes to what the night agent plans and what a plan is for,**~~
+- ~~**Three changes to what the planning agent plans and what a plan is for,**~~
   **All three done.** Raised 5 Sep 2026 during a `pa-review-plans` review.
 
   - **Drop `partial` from the picker.** Done 6 Sep. `PLANNABLE` in
-    `agents/night_agent/pick.py` is `{"full"}`. A task passed over for its tag is named in
+    `agents/planning_agent/pick.py` is `{"full"}`. A task passed over for its tag is named in
     the board's "not eligible" fold with the reason, rather than silently
     dropped — `ai:: none` is not, since that is his own statement that the task
     is his and the card already says it.
   - **A plan that hits an open question should stop there.** This was already
     built when the entry was re-read on 6 Sep: `outcome: folded` is written by
-    `plan.py`, the rule is `agents/night_agent/PLAN-BRIEF.md`, and the Plans list badges a
+    `plan.py`, the rule is `agents/planning_agent/PLAN-BRIEF.md`, and the Plans list badges a
     folded plan "needs you". Landed in `f540acd` alongside the hold work.
   - **Plans should be actionable, not descriptive.** Done 6 Sep as the entry
-    above. Agreeing a plan is now a real signal, and `execution-agent` is what reads
+    above. Agreeing a plan is now a real signal, and `implementing-agent` is what reads
     it. Whether that agent may also edit `todo.md` was argued both ways on 6 Sep
     and settled the other way since: **it may not.** It carries out the plan and
     asks for the list change in its report, and the `pa` skill makes it, in a
@@ -1571,16 +1603,16 @@ they settled is written up in the README rather than left here:
   Two corrections to this entry as it was written. It said the agents "know that
   [their bucket] only at the level of a one-line description in their
   frontmatter" — that was true when it was written and is not now. The six
-  definitions run 41 to 76 lines, and `agents/night_agent/plan-people.md` already carries the
+  definitions run 41 to 76 lines, and `agents/planning_agent/planning-people.md` already carries the
   back-planning rules, the five hiring skills and the two confusable name pairs.
   And it proposed that each agent "should get its own skills"; what was built
   instead is one file per bucket that every agent reads, for the reason in the
   entry above.
 
   **What exists now:** `data/<dataset>/buckets/<stream>/<stream>.md`, one per stream plus the
-  fallback, found by `bucket_stream()` in `agents/night_agent/plan.py` — the same table
+  fallback, found by `bucket_stream()` in `agents/planning_agent/plan.py` — the same table
   that names the agent, so there is one mapping rather than two. Both the
-  planners and `execution-agent` are pointed at it. Each ships with a
+  planners and `implementing-agent` are pointed at it. Each ships with a
   `<!-- NOT FILLED IN YET -->` marker, and `bucket_brief()` treats a file
   carrying that line as absent, so an unwritten brief costs nothing and no agent
   spends its attention on a page of empty headings.
@@ -1588,7 +1620,7 @@ they settled is written up in the README rather than left here:
   **What is left is the part only he can do**, which is what this entry always
   said was the blocker: the processes he actually runs in each bucket, what each
   produces, which skill already does it, and who is involved. That is now a task
-  in Processes with a sub-step per bucket, DS and BAU first. `plan-people.md`
+  in Processes with a sub-step per bucket, DS and BAU first. `planning-people.md`
   is the worked example to copy from.
 
   Two things from the original entry that still stand:
@@ -1598,9 +1630,9 @@ they settled is written up in the README rather than left here:
     finished looks like" heading in each brief is where that gets said. Raising
     a Jira ticket and writing into the design system directly are still TBD and
     still not to be built.
-  - **The planners and the acting agent are not the same agents.** Held. The
+  - **The planners and the implementing agent are not the same agents.** Held. The
     `plan-*` contract — proposes, never executes, never touches `todo.md` —
-    is unchanged, and `execution-agent` is a separate definition with a separate tool
+    is unchanged, and `implementing-agent` is a separate definition with a separate tool
     list.
 
 - ~~**Token windows should be a line chart, not a list of rows.**~~ **Done, 5 Sep
@@ -1813,20 +1845,20 @@ they settled is written up in the README rather than left here:
 - ~~**A list view of every cronned task tied to this app.**~~ **Done, 5 Sep
   2026.** A **Schedule** button beside Backups in the Data group, opening a
   full-pane view — a header button rather than a nav tab, as the entry asked.
-  Three jobs today: the night agent's twelve launchd wakes, the companion's
+  Three jobs today: the planning agent's twelve launchd wakes, the companion's
   morning check, and the weekly backup thread inside the server.
 
   It needed both sources rather than one. Live (`launchctl print`, the plist's
   own wake times, the companion's lock) says whether a job is armed and when it
   fires next, which no log can know — a log will happily describe a job that was
-  unloaded a week ago. The ledger (`plans/night-agent.log`, `companion.json`,
+  unloaded a week ago. The ledger (`plans/planning-agent.log`, `companion.json`,
   `backup_listing()`) says what actually happened, which `launchctl` cannot. A
   job that is not installed says so and gives the command to install it, which
   is the most useful thing the view says right now.
 
   The second card is the usage windows, which had no home outside
   `core/windows.py --history`: the last 30 days, night windows picked out, and
-  the night agent's own ride/open/stop decision as it stands this second. That
+  the planning agent's own ride/open/stop decision as it stands this second. That
   last line is the useful one, because it answers "would it run tonight" without
   waiting for tonight.
 
@@ -1857,12 +1889,12 @@ they settled is written up in the README rather than left here:
   simply never matched, and there is nothing to prune.
 
 - ~~**No view can show a run that is happening right now.**~~ **Done, 5 Sep
-  2026**, as the **In flight** column in Plans, off a new `/night-agent.json`, with
-  a **Run the agent now** button on the same card (`POST /night_agent/run`, which is
+  2026**, as the **In flight** column in Plans, off a new `/planning-agent.json`, with
+  a **Run the agent now** button on the same card (`POST /planning_agent/run`, which is
   `run.sh --force` started detached).
 
   It reads the lock and the log together, because neither is enough. The lock
-  (`data/.night-agent.lock`, held by `run.sh` for the length of a batch) is the only
+  (`data/.planning-agent.lock`, held by `run.sh` for the length of a batch) is the only
   thing that separates "still going" from "died half way" — the log looks
   identical either way, and a log with a task in flight and no lock now says so
   in as many words rather than showing a dead run as live. The log gives the
@@ -1878,7 +1910,7 @@ they settled is written up in the README rather than left here:
   purpose. That log is read at a terminal far more often than it is parsed, and
   pinning its wording to a format string the board depends on would stop it
   being edited freely. When a line stops matching, the column goes quiet rather
-  than lying, and `test_queue_routes` in `agents/night_agent/test_night_agent.py` holds
+  than lying, and `test_queue_routes` in `agents/planning_agent/test_planning_agent.py` holds
   `plan.py`'s own format strings filled in, so a change to the wording fails
   there rather than in the morning.
 
@@ -2112,7 +2144,7 @@ they settled is written up in the README rather than left here:
 
   - **Simplified the column descriptions** to one plain sentence each, no
     drag/click instructions — "What tonight's run would plan, in order.",
-    "What the night agent is doing right now, or last did.", and so on.
+    "What the planning agent is doing right now, or last did.", and so on.
   - **Every column has a boxed empty state** now, matching `.fidle`, scoped to
     `.lists.pview .reportsview .empty` so the Reports view's own plain
     `.empty` is untouched.
@@ -2199,7 +2231,7 @@ they settled is written up in the README rather than left here:
   `kanban/test_plans.mjs` and `kanban/test_schedule.mjs` were rewritten
   alongside it — the plans fixture now starts not-live, since a live Doing
   state hides the queue and a hidden element has no bounding box to drag-test
-  against. All twelve suites in the repo (core, night agent, companion, and
+  against. All twelve suites in the repo (core, planning agent, companion, and
   the four board ones — 69/69, 39/39, 54/54, 48/48) pass clean against it,
   checked against the actual running server, not just the fixtures.
 
@@ -2216,7 +2248,7 @@ they settled is written up in the README rather than left here:
   a `start:` date still counts in the held tallies rather than appearing.
   `delegateSection()` (`:577`) drops `rank:` as its sort for the same
   impact-against-effort score the board already computes (`EFFORT_N`,
-  `core/todo.js:565`). The tag stays — the night agent's queue orders by it —
+  `core/todo.js:565`). The tag stays — the planning agent's queue orders by it —
   but `.refnum` beside each card then shows the row's position rather than the
   stored rank, since the two no longer agree.
 
@@ -2255,7 +2287,7 @@ they settled is written up in the README rather than left here:
   file this asked for arrived on 8 Sep 2026 with the folder listing above:
   `kanban/test_projects.mjs`, covering the tab as well as the drawer.
 
-- **`execution-agent` is not to run overnight. What the night owes him is a
+- **`implementing-agent` is not to run overnight. What the night owes him is a
   report that agreed plans are waiting.** Raised 6 Sep 2026 as a way to run it
   unattended, and settled the other way: it only ever runs from `pa-do`,
   inside a session he is sitting in, because being able to stop and ask is
@@ -2268,7 +2300,7 @@ they settled is written up in the README rather than left here:
   today nothing anywhere says how many are waiting or how long they have
   been. The channel exists: `companion/notify.py` appends to
   `notify-queue.json` and the companion drains it after 08:30, which is
-  already how the night agent says it wrote plans. The night's own run adds
+  already how the planning agent says it wrote plans. The night's own run adds
   one line counting the agreed plans still outstanding, so a queue that is
   quietly growing is heard about in the morning rather than found weeks later
   on the Plans view.

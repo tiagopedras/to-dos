@@ -1,7 +1,7 @@
 {
   "contract": "1.0",
   "id": "runs",
-  "name": "The acting agent's work",
+  "name": "The implementing agent's work",
   "blurb": "one document per plan he accepted; it carries out and reports back",
   "container": {
     "kind": "doc-folder",
@@ -29,11 +29,18 @@
   },
   "owners": [
     "me",
-    "execution-agent"
+    "implementing-agent"
   ],
+  "owner_legacy": {
+    "note": "the two agents were renamed on 12 Sep 2026 \u2014 night-agent for the hour it ran, execution-agent for the job, onto one axis as planning-agent and implementing-agent. core/migrations/migrate-agent-names.py rewrites what is on disk; this is what reads a document that migration never reached, such as one restored from a backup.",
+    "map": {
+      "night-agent": "planning-agent",
+      "execution-agent": "implementing-agent"
+    }
+  },
   "hints": {
     "Backlog": "accepted, and the agent leaves it alone until you move it",
-    "To do": "you want the acting agent to carry this one out",
+    "To do": "you want the implementing agent to carry this one out",
     "Doing": "the agent has it right now",
     "Waiting for review": "it did the work and wrote back; it is waiting on you",
     "Done": "you have accepted what it did"
@@ -72,11 +79,11 @@
       "key": "session",
       "type": "string",
       "own": true,
-      "note": "the session the acting agent ran in, so the work can be read back"
+      "note": "the session the implementing agent ran in, so the work can be read back"
     }
   ],
   "writer": {
-    "who": "execution-agent",
+    "who": "implementing-agent",
     "how": {
       "kind": "subprocess",
       "cwd": ".",
@@ -86,7 +93,7 @@
         "--apply"
       ]
     },
-    "lock": "data/.execution-agent.lock"
+    "lock": "data/.implementing-agent.lock"
   },
   "views": [
     "execution"

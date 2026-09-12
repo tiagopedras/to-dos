@@ -14,18 +14,18 @@ CONTRACT.md — and from here `done` means only the second.
 So every plan already sitting in `done` has to move, or the day this lands it
 claims work has finished that nobody has started:
 
-    done / me / actioned    ->  accepted / execution-agent / (no resolution)
+    done / me / actioned    ->  accepted / implementing-agent / (no resolution)
     done / me / superseded  ->  left alone
 
 A superseded plan stays `done`: it is a rejection a later plan answered, which
 really is closed, and it was never work he accepted. `resolution` is dropped on
 the ones that move because nothing has closed yet, and the owner becomes the
-acting agent because the next move on an accepted plan is a run rather than a
+implementing agent because the next move on an accepted plan is a run rather than a
 decision.
 
 Frontmatter and the ledger, together. Both, because the board reads the file and
 the picker reads the ledger, neither is derivable from the other, and a
-migration that did one of them is the same bug agents/night_agent/stream.py was
+migration that did one of them is the same bug agents/planning_agent/stream.py was
 written to remove. Every byte after the closing `---` is left as it was.
 
 Idempotent: a second run finds nothing in `done / actioned` and says so.
@@ -99,11 +99,11 @@ def main():
 
     if not DRY:
         for cmd, what in (("pgrep -f kanban/server.py", "the board helper"),
-                          ("pgrep -f 'night_agent/plan.py'", "the night agent")):
+                          ("pgrep -f 'planning_agent/plan.py'", "the planning agent")):
             if subprocess.run(cmd, shell=True, capture_output=True).returncode == 0:
                 die("%s is running. Stop it first." % what)
-        if os.path.exists(os.path.join(ROOT, "data", ".night-agent.lock")):
-            die("data/.night-agent.lock exists, so a run thinks it holds these files.")
+        if os.path.exists(os.path.join(ROOT, "data", ".planning-agent.lock")):
+            die("data/.planning-agent.lock exists, so a run thinks it holds these files.")
         ok("nothing else is holding the plans")
 
     moving, superseded = [], []
@@ -141,7 +141,7 @@ def main():
     for path in moving:
         text = open(path, encoding="utf-8").read()
         text = set_field(text, "state", "accepted")
-        text = set_field(text, "owner", "execution-agent")
+        text = set_field(text, "owner", "implementing-agent")
         text = set_field(text, "resolution", "")
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8", newline="") as fh:
@@ -166,7 +166,7 @@ def main():
             continue
         if row.get("state") != "done" or row.get("resolution") == "superseded":
             continue
-        row.update({"state": "accepted", "owner": "execution-agent"})
+        row.update({"state": "accepted", "owner": "implementing-agent"})
         row.pop("resolution", None)
         touched += 1
     tmp = lpath + ".tmp"

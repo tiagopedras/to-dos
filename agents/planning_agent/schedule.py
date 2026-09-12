@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""When the night agent is woken, and the floor that no schedule can go under.
+"""When the planning agent is woken, and the floor that no schedule can go under.
 
 Until September 2026 this was written in two places — twelve wakes in the plist
 and a `19:00–06:59` clock check in `run.sh` — and neither could be changed from
@@ -42,7 +42,7 @@ def path():
     runs is true of the agent, and switching the board from `twinkl` to
     `personal` for ten minutes should not change tonight's schedule.
     """
-    return os.path.join(ROOT, "data", "night-agent-schedule.json")
+    return os.path.join(ROOT, "data", "planning-agent-schedule.json")
 
 
 def load():
@@ -101,8 +101,8 @@ def due(now):
 def main(argv=None):
     """`run.sh` asks in the only way a shell script can: an exit code.
 
-        python3 agents/night_agent/schedule.py --due    0 if it may start now
-        python3 agents/night_agent/schedule.py --json   the schedule, as JSON
+        python3 agents/planning_agent/schedule.py --due    0 if it may start now
+        python3 agents/planning_agent/schedule.py --json   the schedule, as JSON
     """
     import datetime as dt
     import sys

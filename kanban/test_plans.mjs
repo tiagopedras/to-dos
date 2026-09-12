@@ -16,7 +16,7 @@
  * also the assertion that it posts what it should, to the route it should,
  * without a single byte reaching a file.
  *
- * /plans.json, /queue.json and /night-agent.json are all stubbed rather than read
+ * /plans.json, /queue.json and /planning-agent.json are all stubbed rather than read
  * from disk, so this needs no plans, no queue and no run log to exist, and it
  * never touches data/.
  *
@@ -83,37 +83,37 @@ await evalJS(`(() => {
   window.__plans = [
     { name:'add-caveat.md', night:'2026-09-05', url:'/x/add-caveat.md', state:'review', owner:'me', seen:false,
       title:'Add Caveat to the design system type stack', task:'Add Caveat to the design system type stack',
-      bucket:'Design System', column:'To do', ai:'partial', agent:'plan-design-system',
+      bucket:'Design System', column:'To do', ai:'partial', agent:'planning-design-system',
       date:'2026-09-05', summary:'Caveat is already in the Foundations file as a loose style.' },
     { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', state:'review', owner:'me', seen:true,
       title:'Create an HR agent', task:'Create an HR agent', bucket:'Processes', column:'To do',
-      ai:'partial', agent:'plan-processes', date:'2026-09-05',
+      ai:'partial', agent:'planning-processes', date:'2026-09-05',
       summary:'Five of the six pieces exist as skills already.' },
     { name:'old.md', night:'2026-09-04', url:'/x/old.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'Something already dealt with', task:'Something already dealt with',
-      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'plan-strategic',
+      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'planning-strategic',
       date:'2026-09-04', summary:'Done and dusted.' }
   ];
   window.__queue = {
     queue: [
       { title:'Review the objectives', bucket:'People', column:'Doing', ai:'partial',
-        agent:'plan-people', position:1, state:'queued', why:'never planned',
+        agent:'planning-people', position:1, state:'queued', why:'never planned',
         last:'', lastStatus:'' },
       { title:'Rename the text styles', bucket:'DS', column:'To do', ai:'full',
-        agent:'plan-design-system', position:2, state:'queued',
+        agent:'planning-design-system', position:2, state:'queued',
         why:'changed since 2026-09-03', last:'2026-09-03', lastStatus:'read' },
       { title:'Adoption and usage report', bucket:'DS', column:'Backlog', ai:'full',
-        agent:'plan-design-system', position:3, state:'queued', why:'never planned',
+        agent:'planning-design-system', position:3, state:'queued', why:'never planned',
         last:'', lastStatus:'' }
     ],
     held: [
       { title:'Arabic theme as a new token mode', bucket:'DS', column:'Backlog', ai:'full',
-        agent:'plan-design-system', position:0, state:'held',
+        agent:'planning-design-system', position:0, state:'held',
         why:'held back from the board', last:'', lastStatus:'' }
     ],
     skipped: [
       { title:'Something parked', bucket:'People', column:'Blocked', ai:'partial',
-        agent:'plan-people', position:0, state:'skipped',
+        agent:'planning-people', position:0, state:'skipped',
         why:'unchanged since 2026-09-04', last:'2026-09-04', lastStatus:'unread' }
     ],
     order: ['Review the objectives', 'Rename the text styles', 'Adoption and usage report',
@@ -144,7 +144,7 @@ await evalJS(`(() => {
     if (String(url).startsWith('/queue.json')) {
       return Promise.resolve(new Response(JSON.stringify(window.__queue), {status:200}));
     }
-    if (String(url).startsWith('/night-agent.json')) {
+    if (String(url).startsWith('/planning-agent.json')) {
       return Promise.resolve(new Response(JSON.stringify(window.__nightAgent), {status:200}));
     }
     // The usage half is a second of work on the real server and nothing here
@@ -420,7 +420,7 @@ check('and the post names both held titles', await evalJS(`
 await evalJS(`(async () => {
   window.__nightAgent = {
     live: true, since:'2026-09-05T02:05', started:'2026-09-05 02:05:01', toPlan: 4,
-    current: { title:'Rename the text styles', agent:'plan-design-system',
+    current: { title:'Rename the text styles', agent:'planning-design-system',
                since:'2026-09-05 02:11:40' },
     orphan: null,
     done: [{ title:'Review the objectives', took: 214, cost: 0.83, at:'2026-09-05 02:11:38' }],
@@ -444,7 +444,7 @@ check('the task in flight is named', await evalJS(`
   document.querySelector('#doingOut .fnow strong').textContent === 'Rename the text styles'
 `))
 check('with the agent working on it', await evalJS(`
-  document.querySelector('#doingOut .fnow .repmeta').textContent.includes('plan-design-system')
+  document.querySelector('#doingOut .fnow .repmeta').textContent.includes('planning-design-system')
 `))
 // Run started / Planned / Left sit in Done now — a record of the batch, the
 // same kind of fact "Latest run costs" is, not a description of what's
@@ -484,7 +484,7 @@ check('a run already going is not offered a second one', await evalJS(`
 await evalJS(`(async () => {
   window.__nightAgent = { live:false, since:'', started:'2026-09-05 02:05:01', toPlan: 4,
     current: null,
-    orphan: { title:'Rename the text styles', agent:'plan-design-system',
+    orphan: { title:'Rename the text styles', agent:'planning-design-system',
               since:'2026-09-05 02:11:40' },
     done: [], failed: [], stopped:'', left: 4 };
   await renderNightAgent();
@@ -508,7 +508,7 @@ check('with nothing running, the agent can be started by hand', await evalJS(`
 await evalJS(`document.querySelector('#runQueueBtn').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('pressing it asks first rather than spending', await evalJS(`
-  !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/night_agent/run'))
+  !!document.querySelector('.mscrim .sheet') && window.__blocked.every(b => !b.includes('/planning_agent/run'))
 `))
 check('and the confirm says what it costs and that nothing is carried out', await evalJS(`
   (() => { const m = document.querySelector('.mscrim .mid').textContent;
@@ -518,7 +518,7 @@ check('and the confirm says what it costs and that nothing is carried out', awai
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Run it').click()`)
 await new Promise(r => setTimeout(r, 400))
 check('confirming posts the run', await evalJS(`
-  window.__blocked.some(b => b.startsWith('POST /night_agent/run'))
+  window.__blocked.some(b => b.startsWith('POST /planning_agent/run'))
 `))
 
 // Opening one: the body loads, and reading it is recorded as read — the one
@@ -533,7 +533,7 @@ check('the body is rendered as Markdown', await evalJS(`
   document.querySelector('.mscrim .repdoc h4').textContent === 'Summary'
 `))
 // The two sections written for an agent are left out of the render rather than
-// folded: Context is the night's research trail, which the acting agent reads,
+// folded: Context is the night's research trail, which the implementing agent reads,
 // and History spans revisions. Both stay in the file; neither is his to read.
 check('the sections written for an agent are not rendered', await evalJS(`
   [...document.querySelectorAll('.mscrim .repdoc h4')].map(h => h.textContent).join(',')
@@ -560,7 +560,7 @@ check('and the frontmatter is not part of it', await evalJS(`
   !document.querySelector('.mscrim .repdoc').textContent.includes('title: t')
 `))
 check('the subhead names the agent that wrote it', await evalJS(`
-  document.querySelector('.mscrim .msub').textContent.includes('plan-design-system')
+  document.querySelector('.mscrim .msub').textContent.includes('planning-design-system')
 `))
 
 const marked = await evalJS(`window.__blocked.join(' | ')`)
@@ -581,7 +581,7 @@ check('and names the night and the file', marked.includes('"group":"2026-09-05"'
 // describes finishing are two facts, and `done` was holding both.
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Accept it').click()`)
 await new Promise(r => setTimeout(r, 200))
-check('Accept says the night agent stops re-planning it', await evalJS(`
+check('Accept says the planning agent stops re-planning it', await evalJS(`
   document.querySelector('.mscrim .repdoc').textContent.includes('leaves the task alone')
 `))
 check('and that nothing runs yet', await evalJS(`
@@ -591,9 +591,9 @@ await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.t
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
 // No resolution with it: nothing has closed, so there is nothing to say about
-// how. And the acting agent owns it, because the next move on it is a run.
+// how. And the implementing agent owns it, because the next move on it is a run.
 check('accepting moves it to accepted, not done',
-  after.includes('"to":"accepted"') && after.includes('"owner":"execution-agent"') &&
+  after.includes('"to":"accepted"') && after.includes('"owner":"implementing-agent"') &&
   !after.includes('"resolution":"actioned"'))
 check('and the row moves out of Waiting for review into Ready to be produced', await evalJS(`
   document.querySelectorAll('#plansProduced > .repitem').length === 2 &&
@@ -627,10 +627,10 @@ await evalJS(`(() => {
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, plan it again').click()`)
 await new Promise(r => setTimeout(r, 400))
 const sentBack = await evalJS(`window.__blocked.join(' | ')`)
-// Going back is `ready` owned by the night agent: an agent may pick it up, and
+// Going back is `ready` owned by the planning agent: an agent may pick it up, and
 // owner says which. Not a state of its own — see 13-plans.js.
-check('with a reason it hands the task back to the night agent',
-  sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"night-agent"'))
+check('with a reason it hands the task back to the planning agent',
+  sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"planning-agent"'))
 check('and carries the reason with it', sentBack.includes('Wrong scope'))
 // It lands in the To do column, under the queue, rather than in a verdict
 // column of its own — the task is already in the queue above it, and this is
@@ -707,7 +707,7 @@ await evalJS(`(() => {
   planList = [
     { name:'drag-me.md', night:'2026-09-05', url:'/x/drag-me.md', state:'review', owner:'me', seen:true,
       title:'A plan to drag', task:'A plan to drag', slug:'a-plan-to-drag',
-      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
       date:'2026-09-05', summary:'Something to move about.' }
   ];
   reviewFilter = 'all'; doneFilter = 'all';
@@ -788,26 +788,26 @@ await evalJS(`(() => {
     // plans/actioned/ — "actioned" sorts above every date.
     { name:'twice-old.md', night:'2026-09-03', url:'/x/twice-old.md', state:'done', owner:'me', seen:true, resolution:'superseded', feedback:'Wrong scope: the Foundations file, not the whole library.',
       title:'Planned twice', task:'Planned twice', slug:'planned-twice',
-      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
       date:'2026-09-03', summary:'The first attempt.', redo_note:'Wrong scope.' },
     { name:'twice-new.md', night:'2026-09-06', url:'/x/twice-new.md', state:'review', owner:'me', seen:false,
       title:'Planned twice', task:'Planned twice', slug:'planned-twice',
-      bucket:'DS', column:'To do', ai:'full', agent:'plan-design-system',
+      bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
       date:'2026-09-06', summary:'The replacement.' },
-    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', state:'ready', owner:'night-agent', seen:true,
+    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', state:'ready', owner:'planning-agent', seen:true,
       title:'Sent back last night', task:'Sent back last night', slug:'sent-back',
-      bucket:'People', column:'To do', ai:'full', agent:'plan-people',
+      bucket:'People', column:'To do', ai:'full', agent:'planning-people',
       date:'2026-09-06', summary:'Waiting on a replacement.', redo_note:'Try again.' },
     { name:'rec.md', night:'2026-09-02', url:'/x/rec.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'A record', task:'A record', slug:'a-record', bucket:'DS', column:'Done',
-      ai:'full', agent:'plan-design-system', date:'2026-09-02', summary:'Done.' }
+      ai:'full', agent:'planning-design-system', date:'2026-09-02', summary:'Done.' }
   ];
   doneFilter = 'all'; reviewFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
 // A plan sent back is in To do now, under the queue, rather than in a verdict
-// column: it is work the night agent is about to redo, which is what To do
+// column: it is work the planning agent is about to redo, which is what To do
 // means on both boards.
 check('a plan still out for another night sits in To do', await evalJS(`
   [...document.querySelectorAll('#queueOut .repitem.redo')]
@@ -879,7 +879,7 @@ await evalJS(`(() => {
     name: name + '.md', night, url:'/x/' + name + '.md',
     state:'review', owner:'me', seen,
     title: name, task, bucket:'DS', column:'To do', ai:'full',
-    agent:'plan-design-system', date: night, summary:'.' });
+    agent:'planning-design-system', date: night, summary:'.' });
   planList = [
     plan('cheap-and-big', 'Decide whether to open the mid-weight design role', false, '2026-09-01'),
     plan('gone', 'A task nobody kept', false, '2026-09-07'),
@@ -958,14 +958,14 @@ check('a plan whose task is gone still links, under the name it stored', await e
   })()
 `))
 /* Same ordering in Ready to be produced. Flat rather than grouped: `accepted`
-   and the `ready / execution-agent` that preceded it are the same fact about a
+   and the `ready / implementing-agent` that preceded it are the same fact about a
    plan, and the group that used to lift the second above the first existed
    only because the column was also holding finished work. It is not, so one
    ordering does the whole column. */
 await evalJS(`(() => {
-  planList.forEach(p => { p.state = 'accepted'; p.owner = 'execution-agent'; p.resolution = ''; });
+  planList.forEach(p => { p.state = 'accepted'; p.owner = 'implementing-agent'; p.resolution = ''; });
   Object.assign(planList.find(p => p.name === 'slow-burn.md'),
-                { state:'ready', owner:'execution-agent', resolution:'' });
+                { state:'ready', owner:'implementing-agent', resolution:'' });
   doneFilter = 'all';
   renderPlansList();
   return 1;
@@ -976,7 +976,7 @@ check('Ready to be produced is ordered the same way', await evalJS(`
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
 /* The old spelling and the new one draw as one column and read as one word.
-   `slow-burn` is the `ready / execution-agent` a plan agreed on 11 Sep 2026
+   `slow-burn` is the `ready / implementing-agent` a plan agreed on 11 Sep 2026
    carries; everything else is `accepted`. */
 check('and the old spelling of accepted reads as accepted beside it', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
@@ -991,7 +991,7 @@ check('nothing reached todo.md', await evalJS(`
 check('and every write was a plan status, a queue ordering or a run', await evalJS(`
   window.__blocked.every(b =>
     b.startsWith('POST /stream/apply') || b.startsWith('POST /queue/order') ||
-    b.startsWith('POST /night_agent/run'))
+    b.startsWith('POST /planning_agent/run'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
 // The whole queue column writes to exactly one place, and it is not the list.
 check('the queue writes only its own ordering', await evalJS(`

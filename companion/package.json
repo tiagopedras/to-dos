@@ -1,7 +1,7 @@
 {
   "name": "todo-companion",
   "version": "1.0.0",
-  "description": "The desktop companion for the to-do board: a tray icon and a small window over what's owed, the night agent's plans, and the messages waiting to be sent.",
+  "description": "The desktop companion for the to-do board: a tray icon and a small window over what's owed, the planning agent's plans, and the messages waiting to be sent.",
   "main": "./out/main/index.js",
   "private": true,
   "type": "module",

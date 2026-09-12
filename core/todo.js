@@ -1,7 +1,7 @@
 /* The to-do format, as the board reads and writes it.
 
    This is the authority. `core/todo.py` beside it is a port for the Python
-   readers — the companion, the night agent, the PA's checker — and its
+   readers — the companion, the planning agent, the PA's checker — and its
    own docstring says that where the two disagree, this file is right and the
    Python is the bug. `core/fixtures/` is what stops that being a promise: both
    suites read the same tables, so a change here the fixtures do not expect

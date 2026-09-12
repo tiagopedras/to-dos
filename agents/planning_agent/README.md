@@ -1,4 +1,4 @@
-# The night agent
+# The planning agent
 
 Overnight, this reads the to-do list, picks every task Claude could help with,
 and sets one sub-agent per task to work out what doing it would actually involve.
@@ -13,11 +13,11 @@ and working out that has to happen before the handover, and that half hour never
 has a good moment. This does it at two in the morning instead.
 
 ```
-agents/night_agent/run.sh --dry-run          what it would do tonight, no spend, any hour
-python3 agents/night_agent/pick.py           the queue, in the order it would be worked
-agents/night_agent/run.sh --task "Some task" one task by hand, now
+agents/planning_agent/run.sh --dry-run          what it would do tonight, no spend, any hour
+python3 agents/planning_agent/pick.py           the queue, in the order it would be worked
+agents/planning_agent/run.sh --task "Some task" one task by hand, now
 python3 core/windows.py --history the last 30 days of usage windows
-python3 agents/night_agent/test_night_agent.py   the schedule, the picker and the runner
+python3 agents/planning_agent/test_planning_agent.py   the schedule, the picker and the runner
 ```
 
 ## When it runs, and why the hours are the whole answer
@@ -73,7 +73,7 @@ mtime window is now only the fallback for a lock that names no holder.
 
 ### Which hours, and who decides
 
-`schedule.py` and `data/night-agent-schedule.json`, edited from the agents
+`schedule.py` and `data/planning-agent-schedule.json`, edited from the agents
 dashboard at `~/Code/agents-dashboard`. The plist wakes this all twenty-four
 hours and holds no policy at all, because a plist that only woke between certain
 hours would silently override whatever the dashboard said.
@@ -133,8 +133,8 @@ next, the same pair every queue in `~/Code` now shares:
 | State and owner | What it means |
 | --- | --- |
 | `review` / `me` | Waiting on him. `seen:` says whether he has opened it yet |
-| `ready` / `execution-agent` | Approved to be carried out. `execution-agent` picks these up, and the picker leaves the task alone until the work is done |
-| `ready` / `night-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
+| `ready` / `implementing-agent` | Approved to be carried out. `implementing-agent` picks these up, and the picker leaves the task alone until the work is done |
+| `ready` / `planning-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
 | `done` / `me` | Finished, with `resolution:` saying how: `actioned`, or `superseded` where a later plan replaced it |
 
 Five separate words did this until 11 September 2026: `unread`, `read`,
@@ -143,17 +143,17 @@ an agent has the green light — and differed only in which agent. Folding them
 into one state with an owner is what stops a third agent needing a sixth word.
 
 They are no longer known in several places that have to be edited together. The
-vocabulary lives in `agents/night_agent/stream.json`, this stream's manifest,
+vocabulary lives in `agents/planning_agent/stream.json`, this stream's manifest,
 and the shape it belongs to is `PACKAGES/work_streams/CONTRACT.md`. The one
-thing that writes it is `agents/night_agent/stream.py --apply`, which writes the
+thing that writes it is `agents/planning_agent/stream.py --apply`, which writes the
 plan file and its ledger row in the same call because the two are read by
 different things and neither can be derived from the other.
 
-The acting half is `execution-agent`, in `agents/execution_agent/`. There is one
+The acting half is `implementing-agent`, in `agents/implementing_agent/`. There is one
 of it rather than one per bucket, because the per-bucket knowledge lives in the
 briefs both halves read. It runs from a live session through the `pa-do` skill,
 never on a schedule, and it never writes `todo.md`: a change to the list is asked
-for in its report and made by the `pa` skill. See `agents/execution_agent/README.md`
+for in its report and made by the `pa` skill. See `agents/implementing_agent/README.md`
 and `../CLAUDE.md`.
 
 ## The bucket briefs
@@ -171,7 +171,7 @@ list, since they name the planning agents, but the briefs behind them are not �
 there is on `personal`.
 
 Both halves read them. That is the reason they are files: the planner and the
-acting agent need the same knowledge, and written twice the two would drift, so
+implementing agent need the same knowledge, and written twice the two would drift, so
 work researched against one understanding would be carried out against another.
 
 A brief still carrying its `<!-- NOT FILLED IN YET -->` marker is treated as
@@ -277,7 +277,7 @@ seen.
 
 ## Watching a run
 
-The same view's second column reads `data/.night-agent.lock` and `plans/night-agent.log`
+The same view's second column reads `data/.planning-agent.lock` and `plans/planning-agent.log`
 together, which is the only honest way — the agents are subprocesses of a shell
 `launchd` started and nothing can ask them anything. The lock says whether a
 batch is going; the log says what it has got through. A log with a task in
@@ -296,23 +296,23 @@ and exiting cleanly, which from a button is indistinguishable from starting.
 
 ## The sub-agents
 
-One per bucket, `plan-<stream>.md` in this folder, symlinked into
+One per bucket, `planning-<stream>.md` in this folder, symlinked into
 `.claude/agents/` **in this repo** rather than `~/.claude/`, so they version
 alongside the runner that invokes them. They moved in here on 7 Sep 2026 from the
 root of `agents/`, dropping the `pa-` prefix they had carried: they belong to the
-night agent rather than to the PA, and `bucket_agent()` in `plan.py` derives the
+planning agent rather than to the PA, and `bucket_agent()` in `plan.py` derives the
 name from the stream, so a rename means editing that one line. They share
 `PLAN-BRIEF.md`, which holds the output format and the rules; each definition
 adds what its bucket needs.
 
 | Bucket | Agent |
 | --- | --- |
-| People | `plan-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
-| Design System | `plan-design-system` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
-| Work oversight | `plan-work-oversight` — who holds it, and what would move it |
-| Strategic | `plan-strategic` — usually a decision wearing a task's clothes |
-| Processes | `plan-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
-| anything else | `plan-general` — the fallback, which says so in its output |
+| People | `planning-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
+| Design System | `planning-design-system` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
+| Work oversight | `planning-work-oversight` — who holds it, and what would move it |
+| Strategic | `planning-strategic` — usually a decision wearing a task's clothes |
+| Processes | `planning-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
+| anything else | `planning-general` — the fallback, which says so in its output |
 
 Buckets are renameable on the board, so the mapping in `plan.py` is by name with
 a fallback rather than a hard five. A task landing on the fallback is logged,
@@ -375,7 +375,7 @@ a window's capacity dies overnight, a week's does not.
 ## What lands where
 
 ```
-data/night-agent-schedule.json   on/off, the hours, the nightly budget
+data/planning-agent-schedule.json   on/off, the hours, the nightly budget
 data/<dataset>/plans/
   2026-09-05/            one folder a night
     index.md             what was planned, what was skipped and why
@@ -384,7 +384,7 @@ data/<dataset>/plans/
   actioned/              plans he acted on, kept when the night is pruned
   ledger.json            what has been planned, and whether it was actioned
   window.json            the usage-window clock
-  night-agent.log            every wake, every run, what it cost
+  planning-agent.log            every wake, every run, what it cost
 ```
 
 The schedule sits beside the datasets rather than inside one, because when the
@@ -400,7 +400,7 @@ so this was invisible until it wasn't: two runs in one day and the second one's
 index listed only its own plans while the first one's sat in the same folder
 unlinked. `carry_over` in `plan.py` folds the earlier run in — its plans, its
 cost, its start time — and drops from the not-planned list anything that has
-since been planned. `test_night_agent.py` covers it.
+since been planned. `test_planning_agent.py` covers it.
 
 `dashboard.py --activity` is the third reader of the same folder, and the one
 written for a report rather than a page: hand it a moment on stdin and it
@@ -437,9 +437,9 @@ task afresh instead of skipping it for looking unchanged.
 ## Installing the schedule
 
 ```bash
-ln -s ~/Code/to-dos/agents/night_agent/com.tiagopedras.todos-night-agent.plist \
-      ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
-launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+ln -s ~/Code/to-dos/agents/planning_agent/com.tiagopedras.todos-planning-agent.plist \
+      ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
+launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
 ```
 
 `RunAtLoad` is deliberately absent, so loading it at 10am starts nothing. The
@@ -450,18 +450,18 @@ Reloading is only needed when the plist itself changes, which is now almost
 never — the hours are a file the dashboard writes, not a plist to edit.
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
-launchctl load   ~/Library/LaunchAgents/com.tiagopedras.todos-night-agent.plist
+launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
+launchctl load   ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
 ```
 
 ## Open questions
 
 **Does Design System want splitting into its five streams?** It is much the
 biggest bucket: 14 of the 19 plans written on the first real night came from
-`plan-design-system`. The split, if it happens, is along the streams the
+`planning-design-system`. The split, if it happens, is along the streams the
 bucket already has — ways of working, audits, improvements, documentation,
 enablement — which each task's first note line names, and which
-`plan-design-system.md` already describes in one place. It is not a small
+`planning-design-system.md` already describes in one place. It is not a small
 edit: `STREAMS` in `plan.py` names both the agent and the brief, so five
 streams means five agent definitions and five brief files. The cheaper
 experiment is to fill in `data/twinkl/buckets/design-system/design-system.md` first and see

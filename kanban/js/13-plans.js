@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================================
-   4b2b. Plans — what the night agent worked out while nobody was watching.
+   4b2b. Plans — what the planning agent worked out while nobody was watching.
 
    Files in data/<dataset>/plans/<night>/, listed by the server at /plans.json,
    read exactly the way written reports are. They are a separate view rather
@@ -12,17 +12,17 @@
    A plan is a work item like any other and carries the shape every stream in
    here now shares: a `state`, an `owner` who is expected to move it next, and a
    `seen` flag. PACKAGES/work_streams/CONTRACT.md is the authority, and
-   agents/night_agent/stream.json is this stream's manifest, holding its own word
+   agents/planning_agent/stream.json is this stream's manifest, holding its own word
    for each state.
 
    Since 12 Sep 2026 this view has the same four columns as the board itself,
    and for the same reason: where he puts a card is the instruction, not a
    label describing one. Backlog, To do, Waiting for review, Done.
 
-     backlog / me               leave it alone; the night agent does not touch it
-     ready   / night-agent      plan it tonight, with the reason he gave
+     backlog / me               leave it alone; the planning agent does not touch it
+     ready   / planning-agent      plan it tonight, with the reason he gave
      review  / me               the agent has written one; `seen` says if he looked
-     done    / me               he accepts it, and the acting agent's half starts
+     done    / me               he accepts it, and the implementing agent's half starts
 
    Waiting for review is the one column he cannot drop into, because filling it
    is the agent's half of the arrangement. It draws with a dashed edge so that
@@ -38,7 +38,7 @@
    at once, which means nothing. `owner` is single-valued for the same reason.
 
    Setting a state is the only write in here, and it does not happen here. The
-   board posts the move to /stream/apply and the night agent's own stream.py
+   board posts the move to /stream/apply and the planning agent's own stream.py
    performs it, writing the plan file and its ledger row together. Until today
    this view's server half wrote those files itself, which is the arrangement
    agents-dashboard/CONTRACT.md already refuses for schedules, and it had
@@ -50,7 +50,7 @@ const planBodies = {};
 let planList = [];
 
 /* A folded plan is one whose agent stopped and asked rather than guessing —
-   see the folding rule in agents/night_agent/PLAN-BRIEF.md. It is marked here rather than
+   see the folding rule in agents/planning_agent/PLAN-BRIEF.md. It is marked here rather than
    left to read like any other, because the two want opposite things from him:
    a plan wants reading, a fold wants answering. */
 function planClass(p){
@@ -65,7 +65,7 @@ function planClass(p){
   if (p.state === 'accepted') return ' agreed';
   if (p.state === 'backlog') return ' parked';
   if (p.state === 'doing') return '';
-  if (p.state === 'ready') return p.owner === 'night-agent' ? ' redo' : ' agreed';
+  if (p.state === 'ready') return p.owner === 'planning-agent' ? ' redo' : ' agreed';
   return p.seen ? ' read' : '';
 }
 
@@ -86,7 +86,7 @@ function planWord(p){
   if (p.state === 'accepted') return 'accepted';
   if (p.state === 'backlog') return 'parked';
   if (p.state === 'doing') return 'being planned';
-  if (p.state === 'ready') return p.owner === 'night-agent' ? 'planning again' : 'handed over';
+  if (p.state === 'ready') return p.owner === 'planning-agent' ? 'planning again' : 'handed over';
   return p.seen ? 'read' : 'new';
 }
 
@@ -124,7 +124,7 @@ const PLAN_COL = { backlog:'backlog', todo:'todo', doing:'doing',
                    review:'review', produced:'produced', done:'done' };
 function planColumn(p){
   if (p.state === 'backlog') return PLAN_COL.backlog;
-  if (p.state === 'ready' && p.owner === 'night-agent') return PLAN_COL.todo;
+  if (p.state === 'ready' && p.owner === 'planning-agent') return PLAN_COL.todo;
   if (p.state === 'doing') return PLAN_COL.doing;
   if (p.state === 'review') return PLAN_COL.review;
   /* `done` covers both halves of finished: work that got carried out, and a
@@ -136,7 +136,7 @@ function planColumn(p){
      them if he wants them tidied, and this reads them correctly either way. */
   if (p.state === 'done' &&
       (p.resolution === 'completed' || p.resolution === 'superseded')) return PLAN_COL.done;
-  /* `accepted`, and the `ready / execution-agent` a plan agreed before
+  /* `accepted`, and the `ready / implementing-agent` a plan agreed before
      11 Sep 2026 still carries. Both mean he has accepted it and the work has
      not finished, which is what Ready to be produced says. It is also the
      fallback, so a state this view has never heard of is drawn rather than
@@ -145,16 +145,16 @@ function planColumn(p){
 }
 
 /* Whether an agent may pick this up and which one. `ready` owned by the night
-   agent is a plan he sent back; `ready` owned by the acting agent is one he
+   agent is a plan he sent back; `ready` owned by the implementing agent is one he
    approved. Both mean the same thing about the plan, which is why they are one
    state and not two. */
-const isRedo = p => p.state === 'ready' && p.owner === 'night-agent';
+const isRedo = p => p.state === 'ready' && p.owner === 'planning-agent';
 /* Accepted, and the work not finished. `accepted` is the state that says so
-   since 12 Sep 2026; `ready / execution-agent` is what it was called for the
+   since 12 Sep 2026; `ready / implementing-agent` is what it was called for the
    day between the six states arriving and this one, and plans written in that
    window are still on disk saying it. */
 const isAgreed = p => p.state === 'accepted' ||
-  (p.state === 'ready' && p.owner === 'execution-agent') ||
+  (p.state === 'ready' && p.owner === 'implementing-agent') ||
   (p.state === 'done' && p.resolution === 'actioned');
 
 /* When a plan was actually written, to the minute — `generated:` if the file
@@ -265,30 +265,30 @@ function openPlanModal(p){
    handler and the modal button both, so dragging a card and pressing a button
    cannot come to mean different things.
 
-   Nothing runs from any of them. The acting agent is invoked from a session,
+   Nothing runs from any of them. The implementing agent is invoked from a session,
    on purpose, so that a run he has not asked for cannot start from a stray
    click on a board tab left open overnight. */
 
 /* Ready to be produced. He accepts the plan as written, which is the end of
-   this board's involvement and the start of the acting agent's: an accepted
-   plan is what feeds the execution board's Backlog. The night agent stops
+   this board's involvement and the start of the implementing agent's: an accepted
+   plan is what feeds the execution board's Backlog. The planning agent stops
    re-planning the task from here.
 
    It lands in `accepted` rather than `done`, and that is the whole reason the
    seventh state exists. Accepting a plan and the work it describes finishing
    are two facts, and putting both in `done` meant one column answering two
    questions — which is what "Done" on this view had been doing. Nothing is
-   closed yet, so there is no resolution to give, and the acting agent owns it
+   closed yet, so there is no resolution to give, and the implementing agent owns it
    from here because what happens next is a run rather than a decision. */
 function acceptPlan(p){
   showModal('Accept this plan?', esc(p.title),
     '<div class="repdoc">' +
-      '<p>It moves to <strong>Ready to be produced</strong>, and the night agent ' +
+      '<p>It moves to <strong>Ready to be produced</strong>, and the planning agent ' +
       'leaves the task alone from here rather than writing a second opinion over it.</p>' +
       '<p>Nothing runs now. It lands in the execution board\'s Backlog, and the ' +
-      'acting agent only picks it up once you move it to To do there.</p>' +
+      'implementing agent only picks it up once you move it to To do there.</p>' +
     '</div>',
-    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'accepted', 'execution-agent') },
+    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'accepted', 'implementing-agent') },
      { label:'Cancel' }]);
 }
 
@@ -325,7 +325,7 @@ function replanPlan(p){
     [{ label:'Yes, plan it again', primary:true, run: () => {
         const why = redoText.trim();
         if (!why) return showToast('A plan going back needs a reason.', 'bad');
-        movePlan(p, 'ready', 'night-agent', { reason: why, release: true });
+        movePlan(p, 'ready', 'planning-agent', { reason: why, release: true });
       } },
      { label:'Cancel' }]);
   const box = $('#redoWhy');
@@ -339,14 +339,14 @@ function replanPlan(p){
 
 /* Backlog. Not a verdict on the plan at all — it is him saying the agent should
    leave this task be. So it does two things rather than one: the plan is parked,
-   and the task itself joins the hold list, which is the only thing agents/night_agent/pick.py
+   and the task itself joins the hold list, which is the only thing agents/planning_agent/pick.py
    actually reads. Parking the plan and leaving the task queued would have
    tonight write a fresh plan for a task he just took off the agent. */
 function parkPlan(p){
   showModal('Leave this one alone?', esc(p.title),
     '<div class="repdoc">' +
       '<p>The plan is parked in <strong>Backlog</strong> and the task is held back ' +
-      'from the queue, so the night agent does not touch it until you move it ' +
+      'from the queue, so the planning agent does not touch it until you move it ' +
       'back to To do.</p>' +
     '</div>',
     [{ label:'Yes, leave it alone', primary:true, run: () => movePlan(p, 'backlog', 'me', { hold: true }) },
@@ -356,7 +356,7 @@ function parkPlan(p){
 /* The two sections of a plan that are not for him. `Context` is the night's
    research trail — what it read, what it ruled out, what it could not
    establish — and `History` is one line per revision. Both are in the plan
-   file because the acting agent reads one and the next re-plan reads the
+   file because the implementing agent reads one and the next re-plan reads the
    other, and both stay out of the modal because reading them again is exactly
    the noise that stops a plan being read at all. Named rather than positional,
    so a plan written before this still renders. */
@@ -384,7 +384,7 @@ async function movePlan(p, state, owner, opts){
     if (opts.resolution) p.resolution = opts.resolution;
     if (opts.reason) p.feedback = opts.reason;
     /* The task behind the plan, and the hold list that decides whether tonight
-       touches it. A plan's own state means nothing to agents/night_agent/pick.py — it reads
+       touches it. A plan's own state means nothing to agents/planning_agent/pick.py — it reads
        the ledger and the hold list — so a move that says "leave this alone" has
        to say it where the picker looks. */
     if (opts.hold || opts.release) {
@@ -471,7 +471,7 @@ const DONE_FILTERS = [
 /* Whether a plan he sent back has already been answered by a later one.
 
    Sending a plan back does not park the task: `is_stale()`
-   (agents/night_agent/pick.py) treats `redo` as a reason to plan it again, so
+   (agents/planning_agent/pick.py) treats `redo` as a reason to plan it again, so
    the task goes straight back into the queue and the next run writes a fresh
    plan under its own night. The rejected file keeps `status: redo` for good,
    because the note on it is the only written record of what he asked for —
@@ -480,7 +480,7 @@ const DONE_FILTERS = [
 
    So a later plan for the same task is the replacement, and that is decided
    from `planList` alone: every row carries the night it was written and the
-   task it is for, so this needs no route and no read of the night agent's
+   task it is for, so this needs no route and no read of the planning agent's
    ledger. Deliberately measured against the whole list rather than the
    bucket-filtered view — a replacement is a replacement whether or not its
    bucket tab happens to be on. A plan carrying neither slug nor task cannot
@@ -681,7 +681,7 @@ function renderPlanDoing(){
 
 /* Ready to be produced. He has accepted the plan as written, which is where
    this board's half ends: an accepted plan is what feeds the execution board's
-   Backlog, and the night agent stops re-planning the task from here.
+   Backlog, and the planning agent stops re-planning the task from here.
 
    Flat, and no fold. It held three groups behind one `<details>` while it was
    still called Done, because it was holding two different questions — work
@@ -784,7 +784,7 @@ function renderPlanDone(){
    one" without editing todo.md, which this view must never do.
 
    Neither the order nor the hold list decides what the queue contains. Every
-   rule in agents/night_agent/pick.py still does that. A title in the file that has since
+   rule in agents/planning_agent/pick.py still does that. A title in the file that has since
    been ticked off, blocked or renamed is simply never matched, which is why
    nothing here ever needs pruning.
    ------------------------------------------------------------------------- */
@@ -860,7 +860,7 @@ function renderQueueList(){
    Two kinds of card move around this view and they are not the same object. A
    task row is a card off the board that has never been planned, or whose plan
    has been superseded; a plan row is a written document about one. Both answer
-   the same question — what should the night agent do with this — so both move
+   the same question — what should the planning agent do with this — so both move
    between the same four columns, and one `drag` carries whichever was picked up.
 
    Where a card lands is the instruction, and it means the same thing for both
@@ -1037,7 +1037,7 @@ function releaseHeld(title){
 
 /* -------------------------------------------------------------------------
    Backlog — everything the queue does not contain and why: held back from
-   the board on one hand, excluded by a rule in agents/night_agent/pick.py on the other.
+   the board on one hand, excluded by a rule in agents/planning_agent/pick.py on the other.
 
    Only the first half is draggable. Holding is a board-only preference, so
    dragging a held card back into the queue is exactly the reverse of the
@@ -1166,7 +1166,7 @@ async function renderQueue(){
   try {
     const res = await fetch('/queue.json?t=' + Date.now(), { cache:'no-store' });
     if (res.status === 404) {
-      out.innerHTML = '<div class="empty">No night agent in this checkout, so there is ' +
+      out.innerHTML = '<div class="empty">No planning agent in this checkout, so there is ' +
         'nothing queued and nothing to order.</div>';
       if (back) back.innerHTML = '<div class="empty">Same here — nothing to hold back.</div>';
       return;
@@ -1261,7 +1261,7 @@ function renderQueueDoingHead(live, orphan){
     const parked = $('#plansDoing');
     doingEmpty.innerHTML = (live || (parked && parked.children.length))
       ? ''
-      : colEmptyHTML('Nothing running. The night agent starts at its scheduled ' +
+      : colEmptyHTML('Nothing running. The planning agent starts at its scheduled ' +
                      'hour, or from Run now.', 'boxed');
   }
   const orphanOut = $('#qdOrphan');
@@ -1364,7 +1364,7 @@ function renderRunResults(n){
    and never executes, which is true of the agent whatever hour it runs at. */
 function confirmNightAgentRun(){
   const n = queueRows.length;
-  showModal('Run the night agent now?', 'It normally waits for the small hours',
+  showModal('Run the planning agent now?', 'It normally waits for the small hours',
     '<div class="repdoc">' +
       '<p>' + (n ? 'It will work through the <strong>' + n + '</strong> task' +
         (n === 1 ? '' : 's') + ' in the queue, in that order, one agent each'
@@ -1382,7 +1382,7 @@ function confirmNightAgentRun(){
 
 async function startNightAgentRun(){
   try {
-    await postJSON('/night_agent/run');
+    await postJSON('/planning_agent/run');
     showToast('The agent is running. Watch it here.', 'good');
     // The log gets its first line within a second or two; the poll's own ten
     // seconds is too long to wait when you have just pressed the button.
@@ -1401,7 +1401,7 @@ async function renderNightAgent(){
   if (!$('#queueDoingCard')) return;
   let live = false;
   try {
-    const n = await getJSON('/night-agent.json');
+    const n = await getJSON('/planning-agent.json');
     lastNightAgent = n;
     live = !!n.live;
     const errBox = $('#nightAgentErr');
@@ -1534,7 +1534,7 @@ async function renderPlansView(){
     }
     planList = (await res.json()).plans || [];
     if (!planList.length) {
-      out.innerHTML = '<div class="empty">Nothing yet. The night agent writes into ' +
+      out.innerHTML = '<div class="empty">Nothing yet. The planning agent writes into ' +
         '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
       /* Neither of the two columns past review has any reason to explain where
          plans come from — the column beside them just did — so each only says

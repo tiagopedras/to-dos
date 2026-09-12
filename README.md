@@ -35,7 +35,7 @@ Per data set rather than one shared set at the root, because a brief is only tru
 of one list: `twinkl` and `personal` have different buckets, different processes
 and different people. It moved in here on 8 Sep 2026.
 
-The night agent's planners and `execution-agent` both read the brief, and so do I.
+The planning agent's planners and `implementing-agent` both read the brief, and so do I.
 [BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is
 found, and the template to start from — so a fresh clone can rebuild the shape
 without carrying any of the content.
@@ -457,7 +457,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 ### Plans
 
 A separate tab, beside Reports, and a separate folder. Plans are written
-overnight by the night agent in `agents/night_agent/` — one per task tagged
+overnight by the planning agent in `agents/planning_agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
@@ -483,8 +483,8 @@ else — in particular it never touches `todo.md`. The next night then plans tha
 task afresh rather than skipping it for looking unchanged, which is how a task he
 has moved on from gets a new plan.
 
-The full account of how the night agent decides what to plan and when it is
-allowed to spend is in [agents/night_agent/README.md](agents/night_agent/README.md). The short version
+The full account of how the planning agent decides what to plan and when it is
+allowed to spend is in [agents/planning_agent/README.md](agents/planning_agent/README.md). The short version
 of the part that matters: it runs at the hours its schedule file names and at no
 others, with a floor in `schedule.py` that refuses the working day whatever that
 file says. The usage-window rule that used to sit alongside those hours was
@@ -504,7 +504,7 @@ look, and "did the nightly job actually run" had no answer short of reading a lo
 It reads two sources, and they are not alternatives. **Live** — `launchctl print`,
 the plist's own wake times, the companion's lock file — says whether a job is
 armed and when it fires next, which no log can know, since a log will happily
-describe a job that was unloaded a week ago. **The ledger** — `plans/night-agent.log`,
+describe a job that was unloaded a week ago. **The ledger** — `plans/planning-agent.log`,
 `companion.json`, the backup listing — says what it actually did, which
 `launchctl` cannot. A job that is not installed says so and gives the command to
 install it.
@@ -1056,7 +1056,7 @@ The board only says anything while a tab is open on it, which means a day it is
 never opened is a day nothing is said. **To-Do Companion.app** is the answer to
 that: a tray icon and a small portrait window that read the list off disk and
 tell you once each working morning what is due and what is overdue — and, since
-7 Sep 2026, what the night agent worked out while nobody was watching, because a
+7 Sep 2026, what the planning agent worked out while nobody was watching, because a
 plan is several minutes of reading and a menu was the wrong place to hold that.
 
 Click the tray icon to open the window, click it again (or close the window) to
@@ -1150,7 +1150,7 @@ once a tick (`companion/src/main/digest.ts`) and reads the answer back. That
 policy is deliberately not duplicated anywhere else — see `core/todo.js`'s own
 note on the holiday calendar below — so a short-lived Python process once a
 minute buys reusing it as-is instead of a third implementation to keep in
-step. Everything else the window shows — the night agent's plans, the
+step. Everything else the window shows — the planning agent's plans, the
 notification queue, its own dismissed-messages state, the board's bucket
 colours — is read straight off disk in TypeScript (`plans.ts`,
 `notifyQueue.ts`, `state.ts`, `buckets.ts`), since that's plain frontmatter and
@@ -1172,7 +1172,7 @@ belongs to no one app: a Python port of the parsing, the suggested messages and
 the `repeat:` maths in `core/todo.js`, read-only, so anything outside a browser
 tab that needs to know what is due asks one shared reader rather than inventing a
 second one. It sat in `kanban/` while the board was its only caller, and moved to
-`core/` on 5 Sep 2026 once the companion, the night agent and the PA's
+`core/` on 5 Sep 2026 once the companion, the planning agent and the PA's
 checker all depended on a module filed inside one of them. The JavaScript
 followed it there the same day, out of the middle of `index.html`, so the two
 copies of one grammar now sit next to each other. `core/README.md` says what
@@ -1272,13 +1272,13 @@ names several tasks, since picking one of three to open would be a guess.
 ### Asking the companion to say something
 
 The companion is the only thing here that can put a desktop notification on
-screen. The night agent has no interface at all, the board is a browser tab
+screen. The planning agent has no interface at all, the board is a browser tab
 that is usually shut, and a skill is a conversation that has already ended by the
 time its result matters. So rather than each growing its own way to speak, they
 append to one file and the companion drains it on its next tick:
 
 ```
-python3 companion/notify.py --view plans "Night agent" "3 plans waiting"
+python3 companion/notify.py --view plans "Planning agent" "3 plans waiting"
 python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
 ```
 
@@ -1296,14 +1296,14 @@ on twice.
 
 What the queue does not get to override: nothing is posted outside 08:30 to
 20:00, and no more than three at a time. A line queued at 02:00 waits for the
-morning, which is the whole point — the night agent finishes in the middle of
+morning, which is the whole point — the planning agent finishes in the middle of
 the night and there is no version of being woken by it that is useful.
 
 Weekends and public holidays are the one rule the queue does **not** inherit from
 the morning briefing, and the difference is deliberate. The briefing is a
 scheduled interruption about a working day, so a Saturday rightly gets none. A
 queued line is the opposite: it answers something that has just happened, put
-there by something you set running yourself. Running the night agent on a
+there by something you set running yourself. Running the planning agent on a
 Saturday and hearing about it on Monday helps nobody. The time window is the
 guard that matters, because that one is about not being woken, and it applies
 every day.
@@ -1369,7 +1369,7 @@ Two reference files sit behind all nine skills, and neither is packaged inside
 one of them. `agents/pa_agent/PA.md` is standing behaviour: who the list belongs
 to, where it lives, how he prioritises, the rules that hold whatever skill is
 running, and the tone. It stayed a plain file rather than folding into `pa`
-because the night agent's six planners and `execution-agent` read it too and
+because the planning agent's six planners and `implementing-agent` read it too and
 never write anything. `CONVENTIONS.md` at the repo root is the file format. Every
 skill reads both before it does anything, which is why none of them restate
 either. `pa/references/audit-checklist.md` is what to check by hand that the

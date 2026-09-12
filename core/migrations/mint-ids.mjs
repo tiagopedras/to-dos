@@ -48,7 +48,7 @@ if (!dry) {
   const running = cmd => { try { return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' } }
   if (running('pgrep -f "kanban/server.py"')) die('the board helper is running. Quit To-Do Board.app and kill it first.')
   if (running('pgrep -f "To-Do Companion"')) die('the companion is running. Quit it first.')
-  for (const lock of ['data/.night-agent.lock', path.join(path.dirname(target), 'companion.lock')])
+  for (const lock of ['data/.planning-agent.lock', path.join(path.dirname(target), 'companion.lock')])
     if (fs.existsSync(path.join(ROOT, lock))) die(`${lock} exists, so something else thinks it holds this list.`)
   ok('nothing else is holding the list')
 }
