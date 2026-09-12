@@ -40,7 +40,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `kanban/test_execution.mjs:187`.
 
 - **The Reports window picker is the last segmented control that is not the
-  shared tab.** `.repwindow-seg` (`kanban/board.css:894`) draws its own pill and
+  shared tab.** `.repwindow-seg` (`kanban/board.css:917`) draws its own pill and
   its own buttons — `padding:3px 9px`, `font-size:12.5px`, its own `.on` state
   — and `repWindowHTML()` (`kanban/js/12-reports.js`) emits them. It is the same
   object as `.tabs` holding N `.tab`s, at the smaller of the two sizes the Figma
@@ -50,6 +50,9 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   wanted a small tab once the Plans filter chips became a header dropdown
   (`.colfilter`), so a `.tabs.small` rule added for this alone would have been
   the only caller — see the note where that rule was removed from board.css.
+  It moved into the column header's Filters slot on 12 Sep 2026 when every
+  column in the app became a `colHTML()` one, which changes where it sits and
+  not what it is made of, so this stands.
 
 - **`.aic-addsub` is the one small button still outside `.btn`.** The five that
   were folded into `.btn.outline.small` and `.btn.dashed.small` on 12 Sep 2026
@@ -76,7 +79,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   pass it down, which no schedule value does today.
 
 - **Board, Matrix and Timeline take three tabs for three ways of drawing the same
-  tasks.** `viewDefs()` at `kanban/js/11-canvas.js:901-912` lists them as three
+  tasks.** `viewDefs()` in `kanban/js/11-chat-cards.js` lists them as three
   peers between separators, and `renderView()` at `kanban/js/18-timeline.js:734`
   renders every def as its own `.tab` button — so a third of the strip is spent on
   what is one view under three renderers. Collapse them into a single tab carrying
@@ -84,9 +87,9 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `.dropdown-panel` of the three, built the way the header's `Data ▾` menu already
   is (`kanban/index.html:33`, wired at `kanban/js/25-archiving.js:117-126` — closes
   on picking an item, on a click elsewhere, and on Escape). The view ids stay as
-  they are, so `isKnownView()` (`kanban/js/11-canvas.js:925`), the `#matrix` and
+  they are, so `isKnownView()` (`kanban/js/11-chat-cards.js`), the `#matrix` and
   `#timeline` fragments and `syncHash()` need no change; what changes is only how
-  the three are offered. `kanban/test_canvas.mjs:126` and
+  the three are offered. `kanban/test_chats.mjs` and
   `kanban/test_schedule.mjs:357` both read the on-tab out of `#viewToggle .tab`,
   so whatever the collapsed control renders has to keep that selector meaningful
   or both need rewriting.
@@ -262,22 +265,13 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `::after` gradient already claims, so it would cover the whole message
   rather than the end of it.
 
-- **The board's canvas has no way to straighten itself back out once dragging
-  has piled boxes and cards on top of each other.** `layoutCanvas()`
-  (`kanban/js/11-canvas.js:121`) only ever places a card the first time it
-  shows up — anything already in `state.canvas.cards`/`state.canvas.boxes`
-  keeps its stored `x`/`y` forever, and there is no control anywhere in
-  `11-canvas.js` that revisits those positions afterwards. `ai_canvas` already
-  solved this once, as `tidyCanvas()` in
-  `~/Code/ai_canvas/src/renderer/src/App.tsx:733`: it measures every section
-  and loose card, sorts them reading-order (`y` then `x`), and re-packs them
-  into a wrapping grid sized to the window, moving only what needs to move.
-  Porting that one behaviour — a "Tidy" control that reflows `cvbox` groups
-  and loose `cvcard`s the same way, writing the results back through the same
-  `state.canvas` store `renderCanvas()` already persists to — would give the
-  to-dos canvas the equivalent of that single button; `ai_canvas`'s own
-  `gridLayout()`/`peekLayout()` nearby are a different feature (an Exposé over
-  open session windows, not the board canvas) and not part of this.
+- ~~**The board's canvas has no way to straighten itself back out once dragging
+  has piled boxes and cards on top of each other.**~~ **Closed 12 Sep 2026 —
+  the canvas went instead.** A Tidy control was built for it on 10 Sep, ported
+  from `tidyCanvas()` in `~/Code/ai_canvas`, and both it and the view it
+  straightened were removed when the canvas came out of the board. The cards
+  survive in the drawer's Chats field, stacked rather than placed, so there is
+  nothing left to straighten. `ai_canvas` keeps its own version.
 
 - **The button that edits columns sits next to the button that edits buckets,
   not next to the control that filters by column.** `#editTiers`
@@ -1443,7 +1437,7 @@ they settled is written up in the README rather than left here:
   conversation began or how long it ran. The one place a timestamp already
   exists is `SessionStore` in `PACKAGES/ai_chat_engine/engine.py:103`, which
   stamps `started`/`updated` on a session — but only for conversations launched
-  through the board's own canvas or Chats field, not the terminal sessions
+  through the board's own Chats field, not the terminal sessions
   `pa-checkin`, `pa-checkout` and `pa-focus` actually run in day to day, which
   are never registered there at all. A task belongs to exactly one bucket, but a
   single sitting — a `pa-checkin` sweep, a `pa-checkout` pass through Doing —
@@ -1766,7 +1760,7 @@ they settled is written up in the README rather than left here:
      dead — see above for the other four — for 20 fewer lines and 8 fewer
      names to trim out of shared selector lists.
 
-  Every one of the four proved itself against `node kanban/test_canvas.mjs`,
+  Every one of the four proved itself against `node kanban/test_chats.mjs`,
   `test_plans.mjs` and `test_schedule.mjs` (132 checks between them) plus
   `core/test_todo.py`/`.mjs`, all still green. The Description-field Preview
   toggle below exercises `mdBlocks`/`mdInline`, which item 4's merge left
@@ -1790,7 +1784,7 @@ they settled is written up in the README rather than left here:
     top-level functions with similar names is what found the pairs above.
 
   **The rule for any of this work:** it changes no behaviour, so prove that
-  rather than asserting it. `node kanban/test_canvas.mjs`, `test_plans.mjs` and
+  rather than asserting it. `node kanban/test_chats.mjs`, `test_plans.mjs` and
   `test_schedule.mjs` between them boot the whole board and run 132 checks, and
   `core/test_todo.mjs` covers the format. A refactor that cannot be shown green
   in all four is not finished. Where a change is meant to be a pure move rather
@@ -1813,7 +1807,7 @@ they settled is written up in the README rather than left here:
   - `state.sort = readSort();` — `readSort` reads `SORT_KEY`, a `const` in what
     is now `03-tier-one-impact-effort.js`.
   - the `initViewFromHash` IIFE — calls `isKnownView`, in what is now
-    `11-canvas.js`.
+    `11-chat-cards.js`.
 
   Both now live in `boot.js`, `initViewFromHash` converted from a self-invoking
   IIFE to a plain function so `boot.js` can call it. `boot.js` also inherited
@@ -1831,7 +1825,7 @@ they settled is written up in the README rather than left here:
   Every classic script tag stayed non-module and non-deferred, so execution
   order is exactly what it was inside the one big inline script — each file's
   `'use strict'` (lost, otherwise, since the pragma doesn't cross script
-  tags) added back individually. Proved against `node kanban/test_canvas.mjs`,
+  tags) added back individually. Proved against `node kanban/test_chats.mjs`,
   `test_plans.mjs` and `test_schedule.mjs` (132 checks) run against the actual
   running board, not a fixture — all still green, plus every one of the 26
   new files passing `node --check` on its own.
@@ -2011,8 +2005,8 @@ they settled is written up in the README rather than left here:
 - ~~**Cards in the task drawer, attaching a session that started in the
   terminal, and a prompt being used up by running it.**~~ **Done, 4 Sep
   2026.** All three of the plan's remaining steps. The drawer's Chats field
-  draws with the same `cvCardHTML` the canvas uses, stacked instead of
-  scattered, sharing `openCard()`/`closeCard()` with it. A `/pa-attach` skill
+  draws with `cvCardHTML`, stacked; the canvas it shared that renderer with
+  was removed on 12 Sep 2026. A `/pa-attach` skill
   files the conversation it is run inside against a task named in plain text
   (never `AskUserQuestion` — the list runs to hundreds), writing
   `data/<dataset>/attach-queue.json` for the board to drain on its next load
@@ -2024,7 +2018,7 @@ they settled is written up in the README rather than left here:
   modal — chat.js's existing `onSend` hook is what tells the two apart — and
   the text survives on the session's own row afterwards, through a new
   `SessionStore.set_prompt()`. Full write-up, including what was tried and
-  why, in [AI-CANVAS.md](AI-CANVAS.md).
+  why, in AI-CANVAS.md, which was dropped from the repo on 6 Sep 2026.
 
 - ~~**An AI canvas, and cards in the drawer.**~~ **Canvas done, 4 Sep 2026.** A view of conversations with Claude
   laid out as cards and grouped by the task they belong to, the way `ai_canvas`
@@ -2034,7 +2028,7 @@ they settled is written up in the README rather than left here:
   layer comes out of `ai_canvas` into `ai_chat_engine` first so neither app
   keeps its own copy; the drawing stays per app, since one is React in Electron
   and this is one HTML file. The argument, what was decided and what is left
-  are in [AI-CANVAS.md](AI-CANVAS.md), which is the live document; this entry
+  were in AI-CANVAS.md, dropped from the repo on 6 Sep 2026; this entry
   is kept only as the record of what was originally asked for.
 
 - ~~Recurring tasks cannot express fortnightly or quarterly.~~ **Done, 4 Sep
@@ -2283,7 +2277,7 @@ they settled is written up in the README rather than left here:
   the running server and the real `data/twinkl/projects/` folder: the route
   returns all five folders on disk, the tab renders them with correct
   live/orphaned tags, and clicking one opens the drawer, with the fetch guard
-  from `kanban/test_canvas.mjs` confirming nothing written. The dedicated test
+  from `kanban/test_chats.mjs` confirming nothing written. The dedicated test
   file this asked for arrived on 8 Sep 2026 with the folder listing above:
   `kanban/test_projects.mjs`, covering the tab as well as the drawer.
 

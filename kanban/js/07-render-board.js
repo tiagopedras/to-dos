@@ -69,12 +69,9 @@ function bucketFilterFromSlugs(raw){
 }
 /* Keeps the URL's view+bucket+task segments in step with state —
    #<view>/<slug>!task=<key> — called from renderTabs() so every render and
-   every bucket-tab click reaches it, from renderView() so a view change with
-   no filter bar (canvas) still updates the URL, and directly from
+   every bucket-tab click reaches it, and directly from
    openDrawer()/closeDrawer() (19-drawer.js), since opening or closing the
    panel doesn't otherwise trigger a re-render of the board underneath it.
-   Writing the view alone for canvas is deliberate: it has no bucket tabs, so
-   #canvas/all would claim a filter that isn't there.
 
    The task half is read off state.openTask fresh on every call rather than
    cached, so it tracks the drawer rather than surviving past it — see the
@@ -83,7 +80,7 @@ function bucketFilterFromSlugs(raw){
    replaceState, not the hash setter: no history entry, no hashchange, so this
    can't loop with the listener in boot.js. */
 function syncHash(){
-  const withBucket = state.doc && state.view !== 'canvas';
+  const withBucket = !!state.doc;
   const openLoc = state.openTask && state.doc && locate(state.openTask);
   const hash = '#' + state.view +
     (withBucket ? '/' + bucketNamesToSlug(state.bucketFilter) : '') +

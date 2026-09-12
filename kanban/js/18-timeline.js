@@ -261,7 +261,7 @@ function timelineHeaderHTML(scale){
 
 function timelineSection(){
   const { dated, undated } = timelineTasks();
-  if (!dated.length && !undated.length) return '<p class="empty">Nothing open on the list.</p>';
+  if (!dated.length && !undated.length) return { html: '<p class="empty">Nothing open on the list.</p>', n: 0 };
   const scale = timelineScale(dated);
   const byBucket = new Map();
   dated.forEach(row => {
@@ -280,7 +280,9 @@ function timelineSection(){
     ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px" data-daypx="' +
         scale.dayPx + '">' + timelineHeaderHTML(scale) + lanes + '</div></div>'
     : '<p class="empty">Nothing with a date yet — everything open is in the tray below.</p>';
-  return body + timelineTrayHTML(undated);
+  // Every open top-level task, dated or not — the tray is part of the column,
+  // not a footnote to it.
+  return { html: body + timelineTrayHTML(undated), n: dated.length + undated.length };
 }
 
 /* The tray's cards drag the same way every board card does — same
@@ -593,25 +595,39 @@ function wireTlResize(scroll){
   grip.ondblclick = () => setTlLabelWidth(200);
 }
 
-/* opts.collapsible is Overview's own five sections: shut until he opens one,
-   remembered per section the same way the drawer's are — see overviewOpen.
-   Matrix's two sections stay plain, always open, since there is only ever
-   the two of them and nothing to skim past. */
-function refSection(title, hint, html, opts){
+/* Overview, Matrix and Timeline draw their sections through the same colHTML()
+   the board, Plans, Execution and Projects draw their columns with — a section
+   here has always been a column of the list in everything but the furniture it
+   was made of, and until 12 Sep 2026 it was a `.listcard` of its own with its
+   own padding, its own heading and its hint as the first paragraph of the body.
+   Now the hint is the head's description, where a sentence saying what a column
+   is for belongs, and the count sits beside the title rather than being left
+   for him to work out from the cards.
+
+   `sec` is what the section builder returned: { html, n } and, on Matrix,
+   the filter that used to sit inside its legend.
+
+   opts.collapsible is Overview's own five: open unless he has shut one,
+   remembered per section the same way the drawer's fields are — see
+   overviewOpen, and the toggle listener in 19-drawer.js that reads the
+   data-colcollapse colHTML writes. Matrix's two and the Timeline's one stay
+   plain, always open, since there is only ever one or two of them and nothing
+   to skim past. */
+function refSection(title, hint, sec, opts){
   opts = opts || {};
-  if (opts.collapsible) {
-    const key = 'ov:' + title;
-    return '<details class="listcard ovsection" data-ovcollapse="' + esc(key) + '"' +
-      (overviewOpen(key) ? ' open' : '') + '>' +
-      '<summary>' + esc(title) + '</summary>' +
-      (hint ? '<p class="refhint">' + mdInline(hint) + '</p>' : '') +
-      html +
-      '</details>';
-  }
-  return '<section class="listcard"><h3>' + esc(title) + '</h3>' +
-         (hint ? '<p class="refhint">' + mdInline(hint) + '</p>' : '') +
-         html +
-         '</section>';
+  const key = 'ov:' + title;
+  return colHTML({
+    heading: 'h3',
+    title,
+    count: sec && sec.n != null ? sec.n : null,
+    filters: sec && sec.filters ? sec.filters : '',
+    desc: hint ? mdInline(hint) : '',
+    body: (sec && sec.html) || '',
+    cls: 'refcol prose',
+    collapsible: !!opts.collapsible,
+    collapseKey: key,
+    open: opts.collapsible ? overviewOpen(key) : true
+  });
 }
 
 /* The split grid is written out here rather than in the stylesheet because
@@ -652,8 +668,11 @@ function renderSections(viewId){
       refSection('Quick wins', 'Yours to do: meeting agendas, `effort:S` and written messages. Anything `ai:full` sits in Delegate instead.', quickSection(items), { collapsible:true }),
       refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order. Drag a number to move that task up or down the queue.', delegateSection(items), { collapsible:true })
     ];
+    // The only section with nothing to count — it is standing prose, not a list
+    // of anything — so it is handed over in the same shape with no `n`.
     if (ctx) {
-      secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.', ctx, { collapsible:true }));
+      secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.',
+        { html: ctx }, { collapsible:true }));
       hasCtx = true;
     }
     cols = secs.length;
@@ -701,7 +720,7 @@ function capMsgCards(){
 }
 
 /* The tab strip. Most defs draw one tab each; the ones carrying a `group`
-   (11-canvas.js) draw a single tab naming one of them, with a chevron opening a
+   (11-chat-cards.js) draw a single tab naming one of them, with a chevron opening a
    panel of the rest. The panel is built the way the header's Data menu is — same
    .dropdown-panel, same three ways out: pick an item, click elsewhere, Escape.
 
@@ -775,40 +794,24 @@ function renderView(){
   // #quick or #delegate link lands where its content actually lives.
   if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
   const isBackups = state.view === 'backups';
-  // Canvas is gated behind onChatStatusChanged's async answer, which hasn't
-  // arrived yet on the very first render — load() calls this before that
-  // fetch resolves. Without this exception a refresh onto #canvas loses the
-  // race: the fallback below overwrites state.view to 'board' (and the URL
-  // with it, at the replaceState below) before chatsOn ever gets the chance
-  // to say yes, and nothing afterwards remembers canvas was ever wanted.
-  const isPendingCanvas = state.view === 'canvas' && !state.chatsChecked;
-  if (!isBackups && !isPendingCanvas && !defs.some(d => d.id === state.view)) state.view = 'board';
+  if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
   const def = isBackups ? { id:'backups', label:'Backups' }
-    : isPendingCanvas ? { id:'board', label:'Board' }
     : defs.find(d => d.id === state.view);
   const isBoard = def.id === 'board';
   // Keep the URL in step with whichever tab is on screen, so a refresh (or a
   // link back to this page) lands on the same view instead of the default.
   // syncHash() (07-render-board.js) does the actual write — every branch below
-  // reaches it, either via renderBoard()/renderFilterBar() calling renderTabs(),
-  // or, for canvas, which has no bucket tabs to call it from, at its own early
-  // return just below. state.view is finalised above this point, so whichever
-  // branch runs next syncs the URL to the right value.
+  // reaches it, via renderBoard() or renderFilterBar() calling renderTabs().
+  // state.view is finalised above this point, so whichever branch runs next
+  // syncs the URL to the right value.
 
   renderViewTabs(defs);
 
-  const isCanvas = def.id === 'canvas';
   $('#board').classList.toggle('hidden', !isBoard);
-  $('#canvas').classList.toggle('hidden', !isCanvas);
-  $('#lists').classList.toggle('hidden', isBoard || isCanvas);
+  $('#lists').classList.toggle('hidden', isBoard);
   $('#backupsBtn').classList.toggle('on', isBackups);
 
   if (isBoard) { renderBoard(); return; }
-  // Same reasoning as the board's early return: the canvas draws itself and
-  // has no bucket sections under it — which is also why it has to call
-  // syncHash() itself rather than picking it up from renderTabs() the way
-  // every other view below does.
-  if (isCanvas) { $('#headline').classList.add('hidden'); syncHash(); renderCanvas(); return; }
   // The one thing bar is a board idea specifically — pinning a card above
   // columns that don't exist anywhere else has nothing to attach to. Every
   // other control in the header (the bucket tabs, the score chip, AI,
@@ -828,7 +831,6 @@ function renderView(){
    alone does nothing when a list view is up. */
 function refreshView(){
   if (state.view === 'board') renderBoard();
-  else if (state.view === 'canvas') renderCanvas();
   else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'projects') renderProjectsView();
   else if (state.view === 'plans') renderPlansView();
@@ -996,6 +998,11 @@ function renderBoard(){
       body: n ? cards : colEmptyHTML('Nothing here'),
       cls: (isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
            (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : ''),
+      // Handed to AI is an agent's column in exactly the sense Plans' and
+      // Execution's Waiting for review are, so it takes the same variant
+      // rather than a dashed rule of its own — `aicol` above is left holding
+      // only the head colour it also sets.
+      style: isAi ? 'agent' : '',
       attrs: 'data-tier="' + esc(name) + '"',
       // .drop as well as .colbody: the board's body is a drag target, and the
       // wiring below and .drop.over in board.css both find it by that class.

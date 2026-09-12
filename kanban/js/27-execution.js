@@ -234,6 +234,10 @@ function renderRunColumn(id, want, empty, onDrop, takes){
   out.innerHTML = rows.length
     ? rows.map(runItemHTML).join('')
     : colEmptyHTML(empty, 'boxed');
+  // Same count the board's columns carry, filled once the folder has been read
+  // — the column is drawn before the fetch, so it cannot be written into the
+  // head at the same moment the head is built.
+  setColCount('#' + out.id + 'Col', rows.length);
   wireRunColumn(out, onDrop, takes);
 }
 
@@ -265,24 +269,32 @@ async function renderExecutionView(){
       colHTML({
         heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
         desc: 'Everything you accepted on the Plans view. The agent leaves these alone.',
+        count: '',
+        attrs: 'id="runBacklogCol"',
         body: '<div id="runBacklog">Loading\u2026</div>'
       }) +
       colHTML({
         heading: 'h3', title: 'To do', cls: 'reportsview queueview',
         desc: 'What you want carried out. Nothing starts on its own \u2014 run ' +
               '<code>/pa-do</code> in a session and it works through this.',
+        count: '',
+        attrs: 'id="runTodoCol"',
         body: '<div id="runTodo">Loading\u2026</div>'
       }) +
       colHTML({
-        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed agentcol',
+        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed', style: 'agent',
         desc: 'The agent\u2019s own column \u2014 what it did, waiting on you. ' +
               'Drag out of it, not into it.',
+        count: '',
+        attrs: 'id="runReviewCol"',
         body: '<div id="runReview">Loading\u2026</div>'
       }) +
       colHTML({
         heading: 'h3', title: 'Done', cls: 'reportsview decided',
         desc: 'You accepted what it did. Any change to the task itself is in the ' +
               'report, for <code>/pa</code> to apply.',
+        count: '',
+        attrs: 'id="runDoneCol"',
         body: '<div id="runDone">Loading\u2026</div>'
       }) +
     '</div>';

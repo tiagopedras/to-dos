@@ -1,17 +1,17 @@
 ---
 name: pa-attach
-description: File the conversation you are having right now against a task on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). Takes no arguments — it reads its own session id from the environment, shows the task list, and once he names one, writes the request to data/<dataset>/attach-queue.json for the board to file next time it loads. It never touches todo.md itself. Use whenever he says a conversation belongs to a task, asks to attach, file or link this chat to a task, says "this is actually about X", "put this on my list", "attach this session", "file this conversation under...", or when work that started in the terminal turns out to be about a specific piece of work on the list. Do not use this to start a new conversation from a task — that already happens from the board's own Chats field, in the drawer or on the canvas — and do not use it to review the list itself, which is pa-checkin, or to change it, which is pa.
+description: File the conversation you are having right now against a task on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). Takes no arguments — it reads its own session id from the environment, shows the task list, and once he names one, writes the request to data/<dataset>/attach-queue.json for the board to file next time it loads. It never touches todo.md itself. Use whenever he says a conversation belongs to a task, asks to attach, file or link this chat to a task, says "this is actually about X", "put this on my list", "attach this session", "file this conversation under...", or when work that started in the terminal turns out to be about a specific piece of work on the list. Do not use this to start a new conversation from a task — that already happens from the board's own Chats field in the drawer — and do not use it to review the list itself, which is pa-checkin, or to change it, which is pa.
 ---
 
 # Attaching this conversation to a task
 
-Files the conversation you are running inside, right now, against a task on the list — the case AI-CANVAS.md in this repo calls "a session that started in the terminal": half an hour into some other piece of work it turns out this conversation *is* the work, and it should end up filed the way one started from the board would be.
+Files the conversation you are running inside, right now, against a task on the list — the case README.md in this repo calls "a session that started in the terminal": half an hour into some other piece of work it turns out this conversation *is* the work, and it should end up filed the way one started from the board would be.
 
 **Read `~/Code/to-dos/agents/pa_agent/PA.md` first.** It holds where the list lives and how `data/<dataset>` is resolved. This skill does not repeat that.
 
 ## Why this cannot just edit todo.md
 
-The board holds the whole document in memory and autosaves it — see `README.md`'s rules for testing the board, and the write-up in `AI-CANVAS.md` under "It must not write todo.md". A skill editing the file underneath an open tab is overwritten within seconds, silently. So this skill never opens todo.md to write it, only to read it, and the actual filing happens through `data/<dataset>/attach-queue.json`, which the board drains through its own edit path the next time it loads. That is also what makes this work with no board open at all: queue it now, the filing happens whenever the board is next opened, whether that is thirty seconds from now or tomorrow morning.
+The board holds the whole document in memory and autosaves it — see `README.md`'s rules for testing the board, and `CLAUDE.md` on why `todo.md` has exactly one writer. A skill editing the file underneath an open tab is overwritten within seconds, silently. So this skill never opens todo.md to write it, only to read it, and the actual filing happens through `data/<dataset>/attach-queue.json`, which the board drains through its own edit path the next time it loads. That is also what makes this work with no board open at all: queue it now, the filing happens whenever the board is next opened, whether that is thirty seconds from now or tomorrow morning.
 
 ## The one thing this needs that nothing else does
 
@@ -48,7 +48,7 @@ If that comes back empty, say so plainly and stop — this only works run from i
 
 ## What this does not do
 
-It does not start a conversation, rename one, or open the board. It does not touch todo.md, sessions.json, or anything else directly — see the routes and the queue reader in `AI-CANVAS.md` for exactly what the board does with the request once it is queued, if that ever needs debugging.
+It does not start a conversation, rename one, or open the board. It does not touch todo.md, sessions.json, or anything else directly — see `drainAttachQueue()` in `kanban/js/10-reference-sections.js` and the `/attach-queue.json` routes in `kanban/server.py` for exactly what the board does with the request once it is queued, if that ever needs debugging.
 
 It does not offer to attach to a task that does not exist yet. If the work genuinely has no task, that is a `pa` job — add the task first, then run this again.
 

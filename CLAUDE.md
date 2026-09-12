@@ -150,14 +150,26 @@ means it again for something already done once. Waiting for review is the
 agent's own column, which is why it takes no drops and draws with a dashed edge.
 
 One shape means one object, not a family resemblance. Since 12 Sep 2026 every
-column on all three is an instance of `colHTML()` in `kanban/js/09-columns.js`,
+column in the app is an instance of `colHTML()` in `kanban/js/09-columns.js`,
 so the fill, the border, the radius, the 322px width, the 12px gap, the header
 padding and the body padding are settled once. What a view chooses is which
-optional parts its heads carry — a hint, a sort button, a count, an action
-button, a filter dropdown, a description — and what goes in the bodies. Plans
+optional parts its heads carry — a hint, a sort control, a count, an action
+button, a filter, a description — and what goes in the bodies. Plans
 had its own `.listcard` with outer padding and no divider until then, and the
 board's shape won because it is the denser and more-used surface. The same pass
 made the dash mean exactly one thing in the app: an agent owns this column.
+
+Every column, not only these three. Overview's five sections, Matrix's two, the
+Timeline, both halves of Reports, Backups, Projects and the two reference cards
+in the Spend modal were all `.listcard`s of their own until the same date, and
+all of them are columns now. Two things came with them. A control that narrows
+or orders a column lives in its head rather than at the top of its body, which
+is where Reports' window picker, Matrix's "Hide Waiting review" and Projects'
+order select went. And `colHTML()` grew the one part those views needed that a
+board column never did — `collapsible`, which draws the column as a `<details>`
+whose `<summary>` is the head — because five columns of prose open at once is a
+lot of scrolling. The Figma `Column` and `Column header` components carry the
+same set, and the two are meant to be changed together.
 
 Plans carries six columns rather than four, and reads
 **Backlog → To do → Doing → Waiting for review → Ready to be produced → Done**.
@@ -243,12 +255,12 @@ verify it stuck before ending the turn. `data/.current` is one file shared by
 every tab and session pointed at this server, so a dataset switch is visible
 to anyone else with the board open the moment you make it, not just to you.
 
-`kanban/test_canvas.mjs` is the worked example of the default. It drives the
+`kanban/test_chats.mjs` is the worked example of the default. It drives the
 board in headless Chrome, locks the tab before loading demo.md, and then tears
 every non-GET out of `fetch` so nothing can reach disk even if something
 unlocks the tab later. That second guard is not belt and braces for its own
 sake: the run records an attempted `PUT /data/todo.md` that it stopped. Run it
-with `node kanban/test_canvas.mjs`, or `BOARD_PORT=8799 node ...` against a
+with `node kanban/test_chats.mjs`, or `BOARD_PORT=8799 node ...` against a
 server on another port.
 
 `kanban/test_plans.mjs` follows the same shape for the Plans view, and its
@@ -321,7 +333,7 @@ python3 companion/test_companion.py
 node kanban/test_plans.mjs         # the five below need the board running
 node kanban/test_execution.mjs
 node kanban/test_schedule.mjs
-node kanban/test_canvas.mjs
+node kanban/test_chats.mjs
 node kanban/test_projects.mjs
 node kanban/test_notes.mjs
 ```

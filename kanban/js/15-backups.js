@@ -56,12 +56,21 @@ function backupGroupHTML(title, list, blank){
     (list.length ? list.map(backupRowHTML).join('') : '<div class="empty">' + esc(blank) + '</div>');
 }
 
+/* One column, drawn with the same colHTML() every other view's columns are —
+   a `.listcard` of its own until 12 Sep 2026. The standing note about what the
+   tab holds is the head's description now, where the sentence saying what a
+   column is for belongs; the count arrives with the fetch. */
 async function renderBackupsView(){
-  $('#lists').innerHTML = '<div class="listcard backupsview"><h3>Backups</h3>' +
-    '<p class="help listnote">Every copy of todo.md the board has kept. Click one to read it, ' +
-    'or Load it to look through it on the board — Backup Preview opens read-only, so nothing in ' +
-    'it can be changed or saved over today\'s list.</p>' +
-    '<div id="backupsOut">Loading…</div></div>';
+  $('#lists').innerHTML = '<div class="lists pview" style="--pcols:1">' +
+    colHTML({
+      heading: 'h3', title: 'Backups', cls: 'backupsview prose',
+      attrs: 'id="backupsCol"',
+      count: '',
+      desc: 'Every copy of todo.md the board has kept. Click one to read it, ' +
+        'or Load it to look through it on the board — Backup Preview opens read-only, so nothing in ' +
+        'it can be changed or saved over today\'s list.',
+      body: '<div id="backupsOut">Loading…</div>'
+    }) + '</div>';
   try {
     const res = await fetch('/backups.json?t=' + Date.now(), { cache:'no-store' });
     if (res.status === 404) {
@@ -75,6 +84,9 @@ async function renderBackupsView(){
     if (!res.ok) throw new Error('the server answered ' + res.status);
     const data = await res.json();
     const all = data.backups || [];
+    // The archive counts as one of them: it is a file on this tab like the
+    // rest, and the head would be short by one without it.
+    setColCount('#backupsCol', all.length + (data.archive ? 1 : 0));
     // Weekly ones go by their week label, not their timestamp: a snapshot copied
     // late still belongs to its own week.
     const weekly = all.filter(b => b.kind === 'weekly').sort((x, y) => y.name.localeCompare(x.name));

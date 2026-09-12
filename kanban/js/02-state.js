@@ -37,8 +37,8 @@ const state = {
   bucketColors: {},
   /* The whole sessions index, owner key -> rows, handed over by chat.js's
      onSessionsChanged. The drawer only ever needs one owner's worth and asks
-     for it directly; the canvas needs all of them at once, so this keeps the
-     last thing the engine said rather than asking again per box. */
+     for it directly; openChatByKey() has to search every owner for one id, so
+     this keeps the last thing the engine said rather than asking again. */
   chats: {},
   /* Whether there is a Claude engine behind this board, as a plain flag rather
      than a question asked of the chat object.
@@ -49,15 +49,11 @@ const state = {
      for it there is a temporal dead zone error that aborts the whole script
      with no view, no board and nothing in the console to say why. */
   chatsOn: false,
-  // False until onChatStatusChanged's first answer arrives — see renderView's
-  // isPendingCanvas, which needs to tell "canvas doesn't exist here" apart from
-  // "canvas exists, we just don't know it yet".
-  chatsChecked: false,
-  /* Where each card sits and the box around each task's cards, read from and
-     written to data/<dataset>/canvas.json. Furniture, not content: losing it
-     costs an arrangement and nothing else. */
-  canvas: { version: 1, cards: {}, boxes: {}, viewed: {} },
-  canvasLoaded: false,
+  /* session id -> when that card was last opened, read from and written to
+     data/<dataset>/chat-viewed.json — see loadChatViewed() in 11-chat-cards.js.
+     Furniture, not content: losing it costs an unread dot and nothing else. */
+  chatViewed: {},
+  chatViewedLoaded: false,
   query: '',
   aiFilter: '',
   urgentFilter: false,
@@ -105,7 +101,7 @@ const state = {
 // scripts that haven't run yet, so that call threw ReferenceError every load,
 // silently, inside readSort()'s own try/catch, and the saved per-column sort
 // never once restored. initViewFromHash() calls isKnownView(), declared in
-// 11-canvas.js, thousands of lines further on — same problem, worse distance.
+// 11-chat-cards.js, thousands of lines further on — same problem, worse distance.
 // Both moved to boot.js, called once everything above has actually loaded —
 // see the comment there. This also fixes the readSort() bug, on purpose.
 
@@ -145,9 +141,9 @@ function parseHash(){
   const m = /^task=(.*)$/.exec(rest);
   let task = '';
   if (m) { try { task = decodeURIComponent(m[1]); } catch (e) { task = m[1]; } }
-  // `#canvas!chat=<session>` opens one conversation, the same way `!task=`
-  // opens one card. A session id is Claude Code's own and stable, so unlike a
-  // task it needs no slug-or-title guessing.
+  // `!chat=<session>` opens one conversation, the same way `!task=` opens one
+  // card. A session id is Claude Code's own and stable, so unlike a task it
+  // needs no slug-or-title guessing.
   const c = /^chat=(.*)$/.exec(rest);
   let chatId = '';
   if (c) { try { chatId = decodeURIComponent(c[1]); } catch (e) { chatId = c[1]; } }
@@ -233,7 +229,7 @@ function openChatByKey(id){
 /* The URL's #slug is the one thing a refresh doesn't wipe, so read it before the
    first render — otherwise every reload snaps back to the default view. Called
    from boot.js rather than self-invoked here: isKnownView() below is declared
-   in 11-canvas.js, not loaded yet at this point in the script order. */
+   in 11-chat-cards.js, not loaded yet at this point in the script order. */
 function initViewFromHash(){
   const h = parseHash();
   if (isKnownView(h.view)) state.view = h.view;

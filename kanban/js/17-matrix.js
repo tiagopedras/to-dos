@@ -202,13 +202,18 @@ function matrixSection(){
   const placed = tasks.filter(t => IMPACT_N[t.impact] && EFFORT_N[t.effort]);
   const missing = tasks.filter(t => !IMPACT_N[t.impact] || !EFFORT_N[t.effort]);
 
+  /* The legend says what the dots mean; the checkbox says which of them are
+     drawn. Since 12 Sep 2026 only the first is in the body — narrowing what a
+     column shows is the column header's Filters slot, the same slot Plans'
+     dropdown and Reports' window picker sit in, so it goes back with the
+     section rather than inside it. */
   const legend = '<div class="mlegend">' +
     '<span class="mkey mkeyhl"><i></i>the one thing</span>' +
     '<span class="mkey mkeyurg"><i></i>urgent</span>' +
     '<span class="mkey mkeymuted"><i></i>waiting or blocked</span>' +
-    '<label class="mxfilter"><input type="checkbox" data-mxfilter' +
-      (hideWaiting ? ' checked' : '') + '> Hide Waiting review</label>' +
   '</div>';
+  const filters = '<label class="mxfilter"><input type="checkbox" data-mxfilter' +
+    (hideWaiting ? ' checked' : '') + '> Hide Waiting review</label>';
 
   let grid = '<div class="mgrid">' +
     '<div class="mcorner">' +
@@ -280,6 +285,9 @@ function matrixSection(){
     ? '<p class="mhidden">' + hiddenWaiting + ' hidden, sitting in Waiting review.</p>'
     : '';
 
-  return legend + read + hiddenNote + grid + tray + holdTray;
+  /* Counted on the grid rather than on the list behind it: the two trays under
+     it say their own numbers, and a head count that included them would be a
+     number matching nothing visible in the cells. */
+  return { html: legend + read + hiddenNote + grid + tray + holdTray, n: placed.length, filters };
 }
 

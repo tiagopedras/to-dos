@@ -757,60 +757,13 @@ card can say what it was started to do rather than only what the first
 message happened to say.
 
 Each entry in the list draws as a card — title, which task it belongs to, when
-it last did anything, whether it can write to disk — the same card the Canvas
-below draws, stacked in a column here instead of scattered on a surface.
-**Attach a session…**, next to **+ New chat**, reaches for a conversation
-Claude Code already has on disk that was never started from this board — one
-begun in a terminal, say — and files it here directly. The same thing from
-inside that conversation instead of from the task is the `/pa-attach` skill,
-which cannot write to `todo.md` itself and leaves a request for the board to
-pick up on its next load instead — see **Where a conversation actually
-lives**, below, and `AI-CANVAS.md` for the whole story.
-
-### The Canvas
-
-A sixth tab, next to Board, and the other spatial view of the same list. Every
-conversation with Claude drawn as a card, grouped into a box named after the
-task it belongs to.
-
-It exists because the drawer answers "what conversations are on this task" and
-nothing answered "what conversations are open at all, and what work is each
-one about". With three or four running across two or three tasks, that second
-question is the one you actually have, and the only way to answer it before was
-to open every task in turn.
-
-**A box is a task.** Not a folder and not a project invented for the purpose.
-The canvas in `ai_canvas`, the desktop app this borrows its shape from, had to
-invent projects, because Claude Code's notion of a project is a working
-directory and there is nowhere to write a name. This board has had tasks all
-along, with ids that survive a rename, a reorder and a move between buckets,
-and the `chat:` key on a task line is already how conversations are filed
-against it. So the canvas groups by something that exists rather than keeping a
-second grouping beside it. Only tasks that have conversations get a box: a task
-is not made for this purpose and there are hundreds of them, so a box appears
-when the first conversation is filed and goes when the last one leaves.
-
-**A card says four things**, the same four that canvas argued itself into: what
-the conversation is called, which task it belongs to, when it last did
-anything, and whether it can write to disk. That last one has no equivalent
-over there and is the most important thing on the card here — the difference
-between a conversation that can only read and one that can change files is
-worth seeing without opening it.
-
-**Dragging a card onto a box files it there.** That is the third way to file a
-conversation, alongside starting one from a task and attaching one that began
-in the terminal, and all three end in the same place: a row in `sessions.json`
-under the task's key. Dragging a card clear of every box takes it out of the
-task without touching the conversation, which is what you want when one
-wandered off the task it started on. A card belonging to no task says so and
-sits on its own.
-
-**A box resizes from its bottom-right corner**, and refuses to be smaller than
-the cards inside it. Dragging inwards past them is allowed as a gesture and
-simply has no effect below that floor — the box follows the cursor while you
-drag and settles back on release, rather than stopping dead under your hand.
-That floor is `containBox` in `cards.js`, the same function the desktop canvas
-uses, so a card can never end up outside its own task in either app.
+it last did anything, whether it can write to disk. That last one is the most
+important thing on it: the difference between a conversation that can only read
+and one that can change files is worth seeing without opening it. A dot beside
+the title means something has happened in that conversation since you last
+opened it; when each card was last opened is furniture rather than content, so
+it lives in `data/<dataset>/chat-viewed.json` beside `sessions.json`, and
+deleting that file costs a dot and nothing else.
 
 **A card closes with the × in its corner**, and it is worth being exact about
 what that does. The row leaves `sessions.json`, so the board stops listing the
@@ -821,23 +774,24 @@ board rather than about the conversation for that reason — "delete this chat"
 would be a promise this board cannot keep, since the file belongs to Claude
 Code and nothing here should be reaching into it.
 
-**Nothing here starts a session.** The canvas is a view of filing. Chats still
-start from a task's drawer, which is where you are when you know what the
-conversation is for.
+**Attach a session…**, next to **+ New chat**, reaches for a conversation
+Claude Code already has on disk that was never started from this board — one
+begun in a terminal, say — and files it here directly. The same thing from
+inside that conversation instead of from the task is the `/pa-attach` skill,
+which cannot write to `todo.md` itself and leaves a request for the board to
+pick up on its next load instead — see **Where a conversation actually
+lives**, below. `!chat=<id>` on any view opens one conversation, the way
+`#board!task=<key>` opens one card.
 
-The one thing it writes to `todo.md` is a `chat:` key, minted when a card is
-dropped onto a task that has never had one, and it goes through the same
-`markDirty` and autosave as any other edit. Card positions are not task
-content — a card's place is something you dragged, not something you decided —
-so they live in `data/<dataset>/canvas.json` beside `sessions.json`. Delete
-that file and the canvas lays itself out again from scratch, losing an
-arrangement and nothing else.
-
-Where a card sits, the box around a group and the box's refusal to shrink
-below what is in it are not written here at all. They are `cards.js` in
-`ai_chat_engine`, shared with `ai_canvas` rather than each app having a
-version — the same arrangement `chat.js` has always had. `#canvas!chat=<id>`
-opens one conversation, the way `#board!task=<key>` opens one card.
+**There was a canvas over these cards until 12 September 2026.** A tab of its
+own, every conversation drawn as a card on a surface, grouped into a box named
+after the task it belonged to, positions kept in `canvas.json`, re-filing done
+by dragging a card from one box into another. It answered "what conversations
+are open at all", which the drawer cannot, and it was removed because that
+question was not being asked often enough to carry a whole view, a geometry
+store and a second way of filing a conversation. The cards survived it; the
+surface did not. `cards.js` in `ai_chat_engine` went with it, so the board no
+longer loads it — `ai_canvas` still does.
 
 ### Where a conversation actually lives
 

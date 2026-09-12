@@ -369,13 +369,13 @@ function moreNote(hidden){
 
 function weekSection(items){
   const live = items.filter(i => i.week).sort(byDue);
-  if (!live.length) return '<p class="empty">Nothing is tagged <code>week</code> yet.</p>';
+  if (!live.length) return { html: '<p class="empty">Nothing is tagged <code>week</code> yet.</p>', n: 0 };
   const m = live.filter(i => i.effort === 'M' && !i.done).length;
   const warn = m > 2
     ? '<p class="refwarn">' + m + ' M-effort items this week. The ceiling is two once meetings are counted.</p>'
     : '';
   const { shown, hidden } = capCards(live);
-  return warn + shown.map(i => refCard(i, { unweek:true })).join('') + moreNote(hidden);
+  return { html: warn + shown.map(i => refCard(i, { unweek:true })).join('') + moreNote(hidden), n: live.length };
 }
 
 /* A quick win has to be something he can act on right now. Anything still
@@ -458,16 +458,23 @@ function quickSection(items){
     ? '<p class="refmore">' + dismissedShown + ' dismissed. ' +
       '<button type="button" class="reflink" data-quickrestore>Show them again</button></p>'
     : '';
-  return out
-    ? note + out + moreNote(capped.hidden) + dismissedNote
-    : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>';
+  /* The count in the head is what is actually in the column — after the
+     dismissals, before the cap, since a card hidden by the cap is still one of
+     them and says so in its own "more" line. */
+  const n = meetings.length + messages.length + decide.length + talk.length;
+  return {
+    html: out
+      ? note + out + moreNote(capped.hidden) + dismissedNote
+      : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>',
+    n
+  };
 }
 
 function bigRocksSection(items){
   const rocks = items.filter(i => i.sub === null && i.impact === 'high' && i.effort === 'L' && !i.done);
-  if (!rocks.length) return '<p class="empty">No high impact, L effort tasks.</p>';
+  if (!rocks.length) return { html: '<p class="empty">No high impact, L effort tasks.</p>', n: 0 };
   const { shown, hidden } = capCards(rocks);
-  return shown.map(i => refCard(i)).join('') + moreNote(hidden);
+  return { html: shown.map(i => refCard(i)).join('') + moreNote(hidden), n: rocks.length };
 }
 
 /* An item's own impact. Sub-steps are never scored, so one takes the score of
@@ -532,11 +539,11 @@ function byPriority(items, list){
 
 function chainSection(items){
   const blocked = items.filter(i => i.blockedBy.length && !i.done);
-  if (!blocked.length) return '<p class="empty">Nothing carries a <code>blocked-by:</code> tag.</p>';
+  if (!blocked.length) return { html: '<p class="empty">Nothing carries a <code>blocked-by:</code> tag.</p>', n: 0 };
 
   const { order, weight } = byPriority(items, blocked);
 
-  return order.map(i => {
+  const html = order.map(i => {
     const deps = i.blockedBy.map(slug => {
       const src = itemBySlug(items, slug);
       const card = src ? chainCard(src, { dep:true }) : chainMissing(slug);
@@ -551,6 +558,7 @@ function chainSection(items){
         ? '<div class="chainholds">Holds up higher impact work</div>' : '') +
     '</div>';
   }).join('');
+  return { html, n: blocked.length };
 }
 
 /* One mini ticket in the chain — a blocker (dashed, dep:true) or the card
@@ -578,7 +586,7 @@ function delegateSection(items){
   const ranked = items.filter(i => i.ai === 'full' && !i.done && i.rank != null)
                       .sort((a, b) => a.rank - b.rank);
   const unranked = items.filter(i => i.ai === 'full' && !i.done && i.rank == null);
-  if (!ranked.length && !unranked.length) return '<p class="empty">Nothing is tagged <code>ai:full</code>.</p>';
+  if (!ranked.length && !unranked.length) return { html: '<p class="empty">Nothing is tagged <code>ai:full</code>.</p>', n: 0 };
 
   const capped = capGroups([ranked, unranked]);
   const [sRanked, sUnranked] = capped.shown;
@@ -599,7 +607,7 @@ function delegateSection(items){
   if (sUnranked.length) {
     html += refGroup('Not ranked yet', sUnranked.map(i => refCard(i, { prompt:true })));
   }
-  return html + moreNote(capped.hidden);
+  return { html: html + moreNote(capped.hidden), n: ranked.length + unranked.length };
 }
 
 /* Dragging a row's number rewrites `rank:` across every `ai:full` task in the
@@ -811,13 +819,13 @@ function onSessionsChanged(index){
     openChatByKey(want);
   }
   if (state.openTask) openDrawer(state.openTask);
-  if (state.view === 'canvas') renderCanvas();
 }
 /* Fired the instant a message leaves the composer, before any reply — the
    one moment "a prompt was actually run" rather than merely opened can be
    told apart from "the modal was opened and closed again". See "A prompt is
-   used up by being run" in AI-CANVAS.md for why this has to be on send
-   rather than on the Ask Claude click that opens the modal. */
+   used up by being run": this has to be on send rather than on the Ask Claude
+   click that opens the modal, because opening one and closing it again must
+   leave the prompt on the task. */
 function onPromptRunSend(payload){
   const p = state.pendingPromptRun;
   if (!p || payload.session || payload.key !== p.key) return;
@@ -832,7 +840,6 @@ function onChatChange(){ if (state.openTask) openDrawer(state.openTask); }
 // answered, so the whole view needs a redraw, not just the drawer.
 function onChatStatusChanged(cfg){
   state.chatsOn = !!cfg;
-  state.chatsChecked = true;
   if (state.doc) renderView();
 }
 
@@ -920,10 +927,9 @@ function chatKeyFor(t, make){
   return t.chat;
 }
 
-/* The task's Chats field, drawn with cvCardHTML — the same card the canvas
-   draws, stacked in a column instead of scattered on a surface. One renderer
-   either way: same markup, same dot, same click, wired below in handleAsk
-   rather than in chat.js's own renderSection, which this host no longer
+/* The task's Chats field, drawn with cvCardHTML — a stack of conversation
+   cards under the task they belong to. Wired below in handleAsk rather than in
+   chat.js's own renderSection, which this host no longer
    calls. A rule ahead of it marks it as its own section rather than one more
    field, the same as the two suggestion lists below it — but only when
    there is something to show: with no chat engine at all, chat.available()
@@ -932,12 +938,12 @@ function chatSection(t){
   if (!chat.available()) return '';
   const key = t.chat || '';
   // state.chats rather than chat.sessionsFor(): the board's own cached copy
-  // of the sessions index, kept current by onSessionsChanged, is what
-  // canvasModel() reads too — sessionsFor() answers from chat.js's own
-  // index, which only fills in once loadSessions() has actually run.
+  // of the sessions index, kept current by onSessionsChanged — sessionsFor()
+  // answers from chat.js's own index, which only fills in once loadSessions()
+  // has actually run.
   const rows = (key && state.chats[key] || [])
     .slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
-  const cards = rows.map(row => cvCardHTML(row, key, t.title, false)).join('');
+  const cards = rows.map(row => cvCardHTML(row, key, t.title)).join('');
   const body =
     '<div class="cvstack">' +
       (cards || emptyState('No conversations yet. Start one below, or attach one '
@@ -956,7 +962,7 @@ function chatSection(t){
 }
 
 /* ---- Attaching a session that started elsewhere ----
-   The other half of AI-CANVAS.md's "Attaching a session that started in the
+   The other half of "attaching a session that started in the
    terminal": /pa-attach handles the case where you are already in the
    conversation; this is the case where you are already looking at the task
    instead, and want to reach for a conversation Claude Code has on disk but
@@ -1026,7 +1032,7 @@ async function openAttachPicker(taskId){
 
    raw is the exact markdown line the prompt came from, the same text a
    manual Dismiss would remove. Opening the modal does not touch it — see "A
-   prompt is used up by being run" in AI-CANVAS.md — it only marks this as
+   prompt is used up by being run" — it only marks this as
    the run to watch for: if the first message actually sent on this owner
    key matches, onSend above deletes the line, and onSessionsChanged records
    the prompt against whatever session id that send turns out to create. */
@@ -1062,8 +1068,8 @@ function newChat(taskId){
 /* The list on a task and the prompt's "Ask Claude" button both land here,
    sharing the listener the drawer and board already use for everything else.
    The card itself — .cvbody to open, .cvclose to take it off the board — is
-   the same markup the canvas draws and wires through wireCanvas(); openCard()
-   below is shared between the two rather than written twice. */
+   drawn by cvCardHTML() in 11-chat-cards.js and wired only from here; there
+   was a canvas wiring the same markup a second way until 12 Sep 2026. */
 function handleAsk(e){
   const ask = e.target.closest('.askclaude');
   if (ask) { askFromPrompt(ask.dataset.task, ask.dataset.ask || '', ask.dataset.raw || ''); return; }

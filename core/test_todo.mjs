@@ -7,7 +7,7 @@
  * table of its own — a table written out twice, once per language, would be
  * exactly the third copy this is here to prevent.
  *
- * No browser. kanban/test_canvas.mjs and its siblings drive headless Chrome
+ * No browser. kanban/test_chats.mjs and its siblings drive headless Chrome
  * because they test what the board draws; this tests pure functions, so it runs
  * todo.js in a `vm` context instead. That is the whole reason todo.js never
  * touches `window` or `document`.

@@ -154,8 +154,8 @@ check('neither card is drawn until the button is pressed', await evalJS(`
 await evalJS(`document.querySelector('#refCardsBtn').click()`)
 await new Promise(r => setTimeout(r, 700))
 
-check('the clock card is its own card, stacked under Token Session', await evalJS(`
-  (() => { const card = document.querySelector('#schedOut').closest('.listcard');
+check('the clock card is its own column, stacked under Token Session', await evalJS(`
+  (() => { const card = document.querySelector('#schedOut').closest('.col');
     return card && card.parentElement.classList.contains('pvcol') &&
       card.closest('.mscrim') &&
       card.querySelector('h3').textContent === 'What runs on a clock' &&

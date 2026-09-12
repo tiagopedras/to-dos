@@ -326,7 +326,7 @@
   .tag.proj::before{content:'▣ '; opacity:.6}
   /* The project the task's work lives in, in the drawer's second column. Built
      on the same shell as a conversation card next to it — see the shared rule
-     down in the canvas section — because they are the same kind of thing in
+     down in the conversation-cards section — because they are the same kind of thing in
      that column: a card that is a way into something else. */
   .pcbody{
     display:block; width:100%; text-align:left; border:0; background:none;
@@ -479,7 +479,14 @@
   .mkeymuted i{background:var(--ink-faint); opacity:.3}
   /* Sits at the end of the legend rather than as a separate control above the
      grid — it reads what it changes, so it belongs beside the key it affects. */
-  .mxfilter{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); margin-left:auto; cursor:pointer}
+  /* In the column header's Filters slot since 12 Sep 2026, which is why it
+     turns the head's own uppercase back off: it is a label, not a heading. The
+     margin-left:auto is what pushed it to the right end of the legend it used
+     to sit in, and the head's own layout does that job now. */
+  .mxfilter{
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft);
+    cursor:pointer; text-transform:none; letter-spacing:0; font-weight:500;
+  }
   .mxfilter input{margin:0}
   .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-soft) !important}
   .mread strong{font-weight:700; color:var(--ink)}
@@ -507,7 +514,7 @@
   /* One column, full width — a Gantt reads better wide than split in half the
      way Matrix and its dependency chain sit side by side. */
   .lists.tview{columns:auto; max-width:none; display:block}
-  .lists.tview .listcard{margin:0}
+  .lists.tview .col{margin:0}
   /* Its own scrolling pane, both axes, rather than leaving the vertical
      growth to the page. `main` already scrolls horizontally for the board
      (main{overflow-x:auto}), which makes main a scroll container by the
@@ -738,12 +745,16 @@
      on the board's shape was the smaller change: it has six columns and
      thirty-odd cards against four columns of prose. */
   .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
-  /* Handed to AI is the only dashed column in the app, so the dash means one
-     thing: an agent owns this and you do not drag into it. Waiting review and
+  /* The Style=Agent variant, and the only dashed thing in the app, so the dash
+     means one thing: an agent owns this column and you do not drag into it.
+     Handed to AI on the board, Waiting for review on Plans and on Execution.
+     One rule rather than the three it was until 12 Sep 2026 — `.col.aicol` for
+     the board and `.lists.pview .col.agentcol` for the other two, which left
+     Execution's dash riding a selector scoped to Plans. Waiting review and
      Done used to be transparent as well as (for Done) dashed, which was the
      same meaning carried twice — once by the fill and once by the border — so
      the fill went and Done's dash went with it. */
-  .col.aicol{border-style:dashed}
+  .col.agentcol{border-style:dashed}
   .col.aicol .colhead{color:var(--ink-soft)}
   .col.donecol .colhead{color:var(--ink-faint)}
   .col.waitcol .colhead{color:var(--ink-soft)}
@@ -761,7 +772,10 @@
      neither is allowed to shrink the other away. */
   .colhead-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:20px}
   .colhead-left{display:flex; align-items:center; gap:8px; min-width:0}
-  .colhead-right{display:flex; align-items:center; gap:8px; flex:none}
+  /* Wraps because two heads carry a control wider than a button — Reports'
+     seven windows and Projects' order select. Nothing else ever reaches the
+     width to wrap, so the board and Plans read exactly as they did. */
+  .colhead-right{display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; min-width:0}
   .colhead h2, .colhead h3{
     margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
     text-transform:inherit; color:inherit; min-width:0;
@@ -790,6 +804,23 @@
   }
 
   .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
+  /* A collapsible column — Overview's five. The head is the <summary>, so it
+     keeps every rule above it and gains only a chevron and a pointer. The
+     marker is turned off in both spellings because Safari still wants the
+     -webkit one. */
+  .col > summary{cursor:pointer; list-style:none}
+  .col > summary::-webkit-details-marker{display:none}
+  .col > summary::marker{content:''}
+  .colchev{flex:none; font-size:10px; color:var(--ink-faint); line-height:1}
+  .colchev::before{content:'\25b8'}
+  .col[open] .colchev::before{content:'\25be'}
+  /* Shut, the head is the whole column, so the divider under it would be a
+     line along the bottom of a closed box. Both are keyed on the attribute
+     colHTML() only writes on a collapsible column: `:not([open])` is true of
+     every plain <section> too, so the body rule without it hid the body of
+     every column in the app. */
+  .col[data-colcollapse]:not([open]) > summary{border-bottom:0}
+  .col[data-colcollapse]:not([open]) > .colbody{display:none}
   .colbody{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
   .drop.over{background:color-mix(in srgb, var(--accent) 7%, transparent)}
   /* Where the card being dragged will land. Sits in the gap between two cards,
@@ -818,7 +849,7 @@
     grid-template-columns:repeat(var(--refcols,4), minmax(380px,1fr));
     min-width:calc(var(--refcols,4) * 394px);
   }
-  .lists.split .listcard{margin:0}
+  .lists.split .col{margin:0}
   /* Matrix pairs the nine cells with the dependency chain beside them. The grid
      keeps the room it needs and the chain takes a fixed reading width, rather
      than the two splitting the window evenly. */
@@ -826,30 +857,22 @@
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
     grid-template-columns:minmax(620px,1fr) 560px; min-width:1194px;
   }
-  .lists.mview .listcard{margin:0}
+  .lists.mview .col{margin:0}
   @media (max-width:820px){ .lists{columns:1} }
-  .listcard{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
-    padding:14px 16px 16px; margin:0 0 12px; break-inside:avoid; display:inline-block; width:100%;
-  }
-  .listcard h3{margin:0 0 10px; font-size:13px; font-weight:680; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft)}
-  /* Overview's own sections, shut by default — same visual weight as the h3
-     they replace, plus a chevron in the same shape the drawer's collapsible
-     fields already use. */
-  .ovsection > summary{
-    cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px;
-    margin:0 0 10px; font-size:13px; font-weight:680; text-transform:uppercase;
-    letter-spacing:.03em; color:var(--ink-soft);
-  }
-  .ovsection:not([open]) > summary{margin-bottom:0}
-  .ovsection > summary::-webkit-details-marker{display:none}
-  .ovsection > summary::before{content:'▸'; font-size:10px; display:inline-block; color:var(--ink-faint)}
-  .ovsection[open] > summary::before{content:'▾'}
-  .listcard h4{margin:14px 0 6px; font-size:13px; font-weight:640}
-  .listcard p{margin:0 0 9px; color:var(--ink-soft); font-size:13.5px; line-height:1.55}
-  .listcard p:last-child{margin-bottom:0}
-  .listcard li{font-size:13.5px; line-height:1.5}
-  .listcard code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  /* A column whose body is written rather than stacked — Overview, Matrix, the
+     Timeline, Reports, Backups and the two reference cards in the Spend modal.
+     Every one of those was a `.listcard` with its own panel, its own padding
+     and its own heading until 12 Sep 2026, and all of them are colHTML()
+     columns now; what was left of `.listcard` once the panel and the heading
+     went is this, the type inside such a body. Scoped to `.prose` rather than
+     to `.colbody` so it stops at the columns that had it: the board's, Plans'
+     and Execution's bodies hold cards, and a card sets its own type. */
+  .col.prose .colbody{gap:0; display:block; padding:12px 14px 14px}
+  .col.prose .colbody h4{margin:14px 0 6px; font-size:13px; font-weight:640}
+  .col.prose .colbody p{margin:0 0 9px; color:var(--ink-soft); font-size:13.5px; line-height:1.55}
+  .col.prose .colbody p:last-child{margin-bottom:0}
+  .col.prose .colbody li{font-size:13.5px; line-height:1.5}
+  .col.prose .colbody code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
   /* ---------- backups view ----------
      Scoped under .backupsview so its .row/.tag/.name/.empty/.err don't collide
@@ -888,10 +911,13 @@
      .row, .name and .tag already mean something else on a task card. A report
      is a picture of the file at one moment, so nothing in here is clickable
      except the task titles, which open the drawer like anywhere else. */
-  /* Sits above the counted report rather than inside it, since it governs
-     every report in reportDefs(), not just the one built today. */
+  /* In the column header's Filters slot since 12 Sep 2026, since it governs
+     every report in reportDefs() rather than the one built today — the same
+     slot Plans' dropdown and Matrix's checkbox sit in. No margin: the head
+     spaces its own row. */
   .repwindow{
-    display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
+    display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px;
+    color:var(--ink-soft); text-transform:none; letter-spacing:0; font-weight:500;
   }
   /* Seven windows shown at once instead of a <select> showing one. Same
      pressed shape as the bucket tabs, sized down, because it is the same kind
@@ -913,10 +939,12 @@
   /* The range the picker resolves to, stated once beside it rather than
      repeated as its own heading further down. */
   .repwindow .repdates{color:var(--ink-faint)}
-  /* Same shape as .repwindow above, for the same reason: it governs every
-     card in the list below it rather than belonging to one of them. */
+  /* Same shape as .repwindow above, for the same reason, and in the column
+     header's Sort slot for the same reason: it governs every card in the list
+     below it rather than belonging to one of them. */
   .projsort{
-    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft);
+    text-transform:none; letter-spacing:0; font-weight:500;
   }
   .projsort select{
     border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
@@ -1101,7 +1129,7 @@
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
     grid-template-columns:minmax(960px,1fr) minmax(420px,600px); min-width:1394px;
   }
-  .lists.rview .listcard{margin:0}
+  .lists.rview .col{margin:0}
 
   /* ---------- plans ----------
      Read left to right as the life of one task through the nightly agent:
@@ -1134,10 +1162,10 @@
      as an appendix under the chart rather than competing with it for width,
      which is the order they were in when they shared a track on the view. */
   .pvcol{display:flex; flex-direction:column; gap:14px; min-width:0}
-  /* No shadow and no bottom margin on them in there: .listcard is drawn to sit
+  /* No shadow and no bottom margin on them in there: a column is drawn to sit
      on the page background, and the sheet it is in is already a panel with a
      border of its own. */
-  .sheet .pvcol .listcard{margin:0; box-shadow:none}
+  .sheet .pvcol .col{margin:0; box-shadow:none}
   /* A column with nothing in it, in the two styles there are and no third:
      plain grey text on the board, and a dashed box on Plans and Execution,
      where a column of prose with one line of grey text in it read as a column
@@ -1242,7 +1270,6 @@
      theirs on the same day — see .col.aicol above. Handed to AI on the board
      and this column are the two dashed columns in the app, and they mean the
      same thing: an agent owns it. */
-  .lists.pview .col.agentcol{border-style:dashed}
   /* A plan row drags like a board card, out of whichever column it is in. */
   .planitem{cursor:grab}
   .planitem.dragging{opacity:.4}
@@ -1699,8 +1726,8 @@
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
   .dismiss:hover{color:var(--red); border-color:color-mix(in srgb, var(--red) 35%, transparent)}
-  .listcard strong{font-weight:640; color:var(--ink)}
-  .listcard em{color:var(--ink-faint)}
+  .col.prose strong{font-weight:640; color:var(--ink)}
+  .col.prose em{color:var(--ink-faint)}
   .listnote{max-width:1180px; margin:4px 2px 0}
   .listlead{margin:0 2px 10px}   /* one explanation above the columns, not one per column */
 
@@ -1844,7 +1871,7 @@
      rather than "break-word" so it also stops that string forcing the whole
      column wider than the one it is sitting in. */
   .ref, .msg, .msgtext, .ctxtext{min-width:0}
-  .ctxtext, .msgtext, .reftitle, .listcard p, .listcard li{overflow-wrap:anywhere}
+  .ctxtext, .msgtext, .reftitle, .col.prose p, .col.prose li{overflow-wrap:anywhere}
   .ctxtext strong{color:var(--ink); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
   /* One panel per `###` group in Context, closed by default — a dozen
@@ -2515,72 +2542,14 @@
   .toast.show{opacity:1; transform:translateY(0)}
 
   /* ---------------------------------------------------------------------
-     The canvas — conversations with Claude, grouped by the task they belong to.
+     Conversation cards — one per chat filed against a task, stacked in that
+     task's Chats field in the drawer.
 
-     A view of filing rather than a place to start anything. Every card is a
-     conversation the sessions store already knows about; a box is a task that
-     has at least one. Nothing here is drawn from todo.md except the names on
-     the boxes, and nothing here writes to it except adopting a card, which
-     mints a `chat:` key on a task line the same way starting a chat from the
-     drawer already does.
-
-     Positions live in data/<dataset>/canvas.json. Delete it and the canvas
-     lays itself out again from scratch, which is the whole cost of losing it.
+     Four lines each, and nothing more: what the conversation is called, what
+     work it belongs to, when it last did anything, and whether it can write to
+     disk. There was a canvas view scattering these same cards on a surface
+     until 12 Sep 2026; what is left is the stack.
      --------------------------------------------------------------------- */
-  .canvas{
-    position:relative; flex:1; min-height:0; overflow:auto;
-    background:
-      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px;
-  }
-  .cvsurface{position:relative; width:4000px; height:2600px}
-  /* Tidy, and nothing else so far. Sticky in both directions so it stays in
-     the corner of the pane wherever the 4000px surface has been scrolled to —
-     an absolutely positioned child would scroll away with the cards. Zero
-     height so it takes no room in the flow: the surface still starts at the
-     top-left of the pane, and the button hangs over it. Above the 999 a card
-     takes while it is being dragged, since a card passing under the cursor
-     should not swallow the control. */
-  .cvtools{position:sticky; top:10px; left:12px; z-index:1000; height:0}
-  .cvempty{
-    position:absolute; left:50%; top:120px; transform:translateX(-50%);
-    max-width:460px; text-align:center; color:var(--ink-soft);
-  }
-  .cvempty h2{font-size:15px; margin:0 0 6px; color:var(--ink)}
-  .cvempty p{margin:0 0 4px; font-size:13px; line-height:1.5}
-
-  /* A box is a task. It is drawn behind its cards and never smaller than
-     them — cards.js does that arithmetic, so this and the Electron canvas
-     agree on it rather than each having a version. */
-  .cvbox{
-    position:absolute; border:1px solid var(--line); border-radius:12px;
-    background:var(--line-soft); pointer-events:auto;
-  }
-  .cvbox.over{border-color:var(--accent); background:var(--chip)}
-  .cvboxbar{
-    display:flex; align-items:center; gap:8px; height:34px; padding:0 12px;
-    cursor:grab; font-weight:600; font-size:12.5px; color:var(--ink-soft);
-    white-space:nowrap; overflow:hidden;
-  }
-  .cvboxbar:active{cursor:grabbing}
-  .cvboxbar .cvcount{margin-left:auto; font-weight:400; color:var(--ink-faint)}
-  .cvboxbar .cvopen{
-    flex:1 1 auto; min-width:0; border:0; background:none; padding:0; cursor:pointer;
-    color:inherit; font:inherit; font-weight:600; text-align:left;
-    overflow:hidden; text-overflow:ellipsis;
-  }
-  .cvboxbar .cvopen:hover{color:var(--accent); text-decoration:underline}
-
-  /* A card. Four lines, the same four the Electron canvas argued itself into:
-     what it is called, what work it belongs to, when it last did anything,
-     and whether it can write to disk. */
-  .cvcard{
-    position:absolute; width:280px; background:var(--panel);
-    border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
-    overflow:hidden;
-  }
-  /* The same card, stacked in the drawer's Chats field instead of scattered
-     on the canvas. No grip — a card here is already filed against the one
-     task it's open on, so there is nothing to drag it onto. */
   .cvstack{display:flex; flex-direction:column; gap:8px; margin:0 0 8px}
   /* One rule for both cards in that column, so the project card and the
      conversation cards under it cannot drift apart. What differs is what is
@@ -2590,7 +2559,6 @@
     background:var(--panel); border:1px solid var(--line); border-radius:10px;
   }
   .pcard{margin-bottom:8px}
-  .cvstack .cvgrip{display:none}
   .aic-actions{display:flex; gap:8px; flex-wrap:wrap}
 
   /* The picker for "Attach a session…" — a session Claude Code has on disk
@@ -2631,14 +2599,6 @@
     display:block; margin-top:2px; font-size:11.5px; color:var(--ink-faint);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .cvcard.dragging{opacity:.85; box-shadow:0 8px 24px rgba(16,20,28,.18)}
-  .cvgrip{
-    height:22px; border-radius:9px 9px 0 0; cursor:grab;
-    border-bottom:1px solid var(--line-soft); background:var(--line-soft);
-    display:flex; align-items:center; padding:0 8px; color:var(--ink-faint);
-    font-size:11px; letter-spacing:.08em;
-  }
-  .cvgrip:active{cursor:grabbing}
   .cvbody{
     display:block; width:100%; text-align:left; border:0; background:none;
     padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
@@ -2651,34 +2611,19 @@
   }
   /* The one flag the app cannot work out on its own: something happened
      here since you last opened it. A dot rather than a badge, because it
-     is a nudge, not a count — copied from ai_canvas's own .unread-dot.
-     Cleared by opening the card; see markCanvasViewed(). */
+     is a nudge, not a count. Cleared by opening the card; see
+     markChatViewed(). */
   .cvtitle .unread-dot{
     display:inline-block; width:6px; height:6px; margin-left:6px;
     border-radius:50%; background:var(--accent); vertical-align:middle; flex:none;
   }
   .cvowner{display:block; margin-top:5px; font-size:11.5px; color:var(--ink-soft);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .cvowner.loose{color:var(--ink-faint); font-style:italic}
   .cvmeta{display:block; margin-top:6px; font-size:11px; color:var(--ink-faint)}
   .cvmeta .cvmode{
     display:inline-block; margin-left:6px; padding:0 5px; border-radius:4px;
     background:var(--amber-bg); color:var(--amber); font-style:normal;
   }
-  /* The corner a box resizes from. Bottom-right only, which is the corner a
-     window has: four handles on a box you rarely resize is more furniture than
-     the gesture is worth. */
-  .cvgrow{
-    position:absolute; right:0; bottom:0; width:16px; height:16px;
-    cursor:nwse-resize;
-  }
-  .cvgrow::after{
-    content:''; position:absolute; right:3px; bottom:3px; width:8px; height:8px;
-    border-right:2px solid var(--ink-faint); border-bottom:2px solid var(--ink-faint);
-    border-radius:0 0 3px 0; opacity:.5;
-  }
-  .cvbox:hover .cvgrow::after{opacity:1}
-
   /* Taking a conversation off the board. Hidden until the card is under the
      cursor, like every other destructive control here — it is one click and it
      should not be sitting in the corner of every card inviting one. */

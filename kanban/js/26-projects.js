@@ -112,8 +112,15 @@ async function renderProjectsView(){
               'currently mentions it. Live means at least one task\u2019s note points here; ' +
               'orphaned means none does \u2014 either nothing on the list has started against ' +
               'it yet, or the work it names is already finished and ticked off.',
-        body: '<label class="projsort">Sort ' + projectSortSelectHTML() + '</label>' +
-              '<div id="projectsOut">Loading\u2026</div>'
+        /* The order control is the column header's Sort slot, the same slot the
+           board's priority toggle sits in — it governs every card below it, and
+           anything governing a column belongs in its head. It sat as the first
+           line of the body until 12 Sep 2026, where it read as a row of the
+           list rather than a control over it. */
+        sort: '<label class="projsort">Sort ' + projectSortSelectHTML() + '</label>',
+        count: '',
+        attrs: 'id="projectsCol"',
+        body: '<div id="projectsOut">Loading\u2026</div>'
       }) +
     '</div>';
   $('#projectSort').onchange = e => {
@@ -128,6 +135,7 @@ async function renderProjectsView(){
       return;
     }
     projectList = (await res.json()).projects || [];
+    setColCount('#projectsCol', projectList.length);
     renderProjectList();
   } catch (err) {
     out.innerHTML = '<div class="err">Could not read the project list. ' +

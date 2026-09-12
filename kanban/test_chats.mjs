@@ -1,9 +1,13 @@
 /**
- * Drives the board in headless Chrome and asserts on what the canvas actually
- * draws, rather than on what the code looks like it should do.
+ * Drives the board in headless Chrome and asserts on what the drawer's Chats
+ * field actually draws, rather than on what the code looks like it should do.
+ *
+ * It was test_canvas.mjs until 12 Sep 2026, when the canvas view it was
+ * written against was removed and what it covers became the stack of
+ * conversation cards under a task, the attach queue and the prompt runs.
  *
  *   python3 kanban/server.py &          # or point PORT below at one already up
- *   node kanban/test_canvas.mjs
+ *   node kanban/test_chats.mjs
  *
  * Two guards, because this repo has lost the real todo.md to a test twice:
  *
@@ -29,7 +33,7 @@ const check = (name, pass, detail = '') => {
 
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${PORT}`, '--no-first-run',
-  '--user-data-dir=/tmp/todo-canvas-test-profile', '--window-size=1600,1000',
+  '--user-data-dir=/tmp/todo-chats-test-profile', '--window-size=1600,1000',
   `http://127.0.0.1:${BOARD}/kanban/index.html`
 ], { stdio: ['ignore', 'pipe', 'pipe'] })
 
@@ -65,8 +69,7 @@ async function evalJS (expr) {
 }
 
 await new Promise(r => setTimeout(r, 2500))
-check('the board loaded', await evalJS(`typeof renderCanvas === 'function'`))
-check('cards.js reached the page', await evalJS(`typeof window.AICards === 'object' && typeof AICards.containBox === 'function'`))
+check('the board loaded', await evalJS(`typeof cvCardHTML === 'function'`))
 
 // LOCK FIRST, then fixtures. Nothing below can write anything.
 // Belt and braces. The tab is locked, AND every write is torn out of fetch, so
@@ -85,18 +88,18 @@ await evalJS(`(async () => {
   const demo = await (await fetch('/kanban/demo.md')).text();
   load(demo, 'demo.md', {});
   state.locked = true;
-  state.lockedLabel = 'canvas test';
+  state.lockedLabel = 'chats test';
   return 'locked';
 })()`)
 check('tab is locked before any fixture', await evalJS(`state.locked === true`))
 check('and no write can leave the page', await evalJS(`window.__blocked.length === 0 && typeof window.__blocked === 'object'`))
-check('the Canvas tab stays hidden in a locked tab', await evalJS(`
-  !viewDefs().some(d => d.id === 'canvas')
+check('no canvas view is offered', await evalJS(`
+  !viewDefs().some(d => d.id === 'canvas') && !isKnownView('canvas')
 `))
 
 const built = await evalJS(`
   (() => {
-    // Unlocked from here so the canvas draws as it would in real use. Writes
+    // Unlocked from here so the drawer draws as it would in real use. Writes
     // are still impossible: fetch above refuses every one of them.
     state.locked = false;
     state.chatsOn = true;
@@ -112,171 +115,34 @@ const built = await evalJS(`
       bbbbbb: [
         { id:'33333333-3333-3333-3333-333333333333', title:'Checking how it was worded last quarter', updated:new Date(Date.now()-3*864e5).toISOString(), mode:'ask', cwd:'/x' }
       ],
-      'canvas-zzzzzz': [
+      cccccc: [
         { id:'44444444-4444-4444-4444-444444444444', title:'A stray thought from the terminal', updated:new Date().toISOString(), mode:'ask', cwd:'/x' }
       ]
     };
-    state.canvasLoaded = true;
-    state.view = 'canvas';
+    state.chatViewedLoaded = true;
     renderView();
     return { titles: [a.title, b.title], ids: [a.id, b.id] };
   })()
 `)
 
-check('the Canvas tab is offered', await evalJS(`[...document.querySelectorAll('#viewToggle .tab')].map(b=>b.textContent).includes('AI processes')`))
-check('the canvas is the visible view', await evalJS(`!document.getElementById('canvas').classList.contains('hidden') && document.getElementById('board').classList.contains('hidden')`))
-
-const boxes = await evalJS(`[...document.querySelectorAll('.cvbox')].length`)
-check('one box per task with conversations', boxes === 2, `${boxes} boxes`)
-const cards = await evalJS(`[...document.querySelectorAll('.cvcard')].length`)
-check('every conversation got a card', cards === 4, `${cards} cards`)
-// Boxes are ordered by task title, not by the order the fixture listed them,
-// so check both names are on the canvas rather than which one came first.
-const names = await evalJS(`[...document.querySelectorAll('.cvboxbar')].map(b => b.textContent)`)
-check('each box is named after its task',
-  built.titles.every(t => names.some(n => n.includes(t))), names.map(n => n.slice(0, 28)).join(' | '))
-check('the loose card says it is unfiled', await evalJS(`[...document.querySelectorAll('.cvowner.loose')].length === 1`))
-check('a work-mode card says it can write', await evalJS(`[...document.querySelectorAll('.cvmode')].length === 1`))
-
-const geom = await evalJS(`
-  (() => {
-    const box = document.querySelector('.cvbox[data-box="aaaaaa"]');
-    const r = state.canvas.boxes.aaaaaa;
-    const inside = [...document.querySelectorAll('.cvcard')].filter(c => c.dataset.owner === 'aaaaaa');
-    const fits = inside.every(c => {
-      const x = parseFloat(c.style.left), y = parseFloat(c.style.top);
-      return x >= r.x && y >= r.y && x + c.offsetWidth <= r.x + r.width;
-    });
-    return { hasRect: !!r && r.width > 0, fits, w: r && r.width };
-  })()
-`)
-check('the box got a real rect from cards.js', geom.hasRect, `width ${geom.w}`)
-check('and it contains its own cards', geom.fits)
-
-// Drag a loose card onto a task's box and see whether the drop is recognised.
-const drop = await evalJS(`
-  (() => {
-    const card = document.querySelector('.cvcard[data-owner^="canvas-"]');
-    const target = state.canvas.boxes.bbbbbb;
-    card.style.left = (target.x + 30) + 'px';
-    card.style.top = (target.y + 40) + 'px';
-    return cvBoxUnder(card);
-  })()
-`)
-check('a card dropped on a box is read as landing in it', drop === 'bbbbbb', String(drop))
-const out = await evalJS(`
-  (() => {
-    const card = document.querySelector('.cvcard[data-owner^="canvas-"]');
-    card.style.left = '3200px'; card.style.top = '2200px';
-    return cvBoxUnder(card);
-  })()
-`)
-check('a card dragged clear of every box lands in none', out === null, String(out))
-
-// ---- Resizing a box ----
-check('a box has a corner to resize from', await evalJS(`
-  !!document.querySelector('.cvbox[data-box="aaaaaa"] .cvgrow')
-`))
-const grew = await evalJS(`
-  (() => {
-    const box = document.querySelector('.cvbox[data-box="aaaaaa"]');
-    const before = { w: box.offsetWidth, h: box.offsetHeight };
-    const r = box.getBoundingClientRect();
-    const grip = box.querySelector('.cvgrow');
-    const at = grip.getBoundingClientRect();
-    const down = new PointerEvent('pointerdown', { clientX: at.x + 8, clientY: at.y + 8, bubbles: true, pointerId: 1 });
-    grip.dispatchEvent(down);
-    document.getElementById('canvas').onpointermove(new PointerEvent('pointermove', { clientX: at.x + 208, clientY: at.y + 108, pointerId: 1 }));
-    const mid = { w: box.offsetWidth, h: box.offsetHeight };
-    document.getElementById('canvas').onpointerup(new PointerEvent('pointerup', { pointerId: 1 }));
-    return { before, mid, after: { w: box.offsetWidth, h: box.offsetHeight }, stored: state.canvas.boxes.aaaaaa };
-  })()
-`)
-check('dragging the corner makes the box bigger', grew.after.w > grew.before.w + 150,
-  `${grew.before.w} -> ${grew.after.w}`)
-check('the new size is written down', grew.stored.width === grew.after.w, `stored ${grew.stored.width}`)
-
-const shrank = await evalJS(`
-  (() => {
-    const box = document.querySelector('.cvbox[data-box="aaaaaa"]');
-    const grip = box.querySelector('.cvgrow');
-    const at = grip.getBoundingClientRect();
-    grip.dispatchEvent(new PointerEvent('pointerdown', { clientX: at.x + 8, clientY: at.y + 8, bubbles: true, pointerId: 2 }));
-    // Drag hard inwards, past the cards the box holds.
-    document.getElementById('canvas').onpointermove(new PointerEvent('pointermove', { clientX: at.x - 900, clientY: at.y - 400, pointerId: 2 }));
-    const mid = box.offsetWidth;
-    document.getElementById('canvas').onpointerup(new PointerEvent('pointerup', { pointerId: 2 }));
-    const cards = [...document.querySelectorAll('.cvcard')].filter(c => c.dataset.owner === 'aaaaaa');
-    const r = state.canvas.boxes.aaaaaa;
-    return {
-      mid, after: box.offsetWidth,
-      fits: cards.every(c => parseFloat(c.style.left) + c.offsetWidth <= r.x + r.width)
-    };
-  })()
-`)
-check('it follows the cursor inwards while dragging', shrank.mid < 200, `${shrank.mid}px mid-drag`)
-check('and on release refuses to be smaller than its cards', shrank.fits && shrank.after > 400,
-  `settled at ${shrank.after}px`)
-
-// ---- Closing a card ----
-check('every card has a close button', await evalJS(`
-  document.querySelectorAll('.cvclose').length === document.querySelectorAll('.cvcard').length
-`))
-const closed = await evalJS(`(async () => {
-  const before = document.querySelectorAll('.cvcard').length;
-  let asked = '';
-  const realConfirm = window.confirm;
-  window.confirm = (msg) => { asked = msg; return true; };
-  let forgot = null;
-  const realForget = chat.forget;
-  chat.forget = (key, id) => { forgot = key + '/' + id; delete state.chats[key];
-    return Promise.resolve(); };
-  const realLoad = chat.loadSessions;
-  chat.loadSessions = () => Promise.resolve();
-  state.canvas.cards['44444444-4444-4444-4444-444444444444'] = { x: 1, y: 1, z: 1 };
-  await closeCard('canvas-zzzzzz', '44444444-4444-4444-4444-444444444444');
-  window.confirm = realConfirm; chat.forget = realForget; chat.loadSessions = realLoad;
-  return {
-    asked, forgot, before, after: document.querySelectorAll('.cvcard').length,
-    geometryGone: !state.canvas.cards['44444444-4444-4444-4444-444444444444']
-  };
-})()`)
-check('closing asks first', closed.asked.includes('off the board'))
-check('and says the transcript survives', closed.asked.includes('stays on disk'))
-check('it forgets the right session', closed.forgot === 'canvas-zzzzzz/44444444-4444-4444-4444-444444444444')
-check('the card leaves the canvas', closed.after === closed.before - 1, `${closed.before} -> ${closed.after}`)
-check('and its place is forgotten with it', closed.geometryGone)
-
-const kept = await evalJS(`(async () => {
-  const before = document.querySelectorAll('.cvcard').length;
-  const realConfirm = window.confirm;
-  window.confirm = () => false;
-  let called = false;
-  const realForget = chat.forget;
-  chat.forget = () => { called = true; return Promise.resolve(); };
-  await closeCard('aaaaaa', '11111111-1111-1111-1111-111111111111');
-  window.confirm = realConfirm; chat.forget = realForget;
-  return { called, same: document.querySelectorAll('.cvcard').length === before };
-})()`)
-check('saying no closes nothing', !kept.called && kept.same)
-
-// ---- The same card, in the drawer ----
-// Step 3 of AI-CANVAS.md: the drawer's Chats field draws with cvCardHTML,
-// the same renderer the canvas uses, instead of chat.js's own row markup.
+// ---- The card, in the drawer ----
+// The Chats field draws with cvCardHTML rather than chat.js's own row markup.
 const drawer = await evalJS(`
   (() => {
     openDrawer('${built.ids[0]}');
     const stack = document.querySelector('#dbody .cvstack');
     return {
       cards: stack ? stack.querySelectorAll('.cvcard').length : -1,
-      noGrip: stack ? getComputedStyle(stack.querySelector('.cvgrip')).display === 'none' : false,
+      noGrip: stack ? !stack.querySelector('.cvgrip') : false,
+      mode: stack ? stack.querySelectorAll('.cvmode').length : -1,
       hasAttach: !!document.querySelector('#dbody .aic-attach'),
       hasNew: !!document.querySelector('#dbody .aic-addsub:not(.aic-attach)')
     };
   })()
 `)
 check('the drawer draws one card per conversation', drawer.cards === 2, `${drawer.cards} cards`)
-check('no drag grip on a card stacked in the drawer', drawer.noGrip)
+check('a card has no grip to drag by — there is nowhere to drag it', drawer.noGrip)
+check('a work-mode card says it can write', drawer.mode === 1, `${drawer.mode} badges`)
 check('the drawer offers Attach a session…', drawer.hasAttach)
 check('and still offers + New chat', drawer.hasNew)
 
@@ -298,10 +164,11 @@ const drawerClose = await evalJS(`(async () => {
   window.confirm = realConfirm;
   return asked;
 })()`)
-check('the drawer card’s close button is the same closeCard() the canvas uses', drawerClose.includes('off the board'))
+check('the card’s close button asks before taking it off the board', drawerClose.includes('off the board'))
+check('and says the transcript survives', drawerClose.includes('stays on disk'))
 
 // ---- A prompt is used up by being run ----
-// Step 5 of AI-CANVAS.md. The click that opens the modal must not delete
+// The click that opens the modal must not delete
 // anything — only an actual send does, and only the send that matches the
 // prompt run pending on that task.
 const promptRaw = '- Prompt: Draft the note that comes out of it'
@@ -384,7 +251,7 @@ check('starting a plain new chat clears a stale pending run instead of adopting 
 `))
 
 // ---- Attaching a session that started elsewhere ----
-// Step 4 of AI-CANVAS.md, the board's own half — the queue /pa-attach leaves
+// The board's own half of /pa-attach — the queue that skill leaves
 // is the other half, and cannot be driven from here since it is a terminal
 // skill, not a page. fetch is monkey-patched for the length of each of these
 // two blocks and restored after, on top of the permanent read-only wrapper
@@ -455,22 +322,29 @@ check('the picker lists what is on disk', picked.rows === 1, `${picked.rows} row
 check('picking one closes the picker', picked.closed)
 check('and attaches it', !!picked.attachCall)
 
-check('a locked tab refuses to save the layout', await evalJS(`
+check('a locked tab refuses to write down what was opened', await evalJS(`
   (() => {
     state.locked = true;
     window.__blocked.length = 0;
-    saveCanvas();
+    saveChatViewed();
     return window.__blocked.length === 0;
   })()
 `))
 await new Promise(r => setTimeout(r, 700))
 check('and still nothing was written after the debounce', await evalJS(`window.__blocked.length === 0`))
 check('an unlocked tab does save it', await evalJS(`
-  (() => { state.locked = false; saveCanvas(); return true; })()
+  (() => { state.locked = false; saveChatViewed(); return true; })()
 `))
 await new Promise(r => setTimeout(r, 700))
-check('the layout save is a POST to /canvas', await evalJS(`
-  window.__blocked.some(b => b === 'POST /canvas')
+check('the save is a POST to /chat-viewed', await evalJS(`
+  window.__blocked.some(b => b === 'POST /chat-viewed')
+`), await evalJS(`JSON.stringify(window.__blocked)`))
+// The recording also holds a PUT /data/todo.md that never left the page:
+// attaching a session above minted a task a `chat:` key, which marks the
+// document dirty and starts the ordinary autosave. Stopping that is the whole
+// point of the fetch guard, and seeing it here is the proof it worked.
+check('the todo.md save was attempted and stopped', await evalJS(`
+  window.__blocked.some(b => b === 'PUT /data/todo.md')
 `), await evalJS(`JSON.stringify(window.__blocked)`))
 
 const errs = await evalJS(`window.__errs || 0`)

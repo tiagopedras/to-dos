@@ -422,7 +422,7 @@ padding 5/9, matching `.btn`. Add a calendar glyph to `.dpbtn`.
   `HEAD /data/todo.md` polling.
 - **Tearing non-GET out of `fetch`** before unlocking, when the editable drawer was needed (the
   drawer renders read-only whenever `state.locked` is true, so it had to be unlocked to be drawn).
-  This is the pattern `kanban/test_canvas.mjs` already uses.
+  This is the pattern `kanban/test_chats.mjs` already uses.
 - **Rebuilding from the backup frames** whenever a Figma operation destroyed content. The untouched
   `Board — 1440×900 (backup)` paid for itself three times.
 
@@ -563,7 +563,7 @@ and to Execution, which has the same four columns and the same filtering.
    python3 agents/implementing_agent/test_implementing_agent.py
    python3 companion/test_companion.py
    node kanban/test_plans.mjs    node kanban/test_execution.mjs
-   node kanban/test_schedule.mjs node kanban/test_canvas.mjs
+   node kanban/test_schedule.mjs node kanban/test_chats.mjs
    node kanban/test_projects.mjs node kanban/test_notes.mjs
    ```
 6. **Log the leftovers in `IMPROVEMENTS.md`** rather than half-doing them.

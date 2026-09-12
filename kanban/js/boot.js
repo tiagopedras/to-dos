@@ -1,7 +1,7 @@
 'use strict';
 
 /* Loaded last, after every section above, on purpose: everything below reads
-   something declared in a later section (isKnownView() in 11-canvas.js,
+   something declared in a later section (isKnownView() in 11-chat-cards.js,
    SORT_KEY in 03-tier-one-impact-effort.js) that would not exist yet if these
    two ran from inside 02-state.js, where they used to live. See the comment
    there for what that cost silently, every load, before this file existed. */
@@ -12,6 +12,7 @@ loadFile();
 loadJira();
 loadDatasets();
 loadBucketColors();
+loadChatViewed();
 // Says so in the console if stream.json and the column names here have drifted
 // apart. Never blocks anything; see checkStreamManifest in 02-state.js.
 checkStreamManifest();

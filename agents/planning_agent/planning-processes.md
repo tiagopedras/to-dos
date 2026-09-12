@@ -24,8 +24,6 @@ thing that writes plans.
   a closed one is the specific failure this file exists to prevent.
 - `CLAUDE.md` at the repo root — the testing rules, the companion's constraints,
   which account pushes.
-- `AI-CANVAS.md` — the canvas, the session filing layer, and the long write-up of
-  what was tried and rejected.
 - `agents/pa_agent/CLAUDE.md` and `agents/pa_agent/PA.md` for anything touching
   the `pa-*` skills. The first holds the hierarchy between them: `pa` is the only
   one that writes `todo.md`, and the other eight hand their outcome to it.
@@ -48,7 +46,7 @@ does not.
 
 **Tests never touch `data/twinkl/` or `data/personal/`.** Lock the tab before
 loading a fixture; `data/_test/` exists for the one case that needs a real save.
-`kanban/test_canvas.mjs` is the worked example. Two real overwrites of the live
+`kanban/test_chats.mjs` is the worked example. Two real overwrites of the live
 list have already happened, both recovered only by luck.
 
 **`data/` is private and gitignored, and nothing outside it holds a name or a

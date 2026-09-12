@@ -350,10 +350,12 @@ function cardHTML(t, color, bucketLabel, opts){
      hint     the subtitle beside it — off on the board since the same date,
               where the six names carry their own meaning and the subtitles
               were saying it twice
-     sort     the sort button, already built by the caller
+     sort     the sort control, already built by the caller — the board's
+              priority toggle, Projects' order select
      count    how many are in it
      action   a button belonging to this column (Run now, Spend and clocks)
-     filters  a dropdown narrowing what the column shows
+     filters  a control narrowing what the column shows — a dropdown on Plans,
+              the window picker on Reports, a checkbox on Matrix
      desc     a sentence saying what the column is for — Plans carries one on
               every column, the board none
      body     the column's contents
@@ -364,6 +366,24 @@ function cardHTML(t, color, bucketLabel, opts){
      heading  h2 or h3; the board's columns are the page's own sections and
               Plans' sit inside a view, and that is the only reason the tag
               differs. Nothing is styled off it.
+
+   Two more say what kind of column it is rather than what is in its head, and
+   both are the Figma component's own:
+
+     style        'agent' is the Style=Agent variant — a dashed edge, meaning
+                  an agent owns this column and you do not drag into it. It is
+                  the only dashed thing in the app, which is what makes the
+                  dash readable; see the note on .col.agentcol in board.css.
+                  Anything else, including nothing, is Style=Default.
+     collapsible  draws the column as a <details> whose <summary> is the head,
+                  with `open` saying whether it starts open and `collapseKey`
+                  naming where that is remembered (data-colcollapse, read by
+                  the toggle listener in 19-drawer.js). Overview's five are the
+                  only ones: five columns of prose open at once is a lot of
+                  scrolling, and a column of cards has nothing to gain by
+                  hiding. A head with controls in it still works — the click
+                  guard below keeps a button in a summary from toggling the
+                  column open as a side effect of being pressed.
    ========================================================================= */
 function colHTML(o){
   o = o || {};
@@ -372,15 +392,21 @@ function colHTML(o){
   // half-empty run of them is normal and must not reach the attribute.
   const cls = (o.cls || '').trim().replace(/\s+/g, ' ');
   const bodyCls = (o.bodyCls || '').trim().replace(/\s+/g, ' ');
+  /* A collapsible column is a <details> and its head is the <summary> — the
+     same head, the same classes, the same optional parts, so nothing about a
+     column changes by being foldable except the element it is made of. */
+  const el = o.collapsible ? 'details' : 'section';
+  const headTag = o.collapsible ? 'summary' : 'div';
   /* Two groups pushed apart, not one row with things floated right. What the
      column is called sits left; what you do to it sits right, in the
      component's own order — sort, then count, then an action button, then a
      Filters select. A long title squeezes the left group and leaves the right
      one alone, which is what a header full of controls has to do. */
   const head =
-    '<div class="colhead">' +
+    '<' + headTag + ' class="colhead">' +
       '<div class="colhead-row">' +
         '<div class="colhead-left">' +
+          (o.collapsible ? '<span class="colchev" aria-hidden="true"></span>' : '') +
           '<' + tag + '>' + esc(o.title) + '</' + tag + '>' +
           (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') +
         '</div>' +
@@ -392,14 +418,37 @@ function colHTML(o){
         '</div>' +
       '</div>' +
       (o.desc ? '<p class="colhead-desc">' + o.desc + '</p>' : '') +
-    '</div>';
-  return '<section class="col' + (cls ? ' ' + cls : '') + '"' +
-      (o.attrs ? ' ' + o.attrs : '') + '>' +
+    '</' + headTag + '>';
+  return '<' + el + ' class="col' + (cls ? ' ' + cls : '') +
+      (o.style === 'agent' ? ' agentcol' : '') + '"' +
+    (o.collapsible ? ' data-colcollapse="' + esc(o.collapseKey || o.title) + '"' +
+      (o.open === false ? '' : ' open') : '') +
+    (o.attrs ? ' ' + o.attrs : '') + '>' +
     head +
     '<div class="colbody' + (bodyCls ? ' ' + bodyCls : '') + '"' +
       (o.bodyAttrs ? ' ' + o.bodyAttrs : '') + '>' + (o.body || '') + '</div>' +
     (o.footer || '') +
-  '</section>';
+  '</' + el + '>';
+}
+
+/* A control in a collapsible column's head is there to act on the column, not
+   to fold it — but it sits inside the <summary>, where a click folds the
+   column whatever it lands on. So the press is allowed through to the control
+   and the fold is cancelled. Delegated for the same reason the filter's own
+   handler below is: every head is rebuilt on every render. */
+document.addEventListener('click', e => {
+  const sum = e.target.closest('.col > summary');
+  if (sum && e.target.closest('button, select, input, label, a')) e.preventDefault();
+});
+
+/* Filling a column's count after the fact. Three of them — Written reports,
+   Backups and Projects — cannot know their number until a fetch comes back, so
+   they draw with an empty count and this puts the figure in when it arrives.
+   Silent when the column has gone: a view can be switched away from while its
+   fetch is still in the air. */
+function setColCount(sel, n){
+  const el = document.querySelector(sel + ' .colhead .count');
+  if (el) el.textContent = n;
 }
 
 /* The empty state a column falls back to, named once rather than written out

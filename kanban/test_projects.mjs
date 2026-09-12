@@ -4,7 +4,7 @@
  *   python3 kanban/server.py &          # or BOARD_PORT=... at one already up
  *   node kanban/test_projects.mjs
  *
- * Same two guards as test_canvas.mjs, for the same reason — this repo has lost
+ * Same two guards as test_chats.mjs, for the same reason — this repo has lost
  * the real todo.md to a test twice:
  *
  *   1. The tab is locked before any fixture is loaded. A locked tab cannot save.

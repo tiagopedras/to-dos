@@ -147,19 +147,20 @@ def backup_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "backups")
 
 
-def canvas_path(name=None):
-    """Where the canvas view keeps its furniture: which card sits where, the
-    box around each task's conversations, and when each card was last opened
-    (so the board knows which ones to mark unread).
+def chat_viewed_path(name=None):
+    """When each conversation card was last opened, so the drawer's Chats
+    field knows which ones to mark unread.
 
     A separate file from todo.md on purpose, and not a candidate for ever
-    being merged into it. Positions are not task content — a card's place is
-    something you dragged, not something you decided — and todo.md has exactly
-    one writer for reasons the README goes into at length. Nothing in here is
-    load-bearing: delete it and the canvas lays itself out again from scratch,
-    losing an arrangement and nothing else.
+    being merged into it. When you last looked at something is not task
+    content, and todo.md has exactly one writer for reasons the README goes
+    into at length. Nothing in here is load-bearing: delete it and every card
+    reads as unread once, which is the only thing that is lost.
+
+    It was canvas.json until 12 Sep 2026, when the canvas view was removed and
+    the two thirds of that file holding card and box positions went with it.
     """
-    return os.path.join(dataset_dir(name or current_dataset()), "canvas.json")
+    return os.path.join(dataset_dir(name or current_dataset()), "chat-viewed.json")
 
 
 def bucket_colors_path(name=None):
@@ -167,7 +168,7 @@ def bucket_colors_path(name=None):
     ten preset swatches (var(--b1) .. var(--b10) — see BUCKET_COLOR in
     kanban/js/02-state.js).
 
-    A separate file for the same reason canvas.json is one: a colour is a
+    A separate file for the same reason chat-viewed.json is one: a colour is a
     preference about looking at the list, not a fact the list itself carries,
     and todo.md has exactly one writer. Keyed by name rather than position, on
     purpose — reordering the buckets must not reshuffle which colour each one
@@ -1700,14 +1701,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path == "/datasets.json":
             return self._json(200, {"datasets": list_datasets(), "current": current_dataset()})
-        if path == "/canvas.json":
+        if path == "/chat-viewed.json":
             try:
-                with open(canvas_path(), encoding="utf-8") as fh:
+                with open(chat_viewed_path(), encoding="utf-8") as fh:
                     return self._json(200, json.load(fh))
             except (OSError, ValueError):
-                # No file yet, or one written by hand and broken. Either way an
-                # empty canvas is the honest answer and the next save fixes it.
-                return self._json(200, {"version": 1, "cards": {}, "boxes": {}})
+                # No file yet, or one written by hand and broken. Either way
+                # "nothing has been opened" is the honest answer and the next
+                # save fixes it.
+                return self._json(200, {"version": 1, "viewed": {}})
         if path == "/attach-queue.json":
             try:
                 with open(attach_queue_path(), encoding="utf-8") as fh:
@@ -1912,11 +1914,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = ai_chat.forget(payload.get("owner"), payload.get("session"))
             return self._json(400 if err else 200, err or got)
-        if path == "/canvas":
+        if path == "/chat-viewed":
             # Same guard as the Claude routes. Nothing here is dangerous —
-            # worst case is a scrambled layout — but this server's rule is that
-            # anything a page can POST carries the header, and one exception is
-            # how a rule stops being a rule.
+            # worst case is a card reading as unread — but this server's rule is
+            # that anything a page can POST carries the header, and one
+            # exception is how a rule stops being a rule.
             if self.headers.get("X-Board") != "1":
                 return self._json(403, {"error": "not from the board"})
             data = self._body()
@@ -1926,7 +1928,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "body was not valid JSON"})
             if not isinstance(payload, dict):
                 return self._json(400, {"error": "expected an object"})
-            path_out = canvas_path()
+            path_out = chat_viewed_path()
             os.makedirs(os.path.dirname(path_out), exist_ok=True)
             tmp = path_out + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="") as fh:
@@ -1936,7 +1938,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             os.replace(tmp, path_out)
             return self._json(200, {"ok": True})
         if path == "/bucket-colors":
-            # Same guard, same shape as /canvas: the whole map is sent and
+            # Same guard, same shape as /chat-viewed: the whole map is sent and
             # written back whole, and nothing here is dangerous to get wrong —
             # worst case is a bucket in the wrong colour.
             if self.headers.get("X-Board") != "1":
@@ -1961,7 +1963,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             os.replace(tmp, path_out)
             return self._json(200, {"ok": True})
         if path == "/attach-queue.json":
-            # Same guard, same shape as /canvas. Only the board calls this,
+            # Same guard, same shape as /chat-viewed. Only the board calls this,
             # after draining what it could — see attach_queue_path() — to
             # write back whatever it could not file, or an empty list.
             if self.headers.get("X-Board") != "1":

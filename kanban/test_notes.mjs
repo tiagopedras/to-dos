@@ -11,7 +11,7 @@
  * rendered text back to source is the only part of this that is arithmetic
  * rather than plumbing, and it was wrong twice before it was right.
  *
- * Same two guards as test_canvas.mjs, for the reason written there: the tab is
+ * Same two guards as test_chats.mjs, for the reason written there: the tab is
  * locked before any fixture is loaded, and every non-GET is torn out of fetch
  * and recorded instead of sent. The Description field is an editor, so this
  * one types into a real task — the recording is how we know that typing

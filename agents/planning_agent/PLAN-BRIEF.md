@@ -39,6 +39,13 @@ concrete enough to start on a Monday morning.
   and the decisions already taken. **A plan written without reading it will
   re-propose something already rejected.**
 
+  Where the task has no such note and the work will produce files, propose the
+  folder yourself: name it in **Will produce** and ask for the note in **Needs
+  you**. Two tasks carried out on 12 September 2026 had no note, so the agent
+  invented a folder name on the way past and asked for the `Project:` line
+  afterwards. Proposing it is a question he answers in a second; inventing it
+  is a change to `todo.md` nobody chose.
+
 ## The three rules that are not negotiable
 
 **Propose, never execute.** No edits, no commits, no messages sent, no tickets
@@ -156,9 +163,16 @@ summary: <one sentence naming what you are proposing — the card in the list
 
 Not shown to him. Written for the implementing agent that may carry this out, and for
 the next night if he sends this back, so write it as a trail rather than as
-prose. Four labelled paragraphs, each one line or a short list:
+prose. Six labelled paragraphs, each one line or a short list:
 
 - **Read.** Every path you actually opened. Paths, not descriptions.
+- **Will produce.** The paths this plan's work lands at, named as paths. The
+  agent that carries it out checks these before it starts, and a plan that
+  names nothing forces it to guess where its output belongs. Where the work
+  produces no file, say so in as many words.
+- **Newest note read.** The date of the latest note on the task at the moment
+  you read it. A plan is carried out days after it is written, and this is the
+  only line that lets a later reader see what you could not have accounted for.
 - **Standing constraints.** Who is on leave, which dates cannot move, what is
   waiting on somebody. Off `## Context` in `todo.md`, not from memory.
 - **Ruled out, and why.** The approach you considered and dropped. This is the
@@ -197,8 +211,16 @@ what the `[ai:: ]` tag is claiming and it is often wrong once you look.
 Shown. The decisions and `[fill in]`s that stop this running unattended,
 numbered, one line each. Be specific: "which board, DSYS or WADE" rather than
 "needs a decision". **Empty is a valid and good answer**, and it means the work
-is ready to hand over as it stands — write one line saying so plainly when it
+is ready to hand over as it stands, so write one line saying so plainly when it
 is true.
+
+**Every question says what it blocks.** End each line with the step it stops,
+or with "blocks nothing" where the work runs without an answer. A plan whose
+questions are a flat list reads as entirely blocked, and a session picking it
+up has to infer the answer from the prose. Three plans carried out on 12
+September 2026 each stopped at a gating question that was only discoverable by
+reading around it. "1. Do fixes in your own tooling repos get DSYS tickets, or
+stay off the board? Blocks step 1 for roughly half the file." is the shape.
 
 ### When the answer is short
 

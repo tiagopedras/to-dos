@@ -741,6 +741,7 @@ async function renderWrittenReports(){
       return;
     }
     const list = (await res.json()).reports || [];
+    setColCount('#writtenCol', list.length);
     if (!list.length) {
       out.innerHTML = '<div class="empty">Nothing written yet. Reports are Markdown files in ' +
         '<code>data/reports/</code>, and asking Claude for one is how they get there.</div>';
@@ -758,26 +759,41 @@ async function renderWrittenReports(){
 }
 
 /* Two columns, because the two kinds of report answer different questions and
-   neither is a footnote to the other. Counted on the left, written on the right. */
+   neither is a footnote to the other. Counted on the left, written on the right.
+
+   Both are colHTML() columns since 12 Sep 2026, like every other column in the
+   app. The window picker moved with them: it governs every report in the left
+   column — the counts, the lead note and the weekly pace chart alike — so it is
+   a column filter and belongs in the head's Filters slot beside Plans' dropdown
+   and Matrix's checkbox, not sitting above the first report as a row of its
+   own. The lead paragraph on the right column became the head's description for
+   the same reason. The left column's notes stay in the body: they are caveats
+   about the data as it stands today, not a description of what the column is. */
 function renderReportsView(){
   if (!state.doc) {
-    $('#lists').innerHTML = '<div class="listcard reportsview"><h3>Reports</h3>' +
-      '<div class="empty">No file loaded yet.</div></div>';
+    $('#lists').innerHTML = '<div class="lists rview">' +
+      colHTML({ heading:'h3', title:'Reports', cls:'reportsview prose',
+                body: colEmptyHTML('No file loaded yet.', 'boxed') }) + '</div>';
     return;
   }
   $('#lists').innerHTML =
     '<div class="lists rview">' +
-      '<div class="listcard reportsview"><h3>Tasks finished</h3>' +
-        '<div id="countedLead"></div>' +
-        '<div class="repwindow">Show ' + reportWindowSegHTML() +
-          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></div>' +
-        '<div id="countedOut"></div>' +
-      '</div>' +
-      '<div class="listcard reportsview written"><h3>Written reports</h3>' +
-        '<p class="help listlead">What moved and what it means, rather than what was ticked. ' +
-        'Ask Claude for one and it lands in the <code>data/reports/</code> folder.</p>' +
-        '<div id="writtenOut">Loading…</div>' +
-      '</div>' +
+      colHTML({
+        heading: 'h3', title: 'Tasks finished', cls: 'reportsview prose',
+        filters: '<span class="repwindow">' + reportWindowSegHTML() +
+          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></span>',
+        body: '<div id="countedLead"></div><div id="countedOut"></div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Written reports', cls: 'reportsview written prose',
+        attrs: 'id="writtenCol"',
+        // Filled in by renderWrittenReports once the folder has been read —
+        // an empty span rather than a 0 that would be wrong for a second.
+        count: '',
+        desc: 'What moved and what it means, rather than what was ticked. ' +
+              'Ask Claude for one and it lands in the <code>data/reports/</code> folder.',
+        body: '<div id="writtenOut">Loading…</div>'
+      }) +
     '</div>';
   renderCountedReports();
   // One handler on the row rather than one per button, and it repaints only

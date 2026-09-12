@@ -671,6 +671,7 @@ function renderPlanDoing(){
   if (!out) return;
   const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing));
   out.innerHTML = shown.length ? shown.map(planItemHTML).join('') : '';
+  setColCount('#doingCol', shown.length);
   /* A card arriving here answers the column, so the "nothing running" word
      goes; a run that is live has already put its own card above, and that
      case is renderQueueDoingHead's. */
@@ -703,6 +704,7 @@ function renderPlanProduced(){
       shown.map(planItemHTML).join('')
     : colEmptyHTML('Nothing accepted yet. A plan you accept lands here, and from ' +
                    'here it feeds the execution board.', 'boxed');
+  setColCount('#producedCol', shown.length);
   wirePlanColumn(out, () => {});
   wireColumnDrop(out, d => {
     const p = draggedPlan(d);
@@ -846,6 +848,9 @@ function renderQueueList(){
       ? '<h4 class="fhead">Going back for another night</h4>' +
         back.map(planItemHTML).join('')
       : '');
+  // Tonight's queue plus the plans going back for another night — both are
+  // things this column is holding for tonight.
+  setColCount('#queueDoingCard', shown.length + back.length);
   wireQueue();
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
     const p = planList.find(x => x.url === btn.dataset.planOpen);
@@ -1091,6 +1096,8 @@ function renderBacklogList(){
     (!held.length && !parked.length && !skipped.length
       ? '<div class="empty">Nothing held back, and nothing excluded right now.</div>'
       : '');
+  // Everything the column is holding, in all three of its groups.
+  setColCount('#backlogCol', held.length + parked.length + skipped.length);
   const wrap = out;
   wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
@@ -1435,16 +1442,23 @@ async function renderNightAgent(){
 function openRefCards(){
   showModal('Spend, and what runs on a clock',
     'Both are reference. Nothing on either changes what tonight does.',
+    /* Two columns, drawn with the same colHTML() the view behind them uses —
+       a pair of `.listcard`s of their own until 12 Sep 2026. Being in a modal
+       does not make a column a different object. */
     '<div class="pvcol">' +
-      '<div class="listcard schedview usage"><h3>Token Session</h3>' +
-        '<div id="usageOut">Loading…</div>' +
-        '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
-          '<div id="runResultsOut"></div>' +
-        '</details>' +
-      '</div>' +
-      '<div class="listcard reportsview clockview"><h3>What runs on a clock</h3>' +
-        '<div id="schedOut">Loading…</div>' +
-      '</div>' +
+      colHTML({
+        heading: 'h3', title: 'Token Session', cls: 'schedview usage prose',
+        desc: 'What has been spent, window by window.',
+        body: '<div id="usageOut">Loading…</div>' +
+          '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
+            '<div id="runResultsOut"></div>' +
+          '</details>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'What runs on a clock', cls: 'reportsview clockview prose',
+        desc: 'Set in the agents dashboard, not here.',
+        body: '<div id="schedOut">Loading…</div>'
+      }) +
     '</div>',
     [{ label:'Close', primary:true }], { wide:true });
   renderSched();
@@ -1476,11 +1490,17 @@ async function renderPlansView(){
         heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
         desc: 'The agent leaves these alone. Held back by you, or excluded by a rule.',
         action: '<button class="btn small" id="refCardsBtn" type="button">Spend and clocks</button>',
+        /* Filled by the renderer once /queue.json is back, like every other
+           column here. The two columns with a filter carry none: their filter
+           button already says "All 12", and a count beside it would be the
+           same number twice. */
+        count: '', attrs: 'id="backlogCol"',
         body: '<div id="backlogOut">Loading\u2026</div>'
       }) +
       colHTML({
         heading: 'h3', title: 'To do', cls: 'reportsview queueview',
         attrs: 'id="queueDoingCard"',
+        count: '',
         desc: 'What tonight\u2019s run picks up, in order.',
         action: '<button class="btn small" id="runQueueBtn" type="button">Run now</button>',
         /* The Status line stays here rather than going to Doing with the live
@@ -1494,6 +1514,7 @@ async function renderPlansView(){
       }) +
       colHTML({
         heading: 'h3', title: 'Doing', cls: 'reportsview doingview',
+        count: '', attrs: 'id="doingCol"',
         desc: 'Currently running.',
         body: '<div class="hidden" id="qdOrphan"></div>' +
               '<div id="doingOut"></div>' +
@@ -1501,7 +1522,7 @@ async function renderPlansView(){
               '<div id="doingEmpty"></div>'
       }) +
       colHTML({
-        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed agentcol',
+        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed', style: 'agent',
         desc: 'The agent\u2019s own column \u2014 what it has worked out, waiting on ' +
               'you. Drag out of it, not into it.',
         filters: '<span class="colfilter-slot" id="reviewFilterSlot"></span>',
@@ -1509,6 +1530,7 @@ async function renderPlansView(){
       }) +
       colHTML({
         heading: 'h3', title: 'Ready to be produced', cls: 'reportsview decided',
+        count: '', attrs: 'id="producedCol"',
         /* No filter on this one: every card in it is the same thing, a plan he
            has accepted whose work has not finished. A dropdown with one
            option is a control that only ever says All. */
