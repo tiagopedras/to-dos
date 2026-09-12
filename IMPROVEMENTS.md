@@ -78,87 +78,15 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   and the dashboard's `fields` list (`dashboard.py:146`) still needs `run.sh` to
   pass it down, which no schedule value does today.
 
-- **Board, Matrix and Timeline take three tabs for three ways of drawing the same
-  tasks.** `viewDefs()` in `kanban/js/11-chat-cards.js` lists them as three
-  peers between separators, and `renderView()` at `kanban/js/18-timeline.js:734`
-  renders every def as its own `.tab` button — so a third of the strip is spent on
-  what is one view under three renderers. Collapse them into a single tab carrying
-  the name of whichever is current plus a chevron on its right, opening a
-  `.dropdown-panel` of the three, built the way the header's `Data ▾` menu already
-  is (`kanban/index.html:33`, wired at `kanban/js/25-archiving.js:117-126` — closes
-  on picking an item, on a click elsewhere, and on Escape). The view ids stay as
-  they are, so `isKnownView()` (`kanban/js/11-chat-cards.js`), the `#matrix` and
-  `#timeline` fragments and `syncHash()` need no change; what changes is only how
-  the three are offered. `kanban/test_chats.mjs` and
-  `kanban/test_schedule.mjs:357` both read the on-tab out of `#viewToggle .tab`,
-  so whatever the collapsed control renders has to keep that selector meaningful
-  or both need rewriting.
+- ~~**Board, Matrix and Timeline take three tabs for three ways of drawing the same tasks.**~~ **Done, 12 Sep 2026.** The three collapsed into one tab, `renderViewTabs()` (`kanban/js/18-timeline.js:734`) drawing the current one plus a chevron that opens a `.dropdown-panel` of the three — same `group:'draw'` marking on their `viewDefs()` entries (`kanban/js/11-chat-cards.js`), same view ids, same fragments.
 
-- **Token Session and "What runs on a clock" take a whole track on Plans for two
-  cards nobody reads across.** `renderPlansView()` at `kanban/js/13-plans.js:1262-1273`
-  wraps both in a `.pvcol` fifth grid track, and `.lists.pview` in
-  `kanban/board.css:1010-1015` pays `minmax(320px,420px)` plus its share of the
-  `min-width:1796px` for it — on a view whose actual work is the four columns to
-  its left. Both are reference rather than decision: the chart is a glance at
-  spend, the clock card changes only when the plist does. Move both card strings
-  into a `showModal()` body (`kanban/js/23-conflict-modal.js:19`, the `wide`
-  variant the written reports already use), opened by a `btn mini` in a
-  `.cardhead` on the Inbox card, which is the one that currently has a bare `<h3>`
-  where Queue has a head with a button in it. The grid then drops to four tracks
-  and the `min-width` comes down with it. `renderUsage()` and `renderSched()`
-  already draw into `#usageOut`/`#schedOut` by id, so they need no change as long
-  as the modal is in the DOM before they run. `kanban/test_plans.mjs:233-237` and
-  `kanban/test_schedule.mjs:148-152` both assert the two cards sit in a `.pvcol`
-  in the last track, so both have to be rewritten against the modal.
+- ~~**Token Session and "What runs on a clock" take a whole track on Plans for two cards nobody reads across.**~~ **Done, 12 Sep 2026.** Both moved into a modal, `openRefCards()` (`kanban/js/13-plans.js`), opened from a button on the Backlog card's head. The grid is back to four tracks.
 
-- **`plans/actioned/` is read as though it were a night, and two things break on
-  5 October 2026 when the first folder is old enough for `prune()` to make it.**
-  `prune()` in `agents/planning_agent/plan.py` moves agreed and actioned plans into
-  `plans/actioned/` as `<night>-<file>.md`, and `plan_listing()` in
-  `kanban/server.py` iterates every non-dotted directory under `plans/`, so those
-  come back carrying `night: "actioned"`. Two things then go wrong. `mark_plan()`
-  validates `night` against `^\d{4}-\d{2}-\d{2}$`, so a pruned plan can never be
-  marked again from the board. And `redoReplaced()` in `kanban/js/13-plans.js`
-  compares `(o.night || o.date || '') > when` as strings, where `"actioned"` sorts
-  above every date, so once one pruned plan exists every rejected plan reads as
-  already replaced and drops out of the Decided column into history. Neither has
-  fired yet only because no night folder has reached `KEEP_DAYS = 30`; the
-  `2026-09-05` folder does on 5 Oct 2026. The fix is to stop the folder name being
-  identity, which is also what the stream contract does when plans migrate, so it
-  is worth doing in that pass rather than twice.
+- ~~**`plans/actioned/` is read as though it were a night, and two things break on 5 October 2026 when the first folder is old enough for `prune()` to make it.**~~ **Done.** `kanban/server.py:909` now carries the fix: a plan pruned into `plans/actioned/` is no longer read as though its night were called "actioned" — `redoReplaced()` (`kanban/js/13-plans.js:548`) checks `p.resolution === 'superseded'` rather than comparing night strings.
 
-- **The companion shows the plans the night wrote and says nothing about the
-  run that wrote them.** `planListing()` (`companion/src/main/plans.ts:52`)
-  walks the plan files, and the renderer's plans section
-  (`companion/src/renderer/src/App.tsx:180`) draws a card per open one, so a
-  night that planned nothing and a night that never woke up look identical —
-  an empty section. The night already writes the answer:
-  `write_run_record()` (`agents/planning_agent/plan.py:579`) leaves a `run.json`
-  beside the plans with the start and finish times, the cost, whether it was
-  cut short, and a row per task tagged planned, folded or skipped with the
-  reason. Reading that file in a new `companion/src/main/night.ts`, hanging it
-  off `Snapshot` (`companion/src/shared/types.ts`) alongside `plans` where the
-  snapshot is assembled (`companion/src/main/index.ts:173`), and drawing one
-  summary line above the cards would say what happened without opening the
-  board. `run.json` is per-night and pruned with its folder, so the companion
-  has to cope with the newest night's folder having no record at all — which
-  is itself the thing worth saying, since it means the agent did not finish.
+- ~~**The companion shows the plans the night wrote and says nothing about the run that wrote them.**~~ **Done.** `companion/src/main/night.ts` reads `run.json` off the night's own folder and the renderer draws a summary line above the plan cards, per `companion/src/shared/types.ts`.
 
-- **The Reports window picker is a dropdown, so the seven ranges it holds are
-  invisible until it is opened.** `reportWindowSelectHTML()`
-  (`kanban/js/12-reports.js:760`) writes a `<select>` over the seven entries in
-  `REPORT_WINDOWS` (`:25`), and it governs every report on the tab — the counts,
-  the lead note, and the weekly pace chart through `trendWeeks()` (`:378`) — so
-  it is the one control on the view worth reading at a glance. A segmented row
-  of buttons would show all seven at once and make switching one click rather
-  than two. The change is contained: emit a `<div class="repwindow-seg">` of
-  `<button data-window="...">` instead of the `<select>`, swap the `onchange`
-  handler in `renderReportsView()` (`:742`) for a click handler that calls the
-  same `setReportWindow()` (`:48`), and give `.repwindow select`
-  (`kanban/board.css:802`) a sibling rule for the row. `readReportWindow()`
-  (`:39`) and its `localStorage` key are untouched. Seven buttons plus the
-  `.repdates` span may not fit the card at narrow widths, so the row needs to
-  wrap or the labels shorten.
+- ~~**The Reports window picker is a dropdown, so the seven ranges it holds are invisible until it is opened.**~~ **Done.** `repWindowHTML()` (`kanban/js/12-reports.js:829`) now emits `.repwindow-seg` as a row of buttons rather than a `<select>`.
 
 - ~~**A plan spends most of its words before it gets to what to do.**~~
   **Done, 11 Sep 2026**, by a different route than the one written here. Capping
@@ -240,30 +168,9 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   class="repitem projitem">` wrapper itself is enough to make the rest of the
   card clickable with no change to the handler.
 
-- **The diagonal stripes marking a weekend on the timeline read heavier than
-  the working days either side of them.** `.tlweekend` (`kanban/board.css:580-583`)
-  draws them with `repeating-linear-gradient(45deg, var(--line-soft) 0 6px,
-  transparent 6px 12px)` — a 6px solid band against a 6px gap, so the stripe
-  carries as much weight as the space between. Narrowing the solid band (say
-  to 3px, keeping the 12px repeat so the diagonal angle and spacing stay put)
-  is the whole change: one number in that gradient, nothing in `tlWeekends()`
-  or the `.tlweekend` divs it renders in `kanban/js/18-timeline.js:242-254`.
+- ~~**The diagonal stripes marking a weekend on the timeline read heavier than the working days either side of them.**~~ **Done.** `.tlweekend` (`kanban/board.css:638`) narrowed the solid band to 3px in the 12px repeat.
 
-- **A message on an Overview card runs to 400px before anything trims it,
-  which is twenty lines of a column that holds three cards.** `.ref .msg`
-  (`kanban/board.css:1520`) caps every kind — message, prompt, ticket, agenda
-  — at `max-height:400px`, and `capMsgCards()` (`kanban/js/18-timeline.js:691`)
-  measures each one after render and adds `.capped` only where truncation
-  really cut, which is what earns the fade and the "truncated — open the task
-  to read the rest" label (`board.css:1524`). The mechanism is right and the
-  number is wrong: three lines is the cap, on every `.ref .msg` in Quick wins
-  and Delegate to Claude alike, so the column reads as a list of cards rather
-  than a page of text. A `-webkit-line-clamp:3` replaces the height, and
-  `capMsgCards()` needs no change — `scrollHeight > clientHeight` is as true
-  of a clamped box as of a capped one. The fade does need one: at 13px on a
-  1.55 line-height, three lines is about 60px, which is exactly the height the
-  `::after` gradient already claims, so it would cover the whole message
-  rather than the end of it.
+- ~~**A message on an Overview card runs to 400px before anything trims it, which is twenty lines of a column that holds three cards.**~~ **Done.** `.ref .msg` (`kanban/board.css:1783`) clamps to four lines (`-webkit-line-clamp:4` — three left the truncation label covering the last readable line, so it settled one line taller than first proposed) rather than a 400px height cap; `capMsgCards()` needed no change.
 
 - ~~**The board's canvas has no way to straighten itself back out once dragging
   has piled boxes and cards on top of each other.**~~ **Closed 12 Sep 2026 —
@@ -273,76 +180,13 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   survive in the drawer's Chats field, stacked rather than placed, so there is
   nothing left to straighten. `ai_canvas` keeps its own version.
 
-- **The button that edits columns sits next to the button that edits buckets,
-  not next to the control that filters by column.** `#editTiers`
-  (`kanban/index.html:63-66`, wired to `openTierEditor` in
-  `kanban/js/07-render-board.js:93`) is grouped with `#editBuckets` at the far
-  left of the bucket strip, right after `#bucketFilters`. The Status dropdown
-  it would actually pair with — `#statusWrap`/`#statusFilterBtn`
-  (`kanban/index.html:70-77`, drawn by `renderStatusFilters()` in
-  `07-render-board.js:108`) — sits on the other side of the strip's own
-  `<span class="spacer">`, past `#allBuckets` and `#scoreChip`. Edit buckets
-  belongs where it is, beside the tabs it edits; Edit columns edits the exact
-  set of names Status filters by, so moving `#editTiers` next to
-  `#statusFilterField` groups the control with the thing it controls, the way
-  Edit buckets already does for its own tabs. A markup move rather than new
-  behaviour — `18-timeline.js:849` and `:853` toggle both buttons' `.hidden`
-  class independently already, by id, so neither's visibility logic cares
-  where in the strip it sits.
+- ~~**The button that edits columns sits next to the button that edits buckets, not next to the control that filters by column.**~~ **Done.** `#editTiers` (`kanban/index.html`) now sits inside `#statusWrap`, beside the Status filter it actually governs.
 
-- **A project whose every task is done still wears the same "Live" tag as one
-  with work outstanding.** `projectItemHTML()` (`kanban/js/26-projects.js:61`)
-  already computes both numbers it would need — `open`, the count of
-  not-done tasks, and `live`, whether any task points here at all — but the
-  tag on line 72 only ever reads `live`, so `open === 0` renders identically
-  to a project mid-flight. A third state, "Completed", would fire when
-  `live && open === 0`, alongside a new `.tag.projcompleted` rule next to
-  `.tag.projlive`/`.tag.projorphan` in `kanban/board.css:1693-1694`.
-  `kanban/test_projects.mjs:136-140` asserts `.projlive` on the first fixture
-  project and `.projorphan` on the last — whichever fixture project has all
-  its tasks done, if any, would need its own assertion added alongside them.
+- ~~**A project whose every task is done still wears the same "Live" tag as one with work outstanding.**~~ **Done.** `projectItemHTML()` (`kanban/js/26-projects.js:75`) now reads a third state, `.tag.projcompleted`, when `live && open === 0`.
 
-- **Delegate to Claude prints `rank:` as the row number but offers no way to
-  change it, so the only way to reorder the list is to retype the tag on every
-  task by hand.** `delegateSection()` (`kanban/js/10-reference-sections.js:577`)
-  filters `ai:full`, sorts on `rank` ascending and renders the rank's own value
-  into `.refnum` — there is no `draggable` or `ondragstart` anywhere in that
-  file, so the numbers are read-only and the gaps show: the list currently runs
-  1..9, 11, 12 because rank 10 was ticked off and 20 came off a task that went
-  back to `ai:partial`. The pattern to copy is already built one view over —
-  `wireTlReorder()` (`kanban/js/18-timeline.js:387`) drags a row's grip and
-  renumbers every task in that lane 0..n through `locate(row.id)`
-  (`kanban/js/04-tier-two-the-one-thing.js:299`), setting `.dirty` and calling
-  `markDirty()`, and `sortTimelineLane()` (`18-timeline.js:348`) does the same
-  in one pass from a button. The one difference that matters: `tlrank` is scoped
-  to a bucket lane, `rank` is global across the file, so a single drag rewrites
-  every `ai:full` task line rather than one lane's worth — no extra cost, since
-  the board writes the whole document on save anyway, but it does mean a dense
-  renumber is the sensible behaviour rather than shuffling neighbours. Gaps are
-  cosmetic; duplicates are not, and nothing today stops two tasks sharing a
-  number, in which case their order against each other is whatever the sort
-  happens to do. Related but not the same as the open Big entry asking for
-  alternative sort orders on this section, which is about what to sort by rather
-  than about being able to reorder at all.
+- ~~**Delegate to Claude prints `rank:` as the row number but offers no way to change it, so the only way to reorder the list is to retype the tag on every task by hand.**~~ **Done.** `delegateSection()` (`kanban/js/10-reference-sections.js:585`) now renders a `draggable` grip on every ranked row, wired the same way the timeline's own drag-to-reorder is.
 
-- **Counted from the list weighs every finished task the same, so a bucket
-  that closes out three L tasks reads identically to one that closes out three
-  S ones.** `completedByCategoryReport()` (`kanban/js/12-reports.js:194`) already
-  groups `completedRecently()`'s output by bucket and shows a count, a bar and a
-  percentage per bucket — the count is task volume, not effort. `EFFORT_N`
-  (`core/todo.js:565`, S/M/L → 1/2/3) already exists for the Impact-against-effort
-  sort and would give each row a second number, effort points summed per bucket,
-  next to the task count. It isn't time — nothing in this codebase timestamps a
-  work session, so "how much time I spend per bucket" has no real data to answer
-  it, only "how much effort I closed out per bucket" as a proxy from the S/M/L
-  tag already on every task. Two threads have to carry the field before the report
-  can read it: `completedRecently()` (`kanban/js/12-reports.js:169`) pushes
-  `bucketName`/`tierName`/`title`/`doneOn`/`taskId` per live task but drops
-  `t.effort` on the floor, and `parseArchiveEntries()`
-  (`kanban/js/12-reports.js:130`) does the same for archived ones — `parseTask()`
-  already returns `.effort` in both places, it just isn't kept. Once both carry
-  it, a bucket with no effort tagged on any of its finished tasks should say so
-  rather than silently reading as zero.
+- ~~**Counted from the list weighs every finished task the same, so a bucket that closes out three L tasks reads identically to one that closes out three S ones.**~~ **Done.** `completedByCategoryReport()` (`kanban/js/12-reports.js:223`) now sums `EFFORT_N` per bucket alongside the task count, and says so plainly when nothing finished carries an effort tag.
 
 - ~~**The companion's notifications vanish on their own because they're
   Banners, and this code has no lever to make them Alerts.**~~ **Done, 8 Sep
@@ -362,66 +206,13 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `companion/app.py:125`), so an ignored one isn't actually gone, only off
   screen.
 
-- **A recap he could paste into a status update means flattening the one
-  report that already lists titles, not building a new one.**
-  `completedByCategoryReport()` (`kanban/js/12-reports.js:194`) already has
-  every finished task's date and title, off the same `completedRecently()`
-  list `reportDefs()` (`kanban/js/12-reports.js:90`) feeds every report on the
-  tab — but it's grouped by bucket, and each bucket's tasks sit behind their
-  own closed `<details>`, so reading what got done means opening every
-  non-empty bucket in turn. A "Recent accomplishments" report would read the
-  same list sorted by `doneOn` instead of grouped by bucket, one flat `<ul>`
-  open by default, each row keeping `rowHTML()`'s existing
-  date/title/`mdInline()` shape with the bucket named as a chip rather than as
-  the grouping. One more `report*Report()` function, listed in `reportDefs()`
-  beside the two that exist already — no new data and no new fetch, since
-  `completedRecently()` and the Show-window picker are already shared across
-  the tab.
+- ~~**A recap he could paste into a status update means flattening the one report that already lists titles, not building a new one.**~~ **Done.** `recentAccomplishmentsReport()` (`kanban/js/12-reports.js:295`) is in `reportDefs()` alongside the other two.
 
-- **The planning agent's lock can sit held for a full day with nothing wrong,
-  because staleness is judged by age alone.** `run.sh`'s stale-lock check
-  (`agents/planning_agent/run.sh:62`) only ever asks `find "$LOCK" -maxdepth 0
-  -mmin +120` — how old the directory is — never whether the process that
-  made it is still alive. That's fine for a crash, but a laptop put to sleep
-  mid-run suspends the holder rather than killing it: `plan.py`'s own
-  10-minute per-task ceiling (`TASK_TIMEOUT` at `agents/planning_agent/plan.py:71`)
-  can't fire while the process isn't scheduled, so it comes back exactly
-  where it left off once the lid opens, and every hourly wake in between logs
-  "a run is already going" (`run.sh:66`) rather than ever clearing it — caught
-  8 Sep 2026, where the lock held from 06:05 on the 6th to the morning of the
-  8th with zero output in `planning-agent.log` and nothing in either
-  `planning-agent.err.log` or `.out.log`, across a stretch the log itself shows
-  the machine awake for on the hour throughout. The fix is to write the
-  holder's PID alongside the lock when `mkdir "$LOCK"` succeeds (`run.sh:59`)
-  and have the staleness branch test that PID with `kill -0` before trusting
-  the 2-hour window at all — a dead PID clears regardless of age, a live one
-  is left alone regardless of how old it looks, and the mtime check stays
-  only as the fallback for when no PID was recorded to check.
+- ~~**The planning agent's lock can sit held for a full day with nothing wrong, because staleness is judged by age alone.**~~ **Done.** `run.sh` writes the holder's PID to `$LOCK/pid` and tests it with `kill -0` before trusting the 2-hour mtime window at all; a dead PID clears regardless of age.
 
-- **Every plan comes back the same shape and the same length, whether the task
-  needed three sentences or three days.** `agents/planning_agent/PLAN-BRIEF.md`
-  offers exactly two shapes under "What to write": four sections up to 400 words,
-  or a fold, whose bar it then sets "deliberately high" on purpose. A small task
-  has nowhere to land between them — it is plannable, so folding is ruled out,
-  and what is left is four sections of research about something that wanted a
-  paragraph. The same brief tells an agent short of a fact that folding "costs
-  him a night's capacity", which reads as a reason to write around the gap rather
-  than name it on the first pass. Two edits to that one file would cover both,
-  with no new outcome value and nothing to change in `write_plan()`
-  (`agents/planning_agent/plan.py:524`) or the "needs you" badge
-  (`kanban/js/13-plans.js:146`): a third shape for a task whose whole answer is a
-  finding and a first step, and a fold bar phrased as ask early rather than as a
-  last resort.
+- ~~**Every plan comes back the same shape and the same length, whether the task needed three sentences or three days.**~~ **Done.** `PLAN-BRIEF.md` has a third shape, "### When the answer is short", and the fold bar is phrased as ask early rather than as a last resort.
 
-- **The Bucket field's dropdown button carries no chevron, so it doesn't
-  read as a dropdown at rest.** `.bucketbtn` (`kanban/js/19-drawer.js:588`,
-  styled in `board.css:1709`) is a coloured dot and the bucket name, nothing
-  else — no arrow, no `::after` marker, unlike a native `<select>` it
-  replaced. A small chevron on the right, the way `.dropdown-item`'s own
-  panel already implies direction by opening below the button, would be a
-  CSS-only addition: an `::after` on `.bucketbtn` or an inline `<i>` beside
-  the label, flipped via a class when `#f-bucket-menu` is open the same way
-  `.tlchevron.open` already rotates on click.
+- ~~**The Bucket field's dropdown button carries no chevron, so it doesn't read as a dropdown at rest.**~~ **Done.** `.bucketbtn::after` (`kanban/board.css:2164`) draws the chevron, flipped via `.open` the same way `.tlchevron` already does.
 
 - ~~**A task's Project field is buried below the fold, under eight fields it
   has nothing to do with.**~~ **Done, 8 Sep 2026** — and not where this entry
@@ -1372,9 +1163,16 @@ they settled is written up in the README rather than left here:
   (`07-render-board.js:54-58`) also bakes in one bucket per URL and needs to
   carry a set instead.
 
-- **The five reserved column names are enforced by an error message rather
+- ~~**The five reserved column names are enforced by an error message rather
   than by a field you cannot type into, and deleting one is not blocked at
-  all.** Most of this entry is built: `RESERVED_TIERS`
+  all.**~~ **Done.** Both halves landed: a reserved row's
+  `input[data-tiername]` renders `disabled` in `draw()`
+  (`kanban/js/09-columns.js:179`) rather than accepting a rename it will only
+  refuse, and `confirmDeleteTier()` (`:141`) now checks `RESERVED_TIERS` before
+  offering a destination select. `TODO_TIER`/`DOING_TIER` joined the three
+  named constants `rollRecurring()` and `ensureTier()` match against.
+
+  What is built: `RESERVED_TIERS`
   (`kanban/js/02-state.js:293`) names Backlog, To do, Doing, Waiting review and
   Done, `TODO_TIER` and `DOING_TIER` joined the three constants that existed,
   and `rollRecurring()` (`kanban/js/04-tier-two-the-one-thing.js:197`) matches
@@ -1428,8 +1226,15 @@ they settled is written up in the README rather than left here:
   rather than several that could drift apart. Any other tier a bucket adds
   stays freely renamable, exactly as today.
 
-- **Nothing the PA runs logs how long the sitting actually took, so there is
-  no way to say where his time with it actually goes bucket by bucket.** None
+- ~~**Nothing the PA runs logs how long the sitting actually took, so there is
+  no way to say where his time with it actually goes bucket by bucket.**~~
+  **Done.** `agents/pa_agent/skills/pa/scripts/log_sitting.py` writes
+  `data/<dataset>/pa-time.json`, an append-only log of `{session, skill,
+  started, ended, buckets}` per sitting — the whole duration against every
+  bucket touched, per the decision recorded below. `start`/`end` read the
+  wall clock rather than the model, keyed off `CLAUDE_CODE_SESSION_ID`.
+
+  What was missing before this: None
   of the nine `pa-*` skills (`agents/pa_agent/skills/`) record a start or end
   time for themselves anywhere — `pa-attach`'s own queue entry
   (`agents/pa_agent/skills/pa-attach/scripts/attach_session.py`, written from
