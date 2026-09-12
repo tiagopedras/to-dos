@@ -145,11 +145,11 @@ function confirmDeleteBucket(b, back){
    between a bucket and a column (a column reads left-to-right on the board,
    a bucket does not; "one bucket" isn't "one column"). */
 function moveDeleteButtonsHTML(i, len, opts){
-  return '<button class="btn mini" ' + opts.upAttr + '="' + i + '" title="' + opts.upTitle + '" aria-label="Move up"' +
+  return '<button class="btn small" ' + opts.upAttr + '="' + i + '" title="' + opts.upTitle + '" aria-label="Move up"' +
       (i === 0 ? ' disabled' : '') + '>↑</button>' +
-    '<button class="btn mini" ' + opts.downAttr + '="' + i + '" title="' + opts.downTitle + '" aria-label="Move down"' +
+    '<button class="btn small" ' + opts.downAttr + '="' + i + '" title="' + opts.downTitle + '" aria-label="Move down"' +
       (i === len - 1 ? ' disabled' : '') + '>↓</button>' +
-    '<button class="btn mini danger" ' + opts.delAttr + '="' + i + '"' +
+    '<button class="btn small danger" ' + opts.delAttr + '="' + i + '"' +
       (len < 2 ? ' disabled title="A list needs at least one ' + opts.noun + '"' : '') +
       '>Delete</button>';
 }

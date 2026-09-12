@@ -139,7 +139,24 @@ Done, and on all three **where a card sits is the instruction** rather than a
 label describing one. Backlog means leave it alone. To do means pick it up, and
 means it again for something already done once. Waiting for review is the
 agent's own column, which is why it takes no drops and draws with a dashed edge.
-Done means accepted.
+
+One shape means one object, not a family resemblance. Since 12 Sep 2026 every
+column on all three is an instance of `colHTML()` in `kanban/js/09-columns.js`,
+so the fill, the border, the radius, the 322px width, the 12px gap, the header
+padding and the body padding are settled once. What a view chooses is which
+optional parts its heads carry — a hint, a sort button, a count, an action
+button, a filter dropdown, a description — and what goes in the bodies. Plans
+had its own `.listcard` with outer padding and no divider until then, and the
+board's shape won because it is the denser and more-used surface. The same pass
+made the dash mean exactly one thing in the app: an agent owns this column.
+
+Plans carries six columns rather than four, and reads
+**Backlog → To do → Doing → Waiting for review → Ready to be produced → Done**.
+Doing was a Status block inside To do that renamed the column and hid its
+queue; a run in flight and a queue waiting to run are two answers. Ready to be
+produced is the old Done saying what it is, and Done behind it is new. The
+board's six and Plans' six are not the same six words, and that is honest: a
+task and a plan about it do not move through the same stages.
 
 A card on Plans is a plan; a card on Execution is a **run**, one document per
 plan he accepted, in `data/<dataset>/runs/`. Two documents rather than one,
@@ -149,8 +166,16 @@ file is exactly what `PACKAGES/work_streams/CONTRACT.md` exists to stop.
 Accepting a plan mints a run into Execution's Backlog; moving that run to To do
 is what `pa-do` works through.
 
-Every queue in `~/Code` shares one shape since 11 Sep 2026: six states, and an
-owner saying who is expected to move the item next. Each stream's own words live
+Accepting one writes `accepted`, which is the **seventh** canonical state and
+the only addition the stream contract has taken. It holds the gap between him
+approving something and the work it describes finishing: `done` was carrying
+both, which meant one column answering two questions. A plan accepted before
+12 Sep 2026 is `done / actioned` on disk and is still read as accepted, in the
+column that word names — `core/migrations/migrate-plans-accepted.py` tidies
+those files, and nothing needs it to.
+
+Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and
+an owner saying who is expected to move the item next. Each stream's own words live
 in its manifest — `agents/night_agent/stream.json` and
 `agents/execution_agent/stream.json` — and the only things that write them are
 `stream.py --apply` beside each. The board asks; the stream writes. Nothing here
@@ -158,9 +183,9 @@ writes another stream's files, which is the arrangement
 `agents-dashboard/CONTRACT.md` already holds for schedules.
 
 `agents/execution_agent/stream.py --sync` is the other half of "Backlog is fed
-by everything in Plans' Done column": it mints a run for every accepted plan
-that has not got one, it is idempotent, and the Execution view calls it on every
-load.
+by everything in Plans' Ready to be produced column": it mints a run for every
+accepted plan that has not got one, it is idempotent, and the Execution view
+calls it on every load.
 
 ## After changing `kanban/server.py`
 

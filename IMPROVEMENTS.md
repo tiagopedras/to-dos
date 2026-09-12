@@ -18,6 +18,37 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The Reports window picker is the last segmented control that is not the
+  shared tab.** `.repwindow-seg` (`kanban/board.css:894`) draws its own pill and
+  its own buttons — `padding:3px 9px`, `font-size:12.5px`, its own `.on` state
+  — and `repWindowHTML()` (`kanban/js/12-reports.js`) emits them. It is the same
+  object as `.tabs` holding N `.tab`s, at the smaller of the two sizes the Figma
+  `Tab` component has: 12px, padding 4/9. Folding it in means emitting
+  `<div class="tabs small">` with `.tab` / `.tab.on` children and deleting the
+  three `.repwindow-seg` rules. The reason it was left is that nothing else
+  wanted a small tab once the Plans filter chips became a header dropdown
+  (`.colfilter`), so a `.tabs.small` rule added for this alone would have been
+  the only caller — see the note where that rule was removed from board.css.
+
+- **`.aic-addsub` is the one small button still outside `.btn`.** The five that
+  were folded into `.btn.outline.small` and `.btn.dashed.small` on 12 Sep 2026
+  — `.btn.mini`, `.addsub`, `.completeall`, `.qhold` — all live in
+  `kanban/board.css`. The sixth, `+ New chat` and `+ Attach` in the task
+  drawer's Chats field (`kanban/js/10-reference-sections.js:946-947`), takes its
+  styling from `PACKAGES/ai_chat_engine`, which `ai_canvas` also loads. So the
+  fold is a change to a shared package with a second consumer, and the Figma
+  merge put it at Dashed/Small (12px, padding 4/9, radius 6) the same as
+  `.addsub`. Worth doing with `ai_canvas` open beside it rather than blind.
+
+- **The Execution view has a `doing` state its board does not draw.**
+  `agents/execution_agent/stream.json` declares five states and
+  `renderExecutionView()` (`kanban/js/27-execution.js`) draws four columns:
+  Backlog, To do, Waiting for review, Done. A run the acting agent has picked up
+  is `doing`, and `runColumn()` folds it in with `ready` so it shows in To do.
+  The Plans view got its own Doing column on 12 Sep 2026 for exactly this reason
+  — a run in flight and a queue waiting to run are two answers — and the
+  argument is the same here. Five columns, and `runColumn()` stops folding.
+
 - **The night's size is set in dollars, and nothing says how many plans he
   wants.** The batch loop in `run()` (`agents/night_agent/plan.py:898`) stops on
   two things only — under `FLOOR` minutes of window left (`:87`) and

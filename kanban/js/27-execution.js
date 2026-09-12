@@ -48,6 +48,15 @@ function runWord(r){
   return 'waiting on you';
 }
 
+/* The run card's left stripe, on the same rule the plan card's is on — see
+   planStripe() in 13-plans.js. Same two colours for the same two reasons:
+   something has arrived, or something is settled. */
+function runStripe(r){
+  if (r.state === 'review' && !r.seen) return 'var(--b1)';
+  if (r.state === 'done') return 'var(--green)';
+  return 'var(--line)';
+}
+
 function runClass(r){
   if (r.state === 'done') return ' actioned';
   if (r.state === 'ready' || r.state === 'doing') return ' agreed';
@@ -70,7 +79,7 @@ function runItemHTML(r){
     : '';
   const where = [r.bucket, r.column, r.created].filter(Boolean).map(esc).join(' · ');
   return '<article class="repitem planitem' + runClass(r) + '" draggable="true"' +
-    ' data-run="' + esc(r.name) + '">' +
+    ' data-run="' + esc(r.name) + '" style="--bc:' + runStripe(r) + '">' +
     '<button class="rephead" data-run-open="' + esc(r.name) + '">' +
       '<span class="reptitle">' + esc(r.title) + '</span>' +
       '<span class="repdate">' + esc(runWord(r)) + '</span>' +

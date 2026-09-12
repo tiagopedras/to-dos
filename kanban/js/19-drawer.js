@@ -768,7 +768,7 @@ function openDrawer(id, focusTitle){
          read once and in the way ever after. */
       '<summary>Description' +
         '<em class="sublabel">Subtasks are in the list below.</em>' +
-        '<button type="button" class="completeall notegrow" id="f-body-grow"></button>' +
+        '<button type="button" class="btn outline small completeall notegrow" id="f-body-grow"></button>' +
       '</summary>' +
       /* Rendered by default, raw while you are in it. There used to be an
          Edit/Preview pair of tabs here and reading a note meant pressing one
@@ -866,7 +866,7 @@ function openDrawer(id, focusTitle){
     '<div class="field"><span class="fieldhead">Subtasks' +
       (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') +
       (!ro && subs.some(s => !s.done)
-        ? '<button type="button" class="completeall" id="f-completeall">Complete all</button>'
+        ? '<button type="button" class="btn outline small completeall" id="f-completeall">Complete all</button>'
         : '') +
       '</span>' +
       '<div class="substeps" id="f-subs">' +
@@ -895,7 +895,7 @@ function openDrawer(id, focusTitle){
             : '');
       }).join('') +
       '</div>' +
-      (ro ? '' : '<button type="button" class="addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
+      (ro ? '' : '<button type="button" class="btn dashed small addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
     '</div>';
 
   // Chats, dependencies and the four suggestion-shaped sections below them are

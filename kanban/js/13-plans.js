@@ -90,6 +90,27 @@ function planWord(p){
   return p.seen ? 'read' : 'new';
 }
 
+/* The plan card's left stripe. Every card in the app carries one; a task card's
+   is its bucket's colour, and a plan's is this. Not the bucket, because a plan
+   is one proposal about one task rather than a thing belonging to a bucket, and
+   not a fixed red — which is what it was until 12 Sep 2026 as a top border, and
+   which spent the loudest colour in the palette announcing "this is a plan" on
+   a view where everything is one.
+
+   So colour is spent only where it earns attention: something has arrived, or
+   something is settled. Everything in between takes the ordinary line colour
+   and says what it is in its badge instead.
+
+     new                            blue,  the accent
+     accepted, handed over          green
+     read, planning again, parked,
+     finished, replaced             the line colour */
+function planStripe(p){
+  if (p.state === 'review' && !p.seen) return 'var(--b1)';
+  if (isAgreed(p)) return 'var(--green)';
+  return 'var(--line)';
+}
+
 /* Which of the six columns a plan draws in. One function, so the renderers,
    the drop handlers and the counts can never disagree about where a card is.
 
@@ -183,7 +204,7 @@ function planItemHTML(p){
   /* Draggable everywhere, including out of Waiting for review: that column
      refuses drops, not drags. Taking a card out of it is how he answers it. */
   return '<article class="repitem planitem' + cls + '" draggable="true"' +
-    ' data-plan="' + esc(p.url) + '">' +
+    ' data-plan="' + esc(p.url) + '" style="--bc:' + planStripe(p) + '">' +
     '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
       '<span class="reptitle">' + esc(p.title) + '</span>' +
       (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
@@ -645,6 +666,11 @@ function renderPlanDoing(){
   if (!out) return;
   const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing));
   out.innerHTML = shown.length ? shown.map(planItemHTML).join('') : '';
+  /* A card arriving here answers the column, so the "nothing running" word
+     goes; a run that is live has already put its own card above, and that
+     case is renderQueueDoingHead's. */
+  const empty = $('#doingEmpty');
+  if (empty && shown.length) empty.innerHTML = '';
   wirePlanColumn(out, () => {});
 }
 
@@ -789,7 +815,7 @@ function queueRowHTML(r){
     '<div class="qhead">' +
       '<span class="qpos">' + r.position + '</span>' +
       '<span class="qtitle">' + esc(r.title) + '</span>' +
-      '<button class="qhold" data-qhold="' + esc(r.title) + '" ' +
+      '<button class="btn outline small qhold" data-qhold="' + esc(r.title) + '" ' +
         'title="Hold it back from tonight">Hold</button>' +
     '</div>' +
     (meta || goto
@@ -1026,7 +1052,7 @@ function heldRowHTML(r){
     '<div class="qhead">' +
       '<span class="qpos">—</span>' +
       '<span class="qtitle">' + esc(r.title) + '</span>' +
-      '<button class="qhold" data-qrelease="' + esc(r.title) + '" ' +
+      '<button class="btn outline small qhold" data-qrelease="' + esc(r.title) + '" ' +
         'title="Put it back in the queue">Release</button>' +
     '</div>' +
     (meta || goto
@@ -1224,6 +1250,19 @@ function renderQueueDoingHead(live, orphan){
      a question a live run makes more interesting rather than less. */
   const doingOut = $('#doingOut');
   if (doingOut) doingOut.classList.toggle('hidden', !live);
+  /* Nothing running is the normal state of this column, and an empty column
+     with no word in it reads as one that failed to load. Said here rather than
+     in renderPlanDoing(), which knows what is in the plan folder but not
+     whether the runner is going — and "nothing is running" is the answer that
+     needs both. */
+  const doingEmpty = $('#doingEmpty');
+  if (doingEmpty) {
+    const parked = $('#plansDoing');
+    doingEmpty.innerHTML = (live || (parked && parked.children.length))
+      ? ''
+      : colEmptyHTML('Nothing running. The night agent starts at its scheduled ' +
+                     'hour, or from Run now.', 'boxed');
+  }
   const orphanOut = $('#qdOrphan');
   if (!orphanOut) return;
   if (!live && orphan) {
@@ -1457,7 +1496,8 @@ async function renderPlansView(){
         desc: 'Currently running.',
         body: '<div class="hidden" id="qdOrphan"></div>' +
               '<div id="doingOut"></div>' +
-              '<div id="plansDoing"></div>'
+              '<div id="plansDoing"></div>' +
+              '<div id="doingEmpty"></div>'
       }) +
       colHTML({
         heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed agentcol',

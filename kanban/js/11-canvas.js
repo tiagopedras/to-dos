@@ -237,7 +237,7 @@ function renderCanvas(){
   // placed, so a locked tab does not get it at all rather than getting one
   // that refuses — the same line every other rearranging gesture here draws.
   let html = state.locked ? '' :
-    '<div class="cvtools"><button type="button" class="btn mini" id="cvtidy"' +
+    '<div class="cvtools"><button type="button" class="btn small" id="cvtidy"' +
       ' title="Line every box and loose card back up in a grid, in the order they' +
       ' already read. Nothing changes but where things sit.">Tidy</button></div>';
   html += '<div class="cvsurface">';
