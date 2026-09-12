@@ -18,6 +18,27 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **`pa-do` is filed with the skills that read and write his to-do list, and it
+  is the only one of them that makes work happen.** Its own SKILL.md says so —
+  "This is the only skill in the set that causes work to happen rather than
+  recording a decision about it" — while the other eight under
+  `agents/pa_agent/skills/` all read `todo.md` or write it after a conversation.
+  Execution is already its own thing with its own manifest, board, owner and
+  lock: `agents/execution_agent/stream.json`, `kanban/js/27-execution.js`,
+  `data/.execution-agent.lock`, and `agents/execution_agent/execution-agent.md`
+  for the agent itself. None of that is the PA's, and the `pa-` prefix is what
+  sends the next reader looking for it in the PA's brief, where nothing about
+  execution lives. Moving it to `agents/execution_agent/skills/` under a name
+  without the prefix costs the folder move, repointing the
+  `~/.claude/skills/pa-do` symlink, and the eleven references that name it by
+  string — `CLAUDE.md:121` and `:167`, `agents/pa_agent/CLAUDE.md:24`,
+  `agents/pa_agent/PA-PLAN.md:246` and `:259`,
+  `agents/pa_agent/skills/pa/SKILL.md:305`, `agents/night_agent/README.md:154`,
+  `agents/execution_agent/README.md:33`, `:38`, `:67`,
+  `agents/execution_agent/stream.py:21`, plus the label in
+  `agents/pa_agent/pa-skills.svg:66` and the assertion in
+  `kanban/test_execution.mjs:187`.
+
 - **The Reports window picker is the last segmented control that is not the
   shared tab.** `.repwindow-seg` (`kanban/board.css:894`) draws its own pill and
   its own buttons — `padding:3px 9px`, `font-size:12.5px`, its own `.on` state
@@ -658,6 +679,97 @@ they settled is written up in the README rather than left here:
   Context section. The board is the authority, so `todo.py` moved in all three.
 
 ## Big
+
+- **The two agents are named on different axes: one says when it runs, the
+  other says what it does.** `night_agent` is named for the hour, which is the
+  one thing about it that is incidental, and `execution_agent` for the job.
+  Renaming them `planning_agent` and `implementing_agent` makes them a pair and
+  says what each half of the pipeline is for. The cost is spread wide rather
+  than deep: 56 files mention the night agent and 28 the execution agent,
+  including both `stream.json` manifests (`id` and `writer.who`), the lock paths
+  `data/.night-agent.lock` and `data/.execution-agent.lock`, the agent
+  definition `agents/execution_agent/execution-agent.md` and the
+  `.claude/agents/` symlink into it, `planColumn()` and `runColumn()`
+  (`kanban/js/13-plans.js:125`, `kanban/js/27-execution.js:36`), `CLAUDE.md`,
+  `agents/pa_agent/PA-PLAN.md`, the three READMEs, `agents/pa_agent/pa-skills.svg`
+  and the assertions in `kanban/test_plans.mjs` and `kanban/test_execution.mjs`.
+
+  Two parts are not a find-and-replace. The live data carries 17 frontmatter
+  values reading `execution-agent` and 3 reading `night-agent` across
+  `data/twinkl/plans/` and `data/twinkl/runs/`, so this needs a migration beside
+  the ones in `core/migrations/`, and the `legacy` block in
+  `agents/night_agent/stream.json:104` has to keep resolving the old spellings
+  or every plan written before the rename stops reading. And the name reaches
+  outside the repo: `agent.json` declares `"id": "night-agent"`, which is how
+  `agentsd/discover.py` in `agents-dashboard` finds it, with
+  `agents-dashboard/CONTRACT.md`, its README and `test_agentsd.py` naming it
+  too, plus `improve_agent/improve/registry.py` and `run.sh` and the launchd
+  plist `com.tiagopedras.todos-night-agent.plist`.
+
+  The open call is whether the dashboard `id` changes with the folder or stays
+  `night-agent` as a stable key while the display name moves. Keeping it is much
+  cheaper and means the plist is never unloaded. The other is whether the six
+  `plan-*.md` definitions are renamed as well or left as they are.
+
+- **The acting agent cannot delegate a lookup, so every expensive read happens
+  in the context that is also doing the writing.** `execution-agent` holds
+  `tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch`
+  (`agents/execution_agent/execution-agent.md:4`) and no Agent tool, so a run
+  that needs a number out of a design system snapshot reads the whole capture
+  itself. Read-only consultants for exactly that shape already exist outside
+  this repo — `ds-analyst` is granted `Bash, Read, Grep, Glob` and answers a
+  question about a snapshot without writing anything — and the acting agent has
+  no way to reach one.
+
+  This is not the per-bucket proposal settled on 6 Sep 2026 and recorded above
+  as "One acting agent, `execution-agent`, not one per bucket"
+  (`IMPROVEMENTS.md:1471`). That was declined because six agents with write
+  tools is six copies of one set of guard rails, and a consultant has no write
+  tools to copy. The evidence is on disk: the six planners in `.claude/agents/`
+  are all `tools: Read, Grep, Glob, WebFetch, WebSearch`, so specialisation was
+  never the objection — writing was. Per-bucket knowledge stays in the brief
+  files, which this does not touch.
+
+  It earns its place only where a question has a large read cost and a small
+  answer. Most runs write prose into a project folder against a plan the agent
+  already holds, and a consultant there starts cold and re-derives context to
+  answer something the agent could read itself. The thing to weigh before
+  building it is that granting the Agent tool widens the one definition
+  deliberately kept narrow, and what contains that is a fixed list of named
+  read-only consultants rather than an open grant.
+
+- **Plans and Execution are two boards holding one pipeline, and the seam
+  between them is a second manual gate on work he has already approved.**
+  Accepting a plan writes `state: accepted` on the plan document, and `sync()`
+  (`agents/execution_agent/stream.py:238`) mints a second document into
+  `data/<dataset>/runs/` that lands in Execution's Backlog, where nothing
+  happens until he drags it to To do. On 12 Sep 2026 six plans stood accepted,
+  all six had runs minted, and two were still sitting in Backlog untouched —
+  the gate filters nothing, it is a step he has to remember. He wants the
+  accepted plans to be the queue themselves, with Done as the final stage of
+  whatever gets produced.
+
+  The reason on record for two documents is `PACKAGES/work_streams/CONTRACT.md`,
+  which allows one `state:` per file. That is an argument for one document with
+  a longer column set, not for two boards: Plans already draws six columns
+  through `colHTML()` (`kanban/js/09-columns.js:368`), with `planColumn()`
+  (`kanban/js/13-plans.js:125`) mapping states onto them, and
+  `Ready to be produced` is already the handover point both stream manifests
+  name. Folding Execution in means `renderPlansView()`
+  (`kanban/js/13-plans.js:1472`) growing the execution half onto the same cards,
+  `runColumn()` and `renderExecutionView()` (`kanban/js/27-execution.js:36`,
+  `:255`) going with the view, and `agents/execution_agent/stream.json` either
+  retiring or shrinking to the agent definition alone.
+
+  Two things have to be decided before any of it. What happens to the seven
+  documents already in `data/twinkl/runs/` — two are `done`, three carry the
+  acting agent's full written reports in their bodies which would have to move
+  onto their plan, and two are empty stubs. And what replaces the gate, since
+  removing it is only safe while something else stops six approved plans running
+  at once. Settled 12 Sep 2026 and explicitly not the answer: a nightly drain of
+  `accepted`. The overnight entry below still holds, so the acting agent runs
+  only from a session he is sitting in, and collapsing the boards does not make
+  `accepted` a queue anything empties by itself.
 
 - **A finished run and a dead one are the same document, because the acting
   agent cannot move its own card.** `execution-agent` is defined with `tools:
