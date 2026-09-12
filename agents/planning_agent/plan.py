@@ -812,6 +812,35 @@ def prune(day):
         log("pruned plans from %s" % name)
 
 
+def count_backlog_runs():
+    """How many runs are minted and still untouched in Execution's Backlog.
+
+    A run reaches `state: backlog` the moment `stream.py --sync` mints it off
+    an accepted plan, and sits there until he drags it to To do through
+    `pa-do`. That queue can grow quietly for weeks — on 12 Sep 2026 six plans
+    stood accepted, all six had runs minted, and two were still sitting in
+    Backlog untouched — and nothing said so until the Execution tab was
+    opened. Reads frontmatter only, the same shallow way `plan_meta()` in
+    `kanban/server.py` does; a run with no `state:` line or an unreadable file
+    just doesn't count, rather than raising into an unattended run.
+    """
+    runs_dir = os.path.join(paths.data_dir(), "runs")
+    if not os.path.isdir(runs_dir):
+        return 0
+    n = 0
+    for name in os.listdir(runs_dir):
+        if not name.endswith(".md"):
+            continue
+        try:
+            with open(os.path.join(runs_dir, name), encoding="utf-8") as fh:
+                head = fh.read(600)
+        except OSError:
+            continue
+        if re.search(r"^state:\s*backlog\s*$", head, re.M):
+            n += 1
+    return n
+
+
 def announce(written, skipped, stopped):
     """One line on the queue the companion drains, so the night is not silent.
 
@@ -822,10 +851,15 @@ def announce(written, skipped, stopped):
 
     One notification for the whole night, never one per plan: three banners is
     information and eleven is noise, and the companion caps it at three anyway.
-    Silence when nothing was written, since "nothing to plan" is the normal
-    quiet night and does not need saying.
+
+    Silence needs both halves to have nothing to say: no plan written tonight,
+    and no accepted plan sitting in Execution's Backlog from a previous night.
+    The second half fires even on a night that wrote nothing, which is the one
+    this entry was raised for — a report that agreed plans are waiting is not
+    itself a run, so it can say so on a quiet night same as a busy one.
     """
-    if not written:
+    backlog = count_backlog_runs()
+    if not written and not backlog:
         return
     sys.path.insert(0, os.path.join(paths.ROOT, "companion"))
     try:
@@ -834,21 +868,32 @@ def announce(written, skipped, stopped):
         return
     plans = [w for w in written if not w[3]]
     folded = [w for w in written if w[3]]
-    body = "%d plan%s waiting" % (len(plans), "" if len(plans) == 1 else "s")
+    parts = []
+    if plans:
+        parts.append("%d plan%s waiting" % (len(plans), "" if len(plans) == 1 else "s"))
     # Named in the banner rather than left to be discovered, because a fold is
     # a question addressed to him and a question nobody sees is not asked.
     if folded:
-        body += ", %d waiting on you" % len(folded)
+        parts.append("%d waiting on you" % len(folded))
     if skipped:
-        body += ", %d unchanged" % len(skipped)
+        parts.append("%d unchanged" % len(skipped))
+    if backlog:
+        parts.append("%d accepted plan%s still waiting to run" % (
+            backlog, "" if backlog == 1 else "s"))
+    body = ", ".join(parts) if parts else "nothing new"
     if stopped:
         body += ". Stopped early"
-    first = (folded or plans or written)[0][1]
-    body += ".\n" + (first if len(first) < 60 else first[:59].rstrip() + "…")
-    # Pressing it lands on the Plans tab, which is where the night's output
-    # actually is. Not on a single plan: the banner counts a batch, and opening
-    # one of several would answer a question it did not ask.
-    notify.queue("Planning agent", body, view="plans")
+    first_batch = folded or plans
+    if first_batch:
+        first = first_batch[0][1]
+        body += ".\n" + (first if len(first) < 60 else first[:59].rstrip() + "…")
+    else:
+        body += "."
+    # Pressing it lands on the Plans tab when there is a plan to show for the
+    # night, and Execution when the only news is the backlog of runs — either
+    # is where the thing it is announcing actually lives.
+    view = "plans" if written else "execution"
+    notify.queue("Planning agent", body, view=view)
 
 
 def run(argv=None):
@@ -887,6 +932,11 @@ def run(argv=None):
 
     if not plan:
         log("nothing to plan (%d unchanged)" % len(skipped))
+        # Nothing to plan is not the same as nothing to say: a batch of
+        # accepted plans can still be sitting untouched in Execution's
+        # Backlog from a previous night, and this is the only path through
+        # run() that reaches a quiet night — the one announce() was missing.
+        announce([], [], None)
         return 0
 
     guard = file_hash(todo_file)

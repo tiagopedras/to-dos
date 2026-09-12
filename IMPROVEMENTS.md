@@ -2086,20 +2086,21 @@ they settled is written up in the README rather than left here:
   file this asked for arrived on 8 Sep 2026 with the folder listing above:
   `kanban/test_projects.mjs`, covering the tab as well as the drawer.
 
-- **`implementing-agent` is not to run overnight. What the night owes him is a
-  report that agreed plans are waiting.** Raised 6 Sep 2026 as a way to run it
-  unattended, and settled the other way: it only ever runs from `pa-do`,
-  inside a session he is sitting in, because being able to stop and ask is
-  what makes it safe to hold write tools at all, and an unattended run is that
-  design inverted. Do not re-propose it.
+- ~~**`implementing-agent` is not to run overnight. What the night owes him is a
+  report that agreed plans are waiting.**~~ **Done, 13 Sep 2026.** Raised
+  6 Sep 2026 as a way to run it unattended, and settled the other way: it
+  only ever runs from `pa-do`, inside a session he is sitting in, because
+  being able to stop and ask is what makes it safe to hold write tools at
+  all, and an unattended run is that design inverted. Not re-proposed.
 
-  What is left to build is the reporting half. A plan carrying
-  `status: agreed` (`PLAN_STATUS`, `kanban/server.py:945`) is work he has
-  approved and nothing acts on until he next sits down with `pa-do`, and
-  today nothing anywhere says how many are waiting or how long they have
-  been. The channel exists: `companion/notify.py` appends to
-  `notify-queue.json` and the companion drains it after 08:30, which is
-  already how the planning agent says it wrote plans. The night's own run adds
-  one line counting the agreed plans still outstanding, so a queue that is
-  quietly growing is heard about in the morning rather than found weeks later
-  on the Plans view.
+  The reporting half is built. The terminology moved under this entry —
+  `status: agreed` became `state: accepted` on a plan, and the actual queue
+  that grows quietly is runs sitting `state: backlog` in Execution, minted by
+  `stream.py --sync` and untouched until `pa-do` — so
+  `count_backlog_runs()` (`agents/planning_agent/plan.py`) counts those rather
+  than plans, reading frontmatter the same shallow way `plan_meta()` does.
+  `announce()` now fires on that count alone, even on a night that planned
+  nothing — the one gap this entry was raised for, since the old
+  `if not written: return` made a quiet planning night silent regardless of
+  what was waiting in Execution — and the notification's `view` points at
+  Execution rather than Plans when that is the only news.
