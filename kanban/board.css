@@ -688,18 +688,55 @@
   }
   /* Columns stay on one row and the board scrolls sideways when the window is
      narrow — wrapping them would break the left-to-right order of the flow. */
-  .col.donecol{background:transparent; border-style:dashed}
-  .col.donecol h2{color:var(--ink-faint)}
-  .col.aicol{background:transparent; border-style:dashed}
-  .col.aicol h2{color:var(--ink-soft)}
-  .col.waitcol{background:transparent}
-  .col.waitcol h2{color:var(--ink-soft)}
+  /* One column, three views. Board, Plans and Execution all draw colHTML()
+     (09-columns.js), so a column is the same object wherever it appears: one
+     fill, one border, one radius, one width, one header padding, one body
+     padding, one gap. What differs between the three is which toggles the
+     header carries and what goes in the body, and nothing else.
+
+     Until 12 Sep 2026 the two were unrelated furniture — the board's `.col`
+     with padding 0 and a divider under its heading, and Plans' `.listcard`
+     with padding 14/16/16 and no divider — and the Plans lead paragraph was
+     the first thing in the body rather than part of the head. Standardising
+     on the board's shape was the smaller change: it has six columns and
+     thirty-odd cards against four columns of prose. */
   .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
-  .col h2{
+  /* Handed to AI is the only dashed column in the app, so the dash means one
+     thing: an agent owns this and you do not drag into it. Waiting review and
+     Done used to be transparent as well as (for Done) dashed, which was the
+     same meaning carried twice — once by the fill and once by the border — so
+     the fill went and Done's dash went with it. */
+  .col.aicol{border-style:dashed}
+  .col.aicol .colhead{color:var(--ink-soft)}
+  .col.donecol .colhead{color:var(--ink-faint)}
+  .col.waitcol .colhead{color:var(--ink-soft)}
+  /* min-height so a header carrying nothing but a title still lines up with
+     one carrying a sort button and a count — the Plans columns are the case,
+     and a row of columns whose first lines sit at different heights reads as
+     a mistake rather than as a difference. */
+  .colhead{
     margin:0; padding:11px 13px 9px; font-size:12.5px; font-weight:680; letter-spacing:.02em; text-transform:uppercase;
-    color:var(--ink-soft); display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line-soft);
+    color:var(--ink-soft); border-bottom:1px solid var(--line-soft); min-height:41px; box-sizing:border-box;
   }
-  .col h2 .count{margin-left:auto; font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
+  .colhead-row{display:flex; align-items:center; gap:8px; min-height:19px}
+  .colhead h2, .colhead h3{
+    margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
+    text-transform:inherit; color:inherit; min-width:0;
+  }
+  .colhead .count{margin-left:auto; font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
+  /* The action button and the Filters dropdown both sit at the right-hand end
+     of the head's first row, and neither is allowed to shrink: a wrapped
+     "Run now" is worse than a title that has to wrap instead. */
+  .colhead .colact{margin-left:auto; flex:none}
+  .colhead .colact + .count{margin-left:8px}
+  /* What the column is for, in the column rather than above the row of them.
+     Plans carries one on every column; the board carries none. Not uppercase
+     and not the head's weight — it is a sentence, and the heading above it has
+     already had its say. */
+  .colhead-desc{
+    margin:6px 0 0; font-size:12px; font-weight:450; line-height:1.45;
+    text-transform:none; letter-spacing:0; color:var(--ink-faint);
+  }
   /* Says which order the column is in, and changes it. Quiet until it is on,
      because "your order" is the normal state and needs no announcing. */
   .sortbtn{
@@ -713,9 +750,9 @@
     color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, transparent);
     background:color-mix(in srgb, var(--accent) 8%, transparent); opacity:1; font-size:10.5px;
   }
-  .col h2 .sortbtn + .count{margin-left:8px}
+  .colhead .sortbtn + .count{margin-left:8px}
   .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
-  .drop{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1}
+  .colbody{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
   .drop.over{background:color-mix(in srgb, var(--accent) 7%, transparent)}
   /* Where the card being dragged will land. Sits in the gap between two cards,
      so the line is the answer to "in front of which one?". */
@@ -1034,27 +1071,23 @@
      read, and what has been ruled on. Narrower than the
      two-column views because all of them have to fit, and scrolling sideways
      is what a board does anyway. */
-  /* Four tracks, the same four as the board. Queue and Doing used to be
-     separate cards and are one now (see .queueview below), and Token Session
-     and the clock card had a fifth track between them until 12 Sep 2026 —
-     both are reference rather than decision, so they moved into a modal
-     (openRefCards) and the min-width came down by a card and a gap. The fourth
-     is Decided, split out of the old Done column: that one card held plans
-     waiting to be read alongside plans already agreed or actioned, which are
-     two different questions and now two columns. */
+  /* Six tracks since 12 Sep 2026, and the board's own width and gap rather than
+     a set of its own — 322 and 12, same as .board above, because a column is
+     now the same object in all three views and a column that changed width
+     between them was the last thing still saying otherwise. It scrolls
+     sideways for the same reason the board does.
+
+     Queue and Doing used to be one card (see .queueview below) and are two
+     columns now: a run that is happening is not a queue waiting to be run.
+     Token Session and the clock card had a track between them until the same
+     date — both are reference rather than decision, so they moved into a
+     modal (openRefCards). */
   .lists.pview{
-    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:repeat(4, minmax(330px,1fr));
-    min-width:1362px;
+    columns:auto; max-width:none; display:grid; align-items:start; gap:12px;
+    grid-template-columns:repeat(var(--pcols,6), minmax(322px,1fr));
+    min-width:calc(var(--pcols,6) * 334px);
   }
-  .lists.pview .listcard{margin:0}
-  /* Execution keeps narrower tracks than Plans does: its cards carry a run
-     each rather than a queue with positions and reasons on every row, so they
-     read at a width Plans' To do column would crowd at. */
-  .lists.pview.eview{
-    grid-template-columns:repeat(4, minmax(300px,1fr));
-    min-width:1280px;
-  }
+  .lists.pview .col{margin:0}
   /* The two reference cards, stacked inside the modal — the clock card reads
      as an appendix under the chart rather than competing with it for width,
      which is the order they were in when they shared a track on the view. */
@@ -1063,26 +1096,38 @@
      on the page background, and the sheet it is in is already a panel with a
      border of its own. */
   .sheet .pvcol .listcard{margin:0; box-shadow:none}
-  /* A boxed empty state — dashed border, var(--bg) fill — rather than the
-     plain grey text every other list view falls back to. Scoped to Plans
-     specifically: .reportsview .empty is shared with the Reports view,
-     which keeps its plain text. */
-  .lists.pview .reportsview .empty{
+  /* A column with nothing in it, in the two styles there are and no third:
+     plain grey text on the board, and a dashed box on Plans and Execution,
+     where a column of prose with one line of grey text in it read as a column
+     that had failed to load rather than one with nothing in it. Both come out
+     of colEmptyHTML() (09-columns.js) now rather than being written out at
+     each of the eight places that needed one, and the boxed one is asked for
+     by name rather than inferred from which view it is in — .reportsview
+     .empty is shared with the Reports view, which keeps its plain text. */
+  .empty.boxed{
     padding:11px 13px; background:var(--bg); border:1px dashed var(--line);
     border-radius:10px; font-size:13px; color:var(--ink-faint);
   }
-  /* Run now, beside the column it actually acts on. Hidden the moment a run
-     is live (see renderQueueDoingHead in 13-plans.js) — offering a second
-     run while one is going would look like it queued another rather than
-     being silently refused, which is what run.sh actually does. A sibling of
-     the h3 rather than inside it, so the heading's own text stays just its
-     own text — it swaps between "Queue" and "Doing", and a button word
-     glued onto that would swap with it. The Backlog card beside it has the
-     same head now, holding the button that opens the two reference cards, so
-     the rule is scoped to the view rather than to the one card. */
-  .pview .cardhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px}
-  .pview .cardhead h3{margin:0}
-  .pview .cardhead .btn{flex:none}
+  /* Run now and Spend and clocks are `action` on their column's head now —
+     see colHTML() — so the head shape they used to need is gone with
+     .pview .cardhead. Run now is still hidden the moment a run is live (see
+     renderQueueDoingHead in 13-plans.js): offering a second run while one is
+     going would look like it queued another rather than being silently
+     refused, which is what run.sh actually does. */
+  /* The column filter, in the head rather than as a chip row in the body.
+     The button is a small one and the panel hangs off its right edge, since a
+     column's head ends close to the column's own right edge. */
+  .colfilter .dropdown-panel{min-width:150px}
+  .colfilter-btn{
+    text-transform:none; letter-spacing:0; font-weight:560; white-space:nowrap;
+  }
+  .colfilter .dropdown-item{display:flex; align-items:center; gap:8px}
+  .colfilter .dropdown-item .n{
+    margin-left:auto; font-size:11px; font-weight:650; color:var(--ink-faint);
+    background:var(--chip); border-radius:5px; padding:0 5px; min-width:19px; text-align:center;
+  }
+  .colfilter .dropdown-item.on{background:var(--chip); font-weight:640}
+  .colfilter .dropdown-item.on .n{background:var(--panel); color:var(--ink-soft)}
 
   /* The queue and the Backlog beside it share this card — a card here is a
      proposal about tonight (or about not-tonight), so it is lighter than a
@@ -1140,10 +1185,12 @@
   /* Waiting for review is the agent's own column and takes no drops at all.
      The dashed edge is the whole tell, so it has to be on the card rather than
      only on the rows inside it. */
-  .lists.pview .listcard.agentcol{
-    border-style:dashed;
-    background:color-mix(in srgb, var(--panel) 88%, var(--bg));
-  }
+  /* Dashed, and not tinted. The tint was the same fact as the dash said twice,
+     which is the reason the board's own Done and Waiting review columns lost
+     theirs on the same day — see .col.aicol above. Handed to AI on the board
+     and this column are the two dashed columns in the app, and they mean the
+     same thing: an agent owns it. */
+  .lists.pview .col.agentcol{border-style:dashed}
   /* A plan row drags like a board card, out of whichever column it is in. */
   .planitem{cursor:grab}
   .planitem.dragging{opacity:.4}
@@ -1442,16 +1489,6 @@
     color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   }
   .plangoto:hover{color:var(--ink)}
-  /* The Done column's status filter. It borrows the bucket strip's own tabs
-     rather than inventing a second kind of chip, shrunk a step because it sits
-     inside a column rather than across the window, and allowed to wrap since
-     six statuses will not fit one line in a third of the screen. */
-  .tabs.planfilter{display:flex; flex-wrap:wrap; margin:0 0 10px}
-  .tabs.planfilter .tab{padding:4px 9px; font-size:12px; gap:6px}
-  .tabs.planfilter .tab .n{font-size:10.5px; min-width:17px}
-  .planagreed{margin:0 0 14px}
-  .planagreed h4{margin:0 0 2px; font-size:12.5px}
-  .planagreed .help{margin:0 0 8px}
   /* The reason box on Send it back. Full width, and it inherits the sheet's
      own type rather than the browser's textarea default. */
   .redowhy{
@@ -1485,7 +1522,7 @@
   .repdoc .repnum li{font-size:13.5px; line-height:1.5; color:var(--ink-soft)}
   .repdoc strong{color:var(--ink)}
   @media (max-width:1000px){
-    .lists.pview, .lists.pview.eview{grid-template-columns:1fr; min-width:0}
+    .lists.pview{grid-template-columns:1fr; min-width:0}
   }
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}

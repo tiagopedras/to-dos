@@ -52,7 +52,15 @@ OWNERS = {
     "accepted": ("execution-agent",),
     "done":     ("me",),
 }
-RESOLUTIONS = ("actioned", "superseded", "dropped")
+# `completed` arrived with the `accepted` state on 12 Sep 2026. Until then
+# `actioned` was what accepting a plan wrote, because accepting it was the only
+# way a plan could reach `done`; now accepting one lands in `accepted` and
+# `done` means the work has finished, so the two need telling apart on the
+# files already on disk. Nothing rewrites an old `done: actioned`, so it stays
+# readable as what it meant — see planColumn() in kanban/js/13-plans.js and
+# core/migrations/migrate-plans-accepted.py, which tidies it if he wants it
+# tidied.
+RESOLUTIONS = ("actioned", "completed", "superseded", "dropped")
 FM_KEYS = ("state", "owner", "seen", "resolution", "feedback")
 
 

@@ -58,8 +58,13 @@ function planClass(p){
      what it carries is the reason he sent it back, and that is the only written
      record of what he asked for. */
   if (p.resolution === 'superseded') return ' redo';
-  if (p.state === 'done') return ' actioned';
+  /* Green, not dimmed, for a plan accepted under the old spelling: it is
+     sitting in Ready to be produced with work still owed on it, so it reads
+     the way every other card in that column does. See planColumn(). */
+  if (p.state === 'done') return p.resolution === 'actioned' ? ' agreed' : ' actioned';
+  if (p.state === 'accepted') return ' agreed';
   if (p.state === 'backlog') return ' parked';
+  if (p.state === 'doing') return '';
   if (p.state === 'ready') return p.owner === 'night-agent' ? ' redo' : ' agreed';
   return p.seen ? ' read' : '';
 }
@@ -68,22 +73,54 @@ function planClass(p){
    canonical ones, and the same four the columns are named after wherever the
    card is sitting in the column that word describes. */
 function planWord(p){
-  if (p.state === 'done') return p.resolution === 'superseded' ? 'replaced' : 'accepted';
+  /* `accepted` and `done` are two answers since 12 Sep 2026 and the badge says
+     which: he has agreed to it, or the work it describes has finished. They
+     were one word and one column until then. A `done / actioned` plan is one
+     accepted under the old spelling, so it reads as accepted rather than as
+     finished — see planColumn(), which puts it in the same column that word
+     names. */
+  if (p.state === 'done') {
+    if (p.resolution === 'superseded') return 'replaced';
+    return p.resolution === 'actioned' ? 'accepted' : 'finished';
+  }
+  if (p.state === 'accepted') return 'accepted';
   if (p.state === 'backlog') return 'parked';
+  if (p.state === 'doing') return 'being planned';
   if (p.state === 'ready') return p.owner === 'night-agent' ? 'planning again' : 'handed over';
   return p.seen ? 'read' : 'new';
 }
 
-/* Which of the four columns a plan draws in. One function, so the renderers,
-   the drop handlers and the counts can never disagree about where a card is. */
-const PLAN_COL = { backlog:'backlog', todo:'todo', review:'review', done:'done' };
+/* Which of the six columns a plan draws in. One function, so the renderers,
+   the drop handlers and the counts can never disagree about where a card is.
+
+   Six since 12 Sep 2026, mirroring the board's own six. Doing was a Status
+   block inside To do, which meant the run that is happening now was described
+   rather than drawn; and the old Done column held two different facts at once
+   — plans he had accepted, whose work had not started, alongside plans whose
+   work was finished — which is what the `accepted` state was added to split.
+   Ready to be produced is that column renamed to say what it is. */
+const PLAN_COL = { backlog:'backlog', todo:'todo', doing:'doing',
+                   review:'review', produced:'produced', done:'done' };
 function planColumn(p){
   if (p.state === 'backlog') return PLAN_COL.backlog;
   if (p.state === 'ready' && p.owner === 'night-agent') return PLAN_COL.todo;
+  if (p.state === 'doing') return PLAN_COL.doing;
   if (p.state === 'review') return PLAN_COL.review;
-  /* `done`, and the `ready / execution-agent` a plan agreed before 12 Sep 2026
-     still carries. Both mean he has accepted it, which is what Done says. */
-  return PLAN_COL.done;
+  /* `done` covers both halves of finished: work that got carried out, and a
+     rejection a later plan answered. What it does not cover is `actioned`,
+     which is what accepting a plan wrote until 12 Sep 2026 — every plan
+     accepted before that date is `done / actioned` on disk and belongs in
+     Ready to be produced, so it falls through to the line below. Nothing
+     rewrites those files; core/migrations/migrate-plans-accepted.py tidies
+     them if he wants them tidied, and this reads them correctly either way. */
+  if (p.state === 'done' &&
+      (p.resolution === 'completed' || p.resolution === 'superseded')) return PLAN_COL.done;
+  /* `accepted`, and the `ready / execution-agent` a plan agreed before
+     11 Sep 2026 still carries. Both mean he has accepted it and the work has
+     not finished, which is what Ready to be produced says. It is also the
+     fallback, so a state this view has never heard of is drawn rather than
+     dropped. */
+  return PLAN_COL.produced;
 }
 
 /* Whether an agent may pick this up and which one. `ready` owned by the night
@@ -91,7 +128,13 @@ function planColumn(p){
    approved. Both mean the same thing about the plan, which is why they are one
    state and not two. */
 const isRedo = p => p.state === 'ready' && p.owner === 'night-agent';
-const isAgreed = p => p.state === 'ready' && p.owner === 'execution-agent';
+/* Accepted, and the work not finished. `accepted` is the state that says so
+   since 12 Sep 2026; `ready / execution-agent` is what it was called for the
+   day between the six states arriving and this one, and plans written in that
+   window are still on disk saying it. */
+const isAgreed = p => p.state === 'accepted' ||
+  (p.state === 'ready' && p.owner === 'execution-agent') ||
+  (p.state === 'done' && p.resolution === 'actioned');
 
 /* When a plan was actually written, to the minute — `generated:` if the file
    has one, falling back to the file's own mtime for a plan written before
@@ -179,9 +222,16 @@ function openPlanModal(p){
      button left to press by reflex on the way out. */
   openDocModal({
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    buttons: [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
-              { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-              { label:'Leave it alone', run: () => parkPlan(p) }]
+    /* One button per column he could move the card into from where it is. A
+       plan he has already accepted is past being accepted again, so its
+       remaining move is the one that closes it. */
+    buttons: planColumn(p) === PLAN_COL.produced
+      ? [{ label:'It is finished', agree:true, run: () => finishPlan(p) },
+         { label:'Plan it again', reject:true, run: () => replanPlan(p) },
+         { label:'Leave it alone', run: () => parkPlan(p) }]
+      : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
+         { label:'Plan it again', reject:true, run: () => replanPlan(p) },
+         { label:'Leave it alone', run: () => parkPlan(p) }]
   });
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
 }
@@ -194,20 +244,41 @@ function openPlanModal(p){
    on purpose, so that a run he has not asked for cannot start from a stray
    click on a board tab left open overnight. */
 
-/* Done. He accepts the plan as written, which is the end of this board's
-   involvement and the start of the acting agent's: an accepted plan is what
-   feeds the execution board's Backlog. The night agent stops re-planning the
-   task from here, which is the change of meaning `done` carries since 12 Sep
-   2026 — it used to mean "actioned, so plan it fresh next time". */
+/* Ready to be produced. He accepts the plan as written, which is the end of
+   this board's involvement and the start of the acting agent's: an accepted
+   plan is what feeds the execution board's Backlog. The night agent stops
+   re-planning the task from here.
+
+   It lands in `accepted` rather than `done`, and that is the whole reason the
+   seventh state exists. Accepting a plan and the work it describes finishing
+   are two facts, and putting both in `done` meant one column answering two
+   questions — which is what "Done" on this view had been doing. Nothing is
+   closed yet, so there is no resolution to give, and the acting agent owns it
+   from here because what happens next is a run rather than a decision. */
 function acceptPlan(p){
   showModal('Accept this plan?', esc(p.title),
     '<div class="repdoc">' +
-      '<p>It moves to <strong>Done</strong>, and the night agent leaves the task ' +
-      'alone from here rather than writing a second opinion over it.</p>' +
+      '<p>It moves to <strong>Ready to be produced</strong>, and the night agent ' +
+      'leaves the task alone from here rather than writing a second opinion over it.</p>' +
       '<p>Nothing runs now. It lands in the execution board\'s Backlog, and the ' +
       'acting agent only picks it up once you move it to To do there.</p>' +
     '</div>',
-    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'actioned' }) },
+    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'accepted', 'execution-agent') },
+     { label:'Cancel' }]);
+}
+
+/* Done. The work the plan describes has finished. Not a verdict on the plan —
+   he gave that when he accepted it — so this asks nothing and carries no
+   reason; it is the record closing. `actioned` because the plan was carried
+   out, which is what distinguishes it from the `superseded` a replaced
+   rejection carries. */
+function finishPlan(p){
+  showModal('Mark this finished?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>The work this plan describes is done. It moves to <strong>Done</strong> ' +
+      'and stays there as the record.</p>' +
+    '</div>',
+    [{ label:'Yes, it is finished', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'completed' }) },
      { label:'Cancel' }]);
 }
 
@@ -354,19 +425,19 @@ const REVIEW_FILTERS = [
   { key:'folded',   label:'needs you', match: p => !!p.needs_you },
   { key:'read',     label:'read',      match: p => !!p.seen },
 ];
+/* Done, and the two ways a plan gets there. Finished is work he accepted and
+   that got carried out; replaced is a rejection a later plan answered, which
+   is also closed but is not work anybody did. Calling both "accepted" was the
+   old column's problem — it claimed he had acted on plans he had only ever
+   sent back.
+
+   The `handed over` and `redo` options this list used to carry have gone. Both
+   describe plans that now sit in other columns — Ready to be produced and To
+   do — so neither could ever match anything here, which is what splitting the
+   old Done column in two made visible. */
 const DONE_FILTERS = [
-  { key:'agreed',   label:'handed over', match: p => isAgreed(p) },
-  /* Only the rejections still waiting on a replacement — see redoReplaced().
-     A spent one has no chip of its own, which is the point: it is filed with
-     the record rather than kept in front of him. When every redo has been
-     replaced the chip is not drawn at all, since planFilterBarHTML() only
-     draws chips with something behind them. */
-  { key:'redo',     label:'redo',      match: p => isRedo(p) && !redoReplaced(p) },
-  /* Genuinely acted on, rather than everything that has finished: a rejection
-     that a later plan replaced is also `done`, and calling that "actioned"
-     would claim he did work he never did. It has no chip of its own, which is
-     the point — it is filed with the record rather than kept in front of him. */
-  { key:'actioned', label:'accepted',  match: p => p.state === 'done' && !redoReplaced(p) },
+  { key:'completed', label:'finished', match: p => p.state === 'done' && !redoReplaced(p) },
+  { key:'replaced',  label:'replaced', match: p => redoReplaced(p) },
 ];
 /* The chips narrow a column; they never choose it. Which column a plan is in is
    planColumn() and nothing else, so a folded plan sits wherever its state puts
@@ -459,19 +530,38 @@ let doneFilter = 'all';
    so a status that exists somewhere may have nothing in the bucket being shown.
    A filter that empties out that way falls back to All rather than leaving him
    looking at nothing with no way to tell why. */
-function planFilterBarHTML(shown, filters, current){
+/* A dropdown in the column's own head since 12 Sep 2026, not a row of chips
+   inside it. The chips were the first thing in the body, above the cards they
+   narrowed, which cost a line of the column to a control that is mostly left
+   on All — and at 322px wide, six statuses wrapped it to two and three rows.
+   The header is where a control governing the whole column belongs, and the
+   same `.dropdown` / `.dropdown-panel` / `.dropdown-item` shape the Status
+   filter and the drawer's Bucket field already use, rather than a fourth kind
+   of popover.
+
+   It still draws only the options with something behind them, for the same
+   reason: the bucket tabs narrow this list too, so a status that exists
+   somewhere may have nothing in the column being shown, and an option leading
+   to an empty column is worse than no option. */
+function colFilterHTML(id, shown, filters, current){
   const counts = filters
     .map(f => ({ f, n: shown.filter(f.match).length }))
     .filter(x => x.n);
   if (!counts.length) return '';
-  return '<div class="tabs planfilter">' +
-    '<button class="tab taball' + (current === 'all' ? ' on' : '') +
-      '" data-planfilter="all">All<span class="n">' + shown.length + '</span></button>' +
-    counts.map(x =>
-      '<button class="tab' + (current === x.f.key ? ' on' : '') +
-        '" data-planfilter="' + x.f.key + '">' + x.f.label +
-        '<span class="n">' + x.n + '</span></button>').join('') +
-  '</div>';
+  const active = counts.find(x => x.f.key === current);
+  const label = active ? active.f.label + ' ' + active.n : 'All ' + shown.length;
+  const opt = (key, text, n, on) =>
+    '<button type="button" class="dropdown-item statusopt' + (on ? ' on' : '') + '"' +
+      ' role="menuitemradio" aria-checked="' + on + '" data-planfilter="' + esc(key) + '">' +
+      esc(text) + '<span class="n">' + n + '</span></button>';
+  return '<span class="dropdown colfilter" data-colfilter="' + esc(id) + '">' +
+    '<button class="btn small colfilter-btn" type="button" aria-expanded="false"' +
+      ' title="Narrow this column">' + esc(label) + ' \u25be</button>' +
+    '<div class="dropdown-panel alignright hidden" role="menu" aria-label="Narrow this column">' +
+      opt('all', 'All', shown.length, current === 'all') +
+      counts.map(x => opt(x.f.key, x.f.label, x.n, current === x.f.key)).join('') +
+    '</div>' +
+  '</span>';
 }
 
 /* Both columns wire the same three controls — their own chip row, and the open
@@ -480,7 +570,22 @@ function planFilterBarHTML(shown, filters, current){
    container, so the two chip rows never see each other's clicks despite
    sharing the attribute name. */
 function wirePlanColumn(out, setFilter){
-  out.querySelectorAll('[data-planfilter]').forEach(btn => {
+  /* The filter lives in the column's head now, which is a sibling of the body
+     each renderer writes into rather than part of it — so this reaches up to
+     the column and back down, and every other control stays scoped to `out`.
+     Falls back to `out` itself so a caller with no column around it (a test
+     rendering one body on its own) still wires. */
+  const col = out.closest('.col') || out;
+  const panel = col.querySelector('.colfilter .dropdown-panel');
+  const fbtn = col.querySelector('.colfilter-btn');
+  if (fbtn && panel) {
+    fbtn.onclick = e => {
+      e.stopPropagation();
+      const open = !panel.classList.toggle('hidden');
+      fbtn.setAttribute('aria-expanded', String(open));
+    };
+  }
+  col.querySelectorAll('[data-planfilter]').forEach(btn => {
     btn.onclick = () => { setFilter(btn.dataset.planfilter); renderPlansList(); };
   });
   out.querySelectorAll('[data-plan-open]').forEach(btn => {
@@ -493,11 +598,13 @@ function wirePlanColumn(out, setFilter){
   wirePlanDrags(out);
 }
 
-/* A move can land a card in any of the four, so all four are redrawn together
+/* A move can land a card in any of the six, so all six are redrawn together
    rather than each render guessing which two were touched. */
 function renderPlansList(){
   renderPlanReview();
+  renderPlanProduced();
   renderPlanDone();
+  renderPlanDoing();
   renderQueueList();
   renderBacklogList();
 }
@@ -517,58 +624,55 @@ function renderPlanReview(){
   const shown = reviewFilter === 'all'
     ? all
     : all.filter(REVIEW_FILTERS.find(f => f.key === reviewFilter).match);
-  out.innerHTML = planFilterBarHTML(all, REVIEW_FILTERS, reviewFilter) +
-    (shown.length
-      ? shown.map(planItemHTML).join('')
-      : '<div class="empty">Nothing waiting to be read. Everything written has been ruled on.</div>');
+  const slot = $('#reviewFilterSlot');
+  if (slot) slot.innerHTML = colFilterHTML('review', all, REVIEW_FILTERS, reviewFilter);
+  out.innerHTML = shown.length
+    ? shown.map(planItemHTML).join('')
+    : colEmptyHTML('Nothing waiting to be read. Everything written has been ruled on.', 'boxed');
   wirePlanColumn(out, k => { reviewFilter = k; });
 }
 
-/* Done. He has accepted the plan as written, which is where this board's half
-   ends: an accepted plan is what feeds the execution board's Backlog, and the
-   night agent stops re-planning the task from here.
+/* Doing. The written half of the column: a plan the runner has picked up and
+   is working through right now. Mostly empty, because a run holds one task at
+   a time and the live card above it is drawn from the runner's own poll rather
+   than from the plan folder — a plan only lands in `doing` if something set it
+   there, which nothing does automatically today. It is drawn anyway, because a
+   state the stream declares and the view cannot show is a card that vanishes.
 
-   Three groups inside it. `handed over` is a plan already on the acting agent's
-   side — the `ready / execution-agent` written before 12 Sep 2026, and whatever
-   the execution board sets from now on — lifted to the top because it is the
-   only one with work still owed on it. Everything accepted folds shut at the
-   bottom, the replaced rejections filed with it. Inside each group the ordering
-   is the review column's: highest priority task first. */
-function renderPlanDone(){
-  const out = $('#plansDecided');
+   No filter and no drop zone: which one is running is not his to choose. */
+function renderPlanDoing(){
+  const out = $('#plansDoing');
   if (!out) return;
-  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done));
-  const active = DONE_FILTERS.find(f => f.key === doneFilter);
-  if (active && !all.some(active.match)) doneFilter = 'all';
-  const shown = doneFilter === 'all'
-    ? all
-    : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
-  const agreed = shown.filter(isAgreed);
-  /* A replaced rejection is history, so it is filed with the accepted ones
-     rather than left looking like work nobody picked up. Its note goes with it
-     — planItemHTML() is untouched — so opening the fold still shows what he
-     asked for and why. */
-  const replaced = shown.filter(redoReplaced);
-  const done = shown.filter(p => p.state === 'done' && !redoReplaced(p)).concat(replaced);
-  out.innerHTML = planFilterBarHTML(all, DONE_FILTERS, doneFilter) +
-    (agreed.length
-      ? '<div class="planagreed"><h4>Handed to the acting agent</h4>' +
-        '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
-        agreed.map(planItemHTML).join('') + '</div>'
-      : '') +
-    /* Open when it is the thing being asked for: a chip that narrows to
-       accepted and then hides the result behind a fold has done half a job. */
-    (done.length ? '<details' + (doneFilter === 'actioned' ? ' open' : '') +
-                   '><summary>' + done.length +
-                   (replaced.length ? ' accepted or replaced' : ' accepted') + '</summary>' +
-                   done.map(planItemHTML).join('') + '</details>' : '') +
-    (shown.length ? ''
-                  : '<div class="empty">Nothing accepted yet. A plan you accept lands here, and from ' +
-                    'here it feeds the execution board.</div>');
-  wirePlanColumn(out, k => { doneFilter = k; });
-  /* The one column that takes plans and nothing else: there is nothing to
-     accept about a task nobody has planned, so a task dropped here is refused
-     with a word rather than silently ignored. */
+  const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing));
+  out.innerHTML = shown.length ? shown.map(planItemHTML).join('') : '';
+  wirePlanColumn(out, () => {});
+}
+
+/* Ready to be produced. He has accepted the plan as written, which is where
+   this board's half ends: an accepted plan is what feeds the execution board's
+   Backlog, and the night agent stops re-planning the task from here.
+
+   Flat, and no fold. It held three groups behind one `<details>` while it was
+   still called Done, because it was holding two different questions — work
+   still owed, and work long finished — and the fold was how the second stopped
+   burying the first. Splitting Done off took the second question away, so
+   every card in here is now the same kind of card and none of them wants
+   hiding. Ordered by the priority of the task each plan is about, same as the
+   review column, so the top of it is the work worth starting.
+
+   The one column that takes plans and nothing else: there is nothing to accept
+   about a task nobody has planned, so a task dropped here is refused with a
+   word rather than silently ignored. */
+function renderPlanProduced(){
+  const out = $('#plansProduced');
+  if (!out) return;
+  const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced));
+  out.innerHTML = shown.length
+    ? '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
+      shown.map(planItemHTML).join('')
+    : colEmptyHTML('Nothing accepted yet. A plan you accept lands here, and from ' +
+                   'here it feeds the execution board.', 'boxed');
+  wirePlanColumn(out, () => {});
   wireColumnDrop(out, d => {
     const p = draggedPlan(d);
     if (p) acceptPlan(p);
@@ -583,6 +687,49 @@ function renderPlanDone(){
       e.preventDefault();
       drag = null;
       showToast('Nothing has been planned for that yet, so there is nothing to accept.', 'bad');
+      return;
+    }
+    orig(e);
+  })(out.ondrop);
+}
+
+/* Done. The work a plan describes has finished, which is the last thing that
+   happens to one. Two kinds of card: a plan that was carried out, and a
+   rejection a later plan answered — both closed, and only one of them work
+   anybody did, which is why the filter tells them apart and the badge does too.
+
+   Takes drops from Ready to be produced, so a plan whose work has landed can be
+   dragged across rather than only closed from inside the modal. Plans only, for
+   the same reason the column before it is plans only. */
+function renderPlanDone(){
+  const out = $('#plansDone');
+  if (!out) return;
+  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done));
+  const active = DONE_FILTERS.find(f => f.key === doneFilter);
+  if (active && !all.some(active.match)) doneFilter = 'all';
+  const shown = doneFilter === 'all'
+    ? all
+    : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
+  const slot = $('#doneFilterSlot');
+  if (slot) slot.innerHTML = colFilterHTML('done', all, DONE_FILTERS, doneFilter);
+  out.innerHTML = shown.length
+    ? shown.map(planItemHTML).join('')
+    : colEmptyHTML('Nothing finished yet.', 'boxed');
+  wirePlanColumn(out, k => { doneFilter = k; });
+  wireColumnDrop(out, d => {
+    const p = draggedPlan(d);
+    if (p) finishPlan(p);
+  }, d => d.kind === 'plan');
+  out.ondragover = (orig => e => {
+    if (drag && drag.kind === 'task') { e.preventDefault(); out.classList.add('coldeny'); return; }
+    orig(e);
+  })(out.ondragover);
+  out.ondrop = (orig => e => {
+    out.classList.remove('coldeny');
+    if (drag && drag.kind === 'task') {
+      e.preventDefault();
+      drag = null;
+      showToast('Nothing has been planned for that yet, so there is nothing to finish.', 'bad');
       return;
     }
     orig(e);
@@ -1060,22 +1207,23 @@ function flightRowHTML(r, kind){
    Doing slot — the queue is still the true answer to "what happens next"
    when nothing is going. */
 function renderQueueDoingHead(live, orphan){
-  const title = $('#qdTitle');
-  if (title) title.textContent = live ? 'Doing' : 'To do';
-  const lead = $('#qdLead');
-  if (lead) lead.textContent = live
-    ? 'What the night agent is doing right now.'
-    : 'What tonight\'s run picks up, in order.';
+  /* It used to retitle the To do column to "Doing" and swap its lead sentence,
+     because the queue and the run in flight shared one card. They are two
+     columns since 12 Sep 2026, so both keep their own name and their own
+     sentence, and this is left with the two things that actually depend on
+     whether a run is live: the button, and which of the two bodies is drawn. */
   const btn = $('#runQueueBtn');
   // Only when nothing is going. run.sh holds a lock and would refuse a
   // second batch anyway, but it refuses by logging and exiting cleanly,
   // which from a button looks exactly like starting — so the button is not
   // offered rather than offered and quietly ignored.
   if (btn) btn.classList.toggle('hidden', live);
+  /* The queue stays drawn while a run is going. It was hidden behind the live
+     card when the two shared a column and only one could show; in its own
+     column it is still the answer to "what happens after this one", which is
+     a question a live run makes more interesting rather than less. */
   const doingOut = $('#doingOut');
-  const queueOut = $('#queueOut');
   if (doingOut) doingOut.classList.toggle('hidden', !live);
-  if (queueOut) queueOut.classList.toggle('hidden', live);
   const orphanOut = $('#qdOrphan');
   if (!orphanOut) return;
   if (!live && orphan) {
@@ -1267,38 +1415,71 @@ function openRefCards(){
   if (lastNightAgent) renderRunResults(lastNightAgent);
 }
 
+/* Six columns, the same six the board has, drawn through the same colHTML()
+   the board draws its own with — so a column here is the same object it is
+   there, down to the fill, the border, the 322px width and the 12px gap.
+
+   The descriptions sit in the heads rather than as the first paragraph of each
+   body. A sentence saying what a column is for governs the column, and
+   anything governing a column belongs in its head; that is where the Filters
+   dropdown went for the same reason.
+
+   Doing and Done are the two new ones. Doing was a Status block inside To do,
+   which described the run that is happening instead of drawing it, and swapped
+   To do's own title to say so; Done held two facts at once — accepted, and
+   finished — which is the split the `accepted` state was added for. See
+   planColumn(). */
 async function renderPlansView(){
   $('#lists').innerHTML =
     '<div class="lists pview">' +
-      '<div class="listcard reportsview backlogview">' +
-        '<div class="cardhead"><h3>Backlog</h3>' +
-          '<button class="btn mini" id="refCardsBtn" type="button">Spend and clocks</button></div>' +
-        '<p class="help listlead">The agent leaves these alone. Held back by you, ' +
-          'or excluded by a rule.</p>' +
-        '<div id="backlogOut">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview queueview" id="queueDoingCard">' +
-        '<div class="cardhead"><h3 id="qdTitle">To do</h3>' +
-          '<button class="btn mini" id="runQueueBtn" type="button">Run now</button></div>' +
-        '<div class="err hidden" id="nightAgentErr"></div>' +
-        '<h4 class="fhead">Status</h4>' +
-        '<div id="statusOut">Loading…</div>' +
-        '<div class="hidden" id="qdOrphan"></div>' +
-        '<p class="help listlead" id="qdLead">What tonight\'s run would plan, in order.</p>' +
-        '<div id="queueOut">Loading…</div>' +
-        '<div class="hidden" id="doingOut">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview processed agentcol"><h3>Waiting for review</h3>' +
-        '<div id="doneStatsOut"></div>' +
-        '<p class="help listlead">The agent\'s own column — what it has worked out, ' +
-          'waiting on you. Drag out of it, not into it.</p>' +
-        '<div id="plansOut">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview decided"><h3>Done</h3>' +
-        '<p class="help listlead">Accepted as written. From here it feeds the ' +
-          'execution board\'s Backlog.</p>' +
-        '<div id="plansDecided">Loading…</div>' +
-      '</div>' +
+      colHTML({
+        heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
+        desc: 'The agent leaves these alone. Held back by you, or excluded by a rule.',
+        action: '<button class="btn small" id="refCardsBtn" type="button">Spend and clocks</button>',
+        body: '<div id="backlogOut">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'To do', cls: 'reportsview queueview',
+        attrs: 'id="queueDoingCard"',
+        desc: 'What tonight\u2019s run picks up, in order.',
+        action: '<button class="btn small" id="runQueueBtn" type="button">Run now</button>',
+        /* The Status line stays here rather than going to Doing with the live
+           run. It reports capacity — how much of the usage window is left —
+           which is an answer about whether tonight can run at all, not about
+           the run that is already going. */
+        body: '<div class="err hidden" id="nightAgentErr"></div>' +
+              '<h4 class="fhead">Status</h4>' +
+              '<div id="statusOut">Loading\u2026</div>' +
+              '<div id="queueOut">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Doing', cls: 'reportsview doingview',
+        desc: 'Currently running.',
+        body: '<div class="hidden" id="qdOrphan"></div>' +
+              '<div id="doingOut"></div>' +
+              '<div id="plansDoing"></div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed agentcol',
+        desc: 'The agent\u2019s own column \u2014 what it has worked out, waiting on ' +
+              'you. Drag out of it, not into it.',
+        filters: '<span class="colfilter-slot" id="reviewFilterSlot"></span>',
+        body: '<div id="doneStatsOut"></div><div id="plansOut">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Ready to be produced', cls: 'reportsview decided',
+        /* No filter on this one: every card in it is the same thing, a plan he
+           has accepted whose work has not finished. A dropdown with one
+           option is a control that only ever says All. */
+        desc: 'Accepted as written. From here it feeds the execution board\u2019s Backlog.',
+        body: '<div id="plansProduced">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Done', cls: 'reportsview finished',
+        desc: 'Completed.',
+        filters: '<span class="colfilter-slot" id="doneFilterSlot"></span>',
+        body: '<div id="plansDone">Loading\u2026</div>'
+      }) +
     '</div>';
   $('#runQueueBtn').onclick = () => confirmNightAgentRun();
   $('#refCardsBtn').onclick = () => openRefCards();
@@ -1314,11 +1495,13 @@ async function renderPlansView(){
     if (!planList.length) {
       out.innerHTML = '<div class="empty">Nothing yet. The night agent writes into ' +
         '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
-      /* The Decided column has no reason to explain where plans come from —
-         the column beside it just did — so it only says it is empty rather
-         than sitting on "Loading…" forever. */
-      const dec = $('#plansDecided');
-      if (dec) dec.innerHTML = '<div class="empty">Nothing ruled on yet.</div>';
+      /* Neither of the two columns past review has any reason to explain where
+         plans come from — the column beside them just did — so each only says
+         it is empty rather than sitting on "Loading…" forever. */
+      const prod = $('#plansProduced');
+      if (prod) prod.innerHTML = colEmptyHTML('Nothing accepted yet.', 'boxed');
+      const fin = $('#plansDone');
+      if (fin) fin.innerHTML = colEmptyHTML('Nothing finished yet.', 'boxed');
     } else {
       renderPlansList();
     }

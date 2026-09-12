@@ -130,14 +130,22 @@ await new Promise(r => setTimeout(r, 500))
 // The same four words as the board and the Plans view, in the same order. That
 // parallel is the point of the whole thing.
 check('Backlog, To do, Waiting for review and Done read left to right', await evalJS(`
-  [...document.querySelectorAll('.lists.eview .listcard')]
-    .map(c => c.querySelector('h3').textContent).join(' | ')
+  [...document.querySelectorAll('.lists.eview .col')]
+    .map(c => c.querySelector('.colhead h3').textContent).join(' | ')
 `) === 'Backlog | To do | Waiting for review | Done')
+/* The same column as the board's and the Plans view's, drawn by the same
+   colHTML(). Its description is in the head rather than the body, which is
+   what says a sentence describing a column governs the column. */
+check('and each is the shared column, with its description in the head', await evalJS(`
+  [...document.querySelectorAll('.lists.eview .col')].every(c =>
+    !!c.querySelector('.colhead .colhead-desc') && !!c.querySelector('.colbody')) &&
+  !document.querySelector('.lists.eview .colbody .colhead-desc')
+`))
 check('and none of the Plans view\'s reference cards come with them', await evalJS(`
   !document.querySelector('.lists.eview .pvcol') && !document.querySelector('.lists.eview #usageOut')
 `))
 check('Waiting for review is drawn as the agent\'s own column', await evalJS(`
-  document.querySelector('#runReview').closest('.listcard').classList.contains('agentcol')
+  document.querySelector('#runReview').closest('.col').classList.contains('agentcol')
 `))
 
 // One card per column, placed by its state rather than by anything the view

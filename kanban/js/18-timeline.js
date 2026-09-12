@@ -984,14 +984,26 @@ function renderBoard(){
         : 'Showing your own order. Click to sort by impact against effort.') + '">' +
       (mode === 'priority' ? 'by priority' : '⇅') + '</button>';
 
-    return '<section class="col' + (isDone ? ' donecol' : '') + (isAi ? ' aicol' : '') +
-        (name === WAIT_COL ? ' waitcol' : '') +
-        (mode === 'priority' ? ' sorted' : '') + '" data-tier="' + esc(name) + '">' +
-      '<h2>' + esc(name) + (TIER_HINT[name] ? ' <span class="hint">' + esc(TIER_HINT[name]) + '</span>' : '') +
-      sortBtn + '<span class="count">' + n + '</span></h2>' +
-      '<div class="drop" data-tier="' + esc(name) + '">' + (n ? cards : '<div class="empty">Nothing here</div>') + '</div>' +
-      (isDone || isAi || state.locked ? '' : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>') +
-    '</section>';
+    /* No hint on the board since 12 Sep 2026. TIER_HINT is still the source of
+       the sentence — the tier editor shows it, and the Plans view's own
+       descriptions are the same idea — but on the board the six column names
+       carry their own meaning and the subtitle beside each was saying it a
+       second time in smaller type. */
+    return colHTML({
+      title: name,
+      sort: sortBtn,
+      count: n,
+      body: n ? cards : colEmptyHTML('Nothing here'),
+      cls: (isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
+           (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : ''),
+      attrs: 'data-tier="' + esc(name) + '"',
+      // .drop as well as .colbody: the board's body is a drag target, and the
+      // wiring below and .drop.over in board.css both find it by that class.
+      bodyCls: 'drop',
+      bodyAttrs: 'data-tier="' + esc(name) + '"',
+      footer: (isDone || isAi || state.locked) ? ''
+        : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>'
+    });
   }).join('');
 
   board.querySelectorAll('.card').forEach(el => {

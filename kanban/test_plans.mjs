@@ -186,9 +186,15 @@ await new Promise(r => setTimeout(r, 400))
 
 const live = await evalJS(`[...document.querySelectorAll('#plansOut > .repitem')].length`)
 check('unactioned plans are listed', live === 2, `${live} shown`)
-check('accepted ones are folded away, in the Done column', await evalJS(`
-  !!document.querySelector('#plansDecided details') &&
-  document.querySelector('#plansDecided details summary').textContent.trim() === '1 accepted'
+/* `done / actioned` is what accepting a plan wrote until 12 Sep 2026, so this
+   fixture row is a plan accepted under the old spelling — and it belongs in
+   Ready to be produced rather than Done, which now means the work has
+   finished. Flat and unfolded: the fold existed because the old Done column
+   was holding two questions at once, and splitting it took the second away. */
+check('accepted ones sit in Ready to be produced, not Done', await evalJS(`
+  document.querySelectorAll('#plansProduced > .repitem').length === 1 &&
+  document.querySelector('#plansProduced .repdate').textContent === 'accepted' &&
+  !document.querySelector('#plansDone > .repitem')
 `))
 check('and Waiting for review holds only what is still to be read', await evalJS(`
   ![...document.querySelectorAll('#plansOut .repitem')]
@@ -209,10 +215,9 @@ check('the summary is what the closed row shows', await evalJS(`
 // What tonight would plan, in the order it would plan it, and the two ways to
 // change that: drag to reorder, hold to take one out entirely.
 
-check('all four columns are drawn', await evalJS(`
-  !!document.querySelector('#backlogOut') && !!document.querySelector('#queueOut') &&
-  !!document.querySelector('#doingOut') && !!document.querySelector('#plansOut') &&
-  !!document.querySelector('#plansDecided')
+check('all six columns are drawn', await evalJS(`
+  ['#backlogOut','#queueOut','#doingOut','#plansOut','#plansProduced','#plansDone']
+    .every(id => !!document.querySelector(id))
 `))
 // Token Session and the clock are behind a button, not a fifth column: neither
 // is a decision, and the view's work is the four columns.
@@ -220,20 +225,31 @@ check('and the two reference cards are not on the view', await evalJS(`
   !document.querySelector('#usageOut') && !document.querySelector('#schedOut') &&
   !document.querySelector('.lists.pview .pvcol')
 `))
-check('To do shows while nothing is running, not Doing', await evalJS(`
-  document.querySelector('#qdTitle').textContent === 'To do' &&
+/* To do keeps its own name now that Doing is a column of its own. It used to
+   retitle itself while a run was live, because the queue and the run in flight
+   shared one card; the queue also stays drawn, since "what happens after this
+   one" is a live question during a run rather than a hidden one. */
+check('To do keeps its name and its queue while nothing is running', await evalJS(`
+  document.querySelector('#queueDoingCard .colhead h3').textContent === 'To do' &&
   !document.querySelector('#queueOut').classList.contains('hidden') &&
   document.querySelector('#doingOut').classList.contains('hidden')
 `))
-// The same four words as the board itself, in the same order. That parallel is
+// The same six words as the board itself, in the same order. That parallel is
 // the whole point of the rename on 12 Sep 2026: where a card sits is the
 // instruction, and it means the same thing on both boards.
-check('Backlog, To do, Waiting for review and Done read left to right', await evalJS(`
-  [...document.querySelectorAll('.lists.pview .listcard')]
-    .map(c => c.querySelector('h3').textContent).join(' | ')
-`) === 'Backlog | To do | Waiting for review | Done')
+check('the board\'s own six columns read left to right', await evalJS(`
+  [...document.querySelectorAll('.lists.pview .col')]
+    .map(c => c.querySelector('.colhead h3').textContent).join(' | ')
+`) === 'Backlog | To do | Doing | Waiting for review | Ready to be produced | Done')
+// Every column carries one, and it is in the head rather than being the first
+// paragraph of the body — a sentence describing a column governs the column.
+check('each one says what it is for, in its own head', await evalJS(`
+  [...document.querySelectorAll('.lists.pview .col')]
+    .every(c => !!c.querySelector('.colhead .colhead-desc')) &&
+  !document.querySelector('.lists.pview .colbody .colhead-desc')
+`))
 check('Waiting for review is drawn as the agent\'s own column', await evalJS(`
-  document.querySelector('#plansOut').closest('.listcard').classList.contains('agentcol')
+  document.querySelector('#plansOut').closest('.col').classList.contains('agentcol')
 `))
 
 // The two reference cards, a press away on the Backlog card's head. Opening is
@@ -415,10 +431,14 @@ await evalJS(`(async () => {
   return 1;
 })()`)
 await new Promise(r => setTimeout(r, 300))
-check('the card becomes Doing, and the queue steps aside', await evalJS(`
-  document.querySelector('#qdTitle').textContent === 'Doing' &&
-  document.querySelector('#queueOut').classList.contains('hidden') &&
-  !document.querySelector('#doingOut').classList.contains('hidden')
+/* The Doing column fills and the To do column stays as it is. Both of those
+   used to be one card that renamed itself and hid its own queue; with Doing a
+   column of its own, the live run is drawn beside the queue rather than over
+   it, and the queue is still the answer to what happens after this one. */
+check('the Doing column fills, and To do keeps its queue', await evalJS(`
+  !document.querySelector('#doingOut').classList.contains('hidden') &&
+  document.querySelector('#queueDoingCard .colhead h3').textContent === 'To do' &&
+  !document.querySelector('#queueOut').classList.contains('hidden')
 `))
 check('the task in flight is named', await evalJS(`
   document.querySelector('#doingOut .fnow strong').textContent === 'Rename the text styles'
@@ -472,7 +492,6 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('a run that died mid-task says so rather than looking live', await evalJS(`
-  document.querySelector('#qdTitle').textContent === 'To do' &&
   document.querySelector('#doingOut').classList.contains('hidden') &&
   !document.querySelector('#qdOrphan').classList.contains('hidden') &&
   document.querySelector('#qdOrphan .err').textContent.includes('never finished')
@@ -555,9 +574,11 @@ check('and names the night and the file', marked.includes('"group":"2026-09-05"'
 // same confirm — a card landing somewhere and a button being pressed must not
 // come to mean different things.
 
-// Done. He accepts the plan as written, which is the end of the planning half:
-// the picker leaves the task alone from here, and the card feeds the execution
-// board's Backlog.
+// Ready to be produced. He accepts the plan as written, which is the end of the
+// planning half: the picker leaves the task alone from here, and the card feeds
+// the execution board's Backlog. `accepted` rather than `done`, which is the
+// whole reason the seventh state exists — approving a plan and the work it
+// describes finishing are two facts, and `done` was holding both.
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Accept it').click()`)
 await new Promise(r => setTimeout(r, 200))
 check('Accept says the night agent stops re-planning it', await evalJS(`
@@ -569,10 +590,14 @@ check('and that nothing runs yet', await evalJS(`
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, accept it').click()`)
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
-check('accepting finishes it as done', after.includes('"to":"done"') && after.includes('"resolution":"actioned"'))
-check('and the row moves out of Waiting for review into the accepted fold', await evalJS(`
-  document.querySelector('#plansDecided details summary').textContent.trim() === '2 accepted' &&
-  !document.querySelector('#plansOut details')
+// No resolution with it: nothing has closed, so there is nothing to say about
+// how. And the acting agent owns it, because the next move on it is a run.
+check('accepting moves it to accepted, not done',
+  after.includes('"to":"accepted"') && after.includes('"owner":"execution-agent"') &&
+  !after.includes('"resolution":"actioned"'))
+check('and the row moves out of Waiting for review into Ready to be produced', await evalJS(`
+  document.querySelectorAll('#plansProduced > .repitem').length === 2 &&
+  !document.querySelector('#plansOut > .repitem.agreed')
 `))
 
 // To do. The plan is wrong and tonight should write another, so the move has to
@@ -644,20 +669,32 @@ check('the parked plan is drawn in Backlog', await evalJS(`
   !!document.querySelector('#backlogOut .repitem.parked')
 `))
 
-// The two chip rows are independent: a pick in one must not reset the other.
+/* The two filters are independent: a pick in one must not reset the other.
+   Both live in their column's own head now rather than as a chip row inside
+   it, which is also what keeps them from seeing each other's clicks despite
+   sharing the attribute name — wirePlanColumn scopes to the column. */
 check('each column keeps its own status filter', await evalJS(`
   (() => {
-    const dec = [...document.querySelectorAll('#plansDecided [data-planfilter]')]
-      .find(b => b.dataset.planfilter === 'actioned');
-    if (!dec) return false;
-    dec.click();
-    if (doneFilter !== 'actioned') return false;
-    if (reviewFilter !== 'all') return false;
-    // and the fold opens when it is the thing being asked for
-    const open = !!document.querySelector('#plansDecided details[open]');
-    document.querySelector('#plansDecided [data-planfilter=\"all\"]').click();
-    return open && doneFilter === 'all';
+    planList = window.__plans.slice();
+    reviewFilter = 'all'; doneFilter = 'all';
+    renderPlansList();
+    const head = document.querySelector('#plansOut').closest('.col').querySelector('.colhead');
+    const read = [...head.querySelectorAll('[data-planfilter]')]
+      .find(b => b.dataset.planfilter === 'read');
+    if (!read) return false;
+    read.click();
+    if (reviewFilter !== 'read') return false;
+    // The other column's filter is untouched by a pick in this one.
+    if (doneFilter !== 'all') return false;
+    document.querySelector('#plansOut').closest('.col')
+      .querySelector('.colhead [data-planfilter=\"all\"]').click();
+    return reviewFilter === 'all';
   })()
+`))
+/* Ready to be produced carries no filter, because every card in it is the same
+   thing: a plan he has accepted whose work has not finished. */
+check('and Ready to be produced needs none', await evalJS(`
+  !document.querySelector('#plansProduced').closest('.col').querySelector('.colfilter')
 `))
 
 
@@ -691,7 +728,7 @@ const dropOn = (target) => `(() => {
   to.dispatchEvent(drop);
   return ev.defaultPrevented;
 })()`
-check('dropping it on Done asks to accept it', await evalJS(dropOn('#plansDecided')))
+check('dropping it on Done asks to accept it', await evalJS(dropOn('#plansProduced')))
 await new Promise(r => setTimeout(r, 300))
 check('through the same confirm the button uses', await evalJS(`
   !!document.querySelector('.mscrim .repdoc') &&
@@ -730,12 +767,12 @@ check('Waiting for review takes no drop at all', await evalJS(`(() => {
 // than swallowing the drop.
 check('a task dropped on Done is refused', await evalJS(`(() => {
   const from = document.querySelector('#queueOut .qitem');
-  const to = document.querySelector('#plansDecided');
+  const to = document.querySelector('#plansProduced');
   const dt = new DataTransfer();
   from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
   to.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true }));
   to.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles:true, cancelable:true }));
-  return !document.querySelector('#plansDecided .qitem');
+  return !document.querySelector('#plansProduced .qitem');
 })()`))
 await new Promise(r => setTimeout(r, 200))
 
@@ -777,40 +814,52 @@ check('a plan still out for another night sits in To do', await evalJS(`
     .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Sent back last night'
 `))
 check('and a replaced rejection is not there with it', await evalJS(`
-  !document.querySelector('#plansDecided > .repitem.redo')
+  !document.querySelector('#plansProduced > .repitem.redo')
 `))
-check('it is filed with the record instead', await evalJS(`
-  [...document.querySelectorAll('#plansDecided details .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).sort().join(',') ===
-  'A record,Planned twice'
+/* Both closed cards are in Done, flat. They used to be folded together inside
+   the old Done column, because that column was also holding the accepted ones
+   and the fold was how it stopped burying them; Done now holds nothing but
+   closed work, so there is nothing to bury and no fold. `A record` is a
+   `done / actioned`, the old spelling of accepted, so it stays in Ready to be
+   produced rather than reading as work that finished. */
+check('the replaced rejection is filed in Done', await evalJS(`
+  [...document.querySelectorAll('#plansDone > .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).sort().join(',') === 'Planned twice'
 `))
-check('and the fold says so rather than claiming they were all accepted', await evalJS(`
-  document.querySelector('#plansDecided details summary').textContent.trim() === '2 accepted or replaced'
+check('and the plan accepted under the old spelling stays in Ready to be produced', await evalJS(`
+  [...document.querySelectorAll('#plansProduced > .repitem')]
+    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'A record' &&
+  document.querySelector('#plansProduced .repdate').textContent === 'accepted'
 `))
-check('the reason he wrote is still readable inside the fold', await evalJS(`
-  document.querySelector('#plansDecided details .repitem.redo .planredo').textContent.includes('Wrong scope')
+check('the reason he wrote is still readable on it', await evalJS(`
+  document.querySelector('#plansDone .repitem.redo .planredo').textContent.includes('Wrong scope')
 `))
-check('Done counts only what he has accepted', await evalJS(`
-  [...document.querySelectorAll('#plansDecided [data-planfilter]')]
-    .map(b => b.textContent).join(' | ') === 'All2 | accepted1'
+/* The filter tells the two ways a plan closes apart, which is the distinction
+   the old column could not draw: it called a replaced rejection "accepted",
+   claiming he had acted on work he only ever sent back. */
+check('Done says which kind of closed each one is', await evalJS(`
+  [...document.querySelector('#plansDone').closest('.col')
+    .querySelectorAll('.colhead [data-planfilter]')]
+    .map(b => b.textContent).join(' | ') === 'All1 | replaced1'
 `))
 check('and the replacement itself is in Waiting for review', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
     .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Planned twice'
 `))
 
-// Every rejection replaced: the chip goes altogether rather than sitting there
-// at zero, which is what planFilterBarHTML already does for any empty status.
+// An option with nothing behind it is not drawn at all rather than sitting
+// there at zero, which is what colFilterHTML does for every empty one.
 await evalJS(`(() => {
-  planList = planList.filter(p => p.name !== 'still-out.md');
+  planList = planList.filter(p => p.name !== 'twice-old.md');
   doneFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
-check('with nothing left to redo the chip is not drawn at all', await evalJS(`
-  ![...document.querySelectorAll('#plansDecided [data-planfilter]')]
-    .some(b => b.dataset.planfilter === 'redo') &&
-  !document.querySelector('#plansDecided > .repitem.redo')
+check('with nothing replaced the option is not drawn at all', await evalJS(`
+  ![...document.querySelector('#plansDone').closest('.col')
+    .querySelectorAll('.colhead [data-planfilter]')]
+    .some(b => b.dataset.planfilter === 'replaced') &&
+  !document.querySelector('#plansDone > .repitem.redo')
 `))
 
 // --- the task's own priority, on the row and in the order -------------------
@@ -902,23 +951,31 @@ check('a plan whose task is gone still links, under the name it stored', await e
     return row.querySelector('.plangoto').textContent.trim() === 'A task nobody kept \u2197';
   })()
 `))
-// Same ordering in the verdict column, inside each of its groups rather than
-// across them — agreed is still lifted to the top whatever it scores.
+/* Same ordering in Ready to be produced. Flat rather than grouped: `accepted`
+   and the `ready / execution-agent` that preceded it are the same fact about a
+   plan, and the group that used to lift the second above the first existed
+   only because the column was also holding finished work. It is not, so one
+   ordering does the whole column. */
 await evalJS(`(() => {
-  planList.forEach(p => { p.state = 'done'; p.owner = 'me'; p.resolution = 'actioned'; });
+  planList.forEach(p => { p.state = 'accepted'; p.owner = 'execution-agent'; p.resolution = ''; });
   Object.assign(planList.find(p => p.name === 'slow-burn.md'),
                 { state:'ready', owner:'execution-agent', resolution:'' });
   doneFilter = 'all';
   renderPlansList();
   return 1;
 })()`)
-check('the Done column is ordered the same way inside its fold', await evalJS(`
-  [...document.querySelectorAll('#plansDecided details .repitem')]
+check('Ready to be produced is ordered the same way', await evalJS(`
+  [...document.querySelectorAll('#plansProduced > .repitem')]
     .map(r => r.querySelector('.reptitle').textContent).join(',') ===
-  'cheap-and-big,middling,gone,unscored'
+  'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
-check('and one already handed over is still lifted above it regardless of its score', await evalJS(`
-  document.querySelector('#plansDecided .planagreed .repitem .reptitle').textContent === 'slow-burn'
+/* The old spelling and the new one draw as one column and read as one word.
+   `slow-burn` is the `ready / execution-agent` a plan agreed on 11 Sep 2026
+   carries; everything else is `accepted`. */
+check('and the old spelling of accepted reads as accepted beside it', await evalJS(`
+  [...document.querySelectorAll('#plansProduced > .repitem')]
+    .map(r => r.querySelector('.repdate').textContent)
+    .join(',') === 'accepted,accepted,handed over,accepted,accepted'
 `))
 
 // The whole point of the second guard.

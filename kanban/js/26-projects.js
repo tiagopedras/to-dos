@@ -95,21 +95,26 @@ function projectItemHTML(p){
 
 async function renderProjectsView(){
   if (!state.doc) {
-    $('#lists').innerHTML = '<div class="listcard reportsview"><h3>Projects</h3>' +
-      '<div class="empty">No file loaded yet.</div></div>';
+    $('#lists').innerHTML = '<div class="lists pview" style="--pcols:1">' +
+      colHTML({ heading:'h3', title:'Projects', cls:'reportsview',
+                body: colEmptyHTML('No file loaded yet.', 'boxed') }) + '</div>';
     return;
   }
+  /* One column, drawn with the same colHTML() every other view's columns are.
+     --pcols:1 so the single track keeps the board's own 322 floor and then
+     takes whatever width is going, rather than a six-column row with five
+     empty tracks in it. */
   $('#lists').innerHTML =
-    '<div class="lists pview">' +
-      '<div class="listcard reportsview projectsview">' +
-        '<h3>Projects</h3>' +
-        '<p class="help listlead">Every folder under <code>data/projects/</code>, whether or not a task ' +
-        'currently mentions it. Live means at least one task’s note points here; orphaned means none ' +
-        'does — either nothing on the list has started against it yet, or the work it names is already ' +
-        'finished and ticked off.</p>' +
-        '<label class="projsort">Sort ' + projectSortSelectHTML() + '</label>' +
-        '<div id="projectsOut">Loading…</div>' +
-      '</div>' +
+    '<div class="lists pview" style="--pcols:1">' +
+      colHTML({
+        heading: 'h3', title: 'Projects', cls: 'reportsview projectsview',
+        desc: 'Every folder under <code>data/projects/</code>, whether or not a task ' +
+              'currently mentions it. Live means at least one task\u2019s note points here; ' +
+              'orphaned means none does \u2014 either nothing on the list has started against ' +
+              'it yet, or the work it names is already finished and ticked off.',
+        body: '<label class="projsort">Sort ' + projectSortSelectHTML() + '</label>' +
+              '<div id="projectsOut">Loading\u2026</div>'
+      }) +
     '</div>';
   $('#projectSort').onchange = e => {
     if (setProjectSort(e.target.value)) renderProjectList();

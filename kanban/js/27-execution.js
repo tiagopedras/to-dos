@@ -227,7 +227,7 @@ function renderRunColumn(id, want, empty, onDrop, takes){
   const rows = plansShown(runList).filter(r => runColumn(r) === want);
   out.innerHTML = rows.length
     ? rows.map(runItemHTML).join('')
-    : '<div class="empty">' + empty + '</div>';
+    : colEmptyHTML(empty, 'boxed');
   wireRunColumn(out, onDrop, takes);
 }
 
@@ -248,27 +248,37 @@ function renderRunColumns(){
 
 async function renderExecutionView(){
   $('#lists').innerHTML =
-    '<div class="lists pview eview">' +
-      '<div class="listcard reportsview backlogview"><h3>Backlog</h3>' +
-        '<p class="help listlead">Everything you accepted on the Plans view. ' +
-          'The agent leaves these alone.</p>' +
-        '<div id="runBacklog">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview queueview"><h3>To do</h3>' +
-        '<p class="help listlead">What you want carried out. Nothing starts on its ' +
-          'own — run <code>/pa-do</code> in a session and it works through this.</p>' +
-        '<div id="runTodo">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview processed agentcol"><h3>Waiting for review</h3>' +
-        '<p class="help listlead">The agent\'s own column — what it did, waiting on ' +
-          'you. Drag out of it, not into it.</p>' +
-        '<div id="runReview">Loading…</div>' +
-      '</div>' +
-      '<div class="listcard reportsview decided"><h3>Done</h3>' +
-        '<p class="help listlead">You accepted what it did. Any change to the task ' +
-          'itself is in the report, for <code>/pa</code> to apply.</p>' +
-        '<div id="runDone">Loading…</div>' +
-      '</div>' +
+    /* The same colHTML() the board and the Plans view draw their columns with,
+       and the same four words in the same order. Four rather than Plans' six:
+       this stream has no equivalent of Ready to be produced, because accepting
+       what the agent did is the end of the work rather than the start of
+       somebody else's. It sets --pcols so the row is four tracks wide at the
+       board's own 322 and 12, rather than keeping the narrower tracks of its
+       own it had until 12 Sep 2026. */
+    '<div class="lists pview eview" style="--pcols:4">' +
+      colHTML({
+        heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
+        desc: 'Everything you accepted on the Plans view. The agent leaves these alone.',
+        body: '<div id="runBacklog">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'To do', cls: 'reportsview queueview',
+        desc: 'What you want carried out. Nothing starts on its own \u2014 run ' +
+              '<code>/pa-do</code> in a session and it works through this.',
+        body: '<div id="runTodo">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed agentcol',
+        desc: 'The agent\u2019s own column \u2014 what it did, waiting on you. ' +
+              'Drag out of it, not into it.',
+        body: '<div id="runReview">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Done', cls: 'reportsview decided',
+        desc: 'You accepted what it did. Any change to the task itself is in the ' +
+              'report, for <code>/pa</code> to apply.',
+        body: '<div id="runDone">Loading\u2026</div>'
+      }) +
     '</div>';
   /* Mint a run for every plan accepted since the last look, before reading the
      folder. Idempotent, and it is what makes "Backlog is fed by everything in

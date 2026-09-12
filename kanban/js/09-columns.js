@@ -322,3 +322,97 @@ function cardHTML(t, color, bucketLabel, opts){
   '</article>';
 }
 
+
+/* =========================================================================
+   One column, three views.
+
+   The Board, the Plans view and the Execution view all draw their columns
+   through here, so a column is the same object wherever it appears: one fill,
+   one border, one radius, one header padding, one body padding, one gap. What
+   differs is which of the optional parts the head carries and what goes in
+   the body — the same booleans the Figma `Column` component has, since the
+   design file and this function are the two halves of one decision.
+
+   Until 12 Sep 2026 the three views drew three different things. The board had
+   `.col` with padding 0 and a divider under its heading; Plans and Execution
+   had `.listcard` with padding 14/16/16, no divider, and their lead paragraph
+   as the first thing inside the body rather than part of the head. The board's
+   shape won because it is the denser and more-used surface: six columns and
+   thirty-odd cards against four columns of prose.
+
+     title    what the column is called                       (required)
+     hint     the subtitle beside it — off on the board since the same date,
+              where the six names carry their own meaning and the subtitles
+              were saying it twice
+     sort     the sort button, already built by the caller
+     count    how many are in it
+     action   a button belonging to this column (Run now, Spend and clocks)
+     filters  a dropdown narrowing what the column shows
+     desc     a sentence saying what the column is for — Plans carries one on
+              every column, the board none
+     body     the column's contents
+     cls      extra classes on the column, attrs extra attributes
+     bodyCls / bodyAttrs the same for the body, which is where the board hangs
+              its drop zone and Plans hangs the id each renderer writes into
+     footer   below the body, outside it — the board's + Add task
+     heading  h2 or h3; the board's columns are the page's own sections and
+              Plans' sit inside a view, and that is the only reason the tag
+              differs. Nothing is styled off it.
+   ========================================================================= */
+function colHTML(o){
+  o = o || {};
+  const tag = o.heading === 'h3' ? 'h3' : 'h2';
+  // Callers build these by concatenating optional words, so an empty or
+  // half-empty run of them is normal and must not reach the attribute.
+  const cls = (o.cls || '').trim().replace(/\s+/g, ' ');
+  const bodyCls = (o.bodyCls || '').trim().replace(/\s+/g, ' ');
+  const head =
+    '<div class="colhead">' +
+      '<div class="colhead-row">' +
+        '<' + tag + '>' + esc(o.title) +
+          (o.hint ? ' <span class="hint">' + esc(o.hint) + '</span>' : '') +
+        '</' + tag + '>' +
+        (o.sort || '') +
+        (o.action ? '<span class="colact">' + o.action + '</span>' : '') +
+        (o.filters ? '<span class="colact">' + o.filters + '</span>' : '') +
+        (o.count != null ? '<span class="count">' + o.count + '</span>' : '') +
+      '</div>' +
+      (o.desc ? '<p class="colhead-desc">' + o.desc + '</p>' : '') +
+    '</div>';
+  return '<section class="col' + (cls ? ' ' + cls : '') + '"' +
+      (o.attrs ? ' ' + o.attrs : '') + '>' +
+    head +
+    '<div class="colbody' + (bodyCls ? ' ' + bodyCls : '') + '"' +
+      (o.bodyAttrs ? ' ' + o.bodyAttrs : '') + '>' + (o.body || '') + '</div>' +
+    (o.footer || '') +
+  '</section>';
+}
+
+/* The empty state a column falls back to, named once rather than written out
+   at each of the eight places that needed it. Two styles and no third: plain
+   grey text on the board, and a dashed box on Plans and Execution, where a
+   column of prose with one line of grey text in it read as a column that had
+   failed to load rather than one with nothing in it. */
+function colEmptyHTML(message, style){
+  return '<div class="empty' + (style === 'boxed' ? ' boxed' : '') + '">' +
+    message + '</div>';
+}
+
+/* Shutting whichever column filter is open. One delegated handler rather than
+   one per panel, because the panels are rebuilt on every render and anything
+   bound to them directly would need rebinding right after — the same
+   arrangement the Status filter's own dropdown uses in 07-render-board.js. The
+   opening half is wired per column by its renderer, since that is where the
+   setter for the filter lives. */
+document.addEventListener('click', e => {
+  const inside = e.target.closest('.colfilter');
+  document.querySelectorAll('.colfilter').forEach(wrap => {
+    if (wrap === inside) return;
+    const panel = wrap.querySelector('.dropdown-panel');
+    const btn = wrap.querySelector('.colfilter-btn');
+    if (panel && !panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
