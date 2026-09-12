@@ -132,8 +132,13 @@ function deleteTier(name, dest){
 
 /* Two different questions, so two different sheets — same split as deleting a
    bucket, and for the same reason: empty, a column just goes; holding work,
-   the only safe delete is a move, so it asks where to first. */
+   the only safe delete is a move, so it asks where to first. Returns a
+   complaint rather than opening either sheet when the column is one of the
+   five the board matches by name: deleting one is the same failure renameTier
+   refuses and a worse one, so it has to be refused before the confirm rather
+   than by offering a destination for a column that must not go. */
 function confirmDeleteTier(name, back){
+  if (RESERVED_TIERS.indexOf(name) > -1) return '“' + name + '” can’t be deleted — the board depends on that exact name.';
   const n = tierTaskCount(name);
   confirmDeleteHeading({
     title: 'Delete “' + name + '”?',
@@ -149,6 +154,7 @@ function confirmDeleteTier(name, back){
     onDelete: dest => deleteTier(name, dest),
     back
   });
+  return '';
 }
 
 /* One sheet holding every column, same reasoning as the bucket editor: the
@@ -164,8 +170,15 @@ function openTierEditor(){
     const order = tierOrder();
     const rows = order.map((name, i) => {
       const n = tierTaskCount(name);
+      /* The five reserved names are refused by renameTier anyway, but refusing
+         a rename after it has been typed leaves the typed text sitting in the
+         field while the column keeps its real name — a field showing a name
+         nothing on the board has. So the rule goes on the field: there is
+         nothing to reject, and the reason is on the field that carries it. */
+      const fixed = RESERVED_TIERS.indexOf(name) > -1;
       return '<div class="bkrow">' +
-        '<input type="text" data-tiername="' + i + '" value="' + esc(name) + '" aria-label="Column name">' +
+        '<input type="text" data-tiername="' + i + '" value="' + esc(name) + '" aria-label="Column name"' +
+          (fixed ? ' disabled title="' + esc('The board matches “' + name + '” by this exact text, so it can’t be renamed.') + '"' : '') + '>' +
         '<span class="bkn" title="tasks in it, across every bucket, finished ones included">' + n + '</span>' +
         moveDeleteButtonsHTML(i, order.length, {
           upAttr: 'data-tierback', downAttr: 'data-tierfwd', delAttr: 'data-tierdel',
@@ -209,7 +222,10 @@ function openTierEditor(){
       el.onclick = () => { moveTier(order[+el.dataset.tierfwd], 1); draw(); };
     });
     modalEl.querySelectorAll('[data-tierdel]').forEach(el => {
-      el.onclick = () => confirmDeleteTier(order[+el.dataset.tierdel], draw);
+      el.onclick = () => {
+        const msg = confirmDeleteTier(order[+el.dataset.tierdel], draw);
+        setErr(msg);
+      };
     });
     const add = () => {
       const inp = modalEl.querySelector('#tierNew');
