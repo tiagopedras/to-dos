@@ -215,11 +215,12 @@ function planItemHTML(p){
       (folded ? '<span class="right"><span class="planfold" ' +
         'title="The agent stopped and asked rather than guessing">needs you</span></span>' : ''),
     title: esc(p.title),
-    /* The task's own impact and effort. Not in the component's own instances,
-       which carry no tag row on a plan — but the component has the toggle, and
-       the scores are read live off the task every render rather than copied
-       into the plan, so they are the one thing on the row that cannot drift.
-       Dropping them to match a mock would lose that. */
+    /* The task's own impact and effort. The Figma instances carry no tag row on
+       a plan, which is content rather than a rule — confirmed 12 Sep 2026, so
+       do not take it out to match them. The scores are read live off the task
+       every render rather than copied into the plan, which makes them the one
+       thing on the row that cannot go stale, and they are what the column is
+       ordered by. */
     tags: planScoreHTML(task),
     meta: (where ? '<span class="planwhere">' + where + '</span>' : '') + goto,
     summary: p.summary ? mdInline(p.summary) : '',
