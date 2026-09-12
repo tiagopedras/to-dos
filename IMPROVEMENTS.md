@@ -18,6 +18,20 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The night's size is set in dollars, and nothing says how many plans he
+  wants.** The batch loop in `run()` (`agents/night_agent/plan.py:898`) stops on
+  two things only — under `FLOOR` minutes of window left (`:87`) and
+  `spent >= args.budget` against `NIGHT_AGENT_BUDGET` of $12 (`:79`) — so the
+  count that lands is whatever $12 happens to buy that night — 10 plans on the
+  first full batch, against 24 eligible. A third stop, `len(written) >=
+  args.max_plans`, is two lines beside the budget one, and reuses the same
+  `stopped` message shape. The setting has further to go than the check: the
+  schedule file's existing `budget` key (`agents/night_agent/schedule.py:31`) is
+  read by `dashboard.py` alone — `run.sh:133` calls `plan.py` with nothing but
+  the flags it was given — so a `max_plans` key added to `DEFAULTS`, `load()`
+  and the dashboard's `fields` list (`dashboard.py:146`) still needs `run.sh` to
+  pass it down, which no schedule value does today.
+
 - **Board, Matrix and Timeline take three tabs for three ways of drawing the same
   tasks.** `viewDefs()` at `kanban/js/11-canvas.js:901-912` lists them as three
   peers between separators, and `renderView()` at `kanban/js/18-timeline.js:734`
@@ -622,6 +636,96 @@ they settled is written up in the README rather than left here:
   Context section. The board is the authority, so `todo.py` moved in all three.
 
 ## Big
+
+- **Archiving finished work may not be worth having at all, and it is hidden
+  behind a constant until that is decided.** `ARCHIVE_CHIP_HIDDEN`
+  (`kanban/js/25-archiving.js:39`) takes the "Archive N finished" button out of
+  the header on every view; `archivable()` (`:24`), `archiveOldDone()` (`:70`)
+  and the `ARCHIVE_DAYS` threshold of 30 (`:15`) are all untouched underneath
+  it, so the decision is which way to go rather than what to unpick. The case
+  against keeping it: on the twinkl list it currently offers to move four
+  tasks, which is not a list under any pressure, and moving anything out of
+  `todo.md` buys a second file that every count then has to read back in —
+  `parseArchiveEntries()` (`kanban/js/12-reports.js:120`) and
+  `completedRecently()` (`:165`) exist only to rejoin the two, and
+  `check_todo.py` has no archive reader at all, so the Python side already sees
+  a partial list. The case for: nothing prunes `done-archive.md`, so it is the
+  only record that outlives the rolling backups, and a list that does grow has
+  no other way to shed a year of ticked work. Deciding it means either deleting
+  the feature and the two readers with it, or raising `ARCHIVE_DAYS` to
+  something that only fires when the file is genuinely long and dropping the
+  constant.
+
+- **The board has no component layer, so the same column is written twice and
+  every view redraws by replacing `innerHTML`.** 13,972 lines across 28 classic
+  scripts in `kanban/js/`, 463 top-level functions in one global scope, no
+  `package.json` and no build step. The Board draws `.col`
+  (`kanban/board.css:691-730`) from the single place that emits it,
+  `kanban/js/18-timeline.js:987`; Plans and Execution draw
+  `.listcard reportsview` plus one of four state classes, written out longhand
+  in both `kanban/js/13-plans.js:1273` and `kanban/js/27-execution.js:252`. So
+  the three boards the README calls one shape are one shape in the model and
+  two in the CSS, and the dashed edge on Waiting for review exists twice, as
+  `.col.aicol` and as `.agentcol`. The comment above `runItemHTML()`
+  (`kanban/js/27-execution.js:58`) is honest about the rest of it: Plans and
+  Execution share the markup rather than the function, which keeps one
+  stylesheet answering for both and leaves two functions to keep in step.
+
+  A port can be incremental because every view already owns `#lists` wholesale
+  — `renderExecutionView()` (`:249`) and every sibling open by assigning to
+  `$('#lists').innerHTML` — so a new renderer can mount into one view while the
+  other nine carry on untouched, and the work can stop at any stage with a
+  working board. React with Vite and TypeScript is the choice that converges
+  this with `ai_canvas`, at the cost of a build step that `run.command` would
+  have to run before starting the server, since it and `To-Do Board.app` bundle
+  nothing today. Preact with `htm` keeps the no-build property and gives up the
+  tooling. That decision is the one thing this entry is holding.
+
+  Order, if it goes ahead: a round-trip fixture over a whole `todo.md` in both
+  languages first, since `core/fixtures/` covers the grammar and not the
+  document; then a real token set, and one column and one card primitive built
+  on it, which pays off on its own; then the leaf views, `26-projects.js`
+  (131 lines), `15-backups.js` and `16-backup-preview.js` (224), `17-matrix.js` (285),
+  `27-execution.js` (292), `14-schedule.js` (348); then `13-plans.js` and
+  `12-reports.js`; then the board, drawer and canvas last, 3,100 lines between
+  `18-timeline.js`, `09-columns.js` and `19-drawer.js`; then the global `state`
+  object in `02-state.js`, which today makes every mutation responsible for
+  remembering which `renderX()` to call. `kanban/server.py` can be left where
+  it is: 2,250 lines behind a 26-branch dispatch in `do_GET`/`do_POST` is ugly
+  and not dangerous, and the suites drive it.
+
+  The token set is its own piece of that and the one to do first, because every
+  primitive above is written against it. `board.css:1-21` holds 31 semantic
+  variables in `:root` and 25 of them again under
+  `@media (prefers-color-scheme: dark)`, which is a good start and is missing
+  three things. There are no primitives under the semantics: `--accent` is the
+  literal `#2f6feb` rather than a step on a blue ramp, and the ten bucket
+  colours `--b1` to `--b10` are twenty hand-picked hexes across the two themes
+  with no ramp behind them and nothing saying they are a set. Six of the
+  thirty-one are never redefined for dark at all — `--accent`, `--accent-ink`,
+  `--agree`, `--agree-ink`, `--reject` and `--reject-ink` — so the light blue
+  sits on the `#14161a` panel unchanged, which is a contrast bug the theme
+  block looks like it already covers. And only colour is tokenised: the
+  stylesheet carries 16 distinct literal `font-size` values, 12 distinct
+  `border-radius` values and 88 distinct `padding` declarations, so every
+  spacing and type decision is made at the point of use. What this wants is a
+  two-layer set in the shape the design system already uses — primitives as
+  ramps, semantics aliasing them per theme — covering colour, spacing, radius,
+  type and the shadow scale, with the bucket colours generated off one ramp
+  rather than picked. It is the piece most worth doing whether or not the port
+  ever happens, and the piece that makes the port's primitives cheap.
+
+  One piece does not depend on any of the above and is worth doing first. The
+  board guards a save with mtime and the conflict modal, both in the tab;
+  `agents/night_agent/plan.py` guards the same file with `file_hash()` before a
+  batch and after every task. Both real overwrites of the live list got past
+  the tab-side guard. If `PUT /data/todo.md` carried the hash the tab last read
+  and `do_PUT` (`kanban/server.py:2083`) refused a mismatch, the check would
+  sit in the one place every writer passes through.
+
+  Whenever this is picked up it runs on its own branch off `main`, never
+  directly on it, and it is a weekly-allowance-sized spend rather than an
+  evening's.
 
 - **Every agent here is rationed by an allowance none of them can read, and the
   only way to read it headlessly is a throwaway terminal.** `core/windows.py`

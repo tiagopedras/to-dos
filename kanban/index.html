@@ -63,6 +63,14 @@
   <span class="allbuckets hidden" id="allBuckets">All buckets</span>
   <button class="scorechip hidden" id="scoreChip"></button>
   <span class="spacer"></span>
+  <!-- Urgent or due sits first among the filters: it is the one that narrows
+       the board to what needs attention now, so it reads before the two that
+       narrow by column and by how much of a task AI can take. -->
+  <span id="urgentWrap">
+    <label class="toggle" for="urgentFilter" title="Tasks marked urgent, or with a deadline set">
+      <input type="checkbox" id="urgentFilter"> Urgent or due
+    </label>
+  </span>
   <span id="statusWrap">
     <label class="toggle" id="statusFilterLabel" for="statusFilterBtn"
            title="Narrow to one or more columns, across every bucket">Status</label>
@@ -95,11 +103,6 @@
       <option value="none">None of it</option>
     </select>
   </span>
-  <span id="urgentWrap">
-    <label class="toggle" for="urgentFilter" title="Tasks marked urgent, or with a deadline set">
-      <input type="checkbox" id="urgentFilter"> Urgent or due
-    </label>
-  </span>
   <input type="search" id="q" placeholder="Search tasks…">
 </div>
 
@@ -118,18 +121,22 @@
 <div class="scrim" id="scrim"></div>
 <aside id="drawer">
   <div class="dgrip" id="dgrip" title="Drag to resize · double-click to reset"></div>
+  <!-- One row, and no footer under the body: what used to sit at the bottom of
+       the panel was a Delete button and a line saying the panel saves itself,
+       both of which are about the panel as a whole and neither of which was
+       worth a strip of chrome pinned under a column you scroll. The save line
+       reads as a caption on the title, so it sits next to it; the three buttons
+       are all decisions about the task as a whole, so they are one group at the
+       other end, drawn at one size (see .dhead .btn in the stylesheet). -->
   <div class="dhead">
     <strong id="drawerTitle">Edit task</strong>
+    <span class="help" id="dheadHelp">Changes save automatically</span>
     <span class="spacer"></span>
     <button class="hlpin hidden" id="dheadHl" type="button">Make headline</button>
+    <button class="btn danger" id="del">Delete task</button>
     <button class="btn ghost" id="closeDrawer">Close</button>
   </div>
   <div class="dbody" id="dbody"></div>
-  <div class="dfoot">
-    <button class="btn danger" id="del">Delete task</button>
-    <span class="spacer"></span>
-    <span class="help" id="dfootHelp">Changes save automatically</span>
-  </div>
 </aside>
 
 <!-- The chat modal itself is injected by ai_chat's chat.js the first time a

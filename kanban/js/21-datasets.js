@@ -8,7 +8,23 @@
    patch state in place. A switch changes the list, its backups, its Claude
    sessions and its Jira config all at once, so a full reload is the only way
    to be sure nothing from the old one lingers in this tab.
+
+   Which list is loaded is on the button rather than only inside the panel it
+   opens. Everything on the board — every count, every date, every name — is
+   true of one data set and wrong of the other, and with the switcher buried
+   in a menu there was nothing on the page saying which one you were reading.
    ========================================================================= */
+
+/* The button reads "Data · twinkl ▾". A middot rather than brackets or a
+   colon, the same separator the reports use for a period, and the raw folder
+   name rather than anything prettified — that name is what data/.current
+   holds and what every path under data/ is spelt with, so a tidied-up version
+   here would be a second name for one folder. Falls back to a bare "Data ▾"
+   when the server has no /datasets.json to answer with, which is the board
+   behaving exactly as it did before lists existed. */
+function setDataMenuLabel(name){
+  $('#dataMenuBtn').textContent = name ? 'Data · ' + name + ' ▾' : 'Data ▾';
+}
 async function loadDatasets(){
   try {
     const data = await getJSON(DATASETS_URL);
@@ -26,11 +42,13 @@ async function loadDatasets(){
     add.textContent = '+ New list…';
     sel.appendChild(add);
     state.datasets = true;
+    setDataMenuLabel(data.current);
     if (!state.locked) $('#datasetMenu').classList.remove('hidden');
   } catch (err) {
     // No /datasets.json — an older server, or none at all. One list, no
     // picker, exactly as the board behaved before this existed.
     state.datasets = false;
+    setDataMenuLabel('');
     $('#datasetMenu').classList.add('hidden');
   }
 }

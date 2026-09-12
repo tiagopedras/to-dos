@@ -939,7 +939,9 @@ function chatSection(t){
     .slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
   const cards = rows.map(row => cvCardHTML(row, key, t.title, false)).join('');
   const body =
-    '<div class="cvstack">' + (cards || '<p class="aic-none">No conversations yet.</p>') + '</div>' +
+    '<div class="cvstack">' +
+      (cards || emptyState('No conversations yet. Start one below, or attach one '
+                         + 'that began in the terminal.')) + '</div>' +
     '<div class="aic-actions">' +
       '<button type="button" class="aic-addsub" data-owner="' + esc(t.id) + '">+ New chat</button>' +
       '<button type="button" class="aic-addsub aic-attach" data-owner="' + esc(t.id) +

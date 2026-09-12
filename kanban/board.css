@@ -89,9 +89,9 @@
     background:var(--panel); border:1px solid var(--line); border-radius:9px;
     box-shadow:var(--shadow);
   }
-  /* A panel hanging off a button at the right-hand end of the header runs off
-     the window before it runs out of items, so it hangs from its own right
-     edge instead. The button it belongs to stays where it is either way. */
+  /* A panel hanging off a button in the right-hand end of the header runs off
+     the window before it runs out of items, so it hangs from its right edge
+     instead. The button it belongs to is what stays put either way. */
   .dropdown-panel.alignright{left:auto; right:0}
   .dropdown-item{
     display:block; width:100%; text-align:left; border:none; background:none;
@@ -1495,15 +1495,15 @@
   }
 
   /* ---------- drawer, read-only ----------
-     Disabled controls already grey themselves out; this just makes the footer
-     say so instead of offering Delete on something there is nothing to delete
-     from. */
+     Disabled controls already grey themselves out; this just makes the line
+     beside the title say so instead of offering Delete on something there is
+     nothing to delete from. */
   #drawer.readonly #del{display:none}
   #drawer.readonly #dheadHl{display:none}
   /* The panel showing a project is a reading view over other people's rows:
      nothing in it belongs to a task, so neither control in the frame applies. */
   #drawer.projectview #del{display:none}
-  #drawer.readonly #dfootHelp{color:var(--amber)}
+  #drawer.readonly #dheadHelp{color:var(--amber)}
   /* A suggestion, not a fact about the task — a message, a prompt, a ticket to
      raise, an agenda. Dashed and faded rather than a solid coloured stripe, so
      the border itself says "not committed yet" instead of just marking a type.
@@ -1876,14 +1876,30 @@
   /* ---------- drawer ---------- */
   .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}
   .scrim.open{opacity:1; pointer-events:auto}
+  /* A container as well as a panel, so the head can answer to the drawer's own
+     width the way .dcols already answers to #dbody's. The drawer is dragged
+     between 340px and 1200px, so "is there room for this" is a question about
+     the panel and never about the window. Inline-size only: the height stays
+     100% of the viewport, as it was. */
   aside{
     position:fixed; top:0; right:0; height:100%; width:400px; max-width:100vw; z-index:31;
     background:var(--panel); border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(10,12,16,.12);
     transform:translateX(103%); transition:transform .18s ease; display:flex; flex-direction:column;
+    container-type:inline-size; container-name:drawer;
   }
   aside.open{transform:none}
   aside .dhead{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
-  aside .dhead strong{font-size:13px; font-weight:650}
+  aside .dhead strong{font-size:13px; font-weight:650; white-space:nowrap}
+  /* The save line is a caption on the title, not a label above a field, so it
+     drops the uppercase treatment .field > span.help carries. It is also the
+     first thing to go: on a drawer dragged down to its 340px floor the three
+     buttons and the title are the row, and a sentence saying the panel saves
+     itself is the one part of it that can wait for a wider panel. */
+  aside .dhead .help{
+    font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    min-width:0; flex:0 1 auto;
+  }
+  @container drawer (max-width:520px){ aside .dhead .help{display:none} }
   aside .dbody{padding:14px; overflow:auto; flex:1; container-type:inline-size}
   /* Two columns when the drawer is wide enough to hold them side by side —
      main task fields on the left, everything suggestion-shaped (chats,
@@ -1904,7 +1920,12 @@
      one above — the same markup used in the single-column stack. First in a
      column, there is nothing above it to separate from. */
   .dcol > hr.dsep:first-child{display:none}
-  aside .dfoot{padding:11px 14px; border-top:1px solid var(--line); display:flex; gap:8px; align-items:center}
+  /* Delete and Close sit in the same group as Make headline, so they are drawn
+     to its metrics rather than to the page-wide .btn ones — three buttons on
+     one line at two heights reads as an accident. Only the box is shared: each
+     keeps its own colour, which is the part that says what it does. */
+  aside .dhead .btn{padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap}
+
   .field{display:flex; flex-direction:column; gap:5px}
   .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
   /* The suggestion-shaped sections' own headlines — Dependencies, Message
@@ -2151,6 +2172,12 @@
 
   /* ---------- suggestion sections in the panel ---------- */
   .sugg .empty{margin:0 0 6px; font-size:12.5px}
+  /* An empty section names the syntax that would fill it in — the same chip
+     treatment the other code spans on the board already get. */
+  .sugg .empty code{
+    background:var(--chip); padding:1px 5px; border-radius:4px; font-size:11.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
   .sugg .msg{margin:0 0 7px; padding:9px 38px 9px 11px}
   .sugg .msg:last-of-type{margin-bottom:6px}
   .sugg .msgtext{font-size:12.5px}

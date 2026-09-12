@@ -362,6 +362,20 @@ function depGroupHTML(g){
    thing: a rule above it, a summary that collapses and remembers, and a count
    when there is more than one. What differs between them is what goes inside,
    which is the part that should differ. */
+/* Every section in this column stays in the panel whether or not it has
+   anything in it, so the column reads as the same list of things on every
+   task and the shape of the panel doesn't move as tasks change. A section
+   with nothing in it says what would put something there — most of these are
+   written as a note in Description rather than edited here, and the empty
+   state is the only place that syntax is written down. */
+function emptyState(text){
+  // Most of these name the exact syntax that would fill the section in, and a
+  // run of it in the middle of a sentence wants to look like one — `like this`
+  // becomes a code span, after escaping, so the text itself is still plain.
+  return '<p class="empty">' +
+    esc(text).replace(/`([^`]+)`/g, (m, code) => '<code>' + code + '</code>') +
+    '</p>';
+}
 function sideSection(label, key, body, count){
   const k = 'sugg:' + key;
   return '<hr class="dsep">' +
@@ -385,7 +399,8 @@ function sideSection(label, key, body, count){
    worth holding the drawer open for. */
 function projectSection(t){
   const proj = taskProject(t);
-  if (!proj) return '';
+  if (!proj) return sideSection('Project', 'project',
+    emptyState('No folder yet. Name one in Description as `data/projects/<folder>`.'));
   return sideSection('Project', 'project',
     '<div class="pcard" id="taskProjCard">' +
       '<button type="button" class="pcbody" data-project="' + esc(proj) + '">' +
@@ -426,8 +441,11 @@ async function loadTaskProject(name, taskId){
 
 function dependenciesSection(t){
   const groups = taskDependencies(t);
-  if (!groups.length) return '';
-  return sideSection('Dependencies', 'deps', groups.map(depGroupHTML).join(''));
+  const body = groups.length
+    ? groups.map(depGroupHTML).join('')
+    : emptyState('Nothing waiting on this, and nothing holding it up. '
+               + 'Written as `blocked-by:slug` on whichever task is waiting.');
+  return sideSection('Dependencies', 'deps', body);
 }
 
 /* ---- Every tag actually on the task, in one list ----
@@ -481,7 +499,9 @@ function taskTagChips(t){
 }
 function tagsSection(t){
   const chips = taskTagChips(t);
-  if (!chips.length) return '';
+  if (!chips.length) return sideSection('Tags', 'tags',
+    emptyState('No tags beyond the fields above. Anything written as '
+             + '`[key:: value]` in the task line shows up here.'));
   const ro = state.locked;
   const body = chips.map((c, i) => {
     const cls = 'tagchip' + (c.unrecognised ? ' tagchip-extra' : '') + (!c.editable || ro ? ' tagchip-ro' : '');
@@ -571,7 +591,7 @@ function suggestionSection(label, list, opts){
         where: s.where, draft: s.draft, claude: opts.claude, task: opts.task,
         dismiss: state.locked ? '' : s.raw
       })).join('')
-    : '<p class="empty">' + esc(opts.emptyText || 'Nothing here yet.') + '</p>';
+    : emptyState(opts.emptyText || 'Nothing here yet.');
   return sideSection(label, label, body, list.length);
 }
 
@@ -586,7 +606,9 @@ function suggestionSection(label, list, opts){
    `prev` is last cycle's agenda, kept by the roll. Shown under this one and
    without a Copy, because its only job is to be read while the next is written. */
 function agendaSection(list, when, prev){
-  if (!list.length && !prev) return '';
+  if (!list.length && !prev) return sideSection('Meeting agenda', 'agenda',
+    emptyState('None yet. Written as `- Agenda:` in Notes, with the topics '
+             + 'as bullets indented under it.'));
   return sideSection('Meeting agenda', 'agenda',
     list.map(ag => agendaHTML(ag, when, { where: ag.where })).join('') +
     (prev ? agendaHTML(prev, '', { prev:true }) : '') +
@@ -599,7 +621,8 @@ function agendaSection(list, when, prev){
    suggestion, because the button is a link out to Jira rather than a copy, and
    because which board it goes to is part of what the row has to say. */
 function jiraSection(list){
-  if (!list.length) return '';
+  if (!list.length) return sideSection('Jira tickets', 'jira',
+    emptyState('None yet. Written as `- Jira (BOARD): ...` in Notes.'));
   return sideSection('Jira tickets', 'jira',
     list.map(n => jiraHTML(n, {
       where: n.where, dismiss: state.locked ? '' : n.raw, dismissDesc: n.descRaw
@@ -728,9 +751,13 @@ function openDrawer(id, focusTitle){
     ? 'Set ' + dueLabel(t.headline) + '. It stays the headline until you solve it. Click to remove it.'
     : 'The task that makes the others easier or unnecessary. Only one at a time.';
   hlBtn.disabled = ro;
-  $('#dfootHelp').textContent = ro
+  // title as well as text: the line truncates rather than wrapping when the
+  // drawer is narrow, and the read-only one is the sentence worth reading.
+  const help = $('#dheadHelp');
+  help.textContent = ro
     ? 'Read-only — from a backup, nothing here can be changed.'
     : 'Changes save automatically';
+  help.title = help.textContent;
 
   const mainFields =
     '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(t.title) + '"' + dis + '></label>' +
@@ -875,15 +902,22 @@ function openDrawer(id, focusTitle){
   // all "about the task" rather than "of the task" — kept in a second column
   // when the drawer is wide enough to hold one, same content and order as
   // when it isn't (see .dcols in the stylesheet).
+  //
+  // Every one of them draws whether or not it has anything in it: the column is
+  // the same list of headings on every task, so nothing below it moves as you
+  // read from one task to the next, and a section with nothing in it is the one
+  // place that says what would put something there. Only chatSection() can
+  // still come back empty, and only when the chat engine isn't loaded at all —
+  // a heading over two buttons that cannot work is worse than no heading.
   const sideFields =
     projectSection(t) +
     chatSection(t) +
     dependenciesSection(t) +
     agendaSection(sugg.agenda, t.due, readPrevAgenda(bodyParts(t).notes)) +
     suggestionSection('Message suggestions', sugg.message,
-      { emptyText: 'None yet. Written as "- Suggested message: ..." in Notes.' }) +
+      { emptyText: 'None yet. Written as `- Suggested message: ...` in Notes.' }) +
     suggestionSection('Prompt suggestions', sugg.prompt,
-      { claude:true, task:t.id, emptyText: 'None yet. Written as "- Prompt: ..." in Notes.' }) +
+      { claude:true, task:t.id, emptyText: 'None yet. Written as `- Prompt: ...` in Notes.' }) +
     jiraSection(sugg.jira);
 
   $('#dbody').innerHTML = '<div class="dcols">' +
@@ -1258,7 +1292,8 @@ function openProjectDrawer(name){
     el.onclick = () => openDrawer(el.dataset.open);
   });
 
-  $('#dfootHelp').textContent = 'A project is a folder, not a task — nothing here can be edited.';
+  $('#dheadHelp').textContent = 'A project is a folder, not a task — nothing here can be edited.';
+  $('#dheadHelp').title = $('#dheadHelp').textContent;
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
   loadProjectFiles(name);

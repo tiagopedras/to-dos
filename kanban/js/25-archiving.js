@@ -32,10 +32,16 @@ function archivable(){
   return out.sort((x, y) => y.age - x.age);
 }
 
+/* Hidden for now, everywhere, while the feature itself is being decided —
+   see the entry in IMPROVEMENTS.md. It returns unchanged by deleting the line
+   below: everything under it still works, and archiveOldDone() is untouched,
+   so nothing about what the button does has been unpicked. */
+const ARCHIVE_CHIP_HIDDEN = true;
+
 function updateArchiveChip(){
   const btn = $('#archiveBtn');
   if (!btn) return;
-  if (state.locked) { btn.classList.add('hidden'); return; }
+  if (ARCHIVE_CHIP_HIDDEN || state.locked) { btn.classList.add('hidden'); return; }
   const n = archivable().length;
   btn.classList.toggle('hidden', n === 0);
   btn.textContent = 'Archive ' + n + ' finished';
