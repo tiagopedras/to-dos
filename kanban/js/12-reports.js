@@ -301,10 +301,10 @@ function completedByCategoryReport(){
    in the order the work happened. So: one flat list, newest first, with the
    bucket as a chip on each row rather than as the grouping.
 
-   It folds, and starts open. A month of finished work is long enough to push
-   the report under it off the screen, so there has to be a way to put it away;
-   starting closed would undo the point of it, which is that the list is there
-   to be read without opening anything.
+   It folds, and starts closed. A month of finished work runs long enough to
+   push the report under it off the screen, and this tab is read for the counts
+   above far more often than for the list itself — so the summary carries the
+   number and the list opens on a click when that number needs explaining.
 
    No second walk of the document and no second fetch. completedRecently() has
    already merged the live file with the archive and sorted the result newest
@@ -316,7 +316,7 @@ function recentAccomplishmentsReport(){
     '<p class="help listlead">Everything ticked off ' + reportWindowPhrase() +
       ', newest first — the same tasks counted above, flat and in one place.</p>' +
     (n
-      ? '<details class="whole" open>' +
+      ? '<details class="whole">' +
           '<summary>' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
           '<ul class="done flat">' +
             list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +

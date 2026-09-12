@@ -32,7 +32,7 @@
   <button class="btn hidden" id="archiveBtn"></button>
   <span class="menugroup dropdown" id="dataMenu">
     <button class="btn" id="dataMenuBtn" aria-haspopup="true" aria-expanded="false">Data ▾</button>
-    <div class="dropdown-panel hidden" id="dataMenuPanel" role="menu" aria-label="Data actions">
+    <div class="dropdown-panel alignright hidden" id="dataMenuPanel" role="menu" aria-label="Data actions">
       <button class="dropdown-item" id="undo" disabled role="menuitem" title="Undo the last change (⌘Z)">Undo</button>
       <button class="dropdown-item" id="download" role="menuitem">Download copy</button>
       <button class="dropdown-item" id="backupsBtn" role="menuitem">Backups</button>
@@ -73,8 +73,14 @@
     <!-- Inside statusWrap rather than beside #editBuckets: the columns it edits
          are the exact set of names the dropdown to its left filters by, so it
          sits with the thing it controls the way Edit buckets sits with its
-         tabs. Nothing about it is per-bucket. -->
-    <button class="iconbtn" id="editTiers" aria-label="Edit columns"
+         tabs. Nothing about it is per-bucket.
+
+         Hidden on every view. The column set is settled and shared by every
+         bucket, so editing it is a rare, wide-reaching change that does not
+         belong one click from the filter bar it sits in. openTierEditor() and
+         the whole sheet are left intact, so putting it back is removing the
+         class rather than rebuilding anything. -->
+    <button class="iconbtn hidden" id="editTiers" aria-label="Edit columns"
             title="Rename, reorder, add or remove the columns (states) tasks move through">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>
     </button>

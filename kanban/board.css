@@ -89,6 +89,10 @@
     background:var(--panel); border:1px solid var(--line); border-radius:9px;
     box-shadow:var(--shadow);
   }
+  /* A panel hanging off a button at the right-hand end of the header runs off
+     the window before it runs out of items, so it hangs from its own right
+     edge instead. The button it belongs to stays where it is either way. */
+  .dropdown-panel.alignright{left:auto; right:0}
   .dropdown-item{
     display:block; width:100%; text-align:left; border:none; background:none;
     color:var(--ink); border-radius:6px; padding:7px 9px; font-size:13px; font-weight:520;
@@ -133,6 +137,21 @@
   .tab.on{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
   .tab.on .dot{opacity:1}
   .tab.on .n{background:var(--chip); color:var(--ink-soft)}
+  /* The grouped view tab — Board, Matrix, Timeline. Two buttons, one pill: the
+     name switches to the view it names, the chevron opens the panel. The pill
+     itself lives on the wrapper so the seam between the two halves is a hairline
+     rather than two adjacent borders, and the halves stay transparent. */
+  .viewgroup{gap:0; border:1px solid transparent; border-radius:7px}
+  .viewgroup.on{
+    background:var(--panel); border-color:var(--line);
+    box-shadow:0 1px 2px rgba(16,20,28,.07);
+  }
+  .viewgroup .tab{border:none; background:none; box-shadow:none; border-radius:6px}
+  .viewname{padding-right:7px}
+  .viewchev{padding-left:6px; padding-right:8px; font-size:11px}
+  .viewgroup.on .viewchev{border-left:1px solid var(--line-soft); border-radius:0 6px 6px 0}
+  .viewgroup .tab:hover{background:var(--line-soft)}
+
   /* No colour dot: All is not one of the buckets, it is all of them. */
   .taball{font-weight:640}
   /* The status filter dropdown — same button-plus-popover shape as the
