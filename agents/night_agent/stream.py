@@ -41,11 +41,16 @@ MANIFEST = os.path.join(HERE, "stream.json")
 # here is refused rather than written, because an item owned by nobody is an
 # item nothing will ever pick up.
 OWNERS = {
-    "backlog": ("me",),
-    "ready":   ("me", "night-agent", "execution-agent"),
-    "doing":   ("night-agent", "execution-agent"),
-    "review":  ("me",),
-    "done":    ("me",),
+    "backlog":  ("me",),
+    "ready":    ("me", "night-agent", "execution-agent"),
+    "doing":    ("night-agent", "execution-agent"),
+    "review":   ("me",),
+    # Accepting a plan is the last move he makes on it. What happens next is the
+    # run it minted, so the acting agent owns it from here, and it stays owned
+    # by the agent until the work is finished rather than coming back to him to
+    # be moved on a second time.
+    "accepted": ("execution-agent",),
+    "done":     ("me",),
 }
 RESOLUTIONS = ("actioned", "superseded", "dropped")
 FM_KEYS = ("state", "owner", "seen", "resolution", "feedback")
@@ -81,7 +86,8 @@ def apply(req):
     item = req.get("item") or {}
     night, name = item.get("group") or item.get("night"), item.get("name")
     state = req.get("to")
-    owner = req.get("owner") or ("me" if state in ("review", "done", "backlog") else None)
+    owner = req.get("owner") or ("execution-agent" if state == "accepted"
+                                 else "me" if state in ("review", "done", "backlog") else None)
     seen = req.get("seen")
     resolution = req.get("resolution", "")
     reason = " ".join((req.get("reason") or "").split())[:500]

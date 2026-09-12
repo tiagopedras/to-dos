@@ -112,16 +112,23 @@ def _manifest():
 
 # --- minting a run from an accepted plan -------------------------------------
 #
-# A plan he has accepted is `state: done`. Two older spellings still count and
-# are read rather than refused, the same permanent-fallback rule the file format
-# keeps everywhere else: `status: actioned` from before the six states, and
-# `state: ready` owned by the acting agent, which is what "agreed" became on
-# 11 Sep 2026 and what the Plans view wrote until the columns were renamed.
+# A plan he has accepted is `state: accepted`, the state that arrived on
+# 12 Sep 2026 to say "approved, and the work it describes has not finished".
+# Three older spellings still count and are read rather than refused, the same
+# permanent-fallback rule the file format keeps everywhere else: `state: done`,
+# which is what accepted was called until `accepted` existed and is where every
+# plan accepted before that date still sits; `state: ready` owned by the acting
+# agent, which is what "agreed" became on 11 Sep 2026; and `status: actioned`
+# from before the states had names at all.
+#
+# `done` now means the run finished, which is still a plan he accepted, so it
+# mints nothing new only because stream.py --sync is idempotent and the run it
+# would mint already exists.
 
 
 def accepted(fields):
     state, owner = fields.get("state"), fields.get("owner")
-    if state == "done":
+    if state in ("accepted", "done"):
         return fields.get("resolution") != "superseded"
     if state == "ready" and owner == "execution-agent":
         return True

@@ -28,6 +28,7 @@
     "ready": "To do",
     "doing": "Doing",
     "review": "Waiting for review",
+    "accepted": "Ready to be produced",
     "done": "Done"
   },
   "owners": [
@@ -40,7 +41,8 @@
     "To do": "plan it tonight, in this order",
     "Doing": "an agent has it right now",
     "Waiting for review": "the agent wrote one; it is waiting on you",
-    "Done": "accepted as written, and the acting agent's half starts"
+    "Ready to be produced": "accepted as written, and the acting agent's half starts",
+    "Done": "the work it describes is finished"
   },
   "fields": [
     {
@@ -101,7 +103,7 @@
   ],
   "legacy": {
     "key": "status",
-    "note": "the five words this stream used until 11 Sep 2026, and what each becomes. agreed and redo are both ready: an agent may pick either up, and owner says which.",
+    "note": "the five words this stream used until 11 Sep 2026, and what each becomes. redo is ready, owned by the night agent. agreed and actioned are both accepted: he had approved them and the acting agent's half had not finished, which is what accepted means since 12 Sep 2026 \u2014 neither was ever the terminal done this stream now has.",
     "map": {
       "unread": {
         "state": "review",
@@ -114,7 +116,7 @@
         "seen": true
       },
       "agreed": {
-        "state": "ready",
+        "state": "accepted",
         "owner": "execution-agent",
         "seen": true
       },
@@ -124,8 +126,8 @@
         "seen": true
       },
       "actioned": {
-        "state": "done",
-        "owner": "me",
+        "state": "accepted",
+        "owner": "execution-agent",
         "seen": true,
         "resolution": "actioned"
       }

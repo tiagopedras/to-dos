@@ -159,6 +159,17 @@ def test_pick():
     ps, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
     check("but a replaced one comes back", titles(ps), ["Plain and plannable", "Startable now"])
 
+    # `accepted`, the state added 12 Sep 2026 for a plan he has approved whose
+    # run has not finished. It has to answer this question exactly as `done`
+    # does: two live plans on one task is the thing being prevented, and that
+    # is just as true while the run is still going as after it ends.
+    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
+                               "state": "accepted", "owner": "execution-agent"}
+    pac, sac = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
+    check("accepted is left alone", titles(pac), ["Plain and plannable"])
+    check("and says it was accepted",
+          [w for t, w in sac if t.title == "Startable now"][0].startswith("plan accepted"), True)
+
     # Parked in Backlog. The hold list is what the picker actually reads, but a
     # plan left in `backlog` must not pull the task back in on its own either.
     ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
@@ -581,6 +592,28 @@ def test_server():
                 # out of every future night's queue for ever.
                 check("and so does the ledger, which is what the picker reads", row["state"], "done")
                 check("the ledger carries the owner too", row["owner"], "me")
+
+                # Accepting a plan. `accepted` is not `done`: he has approved
+                # it and the run it feeds has not finished, which is the gap
+                # the state was added for on 12 Sep 2026. It needs no
+                # resolution, because nothing has closed yet, and it defaults
+                # to the acting agent rather than to him, because the next
+                # move on it is a run rather than a decision.
+                out = plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "accepted"})
+                check("accepting one succeeds with no resolution", out.get("ok"), True)
+                check("and lands in accepted", server.plan_listing()[0]["state"], "accepted")
+                with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
+                    row = json.load(fh)["A planned thing"]
+                check("owned by the acting agent by default", row["owner"], "execution-agent")
+                # He is not the next mover on an accepted plan, so he cannot
+                # hold it — the same rule that refuses every other pairing.
+                check("refuses accepted owned by him",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "accepted", "owner": "me"}).get("ok"), False)
+                # Put it back where the rest of this section found it.
+                plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                    "to": "done", "owner": "me", "resolution": "actioned"})
 
                 # The three ways a bad reference gets refused, since these come
                 # off a URL and one of them climbs out of the folder.

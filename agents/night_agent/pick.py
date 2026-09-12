@@ -299,13 +299,19 @@ def is_stale(task, ledger):
             return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
         return False, "unchanged since %s" % seen.get("planned", "?")
 
-    if state == "done":
-        # Accepted. Since 12 Sep 2026 `done` is the end of the planning half
-        # rather than a reason to start it again: the plan he accepted is what
-        # the acting agent carries out, and writing a second opinion over it
-        # tonight would put two live plans on one task. It comes back into the
-        # queue when the task's own text changes, which the fingerprint above
-        # has already answered, or when he drags it back to To do.
+    if state in ("accepted", "done"):
+        # He has accepted it. That is the end of the planning half rather than a
+        # reason to start it again: the plan he accepted is what the acting
+        # agent carries out, and writing a second opinion over it tonight would
+        # put two live plans on one task. It comes back into the queue when the
+        # task's own text changes, which the fingerprint above has already
+        # answered, or when he drags it back to To do.
+        #
+        # Both states, because they are the two halves of one answer. `accepted`
+        # is a plan whose run has not finished; `done` is one whose run has.
+        # Neither wants planning again, and `done` is also where every plan
+        # accepted before 12 Sep 2026 still sits, since that was the word for
+        # accepted until `accepted` existed.
         if seen.get("resolution") == "superseded":
             return True, "last plan was replaced"
         return False, "plan accepted on %s" % seen.get("planned", "?")
