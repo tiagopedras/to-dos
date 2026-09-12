@@ -188,46 +188,49 @@ function planItemHTML(p){
      on this. It was `outcome: folded` here and `needs_you` in the improvements
      backlog, which were two names for one fact. */
   const folded = !!p.needs_you;
-  const cls = planClass(p) + (folded ? ' folded' : '');
+  const cls = 'repitem planitem' + planClass(p) + (folded ? ' folded' : '');
   // The plan's own task, if the underlying card can still be found by slug or
   // title — see findTaskByKey in 02-state.js. Not every plan resolves: the
   // task might since have been renamed or deleted, so the link falls back to
   // the name the plan itself stored, and goToPlanTask says so on the click.
   const key = planTaskKey(p);
   const task = planTask(p);
-  const score = planScoreHTML(task);
   const goto = key
     ? '<button class="plangoto" data-plan-goto="' + esc(key) +
       '" title="Open this task on the board">' + esc(task ? task.title : key) + ' \u2197</button>'
     : '';
-  const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' · ');
-  /* Draggable everywhere, including out of Waiting for review: that column
-     refuses drops, not drags. Taking a card out of it is how he answers it. */
-  return '<article class="repitem planitem' + cls + '" draggable="true"' +
-    ' data-plan="' + esc(p.url) + '" style="--bc:' + planStripe(p) + '">' +
-    '<button class="rephead" data-plan-open="' + esc(p.url) + '">' +
-      '<span class="reptitle">' + esc(p.title) + '</span>' +
-      (folded ? '<span class="planfold" title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
-      '<span class="repdate">' + esc(planWord(p)) + '</span>' +
-    '</button>' +
-    (score || goto || where
-      ? '<div class="repmeta planmeta">' +
-        (score || where
-          ? '<span class="planlead">' + score +
-            (where ? '<span class="planwhere">' + where + '</span>' : '') + '</span>'
-          : '') +
-        goto +
-        '</div>'
-      : '') +
-    (p.summary ? '<div class="repsum">' + mdInline(p.summary) + '</div>' : '') +
+  const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' \u00b7 ');
+  const stripe = planStripe(p);
+  /* The state the plan is in, as the card's eyebrow. It sat at the right-hand
+     end of the title row until 12 Sep 2026, which put the one word saying what
+     to do about the card furthest from where reading starts — and left the
+     eyebrow slot, where a task card says which bucket it is in, empty on every
+     plan. The eyebrow takes --bc, so the word and the stripe are the same
+     colour and say the same thing once. */
+  return cardShellHTML({
+    cls: cls + (stripe ? '' : ' nostripe'),
+    attrs: 'draggable="true" data-plan="' + esc(p.url) + '" data-plan-open="' + esc(p.url) + '"',
+    stripe: stripe,
+    eyebrow: '<span class="bucket">' + esc(planWord(p)) + '</span>' +
+      (folded ? '<span class="right"><span class="planfold" ' +
+        'title="The agent stopped and asked rather than guessing">needs you</span></span>' : ''),
+    title: esc(p.title),
+    /* The task's own impact and effort. Not in the component's own instances,
+       which carry no tag row on a plan — but the component has the toggle, and
+       the scores are read live off the task every render rather than copied
+       into the plan, so they are the one thing on the row that cannot drift.
+       Dropping them to match a mock would lose that. */
+    tags: planScoreHTML(task),
+    meta: (where ? '<span class="planwhere">' + where + '</span>' : '') + goto,
+    summary: p.summary ? mdInline(p.summary) : '',
     /* On a rejected plan the reason is worth more than the summary: it is what
-       he told the agent, and it is what tonight's run will be working from. */
-    /* Shown wherever it exists rather than only while the plan is still out
+       he told the agent, and it is what tonight's run will be working from.
+       Shown wherever it exists rather than only while the plan is still out
        with the agent: once a replacement has landed the old plan is finished,
        and the reason is the thing worth keeping about it. */
-    (p.feedback
-      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.feedback) + '</div>' : '') +
-  '</article>';
+    extra: p.feedback
+      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.feedback) + '</div>' : ''
+  });
 }
 
 /* Opening one marks it read, on the grounds that having it open is what being
@@ -576,8 +579,9 @@ function colFilterHTML(id, shown, filters, current){
       ' role="menuitemradio" aria-checked="' + on + '" data-planfilter="' + esc(key) + '">' +
       esc(text) + '<span class="n">' + n + '</span></button>';
   return '<span class="dropdown colfilter" data-colfilter="' + esc(id) + '">' +
-    '<button class="btn small colfilter-btn" type="button" aria-expanded="false"' +
-      ' title="Narrow this column">' + esc(label) + ' \u25be</button>' +
+    '<button class="colfilter-btn" type="button" aria-expanded="false"' +
+      ' title="Narrow this column">' + esc(label) +
+      '<span class="caret" aria-hidden="true">\u25be</span></button>' +
     '<div class="dropdown-panel alignright hidden" role="menu" aria-label="Narrow this column">' +
       opt('all', 'All', shown.length, current === 'all') +
       counts.map(x => opt(x.f.key, x.f.label, x.n, current === x.f.key)).join('') +
@@ -809,21 +813,19 @@ function gotoButtonHTML(r){
 }
 
 function queueRowHTML(r){
-  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' \u00b7 ');
   const goto = gotoButtonHTML(r);
-  return '<article class="qitem" draggable="true" data-qtitle="' + esc(r.title) + '">' +
-    '<div class="qhead">' +
-      '<span class="qpos">' + r.position + '</span>' +
-      '<span class="qtitle">' + esc(r.title) + '</span>' +
-      '<button class="btn outline small qhold" data-qhold="' + esc(r.title) + '" ' +
-        'title="Hold it back from tonight">Hold</button>' +
-    '</div>' +
-    (meta || goto
-      ? '<div class="repmeta">' + meta + (goto ? (meta ? ' · ' : '') + goto : '') + '</div>'
-      : '') +
-    '<div class="qwhy">' + esc(r.why || '') +
-      (r.last ? ' · last planned ' + esc(r.last) : '') + '</div>' +
-  '</article>';
+  return cardShellHTML({
+    cls: 'qitem nostripe',
+    attrs: 'draggable="true" data-qtitle="' + esc(r.title) + '"',
+    position: r.position,
+    title: esc(r.title),
+    action: '<button class="btn outline small qhold" data-qhold="' + esc(r.title) + '" ' +
+      'title="Hold it back from tonight">Hold</button>',
+    meta: meta + (goto ? (meta ? ' \u00b7 ' : '') + goto : ''),
+    extra: '<div class="qwhy">' + esc(r.why || '') +
+      (r.last ? ' \u00b7 last planned ' + esc(r.last) : '') + '</div>'
+  });
 }
 
 function renderQueueList(){
@@ -1046,20 +1048,18 @@ function releaseHeld(title){
    ------------------------------------------------------------------------- */
 
 function heldRowHTML(r){
-  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' · ');
+  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' \u00b7 ');
   const goto = gotoButtonHTML(r);
-  return '<article class="qitem held" draggable="true" data-qtitle="' + esc(r.title) + '">' +
-    '<div class="qhead">' +
-      '<span class="qpos">—</span>' +
-      '<span class="qtitle">' + esc(r.title) + '</span>' +
-      '<button class="btn outline small qhold" data-qrelease="' + esc(r.title) + '" ' +
-        'title="Put it back in the queue">Release</button>' +
-    '</div>' +
-    (meta || goto
-      ? '<div class="repmeta">' + meta + (goto ? (meta ? ' · ' : '') + goto : '') + '</div>'
-      : '') +
-    '<div class="qwhy">' + esc(r.why || '') + '</div>' +
-  '</article>';
+  return cardShellHTML({
+    cls: 'qitem held nostripe',
+    attrs: 'draggable="true" data-qtitle="' + esc(r.title) + '"',
+    position: '\u2014',
+    title: esc(r.title),
+    action: '<button class="btn outline small qhold" data-qrelease="' + esc(r.title) + '" ' +
+      'title="Put it back in the queue">Release</button>',
+    meta: meta + (goto ? (meta ? ' \u00b7 ' : '') + goto : ''),
+    extra: '<div class="qwhy">' + esc(r.why || '') + '</div>'
+  });
 }
 
 function renderBacklogList(){

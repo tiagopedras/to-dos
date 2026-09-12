@@ -715,8 +715,13 @@
   /* --cols is set from the number of sections found in the file. */
   .board{
     display:grid; gap:12px; align-items:start;
-    grid-template-columns:repeat(var(--cols,5), minmax(320px,1fr));
-    min-width:calc(var(--cols,5) * 332px);
+    grid-template-columns:repeat(var(--cols,5), minmax(322px,1fr));
+    /* Tracks plus the gaps between them, one fewer gap than there are columns
+       — same arithmetic as .lists.pview, and for the same reason. Counting a
+       gap per column leaves a gap's worth over for `1fr` to share out, which
+       at five columns put every one of them two pixels wide of the 322 the
+       component says. It happened to come out right at six. */
+    min-width:calc(var(--cols,5) * 322px + (var(--cols,5) - 1) * 12px);
   }
   /* Columns stay on one row and the board scrolls sideways when the window is
      narrow — wrapping them would break the left-to-right order of the flow. */
@@ -747,32 +752,33 @@
      and a row of columns whose first lines sit at different heights reads as
      a mistake rather than as a difference. */
   .colhead{
-    margin:0; padding:11px 13px 9px; font-size:12.5px; font-weight:680; letter-spacing:.02em; text-transform:uppercase;
+    margin:0; padding:11px 13px 9px; font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
     color:var(--ink-soft); border-bottom:1px solid var(--line-soft); min-height:41px; box-sizing:border-box;
+    display:flex; flex-direction:column; gap:8px;
   }
-  .colhead-row{display:flex; align-items:center; gap:8px; min-height:19px}
+  /* Pushed apart rather than floated right — see colHTML(). The left group is
+     what the column is called, the right group is what you do to it, and
+     neither is allowed to shrink the other away. */
+  .colhead-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:20px}
+  .colhead-left{display:flex; align-items:center; gap:8px; min-width:0}
+  .colhead-right{display:flex; align-items:center; gap:8px; flex:none}
   .colhead h2, .colhead h3{
     margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
     text-transform:inherit; color:inherit; min-width:0;
   }
-  .colhead .count{margin-left:auto; font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
-  /* The action button and the Filters dropdown both sit at the right-hand end
-     of the head's first row, and neither is allowed to shrink: a wrapped
-     "Run now" is worse than a title that has to wrap instead. */
-  .colhead .colact{margin-left:auto; flex:none}
-  .colhead .colact + .count{margin-left:8px}
+  .colhead .count{font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
   /* What the column is for, in the column rather than above the row of them.
      Plans carries one on every column; the board carries none. Not uppercase
      and not the head's weight — it is a sentence, and the heading above it has
      already had its say. */
   .colhead-desc{
-    margin:6px 0 0; font-size:12px; font-weight:450; line-height:1.45;
+    margin:0; font-size:11px; font-weight:500; line-height:1.45;
     text-transform:none; letter-spacing:0; color:var(--ink-faint);
   }
   /* Says which order the column is in, and changes it. Quiet until it is on,
      because "your order" is the normal state and needs no announcing. */
   .sortbtn{
-    margin-left:auto; flex:none; border:1px solid transparent; background:transparent; border-radius:6px;
+    flex:none; border:1px solid transparent; background:transparent; border-radius:6px;
     padding:2px 6px; font-size:11px; font-weight:650; letter-spacing:.02em; text-transform:none;
     color:var(--ink-faint); opacity:.55;
   }
@@ -782,7 +788,7 @@
     color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, transparent);
     background:color-mix(in srgb, var(--accent) 8%, transparent); opacity:1; font-size:10.5px;
   }
-  .colhead .sortbtn + .count{margin-left:8px}
+
   .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
   .colbody{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
   .drop.over{background:color-mix(in srgb, var(--accent) 7%, transparent)}
@@ -1117,7 +1123,11 @@
   .lists.pview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:12px;
     grid-template-columns:repeat(var(--pcols,6), minmax(322px,1fr));
-    min-width:calc(var(--pcols,6) * 334px);
+    /* The tracks plus the gaps between them, not a track-and-a-gap each — one
+       gap fewer than there are columns. Counting it the other way leaves a
+       gap's worth of room over, which `1fr` then shares out and every column
+       comes out two pixels wide of the 322 the component says. */
+    min-width:calc(var(--pcols,6) * 322px + (var(--pcols,6) - 1) * 12px);
   }
   .lists.pview .col{margin:0}
   /* The two reference cards, stacked inside the modal — the clock card reads
@@ -1146,13 +1156,22 @@
      renderQueueDoingHead in 13-plans.js): offering a second run while one is
      going would look like it queued another rather than being silently
      refused, which is what run.sh actually does. */
-  /* The column filter, in the head rather than as a chip row in the body.
-     The button is a small one and the panel hangs off its right edge, since a
-     column's head ends close to the column's own right edge. */
+  /* The column filter, in the head rather than as a chip row in the body. It is
+     a Select rather than a button, which is what the component makes it and
+     what it actually is: a field showing the current value with a caret,
+     sitting at the same 33px every other field control sits at. A small button
+     would have read as an action, and picking a filter is not one. The panel
+     hangs off its right edge, since a column's head ends close to the column's
+     own right edge. */
   .colfilter .dropdown-panel{min-width:150px}
   .colfilter-btn{
-    text-transform:none; letter-spacing:0; font-weight:560; white-space:nowrap;
+    display:inline-flex; align-items:center; justify-content:space-between; gap:7px;
+    border:1px solid var(--line); background:var(--bg); border-radius:7px;
+    padding:5px 9px; min-height:33px; color:var(--ink); font-size:13px; font-weight:400;
+    text-transform:none; letter-spacing:0; white-space:nowrap; cursor:pointer;
   }
+  .colfilter-btn:hover{border-color:var(--ink-faint)}
+  .colfilter-btn .caret{font-size:11px; color:var(--ink-soft)}
   .colfilter .dropdown-item{display:flex; align-items:center; gap:8px}
   .colfilter .dropdown-item .n{
     margin-left:auto; font-size:11px; font-weight:650; color:var(--ink-faint);
@@ -1165,19 +1184,19 @@
      proposal about tonight (or about not-tonight), so it is lighter than a
      board card and carries its position rather than its state, the position
      being the thing a drag edits. */
-  /* The queue card lost a darker fill and a 10px radius in the merge. Neither
-     was saying anything the position and the Hold button do not already say. */
-  .qitem{margin:0 0 7px; cursor:grab}
+  /* The queue card lost a darker fill and a 10px radius in the merge, and it
+     draws through cardShellHTML() now like every other card — so `.qitem` is
+     what is left: the spacing between rows, and the grab cursor. Neither the
+     fill nor the radius was saying anything the position and the Hold button
+     do not already say. */
+  .qitem{margin:0 0 7px}
   .qitem:last-child{margin-bottom:0}
   .qitem.dragging{opacity:.4}
   .qitem.over-top{box-shadow:inset 0 2px 0 var(--accent)}
   .qitem.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
-  .qhead{display:flex; align-items:baseline; gap:9px}
-  .qpos{
-    flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--ink-faint);
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  }
-  .qtitle{flex:1; min-width:0; color:var(--ink)}
+  /* .qhead, .qpos and .qtitle are gone: a queue row draws through
+     cardShellHTML() like every other card, so its head is .cardhead, its
+     position is .cardpos and its title is .title. */
   /* Hold and Release are .btn.outline.small. What is left is that they are
      quiet until the row is pointed at: holding a card back is a deliberate
      act, and a visible button on every row in the queue would invite it. */
@@ -1452,23 +1471,14 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--ink-faint)}
-  /* A plan's meta block: two rows, always. The top one is everything short —
-     the task's scores, then where the card sits — and the bottom one is the
-     link, which carries the task's own name and is long enough to want a line
-     to itself at this column width. Stacked rather than wrapped, so the shape
-     is the same on every row instead of moving with the length of a title. */
-  .repmeta.planmeta{display:flex; flex-direction:column; align-items:flex-start; gap:4px}
-  /* The short row. Wraps in the narrowest column rather than overflowing. */
-  .planlead{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
-  /* The task's impact and effort. The board's own .tag, shrunk a step: these sit
-     on an 11.5px meta line rather than on a card. */
+  /* A plan's meta used to be its own stacked two-row block, so the link — which
+     carries the task's own long name — got a line to itself. It is the shared
+     .cardmeta now, which wraps instead: one row until the link needs a second,
+     which is the same outcome without a second layout to keep in step. */
   .planscore{display:inline-flex; gap:4px; align-items:center}
-  .planscore .tag{padding:1px 5px}
   /* Long titles wrap inside the link rather than pushing the row wide — a
-     button does not wrap its own label by default. Scoped to .planmeta so the
-     queue and Backlog rows, which use .plangoto for a fixed short label, are
-     left alone. */
-  .planmeta .plangoto{white-space:normal; text-align:left; max-width:100%}
+     button does not wrap its own label by default. */
+  .cardmeta .plangoto{white-space:normal; text-align:left; max-width:100%}
   .planwhere{color:var(--ink-faint)}
   /* Plans reuse the report item wholesale and add one thing reports do not
      have: a state. Unread carries the accent so a night's work is findable at a
@@ -1496,9 +1506,12 @@
   /* Agreed: work is owed on this one. Green rather than the accent, which means
      "new", and rather than amber, which means "answer me". Three states on one
      row and each has to be tellable from the other two at a glance. */
-  .repitem.agreed{
-    border-color:color-mix(in srgb, var(--green) 45%, transparent); background:var(--green-bg);
-  }
+  /* Agreed is a fill and nothing else. Its border stays the ordinary line,
+     which is what the component does: the card is already the only green thing
+     in the column, and a green edge round a green fill is the same fact twice.
+     One thing is the exception, and earns it — an accent edge is how a card
+     marked as the one thing reads as marked rather than as tinted. */
+  .repitem.agreed{background:var(--green-bg)}
   /* Sent back. Red would read as an error and this is a normal answer, so it
      recedes the way a read plan does and says why in .planredo instead. */
   .repitem.redo{opacity:.82; border-style:dashed}
@@ -1548,9 +1561,7 @@
     resize:vertical;
   }
   .redowhy:focus{outline:2px solid var(--accent); outline-offset:1px}
-  .repitem:not(.read):not(.actioned):not(.agreed):not(.redo) .repdate{
-    color:var(--accent); font-weight:640; font-family:inherit;
-  }
+
   /* The standfirst is the whole point of the closed state: it should say what the
      report found, so opening it is a choice rather than the only way to know. */
   .repsum{margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--ink-soft)}
@@ -1873,12 +1884,35 @@
      with plan cards carrying a red top border instead and queue cards nothing
      — see .repitem.planitem below for what that border was arguing and why the
      argument changed. */
-  .card, .repitem, .qitem, .chaincard{
-    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--bc,var(--line));
-    border-radius:9px; padding:9px 10px; box-shadow:0 1px 1px rgba(16,20,28,.04);
+  .card, .repitem, .chaincard{
+    background:var(--panel); border:1px solid var(--line);
+    border-left:3px solid var(--bc,var(--line));
+    border-radius:9px; padding:9px 10px 9px 9px; box-shadow:0 1px 1px rgba(16,20,28,.04);
   }
+  /* 9 left plus the 3px stripe is the component's 12, against 10 on the right.
+     The asymmetry is deliberate: the stripe is a mark, not a margin, so the
+     text has to clear it by the same amount it clears the other edge. */
   .card{cursor:grab}
-  .card:hover, .repitem:hover, .qitem:hover{border-color:var(--ink-faint)}
+  .card:hover, .repitem:hover{border-color:var(--ink-faint)}
+  /* A card with nothing to mark. The component leaves the stripe off rather
+     than drawing it in the line colour, and that difference is the whole
+     point of it: a grey stripe still reads as a mark. Queue rows are always
+     like this, and so is a plan nobody needs to look at. */
+  .card.nostripe, .repitem.nostripe{border-left-width:1px; border-left-color:var(--line); padding-left:11px}
+  /* The rows, in the component's order. 5px between them, and the few that
+     carry a little more of their own. */
+  .card .cardhead, .repitem .cardhead{display:flex; align-items:baseline; gap:9px; min-width:0}
+  .card .cardpos, .repitem .cardpos{
+    flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--ink-faint);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .card .cardact, .repitem .cardact{flex:none; margin-left:auto}
+  .card .cardmeta, .repitem .cardmeta{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:4px;
+    margin-top:9px; font-size:11.5px; color:var(--ink-faint);
+  }
+  .card .cardsum, .repitem .cardsum{margin-top:11px; font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  .row1 + .cardhead{margin-top:5px}
   .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .card.dragging{opacity:.4}
   /* Same as any other card — same width, radius, padding, shadow, left
@@ -1918,8 +1952,9 @@
      odd one out — the plan card had been redrawn at Semi Bold most recently
      and that is the weight the merge took, so a title reads the same whichever
      kind of card it is on. */
-  .title, .reptitle, .qtitle, .chaintitle{
+  .title, .reptitle, .chaintitle{
     font-size:13.5px; font-weight:600; line-height:1.35; letter-spacing:-.005em;
+    min-width:0; flex:1;
   }
   .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
   /* Urgent and due read as "look at this now", so they sit apart from the rest

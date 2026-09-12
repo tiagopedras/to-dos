@@ -71,32 +71,29 @@ function runClass(r){
    answering for both without either view reaching into the other's model. */
 function runItemHTML(r){
   const task = r.slug || r.task ? findTaskByKey(r.slug || r.task) : null;
-  const score = planScoreHTML(task);
   const key = r.slug || r.task || '';
   const goto = key
     ? '<button class="plangoto" data-run-goto="' + esc(key) +
-      '" title="Open this task on the board">' + esc(task ? task.title : key) + ' ↗</button>'
+      '" title="Open this task on the board">' + esc(task ? task.title : key) + ' \u2197</button>'
     : '';
-  const where = [r.bucket, r.column, r.created].filter(Boolean).map(esc).join(' · ');
-  return '<article class="repitem planitem' + runClass(r) + '" draggable="true"' +
-    ' data-run="' + esc(r.name) + '" style="--bc:' + runStripe(r) + '">' +
-    '<button class="rephead" data-run-open="' + esc(r.name) + '">' +
-      '<span class="reptitle">' + esc(r.title) + '</span>' +
-      '<span class="repdate">' + esc(runWord(r)) + '</span>' +
-    '</button>' +
-    (score || goto || where
-      ? '<div class="repmeta planmeta">' +
-        (score || where
-          ? '<span class="planlead">' + score +
-            (where ? '<span class="planwhere">' + where + '</span>' : '') + '</span>'
-          : '') +
-        goto +
-        '</div>'
-      : '') +
-    (r.summary ? '<div class="repsum">' + mdInline(r.summary) + '</div>' : '') +
-    (r.feedback
-      ? '<div class="planredo"><b>Sent back:</b> ' + esc(r.feedback) + '</div>' : '') +
-  '</article>';
+  const where = [r.bucket, r.column, r.created].filter(Boolean).map(esc).join(' \u00b7 ');
+  const stripe = runStripe(r);
+  /* The same shell the plan card and the task card draw through — see
+     cardShellHTML() in 09-columns.js. It was the same markup as the plan card
+     by hand before that, kept in step by a comment; it is the same function
+     now, so it cannot drift. The state word is the eyebrow here too. */
+  return cardShellHTML({
+    cls: 'repitem planitem' + runClass(r) + (stripe ? '' : ' nostripe'),
+    attrs: 'draggable="true" data-run="' + esc(r.name) + '" data-run-open="' + esc(r.name) + '"',
+    stripe: stripe,
+    eyebrow: '<span class="bucket">' + esc(runWord(r)) + '</span>',
+    title: esc(r.title),
+    tags: planScoreHTML(task),
+    meta: (where ? '<span class="planwhere">' + where + '</span>' : '') + goto,
+    summary: r.summary ? mdInline(r.summary) : '',
+    extra: r.feedback
+      ? '<div class="planredo"><b>Sent back:</b> ' + esc(r.feedback) + '</div>' : ''
+  });
 }
 
 async function loadRunBody(url){

@@ -312,14 +312,20 @@ function cardHTML(t, color, bucketLabel, opts){
     opts.tier === BLOCKED_TIER ? ' blocked' :
     opts.tier === BACKLOG_TIER ? ' backlog' : '';
 
-  return '<article class="card' + statusClass + (t.headline ? ' onething' : '') + '"' +
-    (opts.static ? '' : ' tabindex="0" role="button"' + (opts.noDrag ? '' : ' draggable="true"')) +
-    ' data-id="' + t.id + '" style="--bc:' + color + '">' +
-    (bucketLabel ? '<div class="row1"><span class="bucket">' + esc(bucketLabel) + '</span></div>' : '') +
-    '<div class="title">' + mdInline(t.title) + '</div>' +
-    (meta ? '<div class="meta">' + meta + '</div>' : '') +
-    prog +
-  '</article>';
+  /* Through the shared shell since 12 Sep 2026 — see cardShellHTML() below,
+     and the Figma `Card` component it is. A task card is the eyebrow, the
+     title, the tag row and the stripe, plus whichever of progress and the note
+     count it has something to say with. */
+  return cardShellHTML({
+    cls: statusClass.trim() + (t.headline ? ' onething' : ''),
+    attrs: (opts.static ? '' : 'tabindex="0" role="button"' +
+             (opts.noDrag ? '' : ' draggable="true"') + ' ') + 'data-id="' + t.id + '"',
+    stripe: color,
+    eyebrow: bucketLabel ? '<span class="bucket">' + esc(bucketLabel) + '</span>' : '',
+    title: mdInline(t.title),
+    tags: meta,
+    progress: prog
+  });
 }
 
 
@@ -366,16 +372,24 @@ function colHTML(o){
   // half-empty run of them is normal and must not reach the attribute.
   const cls = (o.cls || '').trim().replace(/\s+/g, ' ');
   const bodyCls = (o.bodyCls || '').trim().replace(/\s+/g, ' ');
+  /* Two groups pushed apart, not one row with things floated right. What the
+     column is called sits left; what you do to it sits right, in the
+     component's own order — sort, then count, then an action button, then a
+     Filters select. A long title squeezes the left group and leaves the right
+     one alone, which is what a header full of controls has to do. */
   const head =
     '<div class="colhead">' +
       '<div class="colhead-row">' +
-        '<' + tag + '>' + esc(o.title) +
-          (o.hint ? ' <span class="hint">' + esc(o.hint) + '</span>' : '') +
-        '</' + tag + '>' +
-        (o.sort || '') +
-        (o.action ? '<span class="colact">' + o.action + '</span>' : '') +
-        (o.filters ? '<span class="colact">' + o.filters + '</span>' : '') +
-        (o.count != null ? '<span class="count">' + o.count + '</span>' : '') +
+        '<div class="colhead-left">' +
+          '<' + tag + '>' + esc(o.title) + '</' + tag + '>' +
+          (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') +
+        '</div>' +
+        '<div class="colhead-right">' +
+          (o.sort || '') +
+          (o.count != null ? '<span class="count">' + o.count + '</span>' : '') +
+          (o.action || '') +
+          (o.filters || '') +
+        '</div>' +
       '</div>' +
       (o.desc ? '<p class="colhead-desc">' + o.desc + '</p>' : '') +
     '</div>';
@@ -416,3 +430,55 @@ document.addEventListener('click', e => {
     }
   });
 });
+
+/* =========================================================================
+   One card, four kinds of thing on it.
+
+   A task on the board, a plan written about one, a row in tonight's queue and
+   a dependency in the chain. The Figma `Card` component (node 13:6850) is one
+   component with seven states and ten show/hide booleans, and 169 instances
+   across the three screens are all of it. This is that component.
+
+   The anatomy, top to bottom, every row optional but the title:
+
+     eyebrow    10.5 bold uppercase, coloured by --bc — the same colour the
+                stripe takes, so a card's mark and its label agree. On a task
+                that is the bucket; on a plan it is the state it is in.
+     head       position · title · action
+     tags       four chips left, two pinned right
+     meta       where it sits · a link back to the card
+     summary    what the document says, at rest
+     progress   steps done, and the bar
+     note       how many notes are on it
+     stripe     3px down the left edge, --bc
+
+   `stripe: null` leaves it off rather than drawing it in the line colour. That
+   is what the component does on a queue card and on a plan nobody needs to
+   look at, and the difference matters: a grey stripe still reads as a mark,
+   and the point of leaving it off is that there is nothing to mark.
+
+   The gaps come from the component: 5px between rows, and a few rows carry a
+   little more of their own — tags 2, meta 4, summary 6, progress 3, note 1.
+   ========================================================================= */
+function cardShellHTML(o){
+  o = o || {};
+  const cls = ('card ' + (o.cls || '')).trim().replace(/\s+/g, ' ');
+  const rows =
+    (o.eyebrow ? '<div class="row1">' + o.eyebrow + '</div>' : '') +
+    '<div class="cardhead">' +
+      (o.position ? '<span class="cardpos">' + o.position + '</span>' : '') +
+      '<div class="title">' + (o.title || '') + '</div>' +
+      (o.action ? '<span class="cardact">' + o.action + '</span>' : '') +
+    '</div>' +
+    (o.tags ? '<div class="meta">' + o.tags + '</div>' : '') +
+    (o.meta ? '<div class="cardmeta">' + o.meta + '</div>' : '') +
+    (o.summary ? '<div class="cardsum">' + o.summary + '</div>' : '') +
+    (o.progress || '') +
+    (o.note ? '<div class="notecount">' + o.note + '</div>' : '') +
+    (o.extra || '');
+  return '<' + (o.tag || 'article') + ' class="' + cls + '"' +
+    (o.attrs ? ' ' + o.attrs : '') +
+    (o.stripe ? ' style="--bc:' + o.stripe + '"' : '') + '>' +
+    rows +
+  '</' + (o.tag || 'article') + '>';
+}

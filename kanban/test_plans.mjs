@@ -193,7 +193,7 @@ check('unactioned plans are listed', live === 2, `${live} shown`)
    was holding two questions at once, and splitting it took the second away. */
 check('accepted ones sit in Ready to be produced, not Done', await evalJS(`
   document.querySelectorAll('#plansProduced > .repitem').length === 1 &&
-  document.querySelector('#plansProduced .repdate').textContent === 'accepted' &&
+  document.querySelector('#plansProduced .bucket').textContent === 'accepted' &&
   !document.querySelector('#plansDone > .repitem')
 `))
 check('and Waiting for review holds only what is still to be read', await evalJS(`
@@ -202,13 +202,13 @@ check('and Waiting for review holds only what is still to be read', await evalJS
                r.classList.contains('redo'))
 `))
 check('an unread plan is marked new', await evalJS(`
-  document.querySelector('#plansOut .repitem:not(.read):not(.actioned) .repdate').textContent === 'new'
+  document.querySelector('#plansOut .repitem:not(.read):not(.actioned) .bucket').textContent === 'new'
 `))
 check('a read plan is dimmed rather than hidden', await evalJS(`
   !!document.querySelector('#plansOut .repitem.read')
 `))
 check('the summary is what the closed row shows', await evalJS(`
-  document.querySelector('#plansOut .repsum').textContent.includes('Foundations file')
+  document.querySelector('#plansOut .cardsum').textContent.includes('Foundations file')
 `))
 
 // --- the queue column ------------------------------------------------------
@@ -277,7 +277,7 @@ check('every queued task is listed', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length
 `) === 3)
 check('numbered by the order it will be worked through', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .qpos')].map(e => e.textContent).join('')
+  [...document.querySelectorAll('#queueOut > .qitem .cardpos')].map(e => e.textContent).join('')
 `) === '123')
 check('each says why it is being planned again', await evalJS(`
   document.querySelectorAll('#queueOut .qwhy')[1].textContent.includes('changed since 2026-09-03')
@@ -316,10 +316,10 @@ await evalJS(`(() => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('a drag reorders the queue', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .qtitle')].map(e => e.textContent)[0]
+  [...document.querySelectorAll('#queueOut > .qitem .title')].map(e => e.textContent)[0]
 `) === 'Adoption and usage report')
 check('and renumbers what it moved', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .qpos')].map(e => e.textContent).join('')
+  [...document.querySelectorAll('#queueOut > .qitem .cardpos')].map(e => e.textContent).join('')
 `) === '123')
 const ordered = await evalJS(`window.__blocked.join(' | ')`)
 check('the new order is posted', ordered.includes('POST /queue/order'))
@@ -367,10 +367,10 @@ check('dragging a held card into the queue un-holds it', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 3
 `))
 check('dropped at the top of the queue', await evalJS(`
-  document.querySelector('#queueOut > .qitem .qtitle').textContent
+  document.querySelector('#queueOut > .qitem .title').textContent
 `) === 'Arabic theme as a new token mode')
 check('the other held card stays behind', await evalJS(`
-  document.querySelector('#backlogOut .qitem.held .qtitle').textContent
+  document.querySelector('#backlogOut .qitem.held .title').textContent
 `) === 'Adoption and usage report')
 check('and the hold list drops only the one released', await evalJS(`
   (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
@@ -398,11 +398,11 @@ check('dragging a queue card onto the backlog holds it', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 2
 `))
 check('and it shows up there, held', await evalJS(`
-  [...document.querySelectorAll('#backlogOut .qitem.held .qtitle')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('without disturbing the card held earlier', await evalJS(`
-  [...document.querySelectorAll('#backlogOut .qitem.held .qtitle')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
     .includes('Adoption and usage report')
 `))
 check('and the post names both held titles', await evalJS(`
@@ -649,7 +649,7 @@ check('an emptied Waiting for review says so rather than going blank', await eva
 // Backlog. Not a verdict on the plan at all, so it does two things: parks the
 // plan, and holds the task itself back — the hold list being the only thing the
 // picker actually reads.
-await evalJS(`document.querySelector('#queueOut .repitem.redo [data-plan-open]').click()`)
+await evalJS(`document.querySelector('#queueOut .repitem.redo[data-plan-open]').click()`)
 await new Promise(r => setTimeout(r, 400))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Leave it alone').click()`)
 await new Promise(r => setTimeout(r, 200))
@@ -811,7 +811,7 @@ await evalJS(`(() => {
 // means on both boards.
 check('a plan still out for another night sits in To do', await evalJS(`
   [...document.querySelectorAll('#queueOut .repitem.redo')]
-    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Sent back last night'
+    .map(r => r.querySelector('.title').textContent).join(',') === 'Sent back last night'
 `))
 check('and a replaced rejection is not there with it', await evalJS(`
   !document.querySelector('#plansProduced > .repitem.redo')
@@ -824,12 +824,12 @@ check('and a replaced rejection is not there with it', await evalJS(`
    produced rather than reading as work that finished. */
 check('the replaced rejection is filed in Done', await evalJS(`
   [...document.querySelectorAll('#plansDone > .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).sort().join(',') === 'Planned twice'
+    .map(r => r.querySelector('.title').textContent).sort().join(',') === 'Planned twice'
 `))
 check('and the plan accepted under the old spelling stays in Ready to be produced', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'A record' &&
-  document.querySelector('#plansProduced .repdate').textContent === 'accepted'
+    .map(r => r.querySelector('.title').textContent).join(',') === 'A record' &&
+  document.querySelector('#plansProduced .bucket').textContent === 'accepted'
 `))
 check('the reason he wrote is still readable on it', await evalJS(`
   document.querySelector('#plansDone .repitem.redo .planredo').textContent.includes('Wrong scope')
@@ -844,7 +844,7 @@ check('Done says which kind of closed each one is', await evalJS(`
 `))
 check('and the replacement itself is in Waiting for review', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).join(',') === 'Planned twice'
+    .map(r => r.querySelector('.title').textContent).join(',') === 'Planned twice'
 `))
 
 // An option with nothing behind it is not drawn at all rather than sitting
@@ -893,13 +893,13 @@ await evalJS(`(() => {
 })()`)
 check('the highest priority task is at the top, not the newest night', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).join(',') ===
+    .map(r => r.querySelector('.title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
-`), await evalJS(`[...document.querySelectorAll('#plansOut .reptitle')].map(r => r.textContent).join(',')`))
+`), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
 check('the task\'s impact and effort are on the row', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'middling');
+      .find(r => r.querySelector('.title').textContent === 'middling');
     const tags = [...row.querySelectorAll('.planscore .tag')];
     return tags.length === 2 && tags[0].title === 'high impact' && tags[1].textContent === 'M';
   })()
@@ -910,15 +910,18 @@ check('and they are the board\'s own chips rather than a second kind', await eva
 check('a task carrying neither score says so', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'unscored');
+      .find(r => r.querySelector('.title').textContent === 'unscored');
     return !!row.querySelector('.planscore .tag.needsscore');
   })()
 `))
 check('a plan whose task is gone from the board carries no score at all', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'gone');
-    return !row.querySelector('.planscore') && !!row.querySelector('.repmeta');
+      .find(r => r.querySelector('.title').textContent === 'gone');
+    // No tag row at all rather than an empty one, and the meta row — where
+    // it sits, and the link back — still there.
+    return !row.querySelector('.planscore') && !row.querySelector('.meta') &&
+           !!row.querySelector('.cardmeta');
   })()
 `))
 // The meta row reads scores, then which card, then where it sits — and the
@@ -927,27 +930,30 @@ check('a plan whose task is gone from the board carries no score at all', await 
 check('the link is named after the task it opens', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'middling');
+      .find(r => r.querySelector('.title').textContent === 'middling');
     const b = row.querySelector('.plangoto');
     return b.textContent.trim() === 'Close the Figma against code gap on buttons \u2197' &&
            b.dataset.planGoto === 'Close the Figma against code gap on buttons';
   })()
 `))
-check('the scores and where the card sits share one line, the name gets its own', await evalJS(`
+/* The scores are the tag row, where the card sits and the link are the meta
+   row below it — the component's own two rows, rather than the stacked block
+   the plan card used to build for itself. */
+check('the scores are the tag row, and where it sits is the meta row', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'middling');
-    const parts = [...row.querySelector('.planmeta').children].map(n => n.className);
-    const lead = [...row.querySelector('.planlead').children].map(n => n.className);
-    return parts.join('|') === 'planlead|plangoto' &&
-           lead.join('|') === 'planscore|planwhere' &&
+      .find(r => r.querySelector('.title').textContent === 'middling');
+    const tags = [...row.querySelector('.meta').children].map(n => n.className);
+    const meta = [...row.querySelector('.cardmeta').children].map(n => n.className);
+    return tags.join('|') === 'planscore' &&
+           meta.join('|') === 'planwhere|plangoto' &&
            row.querySelector('.planwhere').textContent === 'DS · To do · 2026-09-07';
   })()
 `))
 check('a plan whose task is gone still links, under the name it stored', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.reptitle').textContent === 'gone');
+      .find(r => r.querySelector('.title').textContent === 'gone');
     return row.querySelector('.plangoto').textContent.trim() === 'A task nobody kept \u2197';
   })()
 `))
@@ -966,7 +972,7 @@ await evalJS(`(() => {
 })()`)
 check('Ready to be produced is ordered the same way', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
-    .map(r => r.querySelector('.reptitle').textContent).join(',') ===
+    .map(r => r.querySelector('.title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
 /* The old spelling and the new one draw as one column and read as one word.
@@ -974,7 +980,7 @@ check('Ready to be produced is ordered the same way', await evalJS(`
    carries; everything else is `accepted`. */
 check('and the old spelling of accepted reads as accepted beside it', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
-    .map(r => r.querySelector('.repdate').textContent)
+    .map(r => r.querySelector('.bucket').textContent)
     .join(',') === 'accepted,accepted,handed over,accepted,accepted'
 `))
 

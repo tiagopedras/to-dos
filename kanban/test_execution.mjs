@@ -155,13 +155,13 @@ check('each run is drawn in the column its state names', await evalJS(`
     .map(id => document.querySelectorAll(id + ' .planitem').length).join('')
 `) === '1111')
 check('a run in Backlog says it is waiting on him', await evalJS(`
-  document.querySelector('#runBacklog .repdate').textContent === 'waiting on you'
+  document.querySelector('#runBacklog .bucket').textContent === 'waiting on you'
 `))
 check('one the agent has written back on reads new until opened', await evalJS(`
-  document.querySelector('#runReview .repdate').textContent === 'new'
+  document.querySelector('#runReview .bucket').textContent === 'new'
 `))
 check('the summary is what the closed row shows', await evalJS(`
-  document.querySelector('#runReview .repsum').textContent.includes('did the work')
+  document.querySelector('#runReview .cardsum').textContent.includes('did the work')
 `))
 
 // Loading the view mints a run for every plan accepted since the last look. The
