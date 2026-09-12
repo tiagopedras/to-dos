@@ -40,15 +40,6 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   merge put it at Dashed/Small (12px, padding 4/9, radius 6) the same as
   `.addsub`. Worth doing with `ai_canvas` open beside it rather than blind.
 
-- **The Execution view has a `doing` state its board does not draw.**
-  `agents/execution_agent/stream.json` declares five states and
-  `renderExecutionView()` (`kanban/js/27-execution.js`) draws four columns:
-  Backlog, To do, Waiting for review, Done. A run the acting agent has picked up
-  is `doing`, and `runColumn()` folds it in with `ready` so it shows in To do.
-  The Plans view got its own Doing column on 12 Sep 2026 for exactly this reason
-  — a run in flight and a queue waiting to run are two answers — and the
-  argument is the same here. Five columns, and `runColumn()` stops folding.
-
 - **The night's size is set in dollars, and nothing says how many plans he
   wants.** The batch loop in `run()` (`agents/night_agent/plan.py:898`) stops on
   two things only — under `FLOOR` minutes of window left (`:87`) and
@@ -667,6 +658,47 @@ they settled is written up in the README rather than left here:
   Context section. The board is the authority, so `todo.py` moved in all three.
 
 ## Big
+
+- **A finished run and a dead one are the same document, because the acting
+  agent cannot move its own card.** `execution-agent` is defined with `tools:
+  Read, Grep, Glob, Write, Edit, WebFetch, WebSearch` and no Bash
+  (`.claude/agents/execution-agent.md:4`), and the runs stream's writer is a
+  subprocess — `agents/execution_agent/stream.json` names `python3 stream.py
+  --apply`, and `CONTRACT.md` allows exactly one writer per stream. So the
+  agent has no way to run it. `pa-do` nevertheless says the transition is the
+  agent's to make: "The agent asks the stream to set it, through
+  `agents/execution_agent/stream.py --apply`"
+  (`agents/pa_agent/skills/pa-do/SKILL.md:88`), and then tells the driving
+  session not to do it instead — "say so rather than setting it yourself: a run
+  still owned by `execution-agent` means the work did not finish". Both halves
+  cannot be true. The only party instructed to move the run is the only party
+  that cannot, and the reading the skill gives the resulting state is the
+  opposite of what it means: every completed run looks like a session that died
+  mid-work.
+
+  Confirmed on disk 12 Sep 2026 — three runs handed over and reported on in
+  full, all three sitting in `ready / execution-agent`, indistinguishable from
+  abandoned. The reports are in the run documents and are real work.
+
+  Three ways out and they are not equivalent. Give the agent Bash, which is the
+  smallest change and the largest one to think about, since the whole reason
+  this agent is safe is the list of things it cannot reach. Let the driving
+  session perform the two transitions — `doing` on handover, `review` on the
+  report landing — which is what "the board asks; the stream writes" already
+  says everywhere else, and which makes `pa-do:88` and its own next paragraph
+  agree. Or give the stream a queue-file writer, the contract's third kind,
+  which the agent could append to with Write alone. The middle one looks right
+  and the choice is his.
+
+- **Nothing moves a run to `doing`, so the Execution view cannot show one in
+  flight.** The smaller half of the entry above, and it survives whichever fix
+  that one takes. `runColumn()` (`kanban/js/27-execution.js`) folds `doing` in
+  with `ready` and the view draws four columns for the five states
+  `agents/execution_agent/stream.json` declares. The Plans view got its own
+  Doing column on 12 Sep 2026 for exactly this reason — a run in flight and a
+  queue waiting to run are two different answers — and Execution did not,
+  because nothing was writing `doing` for it to draw. Five columns, and
+  `runColumn()` stops folding.
 
 - **A plan he does not want has nowhere to go but back to the night agent.**
   `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept
