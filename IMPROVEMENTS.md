@@ -668,6 +668,40 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A plan he does not want has nowhere to go but back to the night agent.**
+  `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept
+  it, Plan it again, Leave it alone — and every one of them keeps the task
+  alive: `replanPlan()` (`:315`) sends it to `ready / night-agent` to be
+  written again, `parkPlan()` (`:344`) drops it into Backlog where the picker
+  can still reach the task, and there is no way to say the idea itself is
+  turned down. So a plan he has read and rejected outright either sits in
+  Backlog looking undecided or goes round again for a second opinion he never
+  wanted. It wants a seventh column on the view and a fourth button in the
+  modal, both carrying the same reason the redo path already collects into
+  `feedback`.
+
+  Two things have to be decided before it is built. **The first is whether it
+  is a state or a resolution.** `PACKAGES/work_streams/CONTRACT.md` says `done`
+  closes an item with `resolution` saying how, and this stream already writes
+  two — `completed` from `finishPlan()` (`:299`) and `superseded` from a
+  replaced rejection — so a third, `declined`, is the cheaper answer and the
+  one the contract's own test for an eighth state points at. **The second is
+  what the column is called**, since Plans' six words are its own rather than
+  the board's, and `states` in `agents/night_agent/stream.json` is where they
+  live.
+
+  The work after that is contained but touches four places that have to agree.
+  `planColumn()` (`:125`) needs a branch for the new resolution **above** the
+  fallback on `:145`, which currently returns Ready to be produced for any
+  state it does not recognise — so a declined plan written before that branch
+  exists would draw as accepted. `planWord()` (`:75`) and `planStripe()`
+  (`:108`) need the word and the colour. `renderPlansView()` (`:1461`) gains a
+  seventh `colHTML()` block and a `#plansDeclined` body, and the drop wiring at
+  `:880` gains it as a target. The acting agent needs nothing: `stream.py
+  --sync` in `agents/execution_agent/` mints runs from accepted plans only, so
+  a declined one never reaches Execution. `kanban/test_plans.mjs` wants the
+  column in its count and the new move in its blocked-writes list.
+
 - **Archiving finished work may not be worth having at all, and it is hidden
   behind a constant until that is decided.** `ARCHIVE_CHIP_HIDDEN`
   (`kanban/js/25-archiving.js:39`) takes the "Archive N finished" button out of
