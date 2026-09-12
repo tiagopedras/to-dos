@@ -1,15 +1,20 @@
 'use strict';
 
 /* =========================================================================
-   4b2c. Execution — the implementing agent's half, drawn as the same four columns.
+   4b2c. Execution — the implementing agent's half, drawn as five columns.
 
-   Three boards in this app now and they are deliberately one shape: Backlog,
-   To do, Waiting for review, Done. Where a card sits is the instruction, and it
-   means the same thing on all three.
+   Three boards in this app now and Backlog, To do, Waiting for review and Done
+   mean the same thing on all three. Doing is the one Plans grew on 12 Sep 2026
+   and this view didn't, because nothing was writing `doing` for it to draw —
+   see IMPROVEMENTS.md for who eventually sets it. Drawn anyway, on the same
+   reasoning renderPlanDoing() already carries: a state the stream declares and
+   the view cannot show is a card that vanishes the moment something does set it.
 
      Backlog            the agent leaves it alone. Everything he accepted on the
                         Plans view lands here, and nothing happens to it.
      To do              he wants the implementing agent to carry this one out.
+     Doing              it is running right now. Not his to start or stop, so it
+                        takes no drops, same as Waiting for review.
      Waiting for review it did the work and wrote back. His column to empty, not
                         to fill — so it takes no drops and draws dashed.
      Done               he accepts what it did.
@@ -32,9 +37,10 @@
 const runBodies = {};
 let runList = [];
 
-const RUN_COL = { backlog:'backlog', todo:'todo', review:'review', done:'done' };
+const RUN_COL = { backlog:'backlog', todo:'todo', doing:'doing', review:'review', done:'done' };
 function runColumn(r){
-  if (r.state === 'ready' || r.state === 'doing') return RUN_COL.todo;
+  if (r.state === 'ready') return RUN_COL.todo;
+  if (r.state === 'doing') return RUN_COL.doing;
   if (r.state === 'review') return RUN_COL.review;
   if (r.state === 'done') return RUN_COL.done;
   return RUN_COL.backlog;
@@ -248,6 +254,11 @@ function renderRunColumns(){
   renderRunColumn('#runTodo', RUN_COL.todo,
     'Nothing handed over. Drag one across, then run <code>/pa-do</code> in a session.',
     r => queueRun(r), true);
+  // No drop zone: which one is running is not his to choose, same reasoning
+  // renderPlanDoing() carries for Plans' own Doing column.
+  renderRunColumn('#runDoing', RUN_COL.doing,
+    'Nothing running right now.',
+    null, false);
   renderRunColumn('#runReview', RUN_COL.review,
     'Nothing waiting on you. The agent writes into this column when it has done something.',
     null, false);
@@ -259,13 +270,12 @@ function renderRunColumns(){
 async function renderExecutionView(){
   $('#lists').innerHTML =
     /* The same colHTML() the board and the Plans view draw their columns with,
-       and the same four words in the same order. Four rather than Plans' six:
-       this stream has no equivalent of Ready to be produced, because accepting
-       what the agent did is the end of the work rather than the start of
-       somebody else's. It sets --pcols so the row is four tracks wide at the
-       board's own 322 and 12, rather than keeping the narrower tracks of its
-       own it had until 12 Sep 2026. */
-    '<div class="lists pview eview" style="--pcols:4">' +
+       and the same five words in the same order Plans uses for its own first
+       five. Five rather than Plans' six: this stream has no equivalent of
+       Ready to be produced, because accepting what the agent did is the end
+       of the work rather than the start of somebody else's. It sets --pcols
+       so the row is five tracks wide at the board's own 322 and 12. */
+    '<div class="lists pview eview" style="--pcols:5">' +
       colHTML({
         heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
         desc: 'Everything you accepted on the Plans view. The agent leaves these alone.',
@@ -280,6 +290,13 @@ async function renderExecutionView(){
         count: '',
         attrs: 'id="runTodoCol"',
         body: '<div id="runTodo">Loading\u2026</div>'
+      }) +
+      colHTML({
+        heading: 'h3', title: 'Doing', cls: 'reportsview doingview',
+        desc: 'Currently running.',
+        count: '',
+        attrs: 'id="runDoingCol"',
+        body: '<div id="runDoing">Loading\u2026</div>'
       }) +
       colHTML({
         heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed', style: 'agent',

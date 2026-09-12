@@ -127,12 +127,13 @@ check('the Execution tab is offered, next to Plans', await evalJS(`
 await evalJS(`(async () => { state.view = 'execution'; await renderExecutionView(); return 1; })()`)
 await new Promise(r => setTimeout(r, 500))
 
-// The same four words as the board and the Plans view, in the same order. That
-// parallel is the point of the whole thing.
-check('Backlog, To do, Waiting for review and Done read left to right', await evalJS(`
+// The same five words as the board and the Plans view use for their own
+// first five, in the same order. That parallel is the point of the whole
+// thing.
+check('Backlog, To do, Doing, Waiting for review and Done read left to right', await evalJS(`
   [...document.querySelectorAll('.lists.eview .col')]
     .map(c => c.querySelector('.colhead h3').textContent).join(' | ')
-`) === 'Backlog | To do | Waiting for review | Done')
+`) === 'Backlog | To do | Doing | Waiting for review | Done')
 /* The same column as the board's and the Plans view's, drawn by the same
    colHTML(). Its description is in the head rather than the body, which is
    what says a sentence describing a column governs the column. */
@@ -275,6 +276,17 @@ check('Waiting for review takes no drop', await evalJS(`(() => {
   row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
   const ev = new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true });
   document.querySelector('#runReview').dispatchEvent(ev);
+  row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles:true }));
+  return !ev.defaultPrevented;
+})()`))
+// Same reasoning as Waiting for review: which run is running is not his to
+// choose, so Doing is drawn but takes no drop either.
+check('Doing takes no drop', await evalJS(`(() => {
+  const row = document.querySelector('#runBacklog .planitem');
+  const dt = new DataTransfer();
+  row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
+  const ev = new DragEvent('dragover', { dataTransfer: dt, bubbles:true, cancelable:true });
+  document.querySelector('#runDoing').dispatchEvent(ev);
   row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles:true }));
   return !ev.defaultPrevented;
 })()`))

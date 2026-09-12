@@ -619,15 +619,19 @@ they settled is written up in the README rather than left here:
   which the agent could append to with Write alone. The middle one looks right
   and the choice is his.
 
-- **Nothing moves a run to `doing`, so the Execution view cannot show one in
-  flight.** The smaller half of the entry above, and it survives whichever fix
-  that one takes. `runColumn()` (`kanban/js/27-execution.js`) folds `doing` in
-  with `ready` and the view draws four columns for the five states
-  `agents/implementing_agent/stream.json` declares. The Plans view got its own
-  Doing column on 12 Sep 2026 for exactly this reason — a run in flight and a
-  queue waiting to run are two different answers — and Execution did not,
-  because nothing was writing `doing` for it to draw. Five columns, and
-  `runColumn()` stops folding.
+- ~~**Nothing moves a run to `doing`, so the Execution view cannot show one in
+  flight.**~~ **Done, 13 Sep 2026.** `runColumn()` (`kanban/js/27-execution.js`)
+  stopped folding `doing` into `ready`, and the view now draws five columns —
+  Backlog, To do, Doing, Waiting for review, Done — matching the five states
+  `agents/implementing_agent/stream.json` declares. Doing takes no drop, on
+  the same reasoning `renderPlanDoing()` already carries for Plans' own Doing
+  column: which run is running is not his to choose. `kanban/test_execution.mjs`
+  covers both the column order and the no-drop guard.
+
+  This is still only the smaller half. The entry above (finished vs dead —
+  who is allowed to write `doing` and `review` in the first place) is
+  unresolved, so no run will actually reach this column until that is
+  decided; the column is built so it is ready the moment something does.
 
 - **A plan he does not want has nowhere to go but back to the planning agent.**
   `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept
