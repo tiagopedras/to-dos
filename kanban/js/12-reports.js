@@ -824,11 +824,12 @@ function reportDateRange(){
 
 /* A row of buttons rather than a dropdown: this governs every report on the
    tab, so the seven windows it offers are worth reading at a glance instead of
-   being one click away behind the one currently chosen. */
+   being one click away behind the one currently chosen. The shared `.tabs`
+   object, at its small size, rather than a segmented control of its own —
+   see IMPROVEMENTS.md for why this was the last one still separate. */
 function reportWindowSegHTML(){
-  return '<span class="repwindow-seg" id="reportWindow" role="group" aria-label="How far back to count">' +
-    REPORT_WINDOWS.map(w => '<button type="button" data-window="' + w.id + '"' +
-      (w.id === reportWindow ? ' class="on"' : '') +
+  return '<span class="tabs small" id="reportWindow" role="group" aria-label="How far back to count">' +
+    REPORT_WINDOWS.map(w => '<button type="button" class="tab' + (w.id === reportWindow ? ' on' : '') + '" data-window="' + w.id + '"' +
       ' aria-pressed="' + (w.id === reportWindow) + '" title="' + esc(w.label) + '">' +
       esc(w.short) + '</button>').join('') +
   '</span>';

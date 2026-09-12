@@ -39,20 +39,19 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `agents/pa_agent/pa-skills.svg:66` and the assertion in
   `kanban/test_execution.mjs:187`.
 
-- **The Reports window picker is the last segmented control that is not the
-  shared tab.** `.repwindow-seg` (`kanban/board.css:917`) draws its own pill and
-  its own buttons — `padding:3px 9px`, `font-size:12.5px`, its own `.on` state
-  — and `repWindowHTML()` (`kanban/js/12-reports.js`) emits them. It is the same
-  object as `.tabs` holding N `.tab`s, at the smaller of the two sizes the Figma
-  `Tab` component has: 12px, padding 4/9. Folding it in means emitting
-  `<div class="tabs small">` with `.tab` / `.tab.on` children and deleting the
-  three `.repwindow-seg` rules. The reason it was left is that nothing else
-  wanted a small tab once the Plans filter chips became a header dropdown
-  (`.colfilter`), so a `.tabs.small` rule added for this alone would have been
-  the only caller — see the note where that rule was removed from board.css.
-  It moved into the column header's Filters slot on 12 Sep 2026 when every
-  column in the app became a `colHTML()` one, which changes where it sits and
-  not what it is made of, so this stands.
+- ~~**The Reports window picker is the last segmented control that is not the
+  shared tab.**~~ **Done, 13 Sep 2026.** `reportWindowSegHTML()`
+  (`kanban/js/12-reports.js`) now emits `<span class="tabs small">` with
+  `.tab`/`.tab.on` children, and `.repwindow-seg` and its three rules are gone
+  from `board.css` — replaced by `.tabs.small` (`flex-wrap:wrap`, so it still
+  wraps rather than pushing the date range off the edge) and `.tabs.small .tab`
+  at the smaller of the Figma Tab component's two sizes: 12px, padding 4/9.
+  Wiring was untouched — `#reportWindow` and `button[data-window]` didn't care
+  which class drew them. `node kanban/test_execution.mjs`,
+  `test_plans.mjs`, `test_schedule.mjs`, `test_chats.mjs`, `test_projects.mjs`
+  and `test_notes.mjs` all still green (270 checks), plus a throwaway headless
+  check that the picker renders as `.tabs.small` with seven `.tab`s and still
+  switches and re-renders on click.
 
 - **`.aic-addsub` is the one small button still outside `.btn`.** The five that
   were folded into `.btn.outline.small` and `.btn.dashed.small` on 12 Sep 2026
