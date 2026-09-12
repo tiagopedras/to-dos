@@ -22,18 +22,21 @@
    90 is a quarter, close enough for the question a quarterly review actually
    asks. "This week" is the calendar week — Monday to today, not a rolling
    seven days — because that is the question Monday standup answers. */
+/* `short` is what the row of buttons shows and `label` is its title: seven
+   full labels do not fit beside the date range on a half-width card, and the
+   range printed next to them says in full what the short one means. */
 const REPORT_WINDOWS = [
-  { id:'week', label:'This week' },
-  { id:'7',    label:'Past 7 days',  days:7 },
-  { id:'15',   label:'Past 15 days', days:15 },
-  { id:'30',   label:'Past 30 days', days:30 },
-  { id:'60',   label:'Past 60 days', days:60 },
-  { id:'90',   label:'Past 90 days', days:90 },
+  { id:'week', label:'This week',    short:'Week' },
+  { id:'7',    label:'Past 7 days',  short:'7d',  days:7 },
+  { id:'15',   label:'Past 15 days', short:'15d', days:15 },
+  { id:'30',   label:'Past 30 days', short:'30d', days:30 },
+  { id:'60',   label:'Past 60 days', short:'60d', days:60 },
+  { id:'90',   label:'Past 90 days', short:'90d', days:90 },
   /* No window at all: everything the file and the archive between them still
      remember. Last in the list because it is the one that stops answering "how
      am I doing lately" and starts answering "how much is there", which is a
      different question and a slower one — it always reads the archive. */
-  { id:'all',  label:'All' }
+  { id:'all',  label:'All',          short:'All' }
 ];
 const REPORT_WINDOW_KEY = 'todo-board-report-window';
 function readReportWindow(){
@@ -298,10 +301,10 @@ function completedByCategoryReport(){
    in the order the work happened. So: one flat list, newest first, with the
    bucket as a chip on each row rather than as the grouping.
 
-   It folds, and starts open. A month of finished work is long enough to push
-   the report under it off the screen, so there has to be a way to put it away;
-   starting closed would undo the point of it, which is that the list is there
-   to be read without opening anything.
+   It folds, and starts closed. A month of finished work runs long enough to
+   push the report under it off the screen, and this tab is read for the counts
+   above far more often than for the list itself — so the summary carries the
+   number and the list opens on a click when that number needs explaining.
 
    No second walk of the document and no second fetch. completedRecently() has
    already merged the live file with the archive and sorted the result newest
@@ -313,7 +316,7 @@ function recentAccomplishmentsReport(){
     '<p class="help listlead">Everything ticked off ' + reportWindowPhrase() +
       ', newest first — the same tasks counted above, flat and in one place.</p>' +
     (n
-      ? '<details class="whole" open>' +
+      ? '<details class="whole">' +
           '<summary>' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
           '<ul class="done flat">' +
             list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +
@@ -766,8 +769,8 @@ function renderReportsView(){
     '<div class="lists rview">' +
       '<div class="listcard reportsview"><h3>Tasks finished</h3>' +
         '<div id="countedLead"></div>' +
-        '<label class="repwindow">Show ' + reportWindowSelectHTML() +
-          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></label>' +
+        '<div class="repwindow">Show ' + reportWindowSegHTML() +
+          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></div>' +
         '<div id="countedOut"></div>' +
       '</div>' +
       '<div class="listcard reportsview written"><h3>Written reports</h3>' +
@@ -777,11 +780,19 @@ function renderReportsView(){
       '</div>' +
     '</div>';
   renderCountedReports();
-  $('#reportWindow').onchange = e => {
-    if (setReportWindow(e.target.value)) {
-      renderCountedReports();
-      $('#repDates').textContent = reportDateRange();
-    }
+  // One handler on the row rather than one per button, and it repaints only
+  // the pressed state — redrawing the row itself here would throw away the
+  // element the click is still travelling through.
+  $('#reportWindow').onclick = e => {
+    const btn = e.target.closest('button[data-window]');
+    if (!btn || !setReportWindow(btn.dataset.window)) return;
+    $('#reportWindow').querySelectorAll('button[data-window]').forEach(b => {
+      const on = b.dataset.window === reportWindow;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    renderCountedReports();
+    $('#repDates').textContent = reportDateRange();
   };
   renderWrittenReports();
 }
@@ -795,11 +806,16 @@ function reportDateRange(){
   return reportDay(ymd(reportWindowStart())) + '–' + reportDay(ymd(today()));
 }
 
-function reportWindowSelectHTML(){
-  return '<select id="reportWindow" title="How far back to count">' +
-    REPORT_WINDOWS.map(w => '<option value="' + w.id + '"' + (w.id === reportWindow ? ' selected' : '') + '>' +
-      esc(w.label) + '</option>').join('') +
-  '</select>';
+/* A row of buttons rather than a dropdown: this governs every report on the
+   tab, so the seven windows it offers are worth reading at a glance instead of
+   being one click away behind the one currently chosen. */
+function reportWindowSegHTML(){
+  return '<span class="repwindow-seg" id="reportWindow" role="group" aria-label="How far back to count">' +
+    REPORT_WINDOWS.map(w => '<button type="button" data-window="' + w.id + '"' +
+      (w.id === reportWindow ? ' class="on"' : '') +
+      ' aria-pressed="' + (w.id === reportWindow) + '" title="' + esc(w.label) + '">' +
+      esc(w.short) + '</button>').join('') +
+  '</span>';
 }
 // Its own render path rather than folded into renderReportsView, so changing
 // the window redraws only the counted card — not the written one beside it,

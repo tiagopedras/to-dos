@@ -18,6 +18,7 @@ import { app, BrowserWindow, ipcMain, Menu, Notification, Tray, clipboard, nativ
 import type { Digest, Snapshot } from '../shared/types.js'
 import { runDigest } from './digest.js'
 import { planListing } from './plans.js'
+import { readNightRun } from './night.js'
 import { drainQueue } from './notifyQueue.js'
 import { readState, writeState, type CompanionState } from './state.js'
 import { readBucketColors } from './buckets.js'
@@ -181,6 +182,7 @@ async function refresh(): Promise<void> {
   snapshot = {
     digest,
     plans,
+    night: readNightRun(ROOT, DATASET),
     statusLine: statusLine(digest, now),
     bucketColors: readBucketColors(ROOT, DATASET)
   }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { MessageRef, PlanRef, Snapshot, TaskRef } from '../../shared/types.js'
+import type { MessageRef, NightRun, PlanRef, Snapshot, TaskRef } from '../../shared/types.js'
 
 type SectionKey = 'plans' | 'overdue' | 'today' | 'messages'
 
@@ -29,6 +29,33 @@ function dayHeading(): string {
 function dueLabel(iso: string): string {
   const date = new Date(iso + 'T00:00:00')
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(date)
+}
+
+/* A night folder is named for its own day, but nothing enforces that, so a
+   name that is not a date is shown as it is rather than as "Invalid Date". */
+function nightLabel(night: string): string {
+  const date = new Date(night + 'T00:00:00')
+  return Number.isNaN(date.getTime()) ? night : dueLabel(night)
+}
+
+/* What the night agent did, in one line. This sits on the home screen rather
+   than inside the plans section because the section card for an empty section
+   cannot be opened — and a night that ran and planned nothing, a night that
+   never woke up, and a night that died halfway are all an empty section. */
+function nightSummary(run: NightRun): string {
+  const when = nightLabel(run.night)
+  if (!run.recorded) return `${when} — the night left no record, so it did not finish`
+  const did: string[] = []
+  if (run.planned) did.push(`${run.planned} planned`)
+  if (run.folded) did.push(`${run.folded} needing a decision`)
+  if (run.skipped) did.push(`${run.skipped} skipped`)
+  return [
+    `${when} — ${did.length ? did.join(', ') : 'nothing to plan'}`,
+    run.cost ? `$${run.cost.toFixed(2)}` : '',
+    run.stopped ? 'cut short' : ''
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /* A card, the board's shape: bucket name along the top, title under it,
@@ -288,6 +315,17 @@ export default function App(): React.JSX.Element {
               title={digest.headline.title}
               onClick={() => window.companion.openBoard(digest.headline?.task)}
             />
+          )}
+
+          {snapshot.night && (
+            // The reason it broke off is the run's own sentence, and too long
+            // for the line, so it goes where hovering finds it.
+            <div
+              className={`nightline${snapshot.night.recorded ? '' : ' unfinished'}`}
+              title={snapshot.night.stopped ?? undefined}
+            >
+              {nightSummary(snapshot.night)}
+            </div>
           )}
 
           <div className="cards">

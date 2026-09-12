@@ -89,6 +89,10 @@
     background:var(--panel); border:1px solid var(--line); border-radius:9px;
     box-shadow:var(--shadow);
   }
+  /* A panel hanging off a button at the right-hand end of the header runs off
+     the window before it runs out of items, so it hangs from its own right
+     edge instead. The button it belongs to stays where it is either way. */
+  .dropdown-panel.alignright{left:auto; right:0}
   .dropdown-item{
     display:block; width:100%; text-align:left; border:none; background:none;
     color:var(--ink); border-radius:6px; padding:7px 9px; font-size:13px; font-weight:520;
@@ -133,6 +137,21 @@
   .tab.on{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
   .tab.on .dot{opacity:1}
   .tab.on .n{background:var(--chip); color:var(--ink-soft)}
+  /* The grouped view tab — Board, Matrix, Timeline. Two buttons, one pill: the
+     name switches to the view it names, the chevron opens the panel. The pill
+     itself lives on the wrapper so the seam between the two halves is a hairline
+     rather than two adjacent borders, and the halves stay transparent. */
+  .viewgroup{gap:0; border:1px solid transparent; border-radius:7px}
+  .viewgroup.on{
+    background:var(--panel); border-color:var(--line);
+    box-shadow:0 1px 2px rgba(16,20,28,.07);
+  }
+  .viewgroup .tab{border:none; background:none; box-shadow:none; border-radius:6px}
+  .viewname{padding-right:7px}
+  .viewchev{padding-left:6px; padding-right:8px; font-size:11px}
+  .viewgroup.on .viewchev{border-left:1px solid var(--line-soft); border-radius:0 6px 6px 0}
+  .viewgroup .tab:hover{background:var(--line-soft)}
+
   /* No colour dot: All is not one of the buckets, it is all of them. */
   .taball{font-weight:640}
   /* The status filter dropdown — same button-plus-popover shape as the
@@ -797,12 +816,26 @@
   /* Sits above the counted report rather than inside it, since it governs
      every report in reportDefs(), not just the one built today. */
   .repwindow{
-    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
+    display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px; color:var(--ink-soft); margin:20px 0 8px;
   }
-  .repwindow select{
-    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
+  /* Seven windows shown at once instead of a <select> showing one. Same
+     pressed shape as the bucket tabs, sized down, because it is the same kind
+     of control. It wraps rather than overflowing: seven buttons plus the date
+     range are close enough to the width of a half-width card that a narrow
+     window would otherwise push the range off the edge. */
+  .repwindow-seg{
+    display:inline-flex; flex-wrap:wrap; gap:2px; padding:2px; background:var(--chip); border-radius:8px;
   }
-  /* The range the dropdown resolves to, stated once beside it rather than
+  .repwindow-seg button{
+    border:1px solid transparent; background:transparent; border-radius:6px;
+    padding:3px 9px; font-size:12.5px; font-weight:560; color:var(--ink-soft); white-space:nowrap;
+  }
+  .repwindow-seg button:hover{color:var(--ink)}
+  .repwindow-seg button.on{
+    background:var(--panel); color:var(--ink); border-color:var(--line);
+    box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640;
+  }
+  /* The range the picker resolves to, stated once beside it rather than
      repeated as its own heading further down. */
   .repwindow .repdates{color:var(--ink-faint)}
   /* Same shape as .repwindow above, for the same reason: it governs every
@@ -998,36 +1031,38 @@
   /* ---------- plans ----------
      Read left to right as the life of one task through the nightly agent:
      what is excluded, what is queued or being worked on, what came back to be
-     read, what has been ruled on, and what any of it costs. Narrower than the
+     read, and what has been ruled on. Narrower than the
      two-column views because all of them have to fit, and scrolling sideways
      is what a board does anyway. */
-  /* Five tracks. Queue and Doing used to be separate cards and are one now
-     (see .queueview below), and the clock card stacks under Token Session
-     instead of taking a track of its own — see .pvcol. The fifth is Decided,
-     split out of the old Done column: that one card held plans waiting to be
-     read alongside plans already agreed or actioned, which are two different
-     questions and now two columns. */
+  /* Four tracks, the same four as the board. Queue and Doing used to be
+     separate cards and are one now (see .queueview below), and Token Session
+     and the clock card had a fifth track between them until 12 Sep 2026 —
+     both are reference rather than decision, so they moved into a modal
+     (openRefCards) and the min-width came down by a card and a gap. The fourth
+     is Decided, split out of the old Done column: that one card held plans
+     waiting to be read alongside plans already agreed or actioned, which are
+     two different questions and now two columns. */
   .lists.pview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:repeat(4, minmax(330px,1fr)) minmax(320px,420px);
-    min-width:1796px;
+    grid-template-columns:repeat(4, minmax(330px,1fr));
+    min-width:1362px;
   }
   .lists.pview .listcard{margin:0}
-  /* Execution is the same four columns and none of the reference cards beside
-     them — there is no queue to order, no window to spend and no clock, since
-     nothing on this board runs on one. So four equal tracks rather than four
-     plus a sidebar, and it fits a normal window without scrolling sideways. */
+  /* Execution keeps narrower tracks than Plans does: its cards carry a run
+     each rather than a queue with positions and reasons on every row, so they
+     read at a width Plans' To do column would crowd at. */
   .lists.pview.eview{
     grid-template-columns:repeat(4, minmax(300px,1fr));
     min-width:1280px;
   }
-  /* Token Session and "What runs on a clock" share a track, stacked, rather
-     than each getting one — the clock card is rarely worth a glance, so it
-     reads as an appendix under the chart instead of competing with it for
-     width. A plain flex column: grid's own auto-placement would start a new
-     row across every track, not just this one, if these were direct grid
-     children instead of wrapped together. */
+  /* The two reference cards, stacked inside the modal — the clock card reads
+     as an appendix under the chart rather than competing with it for width,
+     which is the order they were in when they shared a track on the view. */
   .pvcol{display:flex; flex-direction:column; gap:14px; min-width:0}
+  /* No shadow and no bottom margin on them in there: .listcard is drawn to sit
+     on the page background, and the sheet it is in is already a panel with a
+     border of its own. */
+  .sheet .pvcol .listcard{margin:0; box-shadow:none}
   /* A boxed empty state — dashed border, var(--bg) fill — rather than the
      plain grey text every other list view falls back to. Scoped to Plans
      specifically: .reportsview .empty is shared with the Reports view,
@@ -1042,10 +1077,12 @@
      being silently refused, which is what run.sh actually does. A sibling of
      the h3 rather than inside it, so the heading's own text stays just its
      own text — it swaps between "Queue" and "Doing", and a button word
-     glued onto that would swap with it. */
-  .queueview .cardhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px}
-  .queueview .cardhead h3{margin:0}
-  .qrun{flex:none}
+     glued onto that would swap with it. The Backlog card beside it has the
+     same head now, holding the button that opens the two reference cards, so
+     the rule is scoped to the view rather than to the one card. */
+  .pview .cardhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px}
+  .pview .cardhead h3{margin:0}
+  .pview .cardhead .btn{flex:none}
 
   /* The queue and the Backlog beside it share this card — a card here is a
      proposal about tonight (or about not-tonight), so it is lighter than a

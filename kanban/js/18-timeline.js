@@ -700,6 +700,70 @@ function capMsgCards(){
   });
 }
 
+/* The tab strip. Most defs draw one tab each; the ones carrying a `group`
+   (11-canvas.js) draw a single tab naming one of them, with a chevron opening a
+   panel of the rest. The panel is built the way the header's Data menu is — same
+   .dropdown-panel, same three ways out: pick an item, click elsewhere, Escape.
+
+   The tab is two buttons rather than one, drawn as a single pill by .viewgroup.
+   The name switches straight to the view it names, the chevron opens the panel.
+   With one target for both, coming back to the timeline you were reading ten
+   minutes ago meant opening a menu to pick the thing the tab was already
+   saying — which is the two-click trip the remembered name exists to remove. */
+const groupPicks = {};   // group -> which member the collapsed tab is named after
+
+function renderViewTabs(defs){
+  const drawn = new Set();
+  const tab = (d, attrs) => '<button class="tab' + (d.id === state.view ? ' on' : '') + '" ' +
+    attrs + '>' + esc(d.label) + '</button>';
+
+  $('#viewToggle').innerHTML = defs.map(d => {
+    if (d.sep) return '<span class="tabsep"></span>';
+    if (!d.group) return tab(d, 'data-view="' + d.id + '"');
+    if (drawn.has(d.group)) return '';      // the group's first member already drew it
+    drawn.add(d.group);
+    const members = defs.filter(m => m.group === d.group);
+    const current = members.find(m => m.id === state.view);
+    // Off the group entirely — on Plans, on Reports — the tab keeps the name of
+    // the last member picked rather than falling back to the first, so a
+    // timeline left an hour ago is one click away rather than two.
+    if (current) groupPicks[d.group] = current.id;
+    const shown = members.find(m => m.id === groupPicks[d.group]) || members[0];
+    const on = current ? ' on' : '';
+    return '<span class="menugroup dropdown viewgroup' + on + '" id="viewMenu">' +
+      '<button class="tab viewname' + on + '" id="viewMenuBtn" data-view="' + shown.id + '">' +
+        esc(shown.label) + '</button>' +
+      '<button class="tab viewchev' + on + '" id="viewMenuChev" aria-haspopup="true" ' +
+              'aria-expanded="false" aria-label="Choose how to draw the tasks">▾</button>' +
+      '<div class="dropdown-panel hidden" id="viewMenuPanel" role="menu" aria-label="How to draw the tasks">' +
+        members.map(m => '<button class="dropdown-item" role="menuitem" data-view="' + m.id + '"' +
+          (m.id === state.view ? ' aria-current="true"' : '') + '>' + esc(m.label) + '</button>').join('') +
+      '</div>' +
+    '</span>';
+  }).join('');
+
+  // One selector for both, since a panel item and a tab mean the same thing.
+  // Picking one re-draws the strip, which is what closes the panel.
+  $('#viewToggle').querySelectorAll('[data-view]').forEach(b => {
+    b.onclick = () => { state.view = b.dataset.view; renderView(); };
+  });
+  const chev = $('#viewMenuChev');
+  if (chev) chev.onclick = () => {
+    chev.setAttribute('aria-expanded', String($('#viewMenuPanel').classList.toggle('hidden') === false));
+  };
+}
+
+function closeViewMenu(){
+  const panel = $('#viewMenuPanel');
+  if (!panel) return;      // the strip hasn't been drawn yet, or has no group in it
+  panel.classList.add('hidden');
+  $('#viewMenuChev').setAttribute('aria-expanded', 'false');
+}
+// On document rather than on the panel: both of these are about what happens
+// away from the menu, and the panel itself is replaced on every render.
+document.addEventListener('click', e => { if (!e.target.closest('#viewMenu')) closeViewMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewMenu(); });
+
 /* Two views: the board, and the hand-written summaries from the end of the file.
    The bucket tabs, the AI filter and search only make sense on the board. */
 function renderView(){
@@ -731,12 +795,7 @@ function renderView(){
   // return just below. state.view is finalised above this point, so whichever
   // branch runs next syncs the URL to the right value.
 
-  $('#viewToggle').innerHTML = defs.map(d => d.sep ? '<span class="tabsep"></span>' :
-    '<button class="tab' + (d.id === state.view ? ' on' : '') + '" data-view="' + d.id + '">' + esc(d.label) + '</button>'
-  ).join('');
-  $('#viewToggle').querySelectorAll('.tab').forEach(b => {
-    b.onclick = () => { state.view = b.dataset.view; renderView(); };
-  });
+  renderViewTabs(defs);
 
   const isCanvas = def.id === 'canvas';
   $('#board').classList.toggle('hidden', !isBoard);
@@ -855,10 +914,9 @@ function renderFilterBar(){
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
   $('#editBuckets').classList.toggle('hidden', across || state.locked);
-  // Columns are global, so this one has no reason to hide when the AI filter
-  // narrows the view across every bucket — only a backup preview, which
-  // cannot write anything, takes it away.
-  $('#editTiers').classList.toggle('hidden', state.locked);
+  // Edit columns is hidden on every view (see index.html), so nothing here
+  // toggles it — a toggle against state.locked would put it back on the first
+  // render of an unlocked board, which is the one thing this must not do.
   $('#allBuckets').classList.toggle('hidden', !across);
 }
 

@@ -145,9 +145,19 @@ check('Schedule is gone as a header button', await evalJS(`!document.getElementB
 await evalJS(`state.view = 'plans'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
 
+// Neither card is on the view any more: both are reference rather than
+// decision, so they sit behind the Backlog card's button and draw when it is
+// pressed. Everything below reads them inside that modal.
+check('neither card is drawn until the button is pressed', await evalJS(`
+  !document.querySelector('#schedOut') && !document.querySelector('#usageOut')
+`))
+await evalJS(`document.querySelector('#refCardsBtn').click()`)
+await new Promise(r => setTimeout(r, 700))
+
 check('the clock card is its own card, stacked under Token Session', await evalJS(`
   (() => { const card = document.querySelector('#schedOut').closest('.listcard');
     return card && card.parentElement.classList.contains('pvcol') &&
+      card.closest('.mscrim') &&
       card.querySelector('h3').textContent === 'What runs on a clock' &&
       card.previousElementSibling.querySelector('h3').textContent === 'Token Session' })()
 `))
@@ -170,7 +180,9 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
 // under its own "Status" heading), not the usage chart it used to sit on top
 // of — see renderStatus() in 14-schedule.js. It used to be a ride/open/stop
 // decision; the rule behind that went on 9 Sep 2026 and the line now reports
-// capacity rather than permission.
+// capacity rather than permission. It is on the view rather than in the modal,
+// which is why renderUsage() fetches whether its own chart is in the page or
+// not — the same call draws both.
 check('the window left leads the Queue/Doing card, under a Status heading', await evalJS(`
   document.querySelector('#queueDoingCard .fhead').textContent === 'Status' &&
   /^\\d\\d:\\d\\d$/.test(document.querySelector('#statusOut .udecide strong').textContent) &&
@@ -350,7 +362,9 @@ await new Promise(r => setTimeout(r, 300))
 
 // Leaving and coming back must work — Plans is a real tab in the registry now,
 // not a button toggling into a view outside it, but the same round trip is
-// still worth proving for the two cards that moved here.
+// still worth proving for the two cards that moved here, and a second opening
+// has to draw them as fully as the first.
+await evalJS(`closeModal()`)
 await evalJS(`state.view = 'board'; renderView()`)
 await new Promise(r => setTimeout(r, 300))
 check('leaving the tab clears the plans nav highlight', await evalJS(`
@@ -359,10 +373,13 @@ check('leaving the tab clears the plans nav highlight', await evalJS(`
 `))
 await evalJS(`state.view = 'plans'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
+await evalJS(`document.querySelector('#refCardsBtn').click()`)
+await new Promise(r => setTimeout(r, 700))
 check('and coming back redraws both cards', await evalJS(`
   document.querySelectorAll('#schedOut .schedjob').length === 3 &&
   !!document.querySelector('#usageOut .uchart')
 `))
+await evalJS(`closeModal()`)
 
 check('none of it wrote anything', await evalJS(`window.__blocked.length === 0`),
   await evalJS(`window.__blocked.join(', ') || 'no writes attempted'`))

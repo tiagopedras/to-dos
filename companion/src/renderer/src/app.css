@@ -177,6 +177,19 @@ main {
   padding: 2px 2px 0;
 }
 
+/* What the night did, over the section cards. Quiet as the rest of this size
+   of text, until the night did not finish — which is the one thing here he
+   would want to act on. */
+.nightline {
+  color: var(--ink-faint);
+  font-size: 12px;
+  padding: 0 2px 2px;
+}
+
+.nightline.unfinished {
+  color: var(--red);
+}
+
 /* ---------- the screen that slides in ---------- */
 
 /* Animated rather than transitioned, so it does not depend on a second

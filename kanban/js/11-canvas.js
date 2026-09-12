@@ -896,14 +896,20 @@ function contextSection(){
    sit together: the first proposes, the second carries out, and a card crosses
    from one to the other when he accepts a plan. Each reference section is
    generated from the tags on the tasks, so nothing here can name a task that is
-   not on the board. */
+   not on the board.
+
+   `group` marks the defs that share one tab: Board, Matrix and Timeline are the
+   same tasks under three renderers, and three peers between separators spent a
+   third of the strip on that. The registry stays flat — the ids, isKnownView(),
+   the #matrix and #timeline fragments and syncHash() all carry on unchanged, and
+   only renderViewTabs() (18-timeline.js) knows the three are offered as one. */
 function viewDefs(){
   const defs = [
     { id:'overview', label:'Overview' },
     { id:'sep0', sep:true },
-    { id:'board',    label:'Board' },
-    { id:'matrix',   label:'Matrix' },
-    { id:'timeline', label:'Timeline' },
+    { id:'board',    label:'Board',    group:'draw' },
+    { id:'matrix',   label:'Matrix',   group:'draw' },
+    { id:'timeline', label:'Timeline', group:'draw' },
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
     { id:'execution', label:'Execution' },

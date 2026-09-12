@@ -6,14 +6,14 @@
    Three things around this app run on a schedule rather than on demand: the
    night agent's twelve launchd wakes, the companion's morning briefing,
    and the weekly backup thread inside this server. Used to be a view of its
-   own; both halves now live on the Plans tab instead, since that is where
-   the question "would it even run tonight" actually comes up —
-   renderSched() draws the jobs into their own card, stacked under Token
-   Session (rarely worth a glance, so it sits below the chart rather than
-   beside it), and renderUsage() draws the token chart itself. Nothing here
-   holds a view id or a route any more, just the render functions Plans
-   calls — renderUsage() also feeds the Status line on the Queue/Doing card,
-   see renderStatus() below.
+   own; both halves now live behind one button on the Plans tab instead, since
+   that is where the question "would it even run tonight" comes up, and neither
+   half is worth a column of that view to answer it — renderSched() draws the
+   jobs into their own card and renderUsage() draws the token chart, both inside
+   the modal openRefCards() opens. Nothing here holds a view id or a route any
+   more, just the render functions Plans calls — renderUsage() also feeds the
+   Status line on the Queue/Doing card, which is on the view itself whether the
+   modal is open or not, see renderStatus() below.
 
    A list rather than a calendar, deliberately. Twelve wakes a night render as
    noise on a grid and as one line in a list.
@@ -266,10 +266,14 @@ function renderStatus(u){
 
 async function renderUsage(){
   const out = $('#usageOut');
-  if (!out) return;
   try {
     const u = await getJSON('/usage.json?days=' + usageDays);
     renderStatus(u);
+    /* The chart lives in a modal off Plans and is absent most of the time; the
+       Status line above it is not. So the fetch happens either way and only the
+       drawing is skipped — a guard at the top of this function would take the
+       status line down with the chart. */
+    if (!out) return;
     if (!u.available) {
       out.innerHTML = '<div class="empty">No <code>core/windows.py</code> in this checkout, ' +
         'so there is nothing to read the usage windows with.</div>';
@@ -315,14 +319,13 @@ async function renderUsage(){
       };
     });
   } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the usage windows. ' +
+    if (out) out.innerHTML = '<div class="err">Could not read the usage windows. ' +
       esc(String(err.message || err)) + '</div>';
   }
 }
 
-/* The jobs half only — Plans supplies its own card and calls renderUsage()
-   itself for the other half, on its own schedule (after the plan list, same
-   as this used to defer to it). */
+/* The jobs half only — the modal supplies both cards and calls renderUsage()
+   itself for the other half. */
 async function renderSched(){
   const out = $('#schedOut');
   if (!out) return;
