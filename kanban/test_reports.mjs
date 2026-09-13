@@ -193,15 +193,6 @@ check('only what finished inside the window is counted', await evalJS(`
 `) === 'Never dated|Recent large|Recent small', await evalJS(`
   completedRecently().map(it => it.title).sort().join("|")`))
 
-/* Nought, and it cannot be anything else: stampDoneDates() runs on every load
-   and setDone() always writes a date, so nothing ever reaches this function
-   undated. The caveat it feeds in countedLeadHTML() is therefore unreachable —
-   recorded in IMPROVEMENTS.md rather than changed here, since this suite is
-   meant to pin what the view does rather than to fix it. */
-check('and nothing is left for the undated-work caveat to report', await evalJS(`
-  undatedDoneCount()
-`) === 0, await evalJS(`undatedDoneCount()`))
-
 /* Effort points rather than a count, which is the whole reason the column
    exists: two S and one L is 1 + 1 + 3 = 5 points across 3 tasks, and the two
    numbers being different is the point. */

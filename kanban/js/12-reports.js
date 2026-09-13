@@ -177,18 +177,6 @@ function completedRecently(){
   return out.sort((x, y) => x.age - y.age);
 }
 
-/* Ticked but undated. These are real finished work that the count cannot claim,
-   because without a date there is no way to say which month it belongs to — so
-   they are reported as a gap rather than folded in or ignored. */
-function undatedDoneCount(){
-  let n = 0;
-  if (!state.doc) return n;
-  state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
-    if (t.done && !t.doneOn) n++;
-  })));
-  return n;
-}
-
 /* One finished task as a row: the date it was ticked, its title, and a chip on
    the right saying where it sits. Both reports that list tasks rather than
    count them draw their rows through here, so the live-versus-archived branch
@@ -333,7 +321,6 @@ function recentAccomplishmentsReport(){
    it is true of the reports under it too, not just the first one — they all
    read the same `done:` dates and reach into the same archive. */
 function countedLeadHTML(){
-  const undated = undatedDoneCount();
   // Below 30 days this window sits inside the one archiving leaves alone, so the
   // count is a complete picture by construction. Past it, completeness depends
   // on the archive fetch above: still loading, failed, or in and merged.
@@ -355,8 +342,6 @@ function countedLeadHTML(){
     'a task is ticked, so anything ticked before that was added is invisible below.',
     archiveNote
   ];
-  if (undated) notes.unshift('<strong>' + undated + ' ticked task' + (undated === 1 ? ' has' : 's have') +
-    ' no date</strong>, so ' + (undated === 1 ? 'it is' : 'they are') + ' missing from every count below.');
   return notes.map(n => '<p class="help listlead">' + n + '</p>').join('');
 }
 
