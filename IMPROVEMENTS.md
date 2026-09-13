@@ -18,6 +18,27 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The counted reports carry a caveat about undated finished work that can
+  never appear.** `countedLeadHTML()` (`kanban/js/12-reports.js:336`) reads
+  `undatedDoneCount()` (`:188`), which counts tasks that are `done` with no
+  `doneOn`, so the lead note can say how much finished work the count cannot
+  place. Nothing can ever be in that state by the time it is asked.
+  `stampDoneDates()` (`kanban/js/04-tier-two-the-one-thing.js:80`) runs inside
+  `load()` (`kanban/js/20-loading-saving.js:13`) and stamps every undated done
+  task with today, on every load including a locked one; and `setDone()`
+  (`04-tier-two-the-one-thing.js:377`) is the only thing in the app that sets
+  `t.done`, and it always writes `doneOn` alongside. So the function returns
+  nought for the life of the tab, and the sentence it guards is unreachable.
+
+  Found 13 Sep 2026 while writing `kanban/test_reports.mjs`, which now asserts
+  the nought so the pair stay honest. It is a real question rather than a
+  deletion: the note was written when tasks ticked before the board dated them
+  still existed, and `stampDoneDates()` is what closed that gap — so either the
+  caveat goes, or it starts saying the thing that is actually true, which is how
+  many finished tasks are carrying a stamped-on-load date rather than the date
+  they were really finished. The second is more useful and costs a flag on the
+  task at stamping time; the first is two lines. Worth deciding which.
+
 - **`pa-do` is filed with the skills that read and write his to-do list, and it
   is the only one of them that makes work happen.** Its own SKILL.md says so —
   "This is the only skill in the set that causes work to happen rather than
