@@ -736,6 +736,44 @@ they settled is written up in the README rather than left here:
   rather than picked. It is the piece most worth doing whether or not the port
   ever happens, and the piece that makes the port's primitives cheap.
 
+  **The first two steps of that order are done, 13 Sep 2026**, on branch
+  `port/component-layer`, and one of them turned out to be half-impossible.
+
+  The round-trip fixture was mostly already built: `checkRoundTrip()` in
+  `core/test_todo.mjs` round-trips all 226 lines of `kanban/demo.md` byte for
+  byte, and `parse.json` already carried three whole-document cases both suites
+  read. What was actually missing was the Python half, and the round trip cannot
+  be built there at all — `todo.py` has no serialiser and `test_todo.mjs`'s own
+  header says it never will. So the honest version of this step is that Python
+  asserts the structure while JavaScript asserts the bytes, and what landed is
+  `demo.md` added to the shared `docs` table by reference rather than by copy: a
+  document now carries either its own `text` or a `file` naming a real document
+  in the repo. Python went from five tasks across three hand-written shapes to
+  all 33 in `demo.md`.
+
+  The token set landed as the two-layer shape this entry asked for — primitives
+  as ramps, semantics aliasing them per theme — with every one of the 31
+  semantics resolving to the value it already had, bar six. Those six are the
+  contrast bug named below, now fixed: `--accent` measured **3.61:1** on the
+  dark panel against a 4.5:1 floor, and it is used as `color:` 22 times and as a
+  border 9 more; `--agree` and `--reject` were 3.09 and 3.11. The dark theme now
+  reads a lighter step from each ramp, and all three clear AA along with their
+  `-ink` pairs.
+
+  Two things were deliberately left, both because they change how the board
+  looks rather than how it is built. The radius, spacing and type scales are
+  defined and nothing reads them — 4/5/6/7/8px split 69 radius declarations and
+  11 through 13.5px split 162 font-size ones, so collapsing them onto the scales
+  is a small change everywhere and belongs with the view rewrites rather than a
+  blind find-and-replace. And the ten bucket colours are named as a set but
+  still hand-picked, since generating them off one ramp repaints every bucket on
+  his board.
+
+  The next step is the leaf views, and it is the one that needs a word first:
+  the React and Vite scaffolding is where `To-Do Board.app` and `run.command`
+  stop working until they run a build, since both read `server.py` off disk and
+  bundle nothing today.
+
   One piece does not depend on any of the above and is worth doing first. The
   board guards a save with mtime and the conflict modal, both in the tab;
   `agents/planning_agent/plan.py` guards the same file with `file_hash()` before a

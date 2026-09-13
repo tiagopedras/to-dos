@@ -1,21 +1,117 @@
+  /* ================= tokens =================================================
+     Two layers, the shape the design system itself uses.
+
+     PRIMITIVES are the ramps: a name for a value and nothing else, no opinion
+     about where it is used. They do not change between themes — a ramp step is
+     the same colour whichever theme is on — and no rule outside this block
+     should ever read one directly.
+
+     SEMANTICS are what the board reads. Each one aliases a primitive and says
+     what the colour is *for*, and it is the alias that changes between light
+     and dark rather than the ramp underneath.
+
+     The point of the split is that a colour decision is made once, at the
+     semantic, rather than at each of the several hundred places that needs one.
+     Before this block existed `--accent` was the literal #2f6feb with no ramp
+     behind it, which is how it came to be missing from the dark theme for as
+     long as it was: there was nowhere for the second value to live.
+     ------------------------------------------------------------------------- */
+
   :root{
-    --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --ink-soft:#5d636e; --ink-faint:#8b919c;
-    --line:#e3e6ea; --line-soft:#eef0f3; --accent:#2f6feb; --accent-ink:#fff;
-    --red:#c8322f; --red-bg:#fdecec; --amber:#9a6100; --amber-bg:#fff4e0;
-    --green:#1f7a45; --green-bg:#e8f6ed; --chip:#f0f2f5;
-    --agree:#1f7a45; --agree-ink:#fff; --reject:#c8322f; --reject-ink:#fff;
-    --b1:#2f6feb; --b2:#c8710a; --b3:#7c4ddb; --b4:#1f8a5f; --b5:#b1306b; --b6:#0f7d93;
-    --b7:#8a5a2f; --b8:#4550c9; --b9:#c23b3b; --b10:#55606e;
+    /* ---- primitives: neutral ----
+       One ramp, both themes. The light theme reads from the top, the dark
+       theme from the bottom, which is why the steps are not evenly spaced —
+       they are the values the board already used, sorted and named. */
+    --n-0:#ffffff;   --n-25:#f6f7f9;  --n-50:#f0f2f5;  --n-75:#eef0f3;
+    --n-100:#e3e6ea; --n-300:#a5abb6; --n-400:#8b919c; --n-450:#7b818c;
+    --n-500:#5d636e; --n-700:#363c45; --n-750:#2c313a; --n-800:#262b33;
+    --n-850:#1c1f25; --n-900:#16181d; --n-950:#14161a;
+
+    /* ---- primitives: hues ----
+       Each ramp carries the step the light theme uses and a lighter step for
+       dark, because the dark panel needs a lighter colour to reach the same
+       contrast. The -400 steps were picked by measuring against --n-850
+       rather than by eye: each clears 4.5:1, which is the threshold that
+       matters because these are used as text far more often than as fills. */
+    --blue-300:#6aa0ff;  --blue-400:#4d83ef;  --blue-500:#2f6feb;
+    --green-300:#6fd398; --green-400:#2eb873; --green-500:#1f7a45;
+    --green-bg-light:#e8f6ed; --green-bg-dark:#16301f;
+    --red-300:#ff8a85;   --red-400:#d9625e;   --red-500:#c8322f;
+    --red-bg-light:#fdecec;   --red-bg-dark:#3a1f1f;
+    --amber-300:#f0b355; --amber-500:#9a6100;
+    --amber-bg-light:#fff4e0; --amber-bg-dark:#3a2c14;
+
+    /* ---- primitives: the bucket ramp ----
+       Ten hues, still hand-picked rather than generated off one ramp. Naming
+       them as a set is the half of that worth having now: it says they are one
+       family and shows the two themes side by side. Generating them properly
+       would change every bucket colour on the board, which is a visible change
+       and his to ask for. */
+    --bucket-1-light:#2f6feb;  --bucket-1-dark:#6aa0ff;
+    --bucket-2-light:#c8710a;  --bucket-2-dark:#e8a04a;
+    --bucket-3-light:#7c4ddb;  --bucket-3-dark:#a98cf0;
+    --bucket-4-light:#1f8a5f;  --bucket-4-dark:#57c78f;
+    --bucket-5-light:#b1306b;  --bucket-5-dark:#f28cb6;
+    --bucket-6-light:#0f7d93;  --bucket-6-dark:#5cc3d8;
+    --bucket-7-light:#8a5a2f;  --bucket-7-dark:#d1a06c;
+    --bucket-8-light:#4550c9;  --bucket-8-dark:#9aa3ff;
+    --bucket-9-light:#c23b3b;  --bucket-9-dark:#f28080;
+    --bucket-10-light:#55606e; --bucket-10-dark:#aab4c0;
+
+    /* ---- primitives: radius, space and type ----
+       The stylesheet carries 16 distinct border-radius values and 21 font
+       sizes, most of them a half-pixel apart from another — 4, 5, 6, 7 and 8px
+       split 69 radius declarations between them, and 11 through 13.5px split
+       162 font-size ones. These scales are what those collapse onto. Nothing
+       reads them yet: migrating the call sites changes how the board looks,
+       slightly, everywhere, so it belongs with the view rewrites rather than
+       in a blind find-and-replace. */
+    --r-xs:3px; --r-sm:5px; --r-md:7px; --r-lg:10px; --r-xl:13px;
+    --r-pill:999px; --r-circle:50%;
+
+    --sp-1:4px; --sp-2:6px; --sp-3:8px; --sp-4:10px; --sp-5:12px;
+    --sp-6:16px; --sp-7:20px; --sp-8:24px;
+
+    --t-2xs:10px; --t-xs:11.5px; --t-sm:12.5px; --t-md:13px;
+    --t-lg:14px; --t-xl:16px; --t-2xl:19px;
+
+    /* ---- semantics: light ---- */
+    --bg:var(--n-25); --panel:var(--n-0); --ink:var(--n-900);
+    --ink-soft:var(--n-500); --ink-faint:var(--n-400);
+    --line:var(--n-100); --line-soft:var(--n-75); --chip:var(--n-50);
+    --accent:var(--blue-500); --accent-ink:#fff;
+    --red:var(--red-500); --red-bg:var(--red-bg-light);
+    --amber:var(--amber-500); --amber-bg:var(--amber-bg-light);
+    --green:var(--green-500); --green-bg:var(--green-bg-light);
+    --agree:var(--green-500); --agree-ink:#fff;
+    --reject:var(--red-500); --reject-ink:#fff;
+    --b1:var(--bucket-1-light); --b2:var(--bucket-2-light); --b3:var(--bucket-3-light);
+    --b4:var(--bucket-4-light); --b5:var(--bucket-5-light); --b6:var(--bucket-6-light);
+    --b7:var(--bucket-7-light); --b8:var(--bucket-8-light); --b9:var(--bucket-9-light);
+    --b10:var(--bucket-10-light);
     --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
   }
+
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#14161a; --panel:#1c1f25; --ink:#e9ebee; --ink-soft:#a5abb6; --ink-faint:#7b818c;
-      --line:#363c45; --line-soft:#2c313a; --chip:#262b33;
-      --red:#ff8a85; --red-bg:#3a1f1f; --amber:#f0b355; --amber-bg:#3a2c14;
-      --green:#6fd398; --green-bg:#16301f;
-      --b1:#6aa0ff; --b2:#e8a04a; --b3:#a98cf0; --b4:#57c78f; --b5:#f28cb6; --b6:#5cc3d8;
-      --b7:#d1a06c; --b8:#9aa3ff; --b9:#f28080; --b10:#aab4c0;
+      --bg:var(--n-950); --panel:var(--n-850); --ink:#e9ebee;
+      --ink-soft:var(--n-300); --ink-faint:var(--n-450);
+      --line:var(--n-700); --line-soft:var(--n-750); --chip:var(--n-800);
+      /* The six below were missing from this block entirely until 13 Sep 2026,
+         so the light blue sat on the dark panel unchanged: --accent measured
+         3.61:1 against --panel where 4.5:1 is the floor for text, and it is
+         used as `color:` 22 times and as a border 9 more. --agree and --reject
+         were the same story at 3.09 and 3.11. The -400 steps fix all three. */
+      --accent:var(--blue-400); --accent-ink:var(--n-950);
+      --agree:var(--green-400); --agree-ink:var(--n-950);
+      --reject:var(--red-400); --reject-ink:var(--n-950);
+      --red:var(--red-300); --red-bg:var(--red-bg-dark);
+      --amber:var(--amber-300); --amber-bg:var(--amber-bg-dark);
+      --green:var(--green-300); --green-bg:var(--green-bg-dark);
+      --b1:var(--bucket-1-dark); --b2:var(--bucket-2-dark); --b3:var(--bucket-3-dark);
+      --b4:var(--bucket-4-dark); --b5:var(--bucket-5-dark); --b6:var(--bucket-6-dark);
+      --b7:var(--bucket-7-dark); --b8:var(--bucket-8-dark); --b9:var(--bucket-9-dark);
+      --b10:var(--bucket-10-dark);
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
     }
   }
