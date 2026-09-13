@@ -125,6 +125,29 @@ if [ "$DRY" -eq 0 ]; then
   trap 'rm -f "$PIDFILE" 2>/dev/null; rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
 fi
 
+# --- 3. the schedule's own budget and max_plans ------------------------------
+# The dashboard writes these into the schedule file; nothing before today read
+# them back out for a real run to use, so `budget` sat there as a number the
+# batch never actually spent against and `max_plans` did not exist at all.
+# Skipped for `--task`, which plans exactly one and has no batch loop for
+# either to stop. A caller who already passed --budget or --max-plans by hand
+# wins over the schedule rather than being overwritten by it.
+if [ "$MANUAL" -eq 0 ]; then
+  read -r SCHED_BUDGET SCHED_MAX <<< "$($PY -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+import schedule
+s = schedule.load()
+print(s["budget"], s["max_plans"])
+' "$HERE" 2>/dev/null)"
+  if [ -n "$SCHED_BUDGET" ] && [[ "${ARGS[*]+${ARGS[*]}}" != *"--budget"* ]]; then
+    ARGS+=(--budget "$SCHED_BUDGET")
+  fi
+  if [ -n "$SCHED_MAX" ] && [ "$SCHED_MAX" != "0" ] && [[ "${ARGS[*]+${ARGS[*]}}" != *"--max-plans"* ]]; then
+    ARGS+=(--max-plans "$SCHED_MAX")
+  fi
+fi
+
 # A child, not exec. `exec` replaces this shell, and a replaced shell never runs
 # its EXIT trap — so the lock above was held for the full two-hour staleness
 # window after every successful run, and every wake in between refused to do

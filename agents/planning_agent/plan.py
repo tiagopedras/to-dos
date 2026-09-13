@@ -902,6 +902,8 @@ def run(argv=None):
     ap.add_argument("--all", action="store_true", help="ignore the ledger")
     ap.add_argument("--task", default=None, help="plan exactly one, by title")
     ap.add_argument("--budget", type=float, default=PLANNING_AGENT_BUDGET)
+    ap.add_argument("--max-plans", type=int, default=0,
+                    help="stop after this many, on top of the budget; 0 is no cap of its own")
     args = ap.parse_args(argv)
 
     day = dt.date.today()
@@ -955,6 +957,11 @@ def run(argv=None):
         if spent >= args.budget:
             stopped = "Stopped with %d left: nightly budget of $%.2f reached." % (
                 len(plan) - len(written), args.budget)
+            log(stopped)
+            break
+        if args.max_plans and len(written) >= args.max_plans:
+            stopped = "Stopped with %d left: nightly max_plans of %d reached." % (
+                len(plan) - len(written), args.max_plans)
             log(stopped)
             break
 

@@ -32,6 +32,10 @@ DEFAULTS = {
     "on": True,
     "hours": list(ALLOWED),
     "budget": 6.00,
+    # How many plans a night stops at, on top of the budget and the floor.
+    # 0 means no cap of its own — the count that lands is whatever the budget
+    # buys, same as before this existed.
+    "max_plans": 0,
 }
 
 
@@ -65,6 +69,11 @@ def load():
     if "budget" in data:
         try:
             out["budget"] = float(data["budget"])
+        except (TypeError, ValueError):
+            pass
+    if "max_plans" in data:
+        try:
+            out["max_plans"] = max(0, int(data["max_plans"]))
         except (TypeError, ValueError):
             pass
     if isinstance(data.get("hours"), list):

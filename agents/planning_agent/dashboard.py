@@ -146,6 +146,9 @@ def target():
         "fields": [
             {"key": "budget", "label": "Budget, night", "type": "number",
              "value": s["budget"], "min": 0, "step": 0.5},
+            {"key": "max_plans", "label": "Plans a night, at most", "type": "number",
+             "value": s["max_plans"], "min": 0, "step": 1,
+             "headline": "0 means no cap beyond the budget"},
         ],
     }
     if plan is not None:
@@ -183,7 +186,8 @@ def state():
         "id": "planning-agent",
         "name": "to-dos planning agent",
         "blurb": "one log, in the dataset it plans against",
-        "summary": "$%.2f a night · plans only, nothing is ever executed" % s["budget"],
+        "summary": "$%.2f a night%s · plans only, nothing is ever executed" % (
+            s["budget"], (", %d plans at most" % s["max_plans"]) if s["max_plans"] else ""),
         "job": launchd(PLIST),
         # No `window`. The contract still carries the field, and nothing here
         # reports one any more: the usage window stopped being a gate on 9 Sep
@@ -234,6 +238,11 @@ def apply(body):
                 s["budget"] = float(value)
             except (TypeError, ValueError):
                 return {"ok": False, "error": "budget wants a number"}
+        elif key == "max_plans":
+            try:
+                s["max_plans"] = max(0, int(value))
+            except (TypeError, ValueError):
+                return {"ok": False, "error": "max_plans wants a whole number"}
         else:
             return {"ok": False, "error": "nothing here owns %r" % key}
     schedule.save(s)

@@ -1031,6 +1031,89 @@ def test_schedule():
         importlib.reload(sched)
 
 
+def test_max_plans():
+    """How many plans a night stops at, on top of the budget and the floor.
+
+    Three places had to agree: the schedule (default, clamp, round-trip), the
+    dashboard (the field the page draws and the setter it posts back to), and
+    plan.py's own batch loop, which needs a third stop condition beside the
+    budget and the floor. run.sh is what actually carries the schedule's value
+    down to a real run, checked here by reading the script rather than running
+    it — running it spends real money.
+    """
+    import importlib
+    import schedule as sched
+
+    check("0 is the default — no cap beyond the budget", sched.DEFAULTS["max_plans"], 0)
+
+    tmp = tempfile.mkdtemp()
+    real_path = sched.path
+    try:
+        path = os.path.join(tmp, "planning-agent-schedule.json")
+        sched.path = lambda: path
+
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"max_plans": 5}')
+        check("load() reads a set max_plans", sched.load()["max_plans"], 5)
+
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"max_plans": -3}')
+        check("load() clamps a negative one to 0 rather than carrying it through",
+              sched.load()["max_plans"], 0)
+
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"max_plans": "not a number"}')
+        check("load() falls back to the default on nonsense rather than raising",
+              sched.load()["max_plans"], 0)
+
+        os.unlink(path)
+        sched.save({"max_plans": 8})
+        check("save() then load() round-trips it", sched.load()["max_plans"], 8)
+    finally:
+        sched.path = real_path
+        shutil.rmtree(tmp, ignore_errors=True)
+        importlib.reload(sched)
+
+    import dashboard
+    real_path = dashboard.schedule.path
+    tmp = tempfile.mkdtemp()
+    try:
+        path = os.path.join(tmp, "planning-agent-schedule.json")
+        dashboard.schedule.path = lambda: path
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"max_plans": 4}')
+
+        fields = {f["key"]: f for f in dashboard.target()["fields"]}
+        check("the dashboard offers a max_plans field", "max_plans" in fields, True)
+        check("carrying the schedule's own value", fields["max_plans"]["value"], 4)
+        check("with 0 allowed, which is the no-cap sentinel", fields["max_plans"]["min"], 0)
+
+        result = dashboard.apply({"changes": {"max_plans": 12}})
+        check("apply() accepts a change to it", result.get("ok"), True)
+        check("and writes it back", dashboard.schedule.load()["max_plans"], 12)
+
+        bad = dashboard.apply({"changes": {"max_plans": "lots"}})
+        check("apply() refuses nonsense rather than writing it", bad.get("ok"), False)
+    finally:
+        dashboard.schedule.path = real_path
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # plan.py's own loop, and run.sh's half of carrying a schedule value there.
+    src = open(os.path.join(HERE, "plan.py"), encoding="utf-8").read()
+    check("plan.py takes --max-plans on the command line", "--max-plans" in src, True)
+    check("and stops the batch on it, beside the budget check",
+          "args.max_plans and len(written) >= args.max_plans" in src, True)
+
+    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
+    check("run.sh reads the schedule's max_plans", "schedule.load()" in sh and "max_plans" in sh, True)
+    check("and passes it to plan.py as --max-plans", "--max-plans" in sh, True)
+    # --task plans exactly one and has no batch loop for max_plans to stop, so
+    # the schedule-reading block is gated on MANUAL, the same flag --task sets.
+    sched_block = sh.split("# --- 3. the schedule's own budget", 1)[-1]
+    check("the schedule-reading block is skipped for a --task run",
+          'if [ "$MANUAL" -eq 0 ]; then' in sched_block, True)
+
+
 def test_runner_root():
     """ROOT in run.sh, pinned because getting it wrong killed the agent silently.
 
@@ -1121,6 +1204,7 @@ def test_carry_over():
 def main():
     test_windows()
     test_schedule()
+    test_max_plans()
     test_pick()
     test_order()
     test_rules()
