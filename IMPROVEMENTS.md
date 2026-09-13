@@ -40,14 +40,12 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   rule, `.card, .repitem, .chaincard` (`kanban/board.css:2017-2021`), sets
   `border-left:3px solid var(--bc,var(--line))` — one rule feeding all four
   card kinds since the 12 Sep 2026 unification the comment above it
-  describes. Bumping it to 4px is the one-line change, but the same comment
-  notes the padding was set against the old width: `padding:9px 10px 9px 9px`
-  pairs a 9px left inset with the 3px stripe to make "the component's 12"
-  against 10px on the right, deliberately asymmetric. Going to 4px without
-  touching padding pushes that to 13 and widens the gap the comment argues
-  for keeping close; dropping the left padding to 8px keeps the 12 the
-  argument is built on. `.card.nostripe, .repitem.nostripe` (`:2031`) sets
-  its own 1px width and 11px padding and is unaffected either way.
+  describes. It goes to 4px, and the left padding drops from 9px to 8px
+  alongside it, so the two together still read as the component's 12px
+  against 10px on the right — the same asymmetric pairing the comment already
+  argues for, just re-balanced against the wider stripe. `.card.nostripe,
+  .repitem.nostripe` (`:2031`) sets its own 1px width and 11px padding and is
+  unaffected either way.
 
 - ~~**The Completed total names its own window a second time, right next to the
   picker that already says it.**~~ **Done, 13 Sep 2026.** The `.totalw` span is
@@ -89,16 +87,11 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   task with today, on every load including a locked one; and `setDone()`
   (`04-tier-two-the-one-thing.js:377`) is the only thing in the app that sets
   `t.done`, and it always writes `doneOn` alongside. So the function returns
-  nought for the life of the tab, and the sentence it guards is unreachable.
-
-  Found 13 Sep 2026 while writing `kanban/test_reports.mjs`, which now asserts
-  the nought so the pair stay honest. It is a real question rather than a
-  deletion: the note was written when tasks ticked before the board dated them
-  still existed, and `stampDoneDates()` is what closed that gap — so either the
-  caveat goes, or it starts saying the thing that is actually true, which is how
-  many finished tasks are carrying a stamped-on-load date rather than the date
-  they were really finished. The second is more useful and costs a flag on the
-  task at stamping time; the first is two lines. Worth deciding which.
+  nought for the life of the tab, and the sentence it guards is unreachable —
+  written when tasks ticked before the board dated them still existed, and
+  `stampDoneDates()` is what closed that gap. `undatedDoneCount()` and the
+  sentence it guards come out; `kanban/test_reports.mjs`'s assertion of the
+  nought goes with them.
 
 - **`pa-do` is filed with the skills that read and write his to-do list, and it
   is the only one of them that makes work happen.** Its own SKILL.md says so —
@@ -559,32 +552,35 @@ they settled is written up in the README rather than left here:
   wrong for History. Nothing on the card says a revision number either, so a
   plan he sent back with a reason comes round again indistinguishable from one
   written tonight for the first time, and the only way to tell is to open the
-  file on disk. What is wanted is the thing that moved, visible without reading
-  the plan again: the revision on the card, and in the modal either the
-  previous revision's line or the difference between the two. Bound up with the
-  entry below on `write_plan()` minting a fresh file per revision — a diff
-  needs both revisions to still be findable, and today they are two files under
-  two nights with nothing linking them but the task.
+  file on disk.
+
+  What to build: the card shows how many revisions the plan has been through
+  and the date of each, read straight off `history()`'s own lines rather than
+  a new count. The modal drops only `Context` from `PLAN_UNSHOWN`, keeping
+  `History` visible as the previous revision's own line — a real diff between
+  two revisions is out of scope for now, since that needs both revisions still
+  findable as separate documents, which waits on the one-file-per-task rework
+  below.
 
 - **`implementing-agent` should run unattended on accepted plans, fenced the
-  way `improve_agent` already is.** The struck entry at the foot of this
-  section settled the opposite on 13 Sep 2026: being able to stop and ask is
-  what makes it safe to hold write tools, so it only ever runs from `pa-do`
-  (`agents/pa_agent/skills/pa-do/SKILL.md`) with him in the session
-  (`agents/implementing_agent/README.md:30`). That is what stalls the loop. Of
-  41 plans written, 5 are accepted and 2 produced, because accepting one still
-  costs him a sitting he does not have. `improve_agent` is the counter-example
-  and it runs every night: `run.sh` builds an `IMPROVEMENTS.md` entry onto
-  `improve/<date>`, runs that repo's tests, and never merges, never pushes,
-  never restarts a process, so a bad night costs a branch rather than the work
-  (`~/Code/improve_agent/README.md:8-11`). Applied here the fence is a named
-  project folder under `data/<dataset>/projects/`, a git branch for anything
-  written outside it, no merge, no push, and no write to `todo.md`, which the
-  agent is already forbidden. Figma is the one half with no equivalent: the
-  plugin API has no branch-creation call, so a plan touching Figma can only
-  run against a branch he has created and opened in the desktop app himself,
-  and that precondition has to be checked at the start of the run rather than
-  assumed.
+  way `improve_agent` already is.** Reverses the decision recorded in the
+  struck entry at the foot of this section, which settled on session-only
+  runs on 13 Sep 2026. Of 41 plans written, only 5 are accepted and 2
+  produced, because accepting one still costs a sitting that isn't happening
+  — session-only is what stalls the loop, and the fence is what replaces
+  "stop and ask" as the thing that makes it safe to hold write tools.
+
+  Build the same fence `improve_agent` already runs under: a named project
+  folder under `data/<dataset>/projects/` for the run's own output, a git
+  branch for anything written outside it, no merge, no push, and no write to
+  `todo.md` — already forbidden regardless. `run.sh`
+  (`~/Code/improve_agent/README.md:8-11`) is the model to copy: build onto a
+  branch, run the repo's tests, never restart a process, so a bad run costs a
+  branch rather than the work. Figma is the one half with no equivalent — the
+  plugin API has no branch-creation call — so a plan touching Figma can only
+  run against a branch he has already created and opened in the desktop app
+  himself, and that precondition needs checking at the start of the run
+  rather than assumed.
 
 - **Opening an accepted plan offers no way to start, or return to, the
   session actually carrying it out.** `openPlanModal()`
@@ -656,23 +652,30 @@ they settled is written up in the README rather than left here:
   `resolution: superseded` today is a manual board action, not the nightly
   run.
 
-  Genuinely one file per task rather than one per night is the fix Tiago
-  asked for, and it is bigger than the write path alone: `prune()`
-  (`plan.py:777`) walks `data/<dataset>/plans/<night>/` folders and deletes
-  whole nights past `KEEP_DAYS` unless a file's status matches `KEEP_STATUS`,
-  so a plan no longer filed by night needs its own place to live and its own
-  rule for how long a finished one is kept. `history()` (`plan.py:259`) and
-  `rejection()` (`:289`) both read the *previous* file to build the new one's
-  History section and carry forward a rejection's reason — if there is only
-  ever one file per task, that becomes an in-place rewrite that keeps its own
-  History section, rather than a chain of files each holding one revision.
-  The short-term version — write_plan() sets `state: done, resolution:
-  superseded` on the ledger's previous file before minting the new one — closes
-  the duplicate-card symptom without the storage change, if the two want
-  splitting into separate pieces of work.
+  Genuinely one file per task rather than one per night is the fix, built in
+  one piece rather than patched short-term first: `prune()` (`plan.py:777`)
+  walks `data/<dataset>/plans/<night>/` folders and deletes whole nights past
+  `KEEP_DAYS` unless a file's status matches `KEEP_STATUS`, so a plan no
+  longer filed by night needs its own place to live and its own rule for how
+  long a finished one is kept. `history()` (`plan.py:259`) and `rejection()`
+  (`:289`) both read the *previous* file to build the new one's History
+  section and carry forward a rejection's reason — with only ever one file
+  per task, that becomes an in-place rewrite that keeps its own History
+  section, rather than a chain of files each holding one revision.
 
-- **Every column on the Plans view is ordered one way — the priority of the
-  task the plan is about — and there is no control to ask for another.**
+- ~~**Every column on the Plans view is ordered one way — the priority of the
+  task the plan is about — and there is no control to ask for another.**~~
+  **Done, 13 Sep 2026.** Each of the four plan-only columns now carries a
+  `sort` prop, built by `plansSortBtn()` in `kanban/js/13-plans.js`, toggling
+  between priority (the default) and date written — `byNightWritten()` beside
+  `byTaskPriority()`, chosen per column by `orderPlans()`. Keyed by
+  `PLANS_SORT_KEY`, its own `localStorage` key rather than the board's
+  `state.sort`, exactly as this entry called for. `kanban/test_plans.mjs`
+  covers the toggle on Waiting for review; all 130 existing checks pass
+  unchanged, since priority stays the default.
+
+  Below is what the entry originally argued, kept for the reasoning:
+
   `byTaskPriority()` (`kanban/js/13-plans.js:541`) runs unconditionally inside
   `renderPlanReview()` (`:644`), `renderPlanDoing()` (`:669`),
   `renderPlanProduced()` (`:697`) and `renderPlanDone()` (`:735`), so a column
@@ -1259,8 +1262,11 @@ they settled is written up in the README rather than left here:
   button *does*, and pressing it is the only way left to ask. Nine mutations
   were run over the new wiring and every one of them fails a check.
 
-  Still the next real choice, unchanged by any of this: `12-reports.js`, or the
-  `18-timeline.js` composition.
+  Both of the remaining pieces are wanted, in either order: `12-reports.js`'s
+  shared markdown functions (`mdBlocks()`, `mdInline()`, the report builders)
+  becoming real components instead of `dangerouslySetInnerHTML` strings, and
+  the `18-timeline.js` composition that Matrix, Overview and the Timeline
+  hang off.
 
   **One piece did not depend on any of the above, and it is done, 13 Sep
   2026** — though most of it turned out to be done already, which this entry
@@ -2676,8 +2682,29 @@ they settled is written up in the README rather than left here:
   the four board ones — 69/69, 39/39, 54/54, 48/48) pass clean against it,
   checked against the actual running server, not just the fixtures.
 
-- **Quick wins wants a due-date order as well as its grouped/priority one, and
-  Delegate to Claude goes back to an automatic sort.** `quickSection()`
+- ~~**Quick wins wants a due-date order as well as its grouped/priority one, and
+  Delegate to Claude goes back to an automatic sort.**~~ **Done, 13 Sep 2026.**
+  `quickSection()` grew a `.sortbtn` in its head (`quickSortBtnHTML()`,
+  `kanban/js/10-reference-sections.js`), keyed by its own `QUICK_SORT_KEY`
+  rather than the board's `state.sort`. Grouped/priority stays the default;
+  the due-date mode collapses the four groups into one flat, capped list,
+  undated at the bottom, wired through the same delegated `#lists` click
+  listener as the quick-dismiss and restore buttons (`kanban/js/25-archiving.js`).
+  `delegateSection()` dropped the manual drag-to-reorder entirely —
+  `wireDelegateReorder()`, `applyDelegateOrder()`, `setRank()` and the
+  `.refnum[draggable]` CSS are all gone — and now sorts every `ai:full` task by
+  `priorityScore()`, the same score every other Overview section already ranks
+  by. `.refnum` shows the row's position in that order rather than the stored
+  `rank:`, which stays on the task for the planning agent's own queue. Checked
+  live against the real board in a locked tab: Delegate's order matched an
+  independent `priorityScore()` recomputation exactly, and the Quick wins
+  toggle re-rendered correctly both ways. Neither section has a suite of its
+  own — Overview is outside `kanban/test_*.mjs`'s coverage entirely — so this
+  rests on that manual check rather than an automated one.
+
+  Below is what the entry originally argued, kept for the reasoning:
+
+  `quickSection()`
   (`kanban/js/10-reference-sections.js:399`) groups before it sorts today —
   meetings with an agenda first by nearest date, then messages, then S-effort
   tasks, `byPriority()` ranking inside each. Decided, 13 Sep 2026: rather than
