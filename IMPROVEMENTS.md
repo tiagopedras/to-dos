@@ -546,6 +546,26 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A plan on its second or third revision looks exactly like a plan on its
+  first, so there is no way to see whether sending one back achieved
+  anything.** The record already exists and is deliberately hidden: `history()`
+  (`agents/planning_agent/plan.py:260`) appends one line per revision, owned by
+  the runner rather than the agent because it spans them, and `write_plan()`
+  (`:551-555, :599`) drops the section the agent wrote and re-attaches its own,
+  alongside a `revision:` count in the frontmatter. The modal then strips both
+  — `PLAN_UNSHOWN = ['Context', 'History']` (`kanban/js/13-plans.js:369`)
+  feeding `loadPlanBody()` (`:372`) — on the argument that re-reading them is
+  the noise that stops a plan being read at all, which is right for Context and
+  wrong for History. Nothing on the card says a revision number either, so a
+  plan he sent back with a reason comes round again indistinguishable from one
+  written tonight for the first time, and the only way to tell is to open the
+  file on disk. What is wanted is the thing that moved, visible without reading
+  the plan again: the revision on the card, and in the modal either the
+  previous revision's line or the difference between the two. Bound up with the
+  entry below on `write_plan()` minting a fresh file per revision — a diff
+  needs both revisions to still be findable, and today they are two files under
+  two nights with nothing linking them but the task.
+
 - **`implementing-agent` should run unattended on accepted plans, fenced the
   way `improve_agent` already is.** The struck entry at the foot of this
   section settled the opposite on 13 Sep 2026: being able to stop and ask is
@@ -596,16 +616,19 @@ they settled is written up in the README rather than left here:
   same way `attach_session.py` already writes onto the queue, for the modal
   to read on the way back in.
 
-- **The four options on a plan's modal stop fitting once it has been
-  accepted.** `openPlanModal()` (`kanban/js/13-plans.js:278`) offers the same
-  "It is finished / Plan it again / Turn it down / Leave it alone" set
-  (`:291-299`) to a plan sitting in Ready to be produced as to one just
-  written. "Plan it again" (`replanPlan()`, `:390`) sends an already-accepted,
-  possibly in-progress plan back to be written again tonight, and "Turn it
-  down" / "Leave it alone" read as though the idea itself were still
-  undecided rather than already agreed and under way. Worth revisiting
-  together with the session-launching idea above, since whatever a session
-  tied to the plan needs from the modal will change what belongs in this set.
+- ~~**The four options on a plan's modal stop fitting once it has been
+  accepted.**~~ **Done, 13 Sep 2026.** Three buttons now, and only three: the
+  move forward, the move back, and the way out. Forward is still named after
+  the column it lands in, Accept it from Waiting for review and It is finished
+  from Ready to be produced. Back is always Plan it again, from every column,
+  decided rather than derived: a plan in Ready to be produced stepped literally
+  back into Waiting for review says nothing, while sending the task round to be
+  written again tonight is the move he actually wants from there. Leave it
+  alone is gone from the modal, because four options read as four verdicts to
+  weigh rather than three moves and an exit. `parkPlan()`
+  (`kanban/js/13-plans.js:347`) is untouched and still the Backlog drop
+  handler, so parking is reachable by dragging a card onto the column, and
+  `kanban/test_plans.mjs` exercises it there instead of through the button.
 
 - **Replanning a task writes a second plan file instead of replacing the
   first, so the same task can show two live cards on the Plans board at

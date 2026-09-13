@@ -1676,7 +1676,7 @@
   .repitem.planitem.parked{border-style:dashed; opacity:.78}
   /* The way back to the card a plan is about. Text, not a button chrome — it
      reads as part of the meta line rather than a second action competing with
-     Accept/Plan it again/Leave it alone below. */
+     Accept/Plan it again/Turn it down below. */
   .plangoto{
     background:transparent; border:0; padding:0; margin:0; font:inherit; font-size:inherit;
     color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;

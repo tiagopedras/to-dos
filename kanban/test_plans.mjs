@@ -795,12 +795,13 @@ check('an emptied Waiting for review says so rather than going blank', await eva
 
 // Backlog. Not a verdict on the plan at all, so it does two things: parks the
 // plan, and holds the task itself back — the hold list being the only thing the
-// picker actually reads.
-await evalJS(`document.querySelector('#queueOut .repitem.redo').click()`)
-await new Promise(r => setTimeout(r, 400))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Leave it alone').click()`)
+// picker actually reads. Reached through parkPlan() directly, because the modal
+// stopped offering it on 13 Sep 2026 when the four buttons became three: the
+// only way in now is dragging a card onto the Backlog column, whose drop
+// handler calls exactly this.
+await evalJS(`parkPlan(planList.find(x => x.name === 'hr-agent.md'))`)
 await new Promise(r => setTimeout(r, 200))
-check('Leave it alone says the task is held too', await evalJS(`
+check('parking says the task is held too', await evalJS(`
   document.querySelector('.mscrim .repdoc').textContent.includes('held back from the queue')
 `))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, leave it alone').click()`)
@@ -1188,12 +1189,12 @@ check('the queue writes only its own ordering', await evalJS(`
 
 /* Last, because it opens a modal and shuts it again — anything after it that
    expected one already open would find none. */
-check('the modal offers turning a plan down at all', await evalJS(`
+check('the modal offers three moves and no more', await evalJS(`
   (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();
     return labels.join('|') })()
-`) === 'Accept it|Plan it again|Turn it down|Leave it alone', await evalJS(`
+`) === 'Accept it|Plan it again|Turn it down', await evalJS(`
   (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();

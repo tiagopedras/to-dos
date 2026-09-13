@@ -205,26 +205,30 @@ function planGeneratedLabel(p){
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
   const sub = [p.bucket, p.column, planGeneratedLabel(p), p.agent].filter(Boolean).map(esc).join(' · ');
-  /* One button per column he could drag the card into, named after the column
-     rather than after the verdict, so the two ways of moving a plan say the
-     same thing. Waiting for review has no button for the same reason it has no
-     drop zone: the card is already there and putting it back is not a move.
-     The modal's own × in the corner is the dismissal, so there is no Close
-     button left to press by reflex on the way out. */
+  /* Three buttons and only three: the move forward, the move back, and the way
+     out. Forward is named after the column it lands in, which is the one that
+     changes with where the card already is. Back is always a replan rather
+     than a literal step, decided 13 Sep 2026: stepping a plan in Ready to be
+     produced back into Waiting for review says nothing, while sending the task
+     round to be written again tonight is the thing he wants from there, so one
+     button means the same move from every column. Turn it down ends the idea
+     rather than the plan of it. The modal's own × in the corner is the
+     dismissal, so there is no Close button left to press by reflex.
+
+     Leave it alone was the fourth until the same date. Four options read as
+     four verdicts to weigh rather than three moves and an exit, and weighing
+     them is what a plan modal least needs. Parking is still reachable, by
+     dragging the card into Backlog, which calls the same parkPlan() the button
+     called. */
   openDocModal({
     title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    /* One button per column he could move the card into from where it is. A
-       plan he has already accepted is past being accepted again, so its
-       remaining move is the one that closes it. */
     buttons: planColumn(p) === PLAN_COL.produced
       ? [{ label:'It is finished', agree:true, run: () => finishPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
-         { label:'Leave it alone', run: () => parkPlan(p) }]
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) }]
       : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
-         { label:'Leave it alone', run: () => parkPlan(p) }]
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) }]
   });
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
 }
