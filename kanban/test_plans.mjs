@@ -96,7 +96,10 @@ await evalJS(`(() => {
     { name:'add-caveat.md', night:'2026-09-05', url:'/x/add-caveat.md', state:'review', owner:'me', seen:false,
       title:'Add Caveat to the design system type stack', task:'Add Caveat to the design system type stack',
       bucket:'Design System', column:'To do', ai:'partial', agent:'planning-design-system',
-      date:'2026-09-05', summary:'Caveat is already in the Foundations file as a loose style.' },
+      date:'2026-09-05', summary:'Caveat is already in the Foundations file as a loose style.',
+      // Sent back once and re-planned — the card names both dates so this one
+      // does not read as freshly written the way hr-agent.md, with none, does.
+      revisions: [{ date:'2026-09-01', revision:1 }, { date:'2026-09-05', revision:2 }] },
     { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', state:'review', owner:'me', seen:true,
       title:'Create an HR agent', task:'Create an HR agent', bucket:'Processes', column:'To do',
       ai:'partial', agent:'planning-processes', date:'2026-09-05',
@@ -222,6 +225,22 @@ await new Promise(r => setTimeout(r, 400))
 
 const live = await evalJS(`[...document.querySelectorAll('#plansOut > .repitem')].length`)
 check('unactioned plans are listed', live === 2, `${live} shown`)
+
+// A plan sent back and re-planned reads as what it is, not as one written
+// fresh — the card names how many revisions and when, read off the History
+// section server-side rather than kept as a second count.
+check('a plan with a History behind it says how many revisions and when', await evalJS(`
+  [...document.querySelectorAll('#plansOut .planwhere')]
+    .some(el => el.textContent.includes('2 revisions') &&
+                el.textContent.includes('1 Sep') && el.textContent.includes('5 Sep'))
+`))
+check('a plan with no History behind it says nothing about revisions', await evalJS(`
+  (() => {
+    const card = [...document.querySelectorAll('#plansOut .repitem')]
+      .find(c => c.textContent.includes('Create an HR agent'));
+    return !!card && !(card.querySelector('.planwhere')?.textContent || '').includes('revision');
+  })()
+`))
 /* `done / actioned` is what accepting a plan wrote until 12 Sep 2026, so this
    fixture row is a plan accepted under the old spelling — and it belongs in
    Ready to be produced rather than Done, which now means the work has
@@ -601,16 +620,20 @@ check('the body is rendered as Markdown', await evalJS(`
   !!document.querySelector('.mscrim .repdoc h4') &&
   document.querySelector('.mscrim .repdoc h4').textContent === 'Summary'
 `))
-// The two sections written for an agent are left out of the render rather than
-// folded: Context is the night's research trail, which the implementing agent reads,
-// and History spans revisions. Both stay in the file; neither is his to read.
-check('the sections written for an agent are not rendered', await evalJS(`
+// Context is the night's research trail, which the implementing agent reads
+// rather than him, so it is left out of the render. History stays now — it is
+// the previous revision's own line, and dropping it is what let a plan sent
+// back read as indistinguishable from one written for the first time.
+check('Context is dropped but History renders', await evalJS(`
   [...document.querySelectorAll('.mscrim .repdoc h4')].map(h => h.textContent).join(',')
-    === 'Summary,Findings,Proposed plan'
+    === 'Summary,Findings,Proposed plan,History'
 `))
-check('and nothing under them leaks through either', await evalJS(`
-  (t => !t.includes('ds-inventory') && !t.includes('revision 1') &&
+check('and Context leaks through neither the heading nor its body', await evalJS(`
+  (t => !t.includes('ds-inventory') &&
         !t.includes('Still not his to read'))(document.querySelector('.mscrim .repdoc').textContent)
+`))
+check('History reads as what it is', await evalJS(`
+  document.querySelector('.mscrim .repdoc').textContent.includes('revision 1')
 `))
 check('a dropped section takes its own subheadings with it', await evalJS(`
   !document.querySelector('.mscrim .repdoc').textContent.includes('A subheading inside it')

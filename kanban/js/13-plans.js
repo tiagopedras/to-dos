@@ -194,6 +194,17 @@ const isAgreed = p => p.state === 'accepted' ||
    this field existed. Both are naive local timestamps already, the same as
    backupWhen's input, so it reads the same format the Backups list already
    uses for "when did this actually happen". */
+/* How many times this task has been sent back and re-planned, and when — read
+   straight off the file's own History section (server.py's plan_meta()), not
+   a count kept anywhere else. A plan on its first pass has nothing to add
+   here, since "revision 1" reads as a fact only a second one makes worth
+   knowing. */
+function planRevisionsLabel(p){
+  const revs = p.revisions || [];
+  if (revs.length < 2) return '';
+  return revs.length + ' revisions — ' + revs.map(r => reportDay(r.date)).join(', ');
+}
+
 function planGeneratedLabel(p){
   const iso = p.created || p.generated || p.modified;
   return iso ? backupWhen(iso) : (p.night || '');
@@ -366,7 +377,10 @@ function parkPlan(p){
    other, and both stay out of the modal because reading them again is exactly
    the noise that stops a plan being read at all. Named rather than positional,
    so a plan written before this still renders. */
-const PLAN_UNSHOWN = ['Context', 'History'];
+// History drops out of PLAN_UNSHOWN, 13 Sep 2026: a plan sent back and
+// written again used to read identically to one written for the first time,
+// and History is the previous revision's own line saying otherwise.
+const PLAN_UNSHOWN = ['Context'];
 
 async function loadPlanBody(url){
   return loadDocBody(url, planBodies, 'plan', { drop: PLAN_UNSHOWN });
@@ -728,7 +742,7 @@ function planCardNode(p){
        goToPlanTask says so on the click. */
     gotoKey: key,
     gotoLabel: task ? task.title : key,
-    where: [p.bucket, p.column, planGeneratedLabel(p)],
+    where: [p.bucket, p.column, planGeneratedLabel(p), planRevisionsLabel(p)],
     /* The task's own impact and effort, read live off the task every render
        rather than copied into the plan — the one thing on the row that cannot
        go stale, and what the column is ordered by. */

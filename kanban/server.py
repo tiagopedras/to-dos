@@ -918,6 +918,12 @@ def plan_meta(path, name, night):
     make both harder to follow than keeping them apart.
     """
     fields = {}
+    revisions = []
+    # One entry per line in the file's own History section — the record of
+    # every time this task has been re-planned, not just the count in
+    # `revision:`. Read here rather than only in plan.py so the card can name
+    # it without fetching the whole document: history()'s own line shape is
+    # "- **YYYY-MM-DD, revision N.** ...", so that is what is matched.
     try:
         with open(path, encoding="utf-8") as fh:
             if fh.readline().strip() != "---":
@@ -927,6 +933,16 @@ def plan_meta(path, name, night):
                     break
                 key, _, value = line.partition(":")
                 fields[key.strip().lower()] = value.strip()
+            in_history = False
+            for line in fh:
+                if line.startswith("## "):
+                    in_history = line.strip() == "## History"
+                    continue
+                if not in_history:
+                    continue
+                m = re.match(r"^- \*\*(\d{4}-\d{2}-\d{2}), revision (\d+)\.\*\*", line)
+                if m:
+                    revisions.append({"date": m.group(1), "revision": int(m.group(2))})
     except OSError:
         return None
     try:
@@ -977,6 +993,7 @@ def plan_meta(path, name, night):
         "production": fields.get("production", ""),
         "production_summary": fields.get("production_summary", ""),
         "feedback": fields.get("feedback", fields.get("redo_note", "")),
+        "revisions": revisions,
         "created": fields.get("created", fields.get("generated", "")),
         # When the file was actually written, to the second. Missing on any
         # plan from before this field existed — the board falls back to
