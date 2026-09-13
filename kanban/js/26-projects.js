@@ -12,6 +12,21 @@
    on the server, because the board already holds every task in memory and
    already knows how to scan one for a project note — a second copy of that
    rule server-side would be the same rule twice.
+
+   THIS IS THE FIRST VIEW DRAWN AS COMPONENTS. The markup moved to
+   kanban/ui/ProjectsView.tsx on 13 Sep 2026 and this file kept everything
+   else: the fetch, the error branch, the sort preference and its
+   localStorage, and the counting of open tasks against the loaded document.
+   The split is on purpose — a port is easier to trust when the thing that
+   changed is only how the markup is produced, and the component is pure and
+   testable with no board around it as a result. See CLAUDE.md, "The React
+   half, and why it is only a half".
+
+   What that costs is one rule to keep: this file must not reach into the
+   view's DOM after drawing it. setColCount() used to put the figure into an
+   empty count once the fetch came back, and that is now a prop — React owns
+   what is on screen, and a stray querySelector here would be overwritten by
+   the next render without saying so.
    ========================================================================= */
 
 /* Sort options for the Projects column. Alphabetical is the default because
@@ -36,109 +51,93 @@ function setProjectSort(id){
   try { localStorage.setItem(PROJECT_SORT_KEY, id); } catch (e) {}
   return true;
 }
-function projectSortSelectHTML(){
-  return '<select id="projectSort" title="Sort projects">' +
-    PROJECT_SORTS.map(s => '<option value="' + s.id + '"' + (s.id === projectSort ? ' selected' : '') + '>' +
-      esc(s.label) + '</option>').join('') +
-  '</select>';
-}
+
 // The fetched list, kept around so changing the sort redraws instantly
 // instead of hitting /projects.json again for data that hasn't changed.
 let projectList = [];
-function renderProjectList(){
-  const out = $('#projectsOut');
-  if (!out) return;
-  const sort = PROJECT_SORTS.find(s => s.id === projectSort) || PROJECT_SORTS[0];
-  out.innerHTML = projectList.length
-    ? projectList.slice().sort(sort.cmp).map(projectItemHTML).join('')
-    : '<div class="empty">Nothing under <code>data/projects/</code> yet.</div>';
+// null until the first answer arrives, which is not the same as an empty list:
+// one says "still asking" and the other says "nothing there".
+let projectsLoaded = false;
+let projectsError = null;
+
+/* How many tasks in the loaded document point at a folder, and how many of
+   those are still open. The component asks; this answers, because the
+   document lives here. */
+function projectCounts(name){
+  const rows = projectTasks(name);
+  return { open: rows.filter(r => !r.task.done).length, total: rows.length };
 }
 
-/* Clickable via a single data-project attribute and nothing else: the
-   document-level capture handler in 19-drawer.js already opens
-   openProjectDrawer() for any element carrying one, the same way a card's own
-   project chip does. It sits on the <article>, not on the .rephead button
-   inside it, so the path, the status line and the blurb are all part of the
-   same target — the card looks like one thing and now behaves like one. The
-   button stays a button so the card is still reachable from the keyboard;
-   its click finds the attribute on the way out through closest(). */
-function projectItemHTML(p){
-  const rows = projectTasks(p.name);
-  const open = rows.filter(r => !r.task.done).length;
-  const live = rows.length > 0;
-  const status = !live ? 'nothing on the list points here'
-    : open ? open + ' open task' + (open === 1 ? '' : 's')
-    : 'all ' + rows.length + ' task' + (rows.length === 1 ? '' : 's') + ' done';
-  // The tag splits the same three ways the status line above does. A folder
-  // whose every task is ticked used to read "Live", which is the one of the
-  // three a glance down the column most needs told apart from the others.
-  const tagClass = !live ? 'projorphan' : open ? 'projlive' : 'projcompleted';
-  const tagLabel = !live ? 'Orphaned' : open ? 'Live' : 'Completed';
-  const edited = cvWhen(p.modified);
-  return '<article class="repitem projitem" data-project="' + esc(p.name) + '">' +
-    '<button class="rephead">' +
-      '<span class="reptitle">' + esc(p.name) + '</span>' +
-      '<span class="tag ' + tagClass + '">' + tagLabel + '</span>' +
-    '</button>' +
-    '<code class="pcpath">data/projects/' + esc(p.name) + '/</code>' +
-    '<div class="repmeta">' + esc(status) +
-      (p.has_claude_md ? '' : ' · no CLAUDE.md') +
-      ' · ' + p.file_count + ' file' + (p.file_count === 1 ? '' : 's') +
-      // The newest mtime in the folder, worked out server-side. Nothing has to
-      // be maintained for it to be right, which is the whole reason it is the
-      // mtime and not a line someone writes into CLAUDE.md.
-      (edited ? ' · edited ' + esc(edited) : '') +
-    '</div>' +
-    (p.blurb ? '<div class="projcardblurb">' + mdInline(p.blurb) + '</div>' : '') +
-  '</article>';
+/* The React root goes on a child of #lists rather than on #lists itself, and
+   this is the one piece of the port that is not obvious.
+
+   Every other view still draws by assigning to $('#lists').innerHTML — nine of
+   them do — which tears out whatever is under it without telling React. A root
+   mounted on #lists would go on believing it owned a subtree that no longer
+   exists, and the next render would put the view back in a container React
+   thinks is already correct. So this view makes its own node, and treats that
+   node going missing as what it is: another view has been here, and this root
+   is finished.
+
+   When the last of the ten is ported this can go back to being #lists. Until
+   then the rule is that a React view owns a node it created. */
+let projectsRoot = null;
+function projectsMountPoint(){
+  const lists = $('#lists');
+  if (!lists) return null;
+  let host = lists.querySelector('#projectsRoot');
+  if (!host) {
+    if (projectsRoot) BoardUI.unmount(projectsRoot);
+    lists.innerHTML = '<div id="projectsRoot"></div>';
+    host = lists.querySelector('#projectsRoot');
+    projectsRoot = host;
+  }
+  return host;
+}
+
+function drawProjects(){
+  const host = projectsMountPoint();
+  if (!host) return;
+  const sort = PROJECT_SORTS.find(s => s.id === projectSort) || PROJECT_SORTS[0];
+  BoardUI.mount(host, BoardUI.ProjectsView({
+    projects: projectsLoaded ? projectList.slice().sort(sort.cmp) : null,
+    error: projectsError,
+    sort: projectSort,
+    sorts: PROJECT_SORTS.map(s => ({ id: s.id, label: s.label })),
+    onSortChange: id => { if (setProjectSort(id)) drawProjects(); },
+    countsFor: projectCounts,
+    when: cvWhen,
+    inline: mdInline,
+  }));
 }
 
 async function renderProjectsView(){
   if (!state.doc) {
-    $('#lists').innerHTML = '<div class="lists pview" style="--pcols:1">' +
-      colHTML({ heading:'h3', title:'Projects', cls:'reportsview',
-                body: colEmptyHTML('No file loaded yet.', 'boxed') }) + '</div>';
+    const host = projectsMountPoint();
+    if (host) BoardUI.mount(host, BoardUI.ProjectsEmpty({}));
     return;
   }
-  /* One column, drawn with the same colHTML() every other view's columns are.
-     --pcols:1 so the single track keeps the board's own 322 floor and then
-     takes whatever width is going, rather than a six-column row with five
-     empty tracks in it. */
-  $('#lists').innerHTML =
-    '<div class="lists pview" style="--pcols:1">' +
-      colHTML({
-        heading: 'h3', title: 'Projects', cls: 'reportsview projectsview',
-        desc: 'Every folder under <code>data/projects/</code>, whether or not a task ' +
-              'currently mentions it. Live means at least one task\u2019s note points here; ' +
-              'orphaned means none does \u2014 either nothing on the list has started against ' +
-              'it yet, or the work it names is already finished and ticked off.',
-        /* The order control is the column header's Sort slot, the same slot the
-           board's priority toggle sits in — it governs every card below it, and
-           anything governing a column belongs in its head. It sat as the first
-           line of the body until 12 Sep 2026, where it read as a row of the
-           list rather than a control over it. */
-        sort: '<label class="projsort">Sort ' + projectSortSelectHTML() + '</label>',
-        count: '',
-        attrs: 'id="projectsCol"',
-        body: '<div id="projectsOut">Loading\u2026</div>'
-      }) +
-    '</div>';
-  $('#projectSort').onchange = e => {
-    if (setProjectSort(e.target.value)) renderProjectList();
-  };
-  const out = $('#projectsOut');
+  /* Reset per render rather than per load: renderProjectsView() is called
+     again when the document changes underneath it, and a stale "loaded" here
+     would show the previous document's counts against the new one's tasks
+     for as long as the fetch took. */
+  projectsLoaded = false;
+  projectsError = null;
+  drawProjects();
   try {
     const res = await fetch('/projects.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) {
-      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
-        'It is running, but it is an older copy that does not know about projects yet.</div>';
+      projectsError = { title: 'The board helper needs restarting.',
+        detail: 'It is running, but it is an older copy that does not know about projects yet.' };
+      drawProjects();
       return;
     }
     projectList = (await res.json()).projects || [];
-    setColCount('#projectsCol', projectList.length);
-    renderProjectList();
+    projectsLoaded = true;
+    drawProjects();
   } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the project list. ' +
-      esc(String(err.message || err)) + '</div>';
+    projectsError = { title: 'Could not read the project list.',
+      detail: String(err.message || err) };
+    drawProjects();
   }
 }

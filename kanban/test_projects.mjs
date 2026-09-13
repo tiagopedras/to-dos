@@ -324,6 +324,59 @@ check('one nothing points at is still Orphaned, not Completed', await evalJS(`
   !!document.querySelector('#projectsOut .repitem:last-child .projorphan')
 `))
 
+/* ---- the mechanics the React port changed, 13 Sep 2026 ----
+   Projects is drawn by kanban/ui/ProjectsView.tsx now and everything above
+   passed unchanged, which is the point — the markup is the markup that was
+   there. What is new underneath it is worth its own checks, because none of it
+   is visible in the markup.
+
+   The sort control is wired through React's onChange rather than an assigned
+   .onchange, and was never covered at all. And the root sits on a node this
+   view creates rather than on #lists, because the other nine views still draw
+   by assigning to #lists.innerHTML and would tear the DOM out from under a
+   live root without saying so. Switching away and back is the case that
+   breaks if that guard is ever removed. */
+await evalJS(`(() => {
+  window.__projects = [
+    { name:'zebra', blurb:'', has_claude_md:true, file_count:1, modified:'2026-09-10T09:00:00' },
+    { name:'alpha', blurb:'', has_claude_md:true, file_count:2, modified:'2026-08-01T09:00:00' }
+  ];
+  projectSort = 'name-asc';
+})()`)
+const projNames = () => evalJS(
+  `[...document.querySelectorAll('#projectsOut .reptitle')].map(e => e.textContent).join(',')`)
+
+await evalJS(`renderProjectsView()`)
+await new Promise(r => setTimeout(r, 500))
+check('the default order is A–Z', await projNames() === 'alpha,zebra', await projNames())
+
+await evalJS(`(() => { const s = document.querySelector('#projectSort'); s.value = 'name-desc';
+  s.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+await new Promise(r => setTimeout(r, 300))
+check('the sort select reorders the list', await projNames() === 'zebra,alpha', await projNames())
+check('and the select shows the order it is in',
+  await evalJS(`document.querySelector('#projectSort').value`) === 'name-desc')
+
+// The count in the head was filled in by setColCount() after the fetch and is
+// a prop now, so it is React that has to get it right.
+check('the head count is the number of folders',
+  await evalJS(`document.querySelector('#projectsCol .colhead .count')?.textContent`) === '2',
+  await evalJS(`document.querySelector('#projectsCol .colhead .count')?.textContent`))
+
+await evalJS(`$('#lists').innerHTML = '<div class="lists">another view was here</div>'`)
+await new Promise(r => setTimeout(r, 200))
+check('another view can take the container', await evalJS(`!!document.querySelector('#projectsOut')`) === false)
+
+await evalJS(`renderProjectsView()`)
+await new Promise(r => setTimeout(r, 600))
+check('coming back redraws the whole view', await projNames() === 'zebra,alpha', await projNames())
+check('and it kept the order it was left in',
+  await evalJS(`document.querySelector('#projectSort').value`) === 'name-desc')
+check('with one root and one column rather than two of either', await evalJS(`
+  document.querySelectorAll('#projectsRoot').length === 1 &&
+  document.querySelectorAll('#projectsCol').length === 1
+`))
+
 /* ---- the point of the second guard ---- */
 
 check('nothing in this whole view wrote anything', await evalJS(`

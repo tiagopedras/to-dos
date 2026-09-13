@@ -17,6 +17,8 @@ export { Column } from './Column'
 export type { ColumnProps, ColumnStyle } from './Column'
 export { Card } from './Card'
 export type { CardProps } from './Card'
+export { ProjectsView, ProjectsEmpty } from './ProjectsView'
+export type { ProjectsViewProps, ProjectSummary, ProjectSortOption } from './ProjectsView'
 
 /* One root per container, kept so a re-render reuses it. Calling createRoot on
    a container that already has one is React's own warned-about mistake, and a

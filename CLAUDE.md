@@ -229,9 +229,31 @@ browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
 
 The port can be incremental because every view already owns `#lists` wholesale:
 a ported view calls `BoardUI.mount()` where it used to assign to
-`$('#lists').innerHTML`, and the other nine carry on untouched. That also means
-this work can stop at any stage with a working board, which is the state it is
-in now.
+`$('#lists').innerHTML`, and the others carry on untouched. That also means this
+work can stop at any stage with a working board.
+
+**Projects went first**, 13 Sep 2026 — the smallest leaf view, and the one
+nothing else is about to rewrite. Execution is smaller still and was skipped on
+purpose: entry 558 folds it into Plans, so porting it would be work thrown away.
+Two rules came out of doing it, and both apply to every view that follows:
+
+- **A React view owns a node it created, not `#lists`.** The unported views
+  still draw by assigning to `$('#lists').innerHTML`, which tears out the DOM
+  without telling React — a root mounted on `#lists` would go on believing it
+  owned a subtree that no longer exists. So `26-projects.js` makes its own
+  `#projectsRoot` and treats that node being gone as what it is: another view
+  has been here, unmount and start again. When the last view is ported this can
+  go back to being `#lists`.
+- **The orchestration stays in `kanban/js/`.** The fetch, the error branch, the
+  sort preference and anything reading `state.doc` did not move; the component
+  takes them as props, including the board's own `cvWhen` and `mdInline`. That
+  keeps the component pure and testable with no board around it, and it keeps a
+  port to one change rather than two. It also means the file must not reach back
+  into the view's DOM afterwards — `setColCount()` is a prop now, and a stray
+  `querySelector` would be overwritten by the next render without saying so.
+
+`kanban/test_projects.mjs` covers both, on top of the 44 checks that passed
+through the port unchanged — which is the real evidence the markup did not move.
 
 ## After changing `kanban/server.py`
 

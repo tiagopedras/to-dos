@@ -24,13 +24,16 @@ export type ColumnStyle = 'default' | 'agent'
 
 export interface ColumnProps {
   title: string
+  /** An id on the column element itself, for the handful of callers that
+   *  reach back into a column after a fetch comes back. */
+  id?: string
   /** h2 for the board's own sections, h3 for a column sitting inside a view.
    *  Nothing is styled off it; it is the page outline that cares. */
   heading?: 'h2' | 'h3'
   hint?: ReactNode
   /** The head's right-hand group, in the component's own order. */
   sort?: ReactNode
-  count?: number | null
+  count?: ReactNode
   action?: ReactNode
   filters?: ReactNode
   desc?: ReactNode
@@ -58,7 +61,7 @@ const clean = (s?: string) => (s || '').trim().replace(/\s+/g, ' ')
 
 export function Column(props: ColumnProps) {
   const {
-    title, heading, hint, sort, count, action, filters, desc,
+    title, id, heading, hint, sort, count, action, filters, desc,
     body, footer, cls, bodyCls, style, collapsible, open, collapseKey, children,
   } = props
 
@@ -109,6 +112,7 @@ export function Column(props: ColumnProps) {
   if (collapsible) {
     return (
       <details
+        id={id}
         className={colClass}
         data-colcollapse={collapseKey || title}
         open={open !== false}
@@ -120,7 +124,7 @@ export function Column(props: ColumnProps) {
   }
 
   return (
-    <section className={colClass}>
+    <section id={id} className={colClass}>
       <div className="colhead">{head}</div>
       {inner}
     </section>
