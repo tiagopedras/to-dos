@@ -528,28 +528,18 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **A plan on its second or third revision looks exactly like a plan on its
+- ~~**A plan on its second or third revision looks exactly like a plan on its
   first, so there is no way to see whether sending one back achieved
-  anything.** The record already exists and is deliberately hidden: `history()`
-  (`agents/planning_agent/plan.py:260`) appends one line per revision, owned by
-  the runner rather than the agent because it spans them, and `write_plan()`
-  (`:551-555, :599`) drops the section the agent wrote and re-attaches its own,
-  alongside a `revision:` count in the frontmatter. The modal then strips both
-  — `PLAN_UNSHOWN = ['Context', 'History']` (`kanban/js/13-plans.js:369`)
-  feeding `loadPlanBody()` (`:372`) — on the argument that re-reading them is
-  the noise that stops a plan being read at all, which is right for Context and
-  wrong for History. Nothing on the card says a revision number either, so a
-  plan he sent back with a reason comes round again indistinguishable from one
-  written tonight for the first time, and the only way to tell is to open the
-  file on disk.
-
-  What to build: the card shows how many revisions the plan has been through
-  and the date of each, read straight off `history()`'s own lines rather than
-  a new count. The modal drops only `Context` from `PLAN_UNSHOWN`, keeping
-  `History` visible as the previous revision's own line — a real diff between
-  two revisions is out of scope for now, since that needs both revisions still
-  findable as separate documents, which waits on the one-file-per-task rework
-  below.
+  anything.**~~ **Done, 13 Sep 2026.** `plan_meta()` (`kanban/server.py`) now
+  parses the file's own History section for its `- **DATE, revision N.**`
+  lines and returns them as `revisions`, rather than adding a second count
+  anywhere. The card shows how many there have been and when, through
+  `planRevisionsLabel()` (`kanban/js/13-plans.js`) — nothing for a plan on its
+  first pass, since "revision 1" is only worth saying once there's a second.
+  `PLAN_UNSHOWN` drops only `Context` now, so the modal renders `History` as
+  the previous revision's own line. A real diff between two revisions is still
+  out of scope, since that needs both revisions findable as separate
+  documents, which waits on the one-file-per-task rework below.
 
 - **`implementing-agent` should run unattended on accepted plans, fenced the
   way `improve_agent` already is.** Reverses the decision recorded in the
