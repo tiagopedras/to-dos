@@ -122,19 +122,24 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `ai_canvas` load, so `+ New chat` / `+ Attach` now weigh the same as every
   other small dashed button in either app.
 
-- **The night's size is set in dollars, and nothing says how many plans he
-  wants.** The batch loop in `run()` (`agents/planning_agent/plan.py:898`) stops on
-  two things only — under `FLOOR` minutes of window left (`:87`) and
-  `spent >= args.budget` against `PLANNING_AGENT_BUDGET` of $12 (`:79`) — so the
-  count that lands is whatever $12 happens to buy that night — 10 plans on the
-  first full batch, against 24 eligible. A third stop, `len(written) >=
-  args.max_plans`, is two lines beside the budget one, and reuses the same
-  `stopped` message shape. The setting has further to go than the check: the
-  schedule file's existing `budget` key (`agents/planning_agent/schedule.py:31`) is
-  read by `dashboard.py` alone — `run.sh:133` calls `plan.py` with nothing but
-  the flags it was given — so a `max_plans` key added to `DEFAULTS`, `load()`
-  and the dashboard's `fields` list (`dashboard.py:146`) still needs `run.sh` to
-  pass it down, which no schedule value does today.
+- ~~**The night's size is set in dollars, and nothing says how many plans he
+  wants.**~~ **Done, 13 Sep 2026.** `max_plans` joined `budget` in
+  `schedule.py`'s `DEFAULTS` (0, meaning no cap of its own), `load()` clamps a
+  bad value to it, and `dashboard.py` gained the field and its setter, plus a
+  headline saying what 0 means. `plan.py`'s batch loop stops on it, beside the
+  budget and the floor, with the same `stopped` message shape.
+
+  Building it turned up a bigger gap than the one this entry named: `run.sh`
+  was not passing the schedule's `budget` down either — the dashboard's
+  "Budget, night" field has been disconnected from every real run since it was
+  built, silently falling back to `plan.py`'s own `$12` constant regardless of
+  what the page said. `run.sh` now reads the schedule once, before invoking
+  `plan.py`, and passes both `--budget` and `--max-plans` down — skipped for
+  `--task`, which has no batch loop for either to stop, and skipped for either
+  flag a caller already passed by hand, so a manual override still wins.
+  `agents/planning_agent/test_planning_agent.py` covers the schedule
+  round-trip, the dashboard field and setter, and that both scripts carry the
+  wiring.
 
 - ~~**Board, Matrix and Timeline take three tabs for three ways of drawing the same tasks.**~~ **Done, 12 Sep 2026.** The three collapsed into one tab, `renderViewTabs()` (`kanban/js/18-timeline.js:734`) drawing the current one plus a chevron that opens a `.dropdown-panel` of the three — same `group:'draw'` marking on their `viewDefs()` entries (`kanban/js/11-chat-cards.js`), same view ids, same fragments.
 
