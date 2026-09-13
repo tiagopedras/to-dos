@@ -19,6 +19,8 @@ export { Card } from './Card'
 export type { CardProps } from './Card'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
+export { ReportsView, ReportsEmpty } from './ReportsView'
+export type { ReportsViewProps, WrittenReport, ReportWindow } from './ReportsView'
 export type { BackupsViewProps, BackupFile, ArchiveFile } from './BackupsView'
 export type { ProjectsViewProps, ProjectSummary, ProjectSortOption } from './ProjectsView'
 

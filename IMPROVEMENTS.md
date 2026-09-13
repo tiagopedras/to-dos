@@ -822,6 +822,24 @@ they settled is written up in the README rather than left here:
   `backupWhen`, is Plans' as well, and moving the set would either split it or
   drag a shared helper into one view.
 
+  **Reports went third**, 13 Sep 2026, after `kanban/test_reports.mjs` was
+  written for it. One thing did not move and the reason is worth keeping: the
+  lead note, the three counted reports and a written report's summary are still
+  handed to the component as HTML, because `mdBlocks()`, `mdInline()` and the
+  three report builders are shared with the drawer and with Plans. Porting them
+  means porting those views in the same change, so they go through
+  `dangerouslySetInnerHTML` until their own views are done — the same bargain
+  ProjectsView already makes for a project's blurb.
+
+  Splicing that view out left three superseded definitions behind — an old
+  `renderWrittenReports`, an old `reportWindowSegHTML`, and an old
+  `renderCountedReports` that wrote `innerHTML` into the two nodes React now
+  owns. The last one is the one that mattered: a duplicate function declaration
+  later in a classic script **wins**, so the dead copy was the live one and the
+  suite passed against it by luck. Worth knowing for the ports still to come —
+  after splicing a renderer out, grep the file for a second definition of every
+  name you replaced.
+
   **And there the leaf views run out, which the order above gets wrong.** It
   lists `17-matrix.js` (293 lines) and `14-schedule.js` (348) among the views to
   port early, on their size. Size is not what decides it: only Projects,

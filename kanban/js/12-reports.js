@@ -730,88 +730,94 @@ function openReportModal(r){
 
 async function loadReportBody(url){ return loadDocBody(url, reportBodies, 'report'); }
 
-async function renderWrittenReports(){
-  const out = $('#writtenOut');
-  if (!out) return;
-  try {
-    const res = await fetch('/reports.json?t=' + Date.now(), { cache:'no-store' });
-    if (!res.ok) {
-      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
-        'It is running, but it is an older copy that does not know about reports yet.</div>';
-      return;
-    }
-    const list = (await res.json()).reports || [];
-    setColCount('#writtenCol', list.length);
-    if (!list.length) {
-      out.innerHTML = '<div class="empty">Nothing written yet. Reports are Markdown files in ' +
-        '<code>data/reports/</code>, and asking Claude for one is how they get there.</div>';
-      return;
-    }
-    out.innerHTML = list.map(reportItemHTML).join('');
-    out.querySelectorAll('[data-report-open]').forEach(btn => {
-      const r = list.find(x => x.url === btn.dataset.reportOpen);
-      btn.onclick = () => openReportModal(r);
-    });
-  } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the report list. ' +
-      esc(String(err.message || err)) + '</div>';
+/* The React root, on a node this view creates rather than on #lists — the
+   same rule ProjectsView and BackupsView follow, and for the same reason: the
+   unported views still assign to #lists.innerHTML. See CLAUDE.md. */
+let reportsRoot = null;
+function reportsMountPoint(){
+  const lists = $('#lists');
+  if (!lists) return null;
+  let host = lists.querySelector('#reportsRoot');
+  if (!host) {
+    if (reportsRoot) BoardUI.unmount(reportsRoot);
+    lists.innerHTML = '<div id="reportsRoot"></div>';
+    host = lists.querySelector('#reportsRoot');
+    reportsRoot = host;
   }
+  return host;
+}
+
+/* The written half's own state. `written` staying null is what says the fetch
+   is still out, which is not the same as the folder being empty. */
+let writtenState = { list: null, error: null };
+
+function drawReports(){
+  const host = reportsMountPoint();
+  if (!host) return;
+  BoardUI.mount(host, BoardUI.ReportsView({
+    windows: REPORT_WINDOWS.map(w => ({ id: w.id, label: w.label, short: w.short })),
+    window: reportWindow,
+    onWindow: id => { if (setReportWindow(id)) drawReports(); },
+    range: reportDateRange(),
+    /* The counted reports and the lead note are still built as HTML by the
+       three functions in this file, because mdBlocks/mdInline and those
+       builders are shared with the drawer and Plans — porting them means
+       porting those views in the same change. */
+    leadHTML: countedLeadHTML(),
+    countedHTML: reportDefs().map(fn => fn()).join(''),
+    written: writtenState.list,
+    writtenError: writtenState.error,
+    onOpen: r => openReportModal(r),
+  }));
+}
+
+/* Kept as a named function because renderCountedReports() is what
+   archiveEntriesSync() calls back into when the archive finishes loading —
+   the counted half can be asked to redraw long after the view was drawn. */
+function renderCountedReports(){
+  drawReports();
 }
 
 /* Two columns, because the two kinds of report answer different questions and
-   neither is a footnote to the other. Counted on the left, written on the right.
+   neither is a footnote to the other. Counted on the left, written on the
+   right. Both are Column since 12 Sep 2026, like every other column in the app.
 
-   Both are colHTML() columns since 12 Sep 2026, like every other column in the
-   app. The window picker moved with them: it governs every report in the left
-   column — the counts, the lead note and the weekly pace chart alike — so it is
-   a column filter and belongs in the head's Filters slot beside Plans' dropdown
-   and Matrix's checkbox, not sitting above the first report as a row of its
-   own. The lead paragraph on the right column became the head's description for
-   the same reason. The left column's notes stay in the body: they are caveats
-   about the data as it stands today, not a description of what the column is. */
-function renderReportsView(){
+   Changing the window redraws through drawReports(), which re-renders both
+   columns — but the written half is re-rendered from `writtenState` rather than
+   re-fetched, so /reports.json is still read exactly once per visit to the tab.
+   kanban/test_reports.mjs asserts that by counting fetches. */
+async function renderReportsView(){
   if (!state.doc) {
-    $('#lists').innerHTML = '<div class="lists rview">' +
-      colHTML({ heading:'h3', title:'Reports', cls:'reportsview prose',
-                body: colEmptyHTML('No file loaded yet.', 'boxed') }) + '</div>';
+    const host = reportsMountPoint();
+    if (host) BoardUI.mount(host, BoardUI.ReportsEmpty({}));
     return;
   }
-  $('#lists').innerHTML =
-    '<div class="lists rview">' +
-      colHTML({
-        heading: 'h3', title: 'Tasks finished', cls: 'reportsview prose',
-        filters: '<span class="repwindow">' + reportWindowSegHTML() +
-          '<span class="repdates" id="repDates">' + esc(reportDateRange()) + '</span></span>',
-        body: '<div id="countedLead"></div><div id="countedOut"></div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'Written reports', cls: 'reportsview written prose',
-        attrs: 'id="writtenCol"',
-        // Filled in by renderWrittenReports once the folder has been read —
-        // an empty span rather than a 0 that would be wrong for a second.
-        count: '',
-        desc: 'What moved and what it means, rather than what was ticked. ' +
-              'Ask Claude for one and it lands in the <code>data/reports/</code> folder.',
-        body: '<div id="writtenOut">Loading…</div>'
-      }) +
-    '</div>';
-  renderCountedReports();
-  // One handler on the row rather than one per button, and it repaints only
-  // the pressed state — redrawing the row itself here would throw away the
-  // element the click is still travelling through.
-  $('#reportWindow').onclick = e => {
-    const btn = e.target.closest('button[data-window]');
-    if (!btn || !setReportWindow(btn.dataset.window)) return;
-    $('#reportWindow').querySelectorAll('button[data-window]').forEach(b => {
-      const on = b.dataset.window === reportWindow;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
-    renderCountedReports();
-    $('#repDates').textContent = reportDateRange();
-  };
-  renderWrittenReports();
+  writtenState = { list: null, error: null };
+  drawReports();
+  try {
+    const res = await fetch('/reports.json?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) {
+      writtenState = { list: null, error: { kind: 'stale-helper' } };
+      drawReports();
+      return;
+    }
+    writtenState = {
+      list: ((await res.json()).reports || []).map(r => ({
+        title: r.title, date: r.date, covers: r.covers, topic: r.topic,
+        summaryHTML: r.summary ? mdInline(r.summary) : '',
+        url: r.url,
+      })),
+      error: null,
+    };
+    drawReports();
+  } catch (err) {
+    writtenState = { list: null, error: { kind: 'unreadable', detail: String(err.message || err) } };
+    drawReports();
+  }
 }
+
+/* Kept so anything that wants only the written half redrawn still can. */
+async function renderWrittenReports(){ return renderReportsView(); }
 
 /* The span the picker is currently showing. "All" has no start date to name —
    the earliest thing counted is whatever the archive happens to still hold, and
@@ -822,28 +828,4 @@ function reportDateRange(){
   return reportDay(ymd(reportWindowStart())) + '–' + reportDay(ymd(today()));
 }
 
-/* A row of buttons rather than a dropdown: this governs every report on the
-   tab, so the seven windows it offers are worth reading at a glance instead of
-   being one click away behind the one currently chosen. The shared `.tabs`
-   object, at its small size, rather than a segmented control of its own —
-   see IMPROVEMENTS.md for why this was the last one still separate. */
-function reportWindowSegHTML(){
-  return '<span class="tabs small" id="reportWindow" role="group" aria-label="How far back to count">' +
-    REPORT_WINDOWS.map(w => '<button type="button" class="tab' + (w.id === reportWindow ? ' on' : '') + '" data-window="' + w.id + '"' +
-      ' aria-pressed="' + (w.id === reportWindow) + '" title="' + esc(w.label) + '">' +
-      esc(w.short) + '</button>').join('') +
-  '</span>';
-}
-// Its own render path rather than folded into renderReportsView, so changing
-// the window redraws only the counted card — not the written one beside it,
-// which would otherwise re-fetch /reports.json for no reason. Redraws the
-// lead description alongside the reports themselves, since its archive note
-// depends on the same window the picker just changed.
-function renderCountedReports(){
-  const lead = $('#countedLead');
-  if (lead) lead.innerHTML = countedLeadHTML();
-  const out = $('#countedOut');
-  if (!out) return;
-  out.innerHTML = reportDefs().map(fn => fn()).join('');
-}
 
