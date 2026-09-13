@@ -3,6 +3,20 @@
 A personal task system made of two halves: a Kanban board that reads and writes a
 single markdown file, and a skill that runs a review session over that same file.
 
+## What it is for
+
+The point of all of it is delegation. The loop is plan, accept, execute, and it
+should complete without my attention being the thing it waits on. When that works
+I keep my output up while doing less of it myself, because the context an agent
+needs to decide well is already written down in here: the bucket briefs, the
+people file, the project folders.
+
+It also says how to judge any part of this. The loop only moves as fast as its
+slowest gate, and today that gate is reading. A night that writes twenty plans of
+five hundred words each costs more to read than the plans save, so most are never
+opened and nothing after that step gets a chance. Work that makes a plan easier to
+act on comes before work that makes the board nicer to look at.
+
 ## Where the list lives
 
 Everything private sits in one folder, `data/`, ignored by git. Inside it, one subfolder per data set — one list, kept completely apart from any other:
