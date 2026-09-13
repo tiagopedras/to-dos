@@ -280,6 +280,48 @@ check('plan card — a plan with no task left on the board keeps its own name',
     gotoKey: 'a-slug', where: [],
   }))
 
+/* ---- classList against a React-owned node ---------------------------------
+   React writes className only when the prop it renders from has changed, so
+   an imperative classList call on a node it owns is invisible until that prop
+   next changes — at which point the class it added is overwritten without a
+   word. 13-plans.js still carries six of these, all transient interaction
+   feedback (a drag in progress, a drop target, a closed filter or fold) that
+   never collides with a prop React tracks, which is why they are safe rather
+   than merely unnoticed. This is what stops a ported view from growing a
+   seventh kind, or a different ported view from picking either pattern back
+   up, without failing anything. */
+{
+  const KNOWN_SAFE = new Set(['dragging', 'coldrop', 'coldeny', 'over-top', 'over-bottom', 'hidden'])
+  const classListCalls = src => {
+    const found = new Set()
+    const re = /\.classList\.(?:add|remove|toggle)\(([^)]*)\)/g
+    let m
+    while ((m = re.exec(src))) {
+      for (const arg of m[1].split(','))
+        for (const lit of arg.matchAll(/'([^']+)'/g)) lit[1].split(/\s+/).forEach(c => c && found.add(c))
+    }
+    return found
+  }
+
+  const plansSrc = fs.readFileSync(path.join(REPO, 'kanban/js/13-plans.js'), 'utf8')
+  const plansClasses = classListCalls(plansSrc)
+  checks++
+  for (const c of plansClasses)
+    if (!KNOWN_SAFE.has(c))
+      fail(`13-plans.js writes .${c} through classList — a class React doesn't own is invisible ` +
+        `until the prop it should have been changes, at which point it's silently overwritten`)
+  for (const c of KNOWN_SAFE)
+    if (!plansClasses.has(c))
+      fail(`13-plans.js no longer writes .${c} through classList — narrow KNOWN_SAFE to match`)
+
+  for (const f of ['26-projects.js', '12-reports.js', '15-backups.js']) {
+    checks++
+    const found = classListCalls(fs.readFileSync(path.join(REPO, 'kanban/js', f), 'utf8'))
+    if (found.size)
+      fail(`${f} now writes ${[...found].join(', ')} through classList onto a React-owned node`)
+  }
+}
+
 /* ---- the built bundle ----------------------------------------------------- */
 const bundle = path.join(REPO, 'kanban/dist/board-ui.js')
 if (!fs.existsSync(bundle)) {
