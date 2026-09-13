@@ -821,7 +821,6 @@ function renderView(){
   if (def.id === 'reports') { renderFilterBar(); renderReportsView(); return; }
   if (def.id === 'projects') { renderFilterBar(); renderProjectsView(); return; }
   if (def.id === 'plans') { renderFilterBar(); renderPlansView(); return; }
-  if (def.id === 'execution') { renderFilterBar(); renderExecutionView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
 }
@@ -834,7 +833,6 @@ function refreshView(){
   else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'projects') renderProjectsView();
   else if (state.view === 'plans') renderPlansView();
-  else if (state.view === 'execution') renderExecutionView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
   updateArchiveChip();

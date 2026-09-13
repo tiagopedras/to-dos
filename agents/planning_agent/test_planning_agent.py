@@ -606,11 +606,23 @@ def test_server():
                 with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
                     row = json.load(fh)["A planned thing"]
                 check("owned by the implementing agent by default", row["owner"], "implementing-agent")
-                # He is not the next mover on an accepted plan, so he cannot
-                # hold it — the same rule that refuses every other pairing.
-                check("refuses accepted owned by him",
+                check("and its production half starts at none",
+                      server.plan_listing()[0]["production"], "none")
+                # He was not the next mover on an accepted plan until 13 Sep
+                # 2026, because what happened next was a run on a board of its
+                # own. Folding the two boards into one removed that second
+                # document, so the same card comes back to him the moment the
+                # agent reports — and `accepted` is now owned by whichever of
+                # the two is next to move.
+                check("accepted may be owned by him, since the fold",
                       plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
-                                          "to": "accepted", "owner": "me"}).get("ok"), False)
+                                          "to": "accepted", "owner": "me",
+                                          "production": "review"}).get("ok"), True)
+                check("and the stage it reached is on the plan",
+                      server.plan_listing()[0]["production"], "review")
+                check("but a stage this stream has never heard of is refused",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "accepted", "production": "halfway"}).get("ok"), False)
                 # Put it back where the rest of this section found it.
                 plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
                                     "to": "done", "owner": "me", "resolution": "actioned"})

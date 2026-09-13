@@ -45,11 +45,13 @@ OWNERS = {
     "ready":    ("me", "planning-agent", "implementing-agent"),
     "doing":    ("planning-agent", "implementing-agent"),
     "review":   ("me",),
-    # Accepting a plan is the last move he makes on it. What happens next is the
-    # run it minted, so the implementing agent owns it from here, and it stays owned
-    # by the agent until the work is finished rather than coming back to him to
-    # be moved on a second time.
-    "accepted": ("implementing-agent",),
+    # Accepting a plan used to be the last move he made on it: what happened
+    # next was the run it minted, on a board of its own, so the implementing
+    # agent owned it from here. Since the two boards were folded into one on
+    # 13 Sep 2026 there is no second document, and the same card comes back to
+    # him the moment the agent reports — so `accepted` is owned by whichever of
+    # the two is next to move, and `production` below says which that is.
+    "accepted": ("implementing-agent", "me"),
     "done":     ("me",),
 }
 # `completed` arrived with the `accepted` state on 12 Sep 2026. Until then
@@ -61,7 +63,19 @@ OWNERS = {
 # core/migrations/migrate-plans-accepted.py, which tidies it if he wants it
 # tidied.
 RESOLUTIONS = ("actioned", "completed", "superseded", "dropped")
-FM_KEYS = ("state", "owner", "seen", "resolution", "feedback")
+
+# How far the implementing agent's half has got, on a plan he accepted. A second
+# field rather than more states, because the contract allows one `state:` per
+# document and this answers a different question about the same one: `state`
+# says where the plan is, `production` says what has happened to the work it
+# describes. It is what the runs stream was, before that stream was folded into
+# this one on 13 Sep 2026 and its documents were merged onto their plans.
+#
+# Six columns on Plans rather than eight was the decision that goes with it, so
+# these are read off the card. If the implementing agent ever runs unattended,
+# these are what the two extra columns would be drawn from.
+PRODUCTION = ("none", "doing", "review", "done")
+FM_KEYS = ("state", "owner", "seen", "resolution", "feedback", "production")
 
 
 def _manifest():
@@ -99,6 +113,9 @@ def apply(req):
     seen = req.get("seen")
     resolution = req.get("resolution", "")
     reason = " ".join((req.get("reason") or "").split())[:500]
+    # Absent means "leave it as it is", which is not the same as "none" — a move
+    # that is not about production must not reset it.
+    production = req.get("production")
 
     if state not in (m.get("states") or {}):
         return {"ok": False, "error": "this stream has no state %r" % state}
@@ -106,6 +123,11 @@ def apply(req):
         return {"ok": False, "error": "%r cannot be owned by %r" % (state, owner)}
     if resolution and resolution not in RESOLUTIONS:
         return {"ok": False, "error": "unknown resolution %r" % resolution}
+    if production is not None and production not in PRODUCTION:
+        return {"ok": False, "error": "unknown production stage %r" % production}
+    if production is not None and state != "accepted" and production != "done":
+        return {"ok": False, "error":
+                "production only means something on an accepted plan (or on done, once finished)"}
     if state == "done" and not resolution:
         return {"ok": False, "error": "finishing a plan needs a resolution (%s)" % ", ".join(RESOLUTIONS)}
     # A rejection with no reason is the one thing the loop cannot use: the next
@@ -139,10 +161,18 @@ def apply(req):
 
     text = open(path, encoding="utf-8").read()
     plan_id = (re.search(r"^id:\s*(\S+)$", text, re.M) or [None, ""])[1]
-    for key, value in (("state", state), ("owner", owner),
-                       ("seen", "yes" if (seen if seen is not None else True) else "no"),
-                       ("resolution", resolution),
-                       ("feedback", reason)):
+    writes = [("state", state), ("owner", owner),
+              ("seen", "yes" if (seen if seen is not None else True) else "no"),
+              ("resolution", resolution),
+              ("feedback", reason)]
+    # Newly accepted with nothing said about production is the start of the
+    # agent's half, so it starts at `none` rather than at whatever the field
+    # happened to hold before.
+    if production is None and state == "accepted" and not re.search(r"^production:", text, re.M):
+        production = "none"
+    if production is not None:
+        writes.append(("production", production))
+    for key, value in writes:
         text = _set(text, key, value)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="") as fh:

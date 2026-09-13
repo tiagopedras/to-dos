@@ -138,13 +138,13 @@ holds the detail. Three things about it are load-bearing:
   because it is the one running unattended stretches.
   Everything else in this repo still writes through a queue file or not at all.
 
-Work reaches it through a board of its own, the Execution view, added 12 Sep
-2026 and carrying the same four columns as the list itself.
+Work reaches it through the Plans view. It had a board of its own, Execution,
+from 12 Sep 2026 until the two were folded into one on 13 Sep — see below.
 
-## The three boards, and why they are one shape
+## The two boards, and why they are one shape
 
-Board, Plans, Execution. All three read Backlog, To do, Waiting for review,
-Done, and on all three **where a card sits is the instruction** rather than a
+Board and Plans. Both read Backlog, To do, Waiting for review, Done, and on
+both **where a card sits is the instruction** rather than a
 label describing one. Backlog means leave it alone. To do means pick it up, and
 means it again for something already done once. Waiting for review is the
 agent's own column, which is why it takes no drops and draws with a dashed edge.
@@ -179,34 +179,33 @@ produced is the old Done saying what it is, and Done behind it is new. The
 board's six and Plans' six are not the same six words, and that is honest: a
 task and a plan about it do not move through the same stages.
 
-A card on Plans is a plan; a card on Execution is a **run**, one document per
-plan he accepted, in `data/<dataset>/runs/`. Two documents rather than one,
-because a plan he has accepted is finished as a plan and not started as a run —
-the same item cannot be in two columns at once, and a second `state:` on one
-file is exactly what `PACKAGES/work_streams/CONTRACT.md` exists to stop.
-Accepting a plan mints a run into Execution's Backlog; moving that run to To do
-is what `pa-do` works through.
+A card on Plans is a plan, and since 13 Sep 2026 it carries both halves of the
+pipeline: `state: accepted` says he agreed to it and `production:` says how far
+the implementing agent has got. There were two documents until then — accepting a
+plan minted a run onto a board of its own — and the reason given was that
+`PACKAGES/work_streams/CONTRACT.md` allows one `state:` per file. That is an
+argument for one document with a longer column set, not for two boards.
 
-Accepting one writes `accepted`, which is the **seventh** canonical state and
-the only addition the stream contract has taken. It holds the gap between him
-approving something and the work it describes finishing: `done` was carrying
-both, which meant one column answering two questions. A plan accepted before
-12 Sep 2026 is `done / actioned` on disk and is still read as accepted, in the
-column that word names — `core/migrations/migrate-plans-accepted.py` tidies
-those files, and nothing needs it to.
+Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and an
+owner saying who is expected to move the item next. The stream's own words live
+in its manifest — `agents/planning_agent/stream.json` — and the only thing that
+writes it is `stream.py --apply` beside it. The board asks; the stream writes.
 
-Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and
-an owner saying who is expected to move the item next. Each stream's own words live
-in its manifest — `agents/planning_agent/stream.json` and
-`agents/implementing_agent/stream.json` — and the only things that write them are
-`stream.py --apply` beside each. The board asks; the stream writes. Nothing here
-writes another stream's files, which is the arrangement
-`agents-dashboard/CONTRACT.md` already holds for schedules.
+**There was a second stream until 13 Sep 2026** and there is not now. Accepting a
+plan minted a *run* into `data/<dataset>/runs/`, which landed in Execution's
+Backlog and sat there until it was dragged across — a gate that filtered nothing
+and was simply a step to remember. The two boards are one, the runs are folded
+onto the plans they came from by
+`core/migrations/migrate-fold-runs-into-plans.py`, and `agents/implementing_agent/`
+is now the agent definition and its brief, with no stream of its own.
 
-`agents/implementing_agent/stream.py --sync` is the other half of "Backlog is fed
-by everything in Plans' Ready to be produced column": it mints a run for every
-accepted plan that has not got one, it is idempotent, and the Execution view
-calls it on every load.
+What carries the second half is a field rather than more states, because the
+contract allows one `state:` per document: `production:` on an accepted plan says
+whether it is `none`, `doing`, `review` or `done`. The Plans view draws all four
+in Ready to be produced and marks the card — **six columns rather than eight**,
+decided the same day, because the implementing agent only ever runs from a
+session he is sitting in, so there is never a card to watch move on its own. If
+that changes, `production` is what the two extra columns get drawn from.
 
 ## The React half, and why it is only a half
 
@@ -333,8 +332,7 @@ blocked-writes list does double duty: Plans is one of the two views that write
 anything, so the recording is also how the test asserts it posts only
 `/stream/apply` and `/queue/order` — the plan's own frontmatter and the nightly
 queue's ordering, both inside `plans/` — and never reaches `todo.md`.
-`kanban/test_execution.mjs` is the same again for the Execution view, where the
-blocked list is asserted to hold nothing but transitions on the `runs` stream. `kanban/test_schedule.mjs` is the
+`kanban/test_schedule.mjs` is the
 same again for the Schedule view.
 
 `kanban/test_projects.mjs` covers both halves of the Projects view — the tab
@@ -394,10 +392,8 @@ python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
 node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
-python3 agents/implementing_agent/test_implementing_agent.py   # the runs stream
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the nine below need the board running
-node kanban/test_execution.mjs
+node kanban/test_plans.mjs         # the seven below need the board running
 node kanban/test_schedule.mjs
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs

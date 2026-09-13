@@ -15,9 +15,6 @@ file.
 | File | What it is |
 | --- | --- |
 | `implementing-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/implementing-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
-| `stream.json` | The manifest for this half's queue — its four columns, its owners, and where its documents live. `PACKAGES/work_streams/CONTRACT.md` is the shape. |
-| `stream.py` | The only thing that writes those documents. `--apply` moves one between columns, `--sync` mints a run for every plan he has accepted, `--list` prints the columns at a terminal. |
-| `test_implementing_agent.py` | What counts as accepted, what each move writes, and what the stream refuses. Runs entirely in a temporary folder. |
 
 ## The three things that are load-bearing
 
@@ -50,30 +47,26 @@ is the wrong one to be it because it is the one running unattended stretches.
 
 ## How work reaches it
 
-Through a board of its own since 12 Sep 2026 — the Execution view — carrying the
-same four columns as the to-do list itself: Backlog, To do, Waiting for review,
-Done.
+Through the Plans view. It had a board of its own, Execution, from 12 Sep 2026
+until the two were folded into one on 13 Sep, and since then
+the plan carries both halves: `state: accepted` says he agreed to it, and
+`production:` says how far this half has got.
 
-A card here is a **run**: one document in `data/<dataset>/runs/` per plan he
-accepted, naming that plan in its `plan:` field. Not the plan itself, and the
-reason is worth keeping. A plan he has accepted is finished as a plan and not
-started as a run, so the two are in different columns at the same time. One
-document cannot be in two columns at once, and a second `state:` bolted onto one
-file is exactly what the contract exists to stop. So an accepted plan mints a
-run, the run carries this half's state, and the plan file is never written again.
+Accepting a plan on the Plans view leaves it at `production: none`, where nothing
+happens to it. `pa-do` is what picks one up, and it hands the agent the plan
+path, the task's bucket and column, and the bucket's brief. The agent writes what
+it did into the plan itself; the driving session writes the two transitions
+around that, since this agent holds no Bash tool and never could run a writer.
+Accepting what was produced is his press on the board, not the agent's.
 
-Accepting a plan on the Plans view lands a run in **Backlog**, where nothing
-happens to it. Moving it to **To do** — `state: ready` with
-`owner: implementing-agent` — is what `pa-do` works through. It hands one over with
-the plan path, the run path, the task's bucket and column, and the bucket's
-brief. When the work is done the agent writes what it did into the run and asks
-the stream to set `review` / `me`; accepting that is his press on the board, not
-the agent's.
-
-`stream.py --sync` is what makes "Backlog is fed by everything in Plans' Done
-column" true rather than nearly true: it mints a run for every accepted plan
-that has not got one, in all three spellings the Plans view has used for
-accepted, and it is idempotent, so the view calls it every time it loads.
+**There is no stream here any more.** Until 13 September 2026 this folder owned
+one: accepting a plan minted a run document into `data/<dataset>/runs/`, which
+landed in a board of its own. That board and this stream were folded into Plans —
+see `CLAUDE.md` — and what is left here is the agent definition and this README.
+The plan is now both the instruction and the record, and the two transitions the
+work passes through are written by the session driving it, through `pa-do`, on
+the plans stream. `core/migrations/migrate-fold-runs-into-plans.py` is what moved
+the documents.
 
 The vocabulary is not scattered across files that have to be edited together. It
 lives in `stream.json` beside this, and the shape it belongs to is

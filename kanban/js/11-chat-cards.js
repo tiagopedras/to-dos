@@ -404,7 +404,6 @@ function viewDefs(){
     { id:'timeline', label:'Timeline', group:'draw' },
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
-    { id:'execution', label:'Execution' },
     { id:'projects', label:'Projects' },
     { id:'sep2', sep:true },
     { id:'reports',  label:'Reports' }

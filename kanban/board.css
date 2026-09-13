@@ -1611,6 +1611,29 @@
     text-transform:uppercase; color:var(--amber);
     border:1px solid currentColor; border-radius:999px; padding:1px 7px;
   }
+  /* How far the implementing agent has got, on a plan he accepted. The same
+     chip as .planfold beside it, because they are the same kind of mark — a
+     word about the card rather than about the task — and only the colour
+     differs, by what the stage is asking of him.
+
+     This is the half of the Execution view that survived folding the two boards
+     into one on 13 Sep 2026. Six columns rather than eight was the decision,
+     so the stage is read off the card; if the implementing agent ever runs
+     unattended, these three values become the two extra columns instead. */
+  .planprod{
+    flex:none; font-size:10.5px; font-weight:680; letter-spacing:.02em;
+    text-transform:uppercase; color:var(--ink-faint);
+    border:1px solid currentColor; border-radius:999px; padding:1px 7px;
+  }
+  /* Nothing is owed from him yet: accepted, and the agent has not been asked. */
+  .planprod-none{color:var(--ink-faint)}
+  /* Running right now, in a session he is in — so it is information rather
+     than a request, and takes the accent without the weight of amber. */
+  .planprod-doing{color:var(--accent)}
+  /* It did the work and wrote back: this one is waiting on him, which is what
+     amber means everywhere else on this view. */
+  .planprod-review{color:var(--amber)}
+  .planprod-done{color:var(--green)}
   /* Finished, and kept as a record rather than as something to read. Dimmed
      and dashed, the same treatment a held queue row gets, because both mean
      "present, not in play". */

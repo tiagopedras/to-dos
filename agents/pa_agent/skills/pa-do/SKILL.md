@@ -1,6 +1,6 @@
 ---
 name: pa-do
-description: Carry out the work the owner has put in the To do column of the Execution view of his board, at Code/to-dos/data/<dataset>/runs/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the implementing-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the planning agent, which is the board's own Run now button.
+description: Carry out the plans the owner has accepted on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the implementing-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the planning agent, which is the board's own Run now button.
 ---
 
 # Carrying out an agreed plan
@@ -16,21 +16,29 @@ something.
 
 ## Which queue this is, and why nothing runs without him
 
-Since 12 September 2026 there are two agent boards, and they carry the same four
-columns as his own: Backlog, To do, Waiting for review, Done. Plans is the
-planning agent's; **Execution is this one**.
+There is one agent board, not two. Plans and Execution were separate until
+13 September 2026, and accepting a plan minted a second document — a *run* — that
+landed in Execution's Backlog and waited there to be dragged across. That gate
+filtered nothing: it was a step to remember, and on 12 Sep six plans stood
+accepted with two of their runs never moved. The two boards are one now, the runs
+are folded onto the plans they came from, and `data/<dataset>/runs/` is gone.
 
-A card here is a **run** — one document per plan he accepted, in
-`data/<dataset>/runs/`, carrying the plan it came from in its `plan:` field. Not
-the plan itself: a plan he has accepted is finished as a plan and not started as
-a run, and one document cannot be in two columns at once. The shape is shared by
-every queue in `~/Code` and written up in `PACKAGES/work_streams/CONTRACT.md`;
-this stream's own words are in `agents/implementing_agent/stream.json`.
+So a card here is the **plan itself**, in `data/<dataset>/plans/<night>/`. A plan
+he has accepted carries `state: accepted`, and a second field says how far this
+half has got:
 
-Accepting a plan mints a run into **Backlog**, where nothing happens to it. What
-starts the work is him moving it to **To do**, which is `state: ready` with
-`owner: implementing-agent`. Not by you, and never on the grounds that a plan looks
-right.
+    production: none     he accepted it; nothing has been started
+    production: doing    an implementing-agent run has it right now
+    production: review   it did the work and wrote back; waiting on him
+    production: done     he has accepted what it did
+
+A second field rather than more states, because `PACKAGES/work_streams/CONTRACT.md`
+allows one `state:` per document and this answers a different question about the
+same one: `state` says where the plan is, `production` says what has happened to
+the work it describes. The Plans view draws all four in **Ready to be produced**
+and marks the card with the stage — six columns rather than eight, decided the
+same day, because this agent only ever runs from a session he is sitting in, so
+there is never a card to watch move on its own.
 
 While a plan sits accepted, `is_stale()` in `agents/planning_agent/pick.py` leaves
 that task alone, so the plan he approved is the one that gets carried out rather
@@ -39,16 +47,15 @@ than being replaced overnight by a second opinion.
 ## Move 1: what is waiting
 
 Read `data/.current` for the dataset, then look through
-`data/<dataset>/runs/*.md` for frontmatter with `state: ready` and
-`owner: implementing-agent`. Ignore `index.md`. A run carrying a `feedback:` line
-is one he sent back — that line says what was wrong last time, and it is the
-first thing the agent needs.
+`data/<dataset>/plans/*/*.md` for frontmatter with `state: accepted` and
+`production: none`. Ignore `index.md`. A plan carrying a `feedback:` line is one
+he sent back — that line says what was wrong last time, and it is the first thing
+the agent needs.
 
 Report the count and list them: the task title, its bucket, and its `summary:`
-line. If there are none, say so and stop — and say whether anything is sitting in
-Backlog, since that is him not having moved it across rather than there being
-nothing to do. Do not go looking for plans he might like to accept; that is a
-`pa-review-plans` session and it is his call, not yours.
+line. If there are none, say so and stop. Do not go looking for plans he might
+like to accept; that is a `pa-review-plans` session and it is his call, not
+yours.
 
 ## Move 2: one at a time, and he picks
 
@@ -63,9 +70,8 @@ days ago, and the thing about to happen should not be a surprise.
 
 One `implementing-agent` run per plan. Give it:
 
-- The full path to the plan file, which is `data/<dataset>/plans/` plus the run's
-  own `plan:` field.
-- The full path to the run document, which is where it writes back.
+- The full path to the plan file. It is both the instruction and, since the
+  fold, the document the report goes onto — there is no second file.
 - Its `feedback:` line, if it has one — that is him having sent this back.
 - The task's title, bucket and column, and its `Project:` note if it has one.
 - The path to the bucket's brief, `data/<dataset>/buckets/<stream>/<stream>.md`, worked out the
@@ -85,17 +91,24 @@ for you rather than for him, so summarise it rather than relaying it, and follow
 
 Two things to check before you call it done:
 
-- **The run is now `state: review` with `owner: me`.** The agent asks the stream
-  to set it, through `agents/implementing_agent/stream.py --apply`, which is the
-  only thing that writes these documents. If it did not, say so rather than
-  setting it yourself: a run still owned by `implementing-agent` means the work did
-  not finish, and that is a fact worth him seeing rather than tidying away.
-  Accepting it is his move, on the Execution view, and it is not yours to make.
-  The plan it came from is left exactly as it is — it was finished the moment he
-  accepted it, and nothing writes it again.
+- **Write the two transitions yourself.** `production: doing` when you hand the
+  plan over, and `production: review` with `owner: me` when the report lands,
+  both through `agents/planning_agent/stream.py --apply` — the plans stream's
+  one writer, which is what the board itself posts to. This was the agent's job
+  to do until 13 Sep 2026 and it never could: `implementing-agent` holds no Bash
+  tool, so it cannot run a subprocess, and every finished run sat in `review`
+  looking exactly like a session that had died mid-work. The board asks and the
+  stream writes, everywhere else in this repo; this is the same rule.
+- **Append the report to the plan**, under a `## What the implementing agent did`
+  heading, and put its one-line summary in `production_summary:`. The report is
+  the only record of what was actually produced, and before the fold it lived in
+  a document of its own.
 - **Anything it wrote is under `data/<dataset>/projects/`.** That folder is
   private and gitignored. Nothing from it goes into a commit, a report or a
   message.
+
+Accepting what it did is his move, on the Plans view, and it is not yours to
+make.
 
 If it asked for a change to `todo.md`, **it goes through `pa`, not the agent.**
 `implementing-agent` never writes that file. It hands the change up as a request,
@@ -106,10 +119,10 @@ write is holding a stale document, and a save from it would undo the change.
 
 ## What this skill never does
 
-- **It never accepts a plan, and it never accepts a run.** If he says "that one
-  looks fine, do it", that is him accepting it, and it gets recorded on the
-  Plans view first — then moved across on the Execution view. Both are moves he
-  makes on the board.
+- **It never accepts a plan, and it never marks one produced.** If he says
+  "that one looks fine, do it", that is him accepting it, and it gets recorded
+  on the Plans view. Both accepting the plan and accepting what was produced are
+  moves he makes on the board.
 - **It never runs the planning agent.** That is the board's Run now button, and
   it spends money.
 - **It never runs unattended.** No cron, no schedule, no background. Decided

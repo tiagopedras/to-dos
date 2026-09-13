@@ -576,6 +576,46 @@ they settled is written up in the README rather than left here:
   deliberately kept narrow, and what contains that is a fixed list of named
   read-only consultants rather than an open grant.
 
+- ~~**Plans and Execution are two boards holding one pipeline, and the seam
+  between them is a second manual gate on work he has already approved.**~~
+  **Done, 13 Sep 2026.** One board. The Execution view, `kanban/js/27-execution.js`,
+  `kanban/test_execution.mjs`, the runs stream and its server plumbing are all
+  gone, and `agents/implementing_agent/` is the agent definition and its brief
+  with no stream of its own.
+
+  **Six columns rather than eight**, which the entry below left open and which
+  he settled: the implementing agent only ever runs from a session he is sitting
+  in, so there is never a card to watch move on its own, and six extra tracks
+  would be spent drawing a state nobody watches. The stage rides on the card
+  instead, as `production: none | doing | review | done` on the accepted plan,
+  marked by `.planprod` in `kanban/board.css`. **If that agent ever becomes
+  autonomous, the eight-column version is the one to build** — he said so
+  directly, and `production` is already the right shape to be drawn as columns.
+
+  A second field rather than more states because the contract allows one
+  `state:` per document, and this answers a different question about the same
+  one: `state` says where the plan is, `production` says what has happened to
+  the work it describes.
+
+  The data moved as the entry said: `core/migrations/migrate-fold-runs-into-plans.py`
+  folded the three review-state reports (84, 48 and 104 lines) onto their plans
+  under a `## What the implementing agent did` heading, closed the two `done`
+  ones, and recorded the two empty stubs as `production: none`.
+  `data/twinkl/runs.before-fold/` holds the originals.
+
+  Two things had to change that the entry did not name. `accepted` could only be
+  owned by the implementing agent, which was right while what happened next was
+  a run on another board and wrong the moment the same card came back to him —
+  so `OWNERS` in `agents/planning_agent/stream.py` takes `me` there too, and
+  `test_planning_agent.py`'s "refuses accepted owned by him" became its
+  opposite. And `pa-do` and `implementing-agent.md` both told the agent to move
+  its own card, which it has never been able to do: it holds no Bash tool, so it
+  cannot run the writer. The driving session writes both transitions now, which
+  is what the entry below already decided and what "the board asks; the stream
+  writes" says everywhere else.
+
+  The original entry follows.
+
 - **Plans and Execution are two boards holding one pipeline, and the seam
   between them is a second manual gate on work he has already approved.**
   Accepting a plan writes `state: accepted` on the plan document, and `sync()`

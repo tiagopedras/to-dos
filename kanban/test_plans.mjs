@@ -92,7 +92,24 @@ await evalJS(`(() => {
     { name:'old.md', night:'2026-09-04', url:'/x/old.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'Something already dealt with', task:'Something already dealt with',
       bucket:'Strategic', column:'Backlog', ai:'partial', agent:'planning-strategic',
-      date:'2026-09-04', summary:'Done and dusted.' }
+      date:'2026-09-04', summary:'Done and dusted.' },
+    /* The three stages the implementing agent's half can be at, since the
+       Execution board was folded into this one on 13 Sep 2026. All three are
+       accepted plans and all three draw in Ready to be produced — six columns
+       rather than eight was the decision, so the stage is a mark on the card
+       and not a place. */
+    { name:'prod-none.md', night:'2026-09-05', url:'/x/prod-none.md', state:'accepted',
+      owner:'implementing-agent', seen:true, production:'none',
+      title:'Accepted, not started', task:'Accepted, not started',
+      bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
+    { name:'prod-doing.md', night:'2026-09-05', url:'/x/prod-doing.md', state:'accepted',
+      owner:'implementing-agent', seen:true, production:'doing',
+      title:'Being made right now', task:'Being made right now',
+      bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
+    { name:'prod-review.md', night:'2026-09-05', url:'/x/prod-review.md', state:'accepted',
+      owner:'me', seen:false, production:'review',
+      title:'Reported back', task:'Reported back',
+      bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' }
   ];
   window.__queue = {
     queue: [
@@ -192,10 +209,13 @@ check('unactioned plans are listed', live === 2, `${live} shown`)
    finished. Flat and unfolded: the fold existed because the old Done column
    was holding two questions at once, and splitting it took the second away. */
 check('accepted ones sit in Ready to be produced, not Done', await evalJS(`
-  document.querySelectorAll('#plansProduced > .repitem').length === 1 &&
-  document.querySelector('#plansProduced .bucket').textContent === 'accepted' &&
+  document.querySelectorAll('#plansProduced > .repitem').length === 4 &&
+  [...document.querySelectorAll('#plansProduced .bucket')]
+    .every(b => b.textContent === 'accepted') &&
   !document.querySelector('#plansDone > .repitem')
-`))
+`), await evalJS(`
+  document.querySelectorAll('#plansProduced > .repitem').length + ' rows, words: ' +
+  [...document.querySelectorAll('#plansProduced .bucket')].map(b => b.textContent).join('/')`))
 check('and Waiting for review holds only what is still to be read', await evalJS(`
   ![...document.querySelectorAll('#plansOut .repitem')]
     .some(r => r.classList.contains('actioned') || r.classList.contains('agreed') ||
@@ -574,6 +594,62 @@ check('and names the night and the file', marked.includes('"group":"2026-09-05"'
 // same confirm — a card landing somewhere and a button being pressed must not
 // come to mean different things.
 
+/* ---- the half that used to be the Execution board, 13 Sep 2026 ----
+   Plans and Execution were two boards over one pipeline: accepting a plan
+   minted a second document that landed in Execution's Backlog and waited to be
+   dragged, a gate that filtered nothing. The two are one board now and the
+   second document is gone, so the stage the implementing agent has reached
+   rides on the plan card.
+
+   Six columns rather than eight was the decision. Where a card sits is the
+   instruction everywhere else in this app, and by that rule these would be
+   columns — they are not, because the agent only runs from a session he is in,
+   so there is never a card to watch move. All three therefore draw in Ready to
+   be produced and differ only by their mark. */
+
+check('every stage of production draws in Ready to be produced', await evalJS(`
+  ['Accepted, not started','Being made right now','Reported back'].every(t =>
+    [...document.querySelectorAll('#plansProduced .card .title')].some(e => e.textContent === t))
+`), await evalJS(`
+  [...document.querySelectorAll('#plansProduced .card .title')].map(e => e.textContent).join(' | ')`))
+
+check('and none of them is a column of its own', await evalJS(`
+  document.querySelectorAll('.lists.pview > .col').length
+`) === 6, await evalJS(`document.querySelectorAll('.lists.pview > .col').length`))
+
+const prodChip = title => evalJS(`(() => {
+  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+    c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
+  const chip = card && card.querySelector('.planprod');
+  return chip ? chip.textContent + '/' + chip.className : 'missing';
+})()`)
+
+check('an accepted plan nothing has started says so',
+  await prodChip('Accepted, not started') === 'not started/planprod planprod-none',
+  await prodChip('Accepted, not started'))
+check('one the agent has right now says that instead',
+  await prodChip('Being made right now') === 'being made/planprod planprod-doing',
+  await prodChip('Being made right now'))
+check('and one that has reported back is the one waiting on him',
+  await prodChip('Reported back') === 'reported back/planprod planprod-review',
+  await prodChip('Reported back'))
+
+/* A plan that has reported back and not been looked at is the other thing that
+   has just arrived, so it takes the accent the same way an unread plan does.
+   Before the fold this card was on another board and could not say so here. */
+check('a report he has not read yet is marked like a new plan', (await evalJS(`
+  (() => { const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+      c.querySelector('.title')?.textContent === 'Reported back');
+    return card.getAttribute('style') || '' })()
+`)).includes('--b1'), await evalJS(`
+  (() => { const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+      c.querySelector('.title')?.textContent === 'Reported back');
+    return card.getAttribute('style') || '' })()`))
+
+check('a plan he has not accepted carries no production mark at all', await evalJS(`
+  [...document.querySelectorAll('#plansOut .card')].every(c => !c.querySelector('.planprod'))
+`))
+
 // Ready to be produced. He accepts the plan as written, which is the end of the
 // planning half: the picker leaves the task alone from here, and the card feeds
 // the execution board's Backlog. `accepted` rather than `done`, which is the
@@ -595,10 +671,11 @@ const after = await evalJS(`window.__blocked.join(' | ')`)
 check('accepting moves it to accepted, not done',
   after.includes('"to":"accepted"') && after.includes('"owner":"implementing-agent"') &&
   !after.includes('"resolution":"actioned"'))
+// Five, not two: the four the column already held plus the one just accepted.
 check('and the row moves out of Waiting for review into Ready to be produced', await evalJS(`
-  document.querySelectorAll('#plansProduced > .repitem').length === 2 &&
+  document.querySelectorAll('#plansProduced > .repitem').length === 5 &&
   !document.querySelector('#plansOut > .repitem.agreed')
-`))
+`), await evalJS(`document.querySelectorAll('#plansProduced > .repitem').length + ' in the column'`))
 
 // To do. The plan is wrong and tonight should write another, so the move has to
 // carry a reason — the reason is the whole feature, since it is what the next

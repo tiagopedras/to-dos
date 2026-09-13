@@ -937,6 +937,18 @@ def plan_meta(path, name, night):
         "seen": fields.get("seen", "") == "yes",
         "needs_you": fields.get("needs_you", "") == "yes",
         "resolution": fields.get("resolution", ""),
+        # How far the implementing agent's half has got, on a plan he accepted.
+        # Its own field rather than more values on `state` because the contract
+        # allows one state per document and this is a second question about the
+        # same one: `state` says where the plan is, `production` says what has
+        # happened to the work it describes. Written by the fold migration and
+        # by pa-do; "" on every plan that has not been accepted.
+        #
+        # This is also the field the eight-column version of the Plans view
+        # would draw as columns, if the implementing agent ever becomes
+        # autonomous enough to be worth watching — see IMPROVEMENTS.md.
+        "production": fields.get("production", ""),
+        "production_summary": fields.get("production_summary", ""),
         "feedback": fields.get("feedback", fields.get("redo_note", "")),
         "created": fields.get("created", fields.get("generated", "")),
         # When the file was actually written, to the second. Missing on any
@@ -990,100 +1002,6 @@ def plan_listing():
     return out
 
 
-def runs_dir(name=None):
-    """Where the implementing agent's work sits, one document per plan Tiago accepted.
-
-    A separate folder from plans/ because it holds a separate work item. A plan
-    and the run that carries it out are two things about one task, and they are
-    in different columns at the same time — a plan he has accepted is finished
-    as a plan and not started as a run — so they cannot be one document with one
-    `state:`. See agents/implementing_agent/stream.py, which is what writes in here.
-    """
-    return os.path.join(dataset_dir(name or current_dataset()), "runs")
-
-
-def run_meta(path, name):
-    """One run, described from its frontmatter. Same reader as plan_meta and
-    deliberately not the same function: a run carries the plan it came from and
-    nothing about a night."""
-    fields = {}
-    try:
-        with open(path, encoding="utf-8") as fh:
-            if fh.readline().strip() != "---":
-                return None
-            for line in fh:
-                if line.strip() == "---":
-                    break
-                key, _, value = line.partition(":")
-                fields[key.strip().lower()] = value.strip()
-    except OSError:
-        return None
-    try:
-        st = os.stat(path)
-    except OSError:
-        return None
-    return {
-        "name": name,
-        "url": "/%s/%s/runs/%s" % (DATA, current_dataset(), name),
-        "title": fields.get("title") or name[:-3].replace("-", " "),
-        "task": fields.get("task", ""),
-        "slug": fields.get("slug", ""),
-        "plan": fields.get("plan", ""),
-        "bucket": fields.get("group") or fields.get("bucket", ""),
-        "column": fields.get("column", ""),
-        "summary": fields.get("summary", ""),
-        "session": fields.get("session", ""),
-        "state": fields.get("state") or "backlog",
-        "owner": owner_now(fields.get("owner") or "me"),
-        "seen": (fields.get("seen") or "no").lower() in ("yes", "true", "1"),
-        "resolution": fields.get("resolution", ""),
-        "feedback": fields.get("feedback", ""),
-        "created": fields.get("created", ""),
-        "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="minutes"),
-    }
-
-
-def run_listing():
-    """Every run document, oldest first — the order they were accepted in."""
-    root = runs_dir()
-    if not os.path.isdir(root):
-        return []
-    out = []
-    for name in sorted(os.listdir(root)):
-        if not name.endswith(".md") or name == "index.md" or name.startswith("."):
-            continue
-        meta = run_meta(os.path.join(root, name), name)
-        if meta:
-            out.append(meta)
-    return out
-
-
-# What a plan's `status:` is allowed to say, and what each one means to the
-# thing that reads it.
-#
-#   unread    nobody has looked at it
-#   read      looked at, doing nothing about it yet
-#   agreed    approved to be carried out. implementing-agent picks these up, the picker
-#             leaves the task alone until the work is done, and prune keeps it.
-#   redo      rejected, with `redo_note:` saying why. The picker plans the task
-#             again on the next run and the reason is fed to the agent, so the
-#             next plan is not the same plan.
-#   actioned  acted on, so it no longer describes outstanding work
-#
-# Kept in step with is_stale() in agents/planning_agent/pick.py, which is the other half of
-# what these mean. A value this list does not know is refused rather than
-# written, since the picker would read it as "unchanged" and quietly stop
-# planning the task.
-# PLAN_STATUS and mark_plan() lived here until 11 Sep 2026. They were the board's
-# server writing the planning agent's files, which is the arrangement
-# agents-dashboard/CONTRACT.md already refuses for schedules and for the same
-# reason: two programs writing one thing eventually give two different answers
-# about it. This stream had collected exactly that bug, where a plan's own
-# frontmatter and its ledger row disagreed for ever.
-#
-# The writing is the planning agent's, in agents/planning_agent/stream.py, reached
-# through /stream/apply. The vocabulary is its manifest's, in
-# agents/planning_agent/stream.json. Neither is duplicated here any more.
 def ledger_path():
     return os.path.join(plans_dir(), "ledger.json")
 
@@ -1754,8 +1672,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # The implementing agent's half. Read-only here, like every other listing:
         # what mints and moves these documents is the runs stream's own writer,
         # reached through /stream/apply.
-        if path == "/runs.json":
-            return self._json(200, {"runs": run_listing()})
         # Three routes rather than one, and split by how long each takes: the
         # queue is a parse of todo.md, the run is a tail of a log, and both are
         # instant. A checkout with no agents/planning_agent/ answers 404 on the queue and the

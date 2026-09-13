@@ -90,6 +90,26 @@ function planWord(p){
   return p.seen ? 'read' : 'new';
 }
 
+/* How far the implementing agent's half has got, on a plan he accepted.
+   Since 13 Sep 2026 there is one board rather than two: Execution was a second
+   view over a second document per accepted plan, and the gate between them
+   filtered nothing — it was a step to remember. So the stage rides on the plan
+   card instead.
+
+   Six columns rather than eight, decided the same day. Where a card sits is the
+   instruction everywhere else in the app, and by that rule these would be
+   columns; they are not, because the implementing agent only ever runs from a
+   session he is sitting in, so there is never a card to watch move. If that
+   changes, `production` is what the two extra columns would be drawn from —
+   the field is already the right shape for it. */
+function productionWord(p){
+  if (p.production === 'doing') return 'being made';
+  if (p.production === 'review') return 'reported back';
+  if (p.production === 'done') return 'produced';
+  if (p.state === 'accepted') return 'not started';
+  return '';
+}
+
 /* The plan card's left stripe. Every card in the app carries one; a task card's
    is its bucket's colour, and a plan's is this. Not the bucket, because a plan
    is one proposal about one task rather than a thing belonging to a bucket, and
@@ -107,6 +127,10 @@ function planWord(p){
      finished, replaced             the line colour */
 function planStripe(p){
   if (p.state === 'review' && !p.seen) return 'var(--b1)';
+  /* Reported back and not yet looked at is the other thing that has just
+     arrived, so it takes the same colour as a new plan. Before the fold this
+     card was on a different board entirely and could not say so here. */
+  if (p.production === 'review' && !p.seen) return 'var(--b1)';
   if (isAgreed(p)) return 'var(--green)';
   return 'var(--line)';
 }
@@ -201,6 +225,8 @@ function planItemHTML(p){
     : '';
   const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' \u00b7 ');
   const stripe = planStripe(p);
+  // Only on a card whose plan he has accepted; "" everywhere else.
+  const prod = productionWord(p);
   /* The state the plan is in, as the card's eyebrow. It sat at the right-hand
      end of the title row until 12 Sep 2026, which put the one word saying what
      to do about the card furthest from where reading starts — and left the
@@ -212,8 +238,12 @@ function planItemHTML(p){
     attrs: 'draggable="true" data-plan="' + esc(p.url) + '" data-plan-open="' + esc(p.url) + '"',
     stripe: stripe,
     eyebrow: '<span class="bucket">' + esc(planWord(p)) + '</span>' +
-      (folded ? '<span class="right"><span class="planfold" ' +
-        'title="The agent stopped and asked rather than guessing">needs you</span></span>' : ''),
+      ((folded || prod) ? '<span class="right">' +
+        (prod ? '<span class="planprod planprod-' + esc(p.production || 'none') + '" ' +
+          'title="How far the implementing agent has got with this one">' + esc(prod) + '</span>' : '') +
+        (folded ? '<span class="planfold" ' +
+          'title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
+        '</span>' : ''),
     title: esc(p.title),
     /* The task's own impact and effort. The Figma instances carry no tag row on
        a plan, which is content rather than a rule — confirmed 12 Sep 2026, so
@@ -703,7 +733,7 @@ function renderPlanProduced(){
     ? '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
       shown.map(planItemHTML).join('')
     : colEmptyHTML('Nothing accepted yet. A plan you accept lands here, and from ' +
-                   'here it feeds the execution board.', 'boxed');
+                   'it is waiting to be produced.', 'boxed');
   setColCount('#producedCol', shown.length);
   wirePlanColumn(out, () => {});
   wireColumnDrop(out, d => {
@@ -1534,7 +1564,7 @@ async function renderPlansView(){
         /* No filter on this one: every card in it is the same thing, a plan he
            has accepted whose work has not finished. A dropdown with one
            option is a control that only ever says All. */
-        desc: 'Accepted as written. From here it feeds the execution board\u2019s Backlog.',
+        desc: 'Accepted as written, and waiting on the implementing agent.',
         body: '<div id="plansProduced">Loading\u2026</div>'
       }) +
       colHTML({

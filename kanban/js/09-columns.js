@@ -332,7 +332,7 @@ function cardHTML(t, color, bucketLabel, opts){
 /* =========================================================================
    One column, three views.
 
-   The Board, the Plans view and the Execution view all draw their columns
+   The Board and the Plans view both draw their columns
    through here, so a column is the same object wherever it appears: one fill,
    one border, one radius, one header padding, one body padding, one gap. What
    differs is which of the optional parts the head carries and what goes in
