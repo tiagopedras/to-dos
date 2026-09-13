@@ -735,15 +735,25 @@ they settled is written up in the README rather than left here:
   his to change. And the prose reflow: "night" became "planning" and "execution"
   became "implementing" inside wrapped paragraphs all over the repo, so a few
   hundred comment and Markdown lines now run a word past the margin.
-- **The implementing agent cannot delegate a lookup, so every expensive read happens
-  in the context that is also doing the writing.** `implementing-agent` holds
+- ~~**The implementing agent cannot delegate a lookup, so every expensive read happens
+  in the context that is also doing the writing.**~~ **Done, 13 Sep 2026.**
+  `implementing-agent` now holds `Agent(ds-analyst)` alongside its write tools
+  (`agents/implementing_agent/implementing-agent.md:4`), with a "Delegating a
+  lookup" section saying it is the only agent it may call, and why not
+  `ds-parity` or `ds-component-docs` beside it. First drafted unattended by
+  `improve_agent` on a branch that predated the runs→plans fold, so most of
+  that branch's diff reverted since-landed work; only the tool grant and the
+  new section were re-applied to current `main` by hand.
+
+  Below is what the entry originally argued, kept for the reasoning:
+
+  `implementing-agent` held
   `tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch`
-  (`agents/implementing_agent/implementing-agent.md:4`) and no Agent tool, so a run
-  that needs a number out of a design system snapshot reads the whole capture
-  itself. Read-only consultants for exactly that shape already exist outside
-  this repo — `ds-analyst` is granted `Bash, Read, Grep, Glob` and answers a
-  question about a snapshot without writing anything — and the implementing agent has
-  no way to reach one.
+  and no Agent tool, so a run that needs a number out of a design system
+  snapshot read the whole capture itself. Read-only consultants for exactly
+  that shape already exist outside this repo — `ds-analyst` is granted
+  `Bash, Read, Grep, Glob` and answers a question about a snapshot without
+  writing anything — and the implementing agent had no way to reach one.
 
   This is not the per-bucket proposal settled on 6 Sep 2026 and recorded above
   as "One implementing agent, `implementing-agent`, not one per bucket"
