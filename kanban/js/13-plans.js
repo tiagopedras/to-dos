@@ -551,6 +551,47 @@ function byTaskPriority(list){
     .map(x => x.p);
 }
 
+/* The complement to priority order: what landed last night, rather than what
+   matters most. planGeneratedLabel() already resolves the same precedence for
+   the row's own display, so the order and the words next to it never disagree. */
+function byNightWritten(list){
+  const key = p => p.created || p.generated || p.modified || p.night || '';
+  return list.slice().sort((a, b) => key(b).localeCompare(key(a)));
+}
+
+/* Plans has no equivalent of the board's file order — a folder of plan files
+   carries no hand order — so its second mode is date written rather than
+   manual, and it needs a key of its own: four of the six column names here are
+   the board's names too (PROJECT_SORT_KEY is the precedent for a view needing
+   its own key rather than sharing state.sort). Priority is the default, same
+   as it has always behaved. */
+const PLANS_SORT_KEY = 'todo-board-plans-sort';
+function readPlansSort(){
+  try { return JSON.parse(localStorage.getItem(PLANS_SORT_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+let plansSort = readPlansSort();
+function plansSortMode(col){ return plansSort[col] === 'night' ? 'night' : 'priority'; }
+function setPlansSortMode(col, mode){
+  if (mode === 'night') plansSort[col] = 'night'; else delete plansSort[col];
+  try { localStorage.setItem(PLANS_SORT_KEY, JSON.stringify(plansSort)); } catch (e) {}
+}
+function orderPlans(list, col){
+  return plansSortMode(col) === 'night' ? byNightWritten(list) : byTaskPriority(list);
+}
+/* The toggle itself, the same shape as the board's own .sortbtn — a prop
+   rather than a node found after a paint, closed over the column it governs. */
+function plansSortBtn(col){
+  const mode = plansSortMode(col);
+  return BoardUI.h('button', {
+    className: 'sortbtn' + (mode === 'night' ? ' on' : ''),
+    type: 'button',
+    title: mode === 'priority'
+      ? 'Showing highest impact for the lightest lift first. Click to sort by when it was written.'
+      : 'Showing what was written most recently. Click to sort by impact against effort.',
+    onClick: () => { setPlansSortMode(col, mode === 'priority' ? 'night' : 'priority'); renderPlansList(); }
+  }, mode === 'priority' ? 'by priority' : 'by night');
+}
+
 function redoReplaced(p){ return p.state === 'done' && p.resolution === 'superseded'; }
 /* One filter per column, so a chip picked in one does not reset the other. */
 let reviewFilter = 'all';
@@ -718,13 +759,14 @@ const emptyNode = msg => BoardUI.h(BoardUI.ColumnEmpty, { boxed: true }, msg);
    The one column with no drop zone. A plan arrives here because the agent put
    it here, and the three ways out are the three other columns. */
 function renderPlanReview(){
-  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.review));
+  const all = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.review), 'review');
   const active = REVIEW_FILTERS.find(f => f.key === reviewFilter);
   if (active && !all.some(active.match)) reviewFilter = 'all';
   const shown = reviewFilter === 'all'
     ? all
     : all.filter(REVIEW_FILTERS.find(f => f.key === reviewFilter).match);
   plansProps.reviewFilterHTML = colFilterHTML('review', all, REVIEW_FILTERS, reviewFilter);
+  plansProps.reviewSort = plansSortBtn('review');
   plansProps.review = shown.length
     ? planCardNodes(shown)
     : emptyNode('Nothing waiting to be read. Everything written has been ruled on.');
@@ -739,9 +781,10 @@ function renderPlanReview(){
 
    No filter and no drop zone: which one is running is not his to choose. */
 function renderPlanDoing(){
-  const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing));
+  const shown = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing), 'doing');
   plansProps.doingPlans = shown.length ? planCardNodes(shown) : null;
   plansProps.doingCount = shown.length;
+  plansProps.doingSort = plansSortBtn('doing');
   /* A card arriving here answers the column, so the "nothing running" word
      goes; a run that is live has already put its own card above, and that
      case is renderQueueDoingHead's. */
@@ -765,7 +808,7 @@ function renderPlanDoing(){
    word rather than silently ignored — see the `deny` argument on this column's
    `columnDropProps()` in paintPlans(). */
 function renderPlanProduced(){
-  const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced));
+  const shown = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced), 'produced');
   plansProps.produced = shown.length
     ? [BoardUI.h('p', { className: 'help', key: 'how' },
         'Start a session and run ', BoardUI.h('code', null, '/pa-do'), '.')]
@@ -773,6 +816,7 @@ function renderPlanProduced(){
     : emptyNode('Nothing accepted yet. A plan you accept lands here, and from ' +
                 'it is waiting to be produced.');
   plansProps.producedCount = shown.length;
+  plansProps.producedSort = plansSortBtn('produced');
 }
 
 /* Done. The work a plan describes has finished, which is the last thing that
@@ -784,13 +828,14 @@ function renderPlanProduced(){
    dragged across rather than only closed from inside the modal. Plans only, for
    the same reason the column before it is plans only. */
 function renderPlanDone(){
-  const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done));
+  const all = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done), 'done');
   const active = DONE_FILTERS.find(f => f.key === doneFilter);
   if (active && !all.some(active.match)) doneFilter = 'all';
   const shown = doneFilter === 'all'
     ? all
     : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
   plansProps.doneFilterHTML = colFilterHTML('done', all, DONE_FILTERS, doneFilter);
+  plansProps.doneSort = plansSortBtn('done');
   plansProps.done = shown.length ? planCardNodes(shown) : emptyNode('Nothing finished yet.');
 }
 

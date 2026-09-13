@@ -81,6 +81,13 @@ export interface PlansViewProps {
   review: ReactNode
   produced: ReactNode
   done: ReactNode
+  /** The priority/night toggle for each of the four, built by plansSortBtn()
+   *  in 13-plans.js — a prop rather than a slot filled after paint, the same
+   *  as every other handler on this view. */
+  doingSort?: ReactNode
+  reviewSort?: ReactNode
+  producedSort?: ReactNode
+  doneSort?: ReactNode
   /** Counts in the heads. An empty string draws no count at all — the two
    *  filtered columns say "All 12" on their own button, and the same number
    *  twice in one head is one too many. */
@@ -128,6 +135,7 @@ export function PlansView (props: PlansViewProps) {
     backlogCount, queueCount, doingCount, producedCount,
     reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
     backlogDrop, queueDrop, producedDrop, doneDrop,
+    doingSort, reviewSort, producedSort, doneSort,
   } = props
 
   return (
@@ -180,6 +188,7 @@ export function PlansView (props: PlansViewProps) {
         title="Doing"
         cls="reportsview doingview"
         id="doingCol"
+        sort={doingSort}
         count={doingCount ?? ''}
         desc="Currently running."
         body={
@@ -200,6 +209,7 @@ export function PlansView (props: PlansViewProps) {
         cls="reportsview processed"
         style="agent"
         desc="The agent’s own column — what it has worked out, waiting on you. Drag out of it, not into it."
+        sort={reviewSort}
         filters={
           <span className="colfilter-slot" id="reviewFilterSlot"
             dangerouslySetInnerHTML={raw(reviewFilterHTML)} />
@@ -220,6 +230,7 @@ export function PlansView (props: PlansViewProps) {
         title="Ready to be produced"
         cls="reportsview decided"
         id="producedCol"
+        sort={producedSort}
         count={producedCount ?? ''}
         desc="Accepted as written, and waiting on the implementing agent."
         body={<div id="plansProduced" {...producedDrop}>{produced}</div>}
@@ -230,6 +241,7 @@ export function PlansView (props: PlansViewProps) {
         title="Done"
         cls="reportsview finished"
         desc="Completed."
+        sort={doneSort}
         filters={
           <span className="colfilter-slot" id="doneFilterSlot"
             dangerouslySetInnerHTML={raw(doneFilterHTML)} />

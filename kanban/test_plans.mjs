@@ -1059,6 +1059,35 @@ check('the highest priority task is at the top, not the newest night', await eva
     .map(r => r.querySelector('.title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
+/* The toggle this column's head grew alongside the port: priority is the
+   default and the entry's asked-for alternative is what was written most
+   recently, undated (there is none here) falling further back to the night
+   folder. Toggled on, then off again, so every check after this one still
+   reads the priority order it was written against. */
+check('the column offers a sort toggle, off by default', await evalJS(`
+  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn:not(.on)')?.textContent === 'by priority'
+`))
+await evalJS(`(() => {
+  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn').click();
+  return painted();
+})()`)
+check('clicking it sorts by when the plan was written, newest first', await evalJS(`
+  [...document.querySelectorAll('#plansOut .repitem')]
+    .map(r => r.querySelector('.title').textContent).join(',') ===
+  'gone,middling,slow-burn,unscored,cheap-and-big'
+`), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
+check('and the button now reads the other way round', await evalJS(`
+  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn.on')?.textContent === 'by night'
+`))
+await evalJS(`(() => {
+  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn').click();
+  return painted();
+})()`)
+check('and clicking it again puts priority order back', await evalJS(`
+  [...document.querySelectorAll('#plansOut .repitem')]
+    .map(r => r.querySelector('.title').textContent).join(',') ===
+  'cheap-and-big,middling,slow-burn,gone,unscored'
+`))
 check('the task\'s impact and effort are on the row', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
