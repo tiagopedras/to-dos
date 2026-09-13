@@ -769,10 +769,39 @@ they settled is written up in the README rather than left here:
   still hand-picked, since generating them off one ramp repaints every bucket on
   his board.
 
-  The next step is the leaf views, and it is the one that needs a word first:
-  the React and Vite scaffolding is where `To-Do Board.app` and `run.command`
-  stop working until they run a build, since both read `server.py` off disk and
-  bundle nothing today.
+  **The scaffolding and the first view are done too, same day.** React 18 with
+  Vite 5 and TypeScript, built to `kanban/dist/board-ui.js` as an IIFE hanging
+  one global, `BoardUI`, loaded as an ordinary classic script so it joins the
+  28-file source order rather than being deferred past it. `run.command` builds
+  before it starts the server — decided against committing `dist/` and against
+  having the server rebuild on stale, so the build is never the thing that is
+  out of date — and `To-Do Board.app` execs `run.command`, so one place knows
+  about it. `Column` and `Card` came first and are written to be the markup
+  `colHTML()` and `cardShellHTML()` already emit; `kanban/ui/test_primitives.mjs`
+  renders 32 cases both ways and fails on any difference, with no browser and no
+  server.
+
+  Projects is the first view off the string builders, and its 44 existing checks
+  passed through unchanged, which is the evidence that the markup did not move.
+  Two rules came out of it, both now in `CLAUDE.md`: a React view owns a node it
+  created rather than `#lists`, because the unported views still assign to
+  `#lists.innerHTML` and would tear the DOM out from under a live root; and the
+  orchestration stays in `kanban/js/`, with the component taking the fetch's
+  answers, `cvWhen` and `mdInline` as props.
+
+  One thing worth knowing before the next build: Vite substitutes `NODE_ENV` for
+  an application build and **not** in lib mode, so the first bundle carried
+  React's development build and ten live references to `process` — 474kB that
+  would have thrown on load. The `define` in `vite.config.ts` is the fix and the
+  suite greps the built file so it cannot come back.
+
+  **Where it stopped, and why.** The next three views in the order above —
+  `15-backups.js`, `16-backup-preview.js` and `17-matrix.js` — have no test
+  suite at all, which the entry below now records. Porting a view with no
+  coverage is porting blind: the whole reason Projects could be trusted is that
+  44 checks written against the old markup passed against the new. So the port
+  is paused rather than continued, and the missing suites are the thing to
+  build first.
 
   One piece does not depend on any of the above and is worth doing first. The
   board guards a save with mtime and the conflict modal, both in the tab;
@@ -785,6 +814,28 @@ they settled is written up in the README rather than left here:
   Whenever this is picked up it runs on its own branch off `main`, never
   directly on it, and it is a weekly-allowance-sized spend rather than an
   evening's.
+
+- **Three views are drawn by nothing that tests them, and the component port
+  wants to go through all three next.** `kanban/test_*.mjs` covers Plans,
+  Execution, Schedule, Chats, Projects and Notes. It does not cover
+  `kanban/js/15-backups.js` (129 lines), `16-backup-preview.js` (107) or
+  `17-matrix.js` (293), and those are exactly the next three in the order the
+  component-layer entry above sets out. Projects could be ported with
+  confidence because 44 checks written against the old markup passed unchanged
+  against the new; none of these three has that, so the same move on them
+  proves nothing.
+
+  Backup preview is the one to write first and the one to be most careful
+  with, because it is not an ordinary view: it is the surface that sets
+  `state.locked` to make a preview safe to look at, and CLAUDE.md's own testing
+  rules lean on that lock being the thing that cannot save. A suite for it is
+  worth having whether or not the port ever reaches it — a silent regression
+  there is a tab that can write while it is showing a backup, which is the
+  shape of both real overwrites of the live list.
+
+  `kanban/test_projects.mjs` is the model to copy: stub the routes rather than
+  reading disk, lock the tab before loading a fixture, tear every non-GET out
+  of `fetch` afterwards, and assert the blocked list is empty at the end.
 
 - **Every agent here is rationed by an allowance none of them can read, and the
   only way to read it headlessly is a throwaway terminal.** `core/windows.py`
