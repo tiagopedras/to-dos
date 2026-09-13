@@ -51,6 +51,40 @@ const caseFor = line => {
   return { line, expect, roundTrip: board.serializeTask({ ...t, dirty: true })[0] }
 }
 
+/* Documents carry their input one of two ways. The three written by hand carry
+   their own `text`, because each exists to make one point and is shorter than
+   the explanation of it. A real document in the repo carries a `file` instead
+   and is read off disk by both suites, so the table holds the answers and never
+   a second copy of the document — a copy is exactly what would drift the first
+   time demo.md was edited and this file was not. */
+const REPO = path.join(CORE, '..')
+const DOC_FILES = [
+  { why: 'the demo list — the biggest document in the repo that is not private, '
+       + 'and the only whole realistic file both parsers are held to',
+    file: 'kanban/demo.md' }
+]
+const docText = d => d.file
+  ? fs.readFileSync(path.join(REPO, d.file), 'utf8')
+  : d.text
+
+/* The same walk both suites do, so what lands in the table is what they compare
+   against rather than a second opinion about the shape. */
+const tasksOf = doc => {
+  const got = []
+  doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t =>
+    got.push({ title: t.title, bucket: b.name, column: tier.name, body: t.body }))))
+  return got
+}
+
+const docFor = d => {
+  const text = docText(d)
+  const doc = board.parseDoc(text)
+  const holds = board.serializeDoc(doc) === text
+  if (d.roundTrips && !holds) throw new Error(`document no longer round-trips: ${d.why}`)
+  const { roundTrip, tasks, ...rest } = d   // `roundTrip`: a key an earlier draft added and nothing reads
+  return { ...rest, tasks: tasksOf(doc), roundTrips: holds }
+}
+
 const out = {
   _: old._,
   fields: FIELDS,
@@ -59,16 +93,13 @@ const out = {
      time, which is quietly wrong rather than loud. */
   cases: [...new Map([...old.cases.map(c => c.line), ...NEW_LINES].map(l => [l, l])).values()]
     .map(caseFor),
-  /* The documents are kept exactly as they were. `roundTrips` is re-asserted
-     here rather than copied, so a change that broke byte-for-byte fidelity
-     fails at generate time instead of being written into the table as true. */
-  docs: old.docs.map(d => {
-    const back = board.serializeDoc(board.parseDoc(d.text))
-    const holds = back === d.text
-    if (d.roundTrips && !holds) throw new Error(`document no longer round-trips: ${d.why}`)
-    const { roundTrip, ...rest } = d       // a key an earlier draft added and nothing reads
-    return { ...rest, roundTrips: holds }
-  })
+  /* The documents' inputs are kept exactly as they were; `tasks` and
+     `roundTrips` are both re-asserted here rather than copied, so a change that
+     broke the parse or byte-for-byte fidelity fails at generate time instead of
+     being written into the table as true. De-duplicated by `file` for the same
+     reason the cases are de-duplicated by line. */
+  docs: [...old.docs,
+         ...DOC_FILES.filter(f => !old.docs.some(d => d.file === f.file))].map(docFor)
 }
 fs.writeFileSync(path.join(HERE, 'parse.json'), JSON.stringify(out, null, 2) + '\n')
 console.log(`parse.json: ${out.cases.length} cases (${old.cases.length} kept, ${NEW_LINES.length} new), ${out.docs.length} docs, ${FIELDS.length} fields`)

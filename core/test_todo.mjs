@@ -171,8 +171,12 @@ function checkParse() {
     }
   }
 
+  /* A document carries either its own `text` or a `file` naming a real document
+     in the repo, which is read off disk so the table never holds a second copy
+     of it. */
   for (const d of table.docs) {
-    const doc = board.parseDoc(d.text);
+    const text = d.file ? fs.readFileSync(path.join(HERE, '..', d.file), 'utf8') : d.text;
+    const doc = board.parseDoc(text);
     const got = [];
     doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t =>
       got.push({ title: t.title, bucket: b.name, column: tier.name, body: t.body }))));
@@ -180,7 +184,7 @@ function checkParse() {
       fail(`parseDoc — ${d.why}\n     got  ${JSON.stringify(got)}\n     want ${JSON.stringify(d.tasks)}`);
       continue;
     }
-    if (board.serializeDoc(doc) !== d.text) fail(`parseDoc did not round-trip — ${d.why}`);
+    if (board.serializeDoc(doc) !== text) fail(`parseDoc did not round-trip — ${d.why}`);
   }
   console.log(`${table.cases.length} task lines, ${table.docs.length} documents — ${failures > before ? 'see above' : 'all agree'}`);
 }

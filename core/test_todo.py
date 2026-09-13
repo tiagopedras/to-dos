@@ -80,11 +80,25 @@ import todo
 # one: a table written out twice, once per language, is the third copy this file
 # exists to prevent.
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def fixture(name):
     with open(os.path.join(FIXTURES, name), encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def doc_text(doc):
+    """A document's input, which is either written into the table or named by it.
+
+    The short shapes carry their own `text`. A real document in the repo carries
+    a `file` and is read off disk by both suites, so the table holds the answers
+    and never a second copy of the document itself.
+    """
+    if doc.get("file"):
+        with open(os.path.join(REPO, doc["file"]), encoding="utf-8") as fh:
+            return fh.read()
+    return doc["text"]
 
 
 REPEAT = fixture("repeat.json")
@@ -394,7 +408,7 @@ def check_parse():
                 failures += 1
 
     for doc in PARSE["docs"]:
-        tasks = todo.parse_doc(doc["text"])
+        tasks = todo.parse_doc(doc_text(doc))
         got = [(t.title, t.bucket, t.column) for t in tasks]
         want = [(t["title"], t["bucket"], t["column"]) for t in doc["tasks"]]
         if got != want:
