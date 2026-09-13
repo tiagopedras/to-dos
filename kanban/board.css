@@ -2009,10 +2009,10 @@
      argument changed. */
   .card, .repitem, .chaincard{
     background:var(--panel); border:1px solid var(--line);
-    border-left:3px solid var(--bc,var(--line));
-    border-radius:9px; padding:9px 10px 9px 9px; box-shadow:0 1px 1px rgba(16,20,28,.04);
+    border-left:4px solid var(--bc,var(--line));
+    border-radius:9px; padding:9px 10px 9px 8px; box-shadow:0 1px 1px rgba(16,20,28,.04);
   }
-  /* 9 left plus the 3px stripe is the component's 12, against 10 on the right.
+  /* 8 left plus the 4px stripe is the component's 12, against 10 on the right.
      The asymmetry is deliberate: the stripe is a mark, not a margin, so the
      text has to clear it by the same amount it clears the other edge. */
   .card{cursor:grab}
