@@ -1141,11 +1141,17 @@
      and the key switches any of them off when they sit on top of each other.
      SVG, because the whole thing has to scale with the column and the curves
      have to stay smooth while it does. */
+  /* The line/bars toggle sits beside the heading it governs, same reasoning
+     as .colhead-row: the left side names the chart, the right side is what
+     you do to it. */
+  .trendhead{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .trendhead h2{margin:0}
   .trend{margin:10px 0 2px}
   .trendchart{display:block; width:100%; height:auto}
   .trendgrid{stroke:var(--line); stroke-width:1}
   .trendbase{stroke:var(--line); stroke-width:1}
   .trendline{fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round}
+  .trendbar{rx:2}
   .trenddot{pointer-events:none}
   .trendpt{fill:transparent; cursor:pointer}
   .trendpt:focus-visible{outline:2px solid var(--accent); outline-offset:1px}

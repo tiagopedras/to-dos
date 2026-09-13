@@ -229,6 +229,13 @@ $('#lists').addEventListener('click', e => {
     return;
   }
 
+  const trendType = e.target.closest('[data-trendtype]');
+  if (trendType) {
+    trendChartType = trendType.dataset.trendtype;
+    renderCountedReports();
+    return;
+  }
+
   const tick = e.target.closest('[data-tick]');
   if (tick) {
     const found = locate(tick.dataset.tick);

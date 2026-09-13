@@ -371,6 +371,10 @@ function trendWeeks(){
    looking at the chart for a moment, not a setting worth keeping. */
 const trendHidden = new Set();
 
+/* Line or bars. Same in-memory-only pattern as trendHidden — a way of looking
+   at the chart, not a setting worth keeping across a reload. */
+let trendChartType = 'line';
+
 function weekBuckets(n){
   const dow = (today().getDay() + 6) % 7;              // Monday = 0
   const thisMonday = new Date(today() - dow * 86400000);
@@ -475,39 +479,68 @@ function weeklyTrendReport(){
   const grid = weekData.map((w, i) =>
     '<line class="trendgrid" x1="' + f(cx(i)) + '" y1="' + top + '" x2="' + f(cx(i)) + '" y2="' + base + '"/>'
   ).join('');
-  // Each band fades out downwards so overlapping ones stay readable through
-  // each other, which a flat fill at any opacity does not.
-  const defs = shown.map((s, i) =>
-    '<linearGradient id="tgrad' + i + '" x1="0" y1="0" x2="0" y2="1">' +
-      '<stop offset="0" stop-color="' + s.color + '" stop-opacity=".42"/>' +
-      '<stop offset="1" stop-color="' + s.color + '" stop-opacity="0"/>' +
-    '</linearGradient>').join('');
-  const bands = shown.map((s, i) => {
-    const d = curve(s.values);
-    return '<path d="' + d + 'L' + W + ',' + base + 'L0,' + base + 'Z" fill="url(#tgrad' + i + ')"/>' +
-      '<path class="trendline" d="' + d + '" stroke="' + s.color + '">' +
-        '<title>' + esc(s.name) + '</title></path>';
-  }).join('');
-  /* One point per week per line, on top of the bands: a small dot to see, and
-     a bigger transparent circle round it to actually hover — a 3px target is
-     real but not a fair one. showTrendPreview reads the count and the week
-     straight off these rather than re-deriving them, the same way matrixDot's
-     aria-label is written once at render time rather than looked up on hover. */
-  const points = shown.map(s =>
-    s.values.map((v, i) => {
-      const x = f(cx(i)), y = f(cy(v));
-      return '<circle class="trenddot" cx="' + x + '" cy="' + y + '" r="2.5" fill="' + s.color + '"/>' +
-        '<circle class="trendpt" cx="' + x + '" cy="' + y + '" r="9" tabindex="0"' +
-        ' data-trendlabel="' + esc(s.name) + '" data-trendcolor="' + s.color + '"' +
-        ' data-trendcount="' + v + '" data-trendweek="' + esc(reportDay(ymd(weekData[i].start))) + '"' +
-        ' aria-label="' + esc(s.name) + ', ' + v + ' task' + (v === 1 ? '' : 's') +
-        ', week of ' + esc(reportDay(ymd(weekData[i].start))) + '"></circle>';
-    }).join('')
-  ).join('');
+
+  let picture;
+  if (trendChartType === 'bars') {
+    /* Stacked rather than grouped: a week's bar reads as one total split into
+       its buckets, which is the same "how many, and of what" the line chart's
+       bands already answer — a grouped layout would need to split each week's
+       column width by however many buckets happened to finish something that
+       week, which varies week to week and would make the bars themselves an
+       unsteady width. Scaled against the week's own total rather than against
+       any single bucket's peak, since a stack's height is the total. */
+    const stackPeak = Math.max(1, ...counts);
+    const barW = col * 0.6;
+    const bars = weekData.map((w, i) => {
+      let acc = 0;
+      return shown.map(s => {
+        const v = s.values[i];
+        const y0 = base - (acc / stackPeak) * (base - top);
+        acc += v;
+        const y1 = base - (acc / stackPeak) * (base - top);
+        if (!v) return '';
+        return '<rect class="trendbar" x="' + f(cx(i) - barW / 2) + '" y="' + f(y1) +
+          '" width="' + f(barW) + '" height="' + f(y0 - y1) + '" fill="' + s.color + '">' +
+          '<title>' + esc(s.name) + ': ' + v + '</title></rect>';
+      }).join('');
+    }).join('');
+    picture = grid + bars;
+  } else {
+    // Each band fades out downwards so overlapping ones stay readable through
+    // each other, which a flat fill at any opacity does not.
+    const defs = shown.map((s, i) =>
+      '<linearGradient id="tgrad' + i + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="' + s.color + '" stop-opacity=".42"/>' +
+        '<stop offset="1" stop-color="' + s.color + '" stop-opacity="0"/>' +
+      '</linearGradient>').join('');
+    const bands = shown.map((s, i) => {
+      const d = curve(s.values);
+      return '<path d="' + d + 'L' + W + ',' + base + 'L0,' + base + 'Z" fill="url(#tgrad' + i + ')"/>' +
+        '<path class="trendline" d="' + d + '" stroke="' + s.color + '">' +
+          '<title>' + esc(s.name) + '</title></path>';
+    }).join('');
+    /* One point per week per line, on top of the bands: a small dot to see, and
+       a bigger transparent circle round it to actually hover — a 3px target is
+       real but not a fair one. showTrendPreview reads the count and the week
+       straight off these rather than re-deriving them, the same way matrixDot's
+       aria-label is written once at render time rather than looked up on hover. */
+    const points = shown.map(s =>
+      s.values.map((v, i) => {
+        const x = f(cx(i)), y = f(cy(v));
+        return '<circle class="trenddot" cx="' + x + '" cy="' + y + '" r="2.5" fill="' + s.color + '"/>' +
+          '<circle class="trendpt" cx="' + x + '" cy="' + y + '" r="9" tabindex="0"' +
+          ' data-trendlabel="' + esc(s.name) + '" data-trendcolor="' + s.color + '"' +
+          ' data-trendcount="' + v + '" data-trendweek="' + esc(reportDay(ymd(weekData[i].start))) + '"' +
+          ' aria-label="' + esc(s.name) + ', ' + v + ' task' + (v === 1 ? '' : 's') +
+          ', week of ' + esc(reportDay(ymd(weekData[i].start))) + '"></circle>';
+      }).join('')
+    ).join('');
+    picture = '<defs>' + defs + '</defs>' + grid + bands + points;
+  }
 
   const chart = '<svg class="trendchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
-      'aria-label="Tasks finished per week, one line per bucket">' +
-      '<defs>' + defs + '</defs>' + grid + bands + points +
+      'aria-label="Tasks finished per week, one ' + (trendChartType === 'bars' ? 'stacked bar' : 'line') +
+      ' per bucket">' + picture +
       '<line class="trendbase" x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '"/>' +
     '</svg>' +
     '<div class="trendx">' + weekData.map((w, i) =>
@@ -546,10 +579,16 @@ function weeklyTrendReport(){
   if (hiddenN) pace += ' ' + hiddenN + ' bucket' + (hiddenN === 1 ? ' is' : 's are') +
     ' hidden, so every number here counts only the rest.';
 
-  return '<h2>Weekly pace</h2>' +
+  const typePicker = '<span class="tabs small" data-trendtype-group role="group" aria-label="Line or bars">' +
+    ['line', 'bars'].map(id => '<button type="button" class="tab' + (id === trendChartType ? ' on' : '') +
+      '" data-trendtype="' + id + '" aria-pressed="' + (id === trendChartType) + '">' +
+      (id === 'line' ? 'Line' : 'Bars') + '</button>').join('') + '</span>';
+
+  return '<div class="trendhead"><h2>Weekly pace</h2>' + typePicker + '</div>' +
     '<p class="help listlead">Tasks finished per week, Monday to Sunday, over the last ' +
       weeks.length + ' week' + (weeks.length === 1 ? '' : 's') +
-      ', one line per bucket. The number under each week is its total.</p>' +
+      ', one ' + (trendChartType === 'bars' ? 'stacked bar' : 'line') +
+      ' per bucket. The number under each week is its total.</p>' +
     '<div class="trend">' + chart + '</div>' +
     '<p class="note">' + esc(pace) + '</p>';
 }

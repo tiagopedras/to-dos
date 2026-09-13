@@ -199,6 +199,31 @@ check('only what finished inside the window is counted', await evalJS(`
 check('the bucket is weighed by effort as well as counted',
   /5 pts/.test(await bucketRow('People')), await bucketRow('People'))
 
+/* ---- weekly pace: line or bars ---- */
+
+check('line is the chart at rest, and the tab says so', await evalJS(`(() => {
+  const svg = document.querySelector('#countedOut .trendchart');
+  const on = document.querySelector('#countedOut [data-trendtype].on');
+  return !!svg.querySelector('.trendline') && !svg.querySelector('.trendbar') &&
+    on?.dataset.trendtype === 'line';
+})()`))
+
+await evalJS(`document.querySelector('#countedOut [data-trendtype="bars"]').click()`)
+
+check('switching draws bars instead, and moves the pressed tab', await evalJS(`(() => {
+  const svg = document.querySelector('#countedOut .trendchart');
+  const on = document.querySelector('#countedOut [data-trendtype].on');
+  return !!svg.querySelector('.trendbar') && !svg.querySelector('.trendline') &&
+    on?.dataset.trendtype === 'bars';
+})()`))
+
+await evalJS(`document.querySelector('#countedOut [data-trendtype="line"]').click()`)
+
+check('and switching back reads as line again', await evalJS(`(() => {
+  const svg = document.querySelector('#countedOut .trendchart');
+  return !!svg.querySelector('.trendline') && !svg.querySelector('.trendbar');
+})()`))
+
 /* ---- changing the window ---- */
 
 await evalJS(`window.__gets = []`)
