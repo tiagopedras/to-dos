@@ -106,6 +106,13 @@ await evalJS(`(() => {
       owner:'implementing-agent', seen:true, production:'doing',
       title:'Being made right now', task:'Being made right now',
       bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
+    /* Turned down outright — the fourth move, added 13 Sep 2026. It draws in
+       Done beside completed and replaced rather than in a column of its own,
+       because it is one of the ways a plan closes. */
+    { name:'declined.md', night:'2026-09-04', url:'/x/declined.md', state:'done', owner:'me',
+      seen:true, resolution:'declined', feedback:'Not worth the effort.',
+      title:'An idea turned down', task:'An idea turned down',
+      bucket:'Strategic', column:'Backlog', agent:'planning-strategic', date:'2026-09-04', summary:'x' },
     { name:'prod-review.md', night:'2026-09-05', url:'/x/prod-review.md', state:'accepted',
       owner:'me', seen:false, production:'review',
       title:'Reported back', task:'Reported back',
@@ -208,11 +215,15 @@ check('unactioned plans are listed', live === 2, `${live} shown`)
    Ready to be produced rather than Done, which now means the work has
    finished. Flat and unfolded: the fold existed because the old Done column
    was holding two questions at once, and splitting it took the second away. */
+/* Done holds the one he turned down and nothing else: `done / actioned` is a
+   plan accepted under the old spelling and belongs in Ready to be produced,
+   which is the distinction the seventh state was added to draw. */
 check('accepted ones sit in Ready to be produced, not Done', await evalJS(`
   document.querySelectorAll('#plansProduced > .repitem').length === 4 &&
   [...document.querySelectorAll('#plansProduced .bucket')]
     .every(b => b.textContent === 'accepted') &&
-  !document.querySelector('#plansDone > .repitem')
+  document.querySelectorAll('#plansDone > .repitem').length === 1 &&
+  document.querySelector('#plansDone .bucket').textContent === 'declined'
 `), await evalJS(`
   document.querySelectorAll('#plansProduced > .repitem').length + ' rows, words: ' +
   [...document.querySelectorAll('#plansProduced .bucket')].map(b => b.textContent).join('/')`))
@@ -646,13 +657,34 @@ check('a report he has not read yet is marked like a new plan', (await evalJS(`
       c.querySelector('.title')?.textContent === 'Reported back');
     return card.getAttribute('style') || '' })()`))
 
+/* The fourth way out of the modal. Before it, a plan he had read and did not
+   want could only go round again for a second opinion or sit in Backlog reading
+   as undecided. */
+check('a plan he turned down sits in Done', await evalJS(`
+  [...document.querySelectorAll('#plansDone .card .title')].some(e =>
+    e.textContent === 'An idea turned down')
+`), await evalJS(`
+  [...document.querySelectorAll('#plansDone .card .title')].map(e => e.textContent).join(' | ')`))
+check('and says so in its own word, not "finished" or "replaced"', await evalJS(`
+  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
+      x.querySelector('.title')?.textContent === 'An idea turned down');
+    return c?.querySelector('.bucket')?.textContent })()
+`) === 'declined', await evalJS(`
+  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
+      x.querySelector('.title')?.textContent === 'An idea turned down');
+    return c?.querySelector('.bucket')?.textContent })()`))
+check('the reason he gave is kept on the card', await evalJS(`
+  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
+      x.querySelector('.title')?.textContent === 'An idea turned down');
+    return /Not worth the effort/.test(c?.textContent || '') })()
+`))
 check('a plan he has not accepted carries no production mark at all', await evalJS(`
   [...document.querySelectorAll('#plansOut .card')].every(c => !c.querySelector('.planprod'))
 `))
 
 // Ready to be produced. He accepts the plan as written, which is the end of the
-// planning half: the picker leaves the task alone from here, and the card feeds
-// the execution board's Backlog. `accepted` rather than `done`, which is the
+// planning half: the picker leaves the task alone from here, and the card waits
+// on the implementing agent. `accepted` rather than `done`, which is the
 // whole reason the seventh state exists — approving a plan and the work it
 // describes finishing are two facts, and `done` was holding both.
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Accept it').click()`)
@@ -1074,6 +1106,19 @@ check('and every write was a plan status, a queue ordering or a run', await eval
 check('the queue writes only its own ordering', await evalJS(`
   window.__blocked.filter(b => b.includes('order')).every(b => b.startsWith('POST /queue/order'))
 `))
+
+/* Last, because it opens a modal and shuts it again — anything after it that
+   expected one already open would find none. */
+check('the modal offers turning a plan down at all', await evalJS(`
+  (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
+    const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
+    closeModal();
+    return labels.join('|') })()
+`) === 'Accept it|Plan it again|Turn it down|Leave it alone', await evalJS(`
+  (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
+    const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
+    closeModal();
+    return labels.join('|') })()`))
 
 ws.close()
 chrome.kill()

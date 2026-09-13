@@ -84,11 +84,6 @@ function reportWindowPhrase(){
    fragment above: it is set off by a middot rather than run into the words
    around it, because no single preposition works for "this week", "the last 30
    days" and "all time" at once. */
-function reportWindowLabel(){
-  if (reportWindow === 'all') return 'all time';
-  if (reportWindow === 'week') return 'this week';
-  return 'the last ' + reportDays() + ' days';
-}
 
 function reportDefs(){
   return [completedByCategoryReport, recentAccomplishmentsReport, weeklyTrendReport];
@@ -286,7 +281,12 @@ function completedByCategoryReport(){
     '<div class="total"><span class="totaln">' + total + '</span>' +
       '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
       state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
-      ' <span class="totalw">' + esc(reportWindowLabel()) + '</span></span></div>' +
+      /* The window used to be named again here, in a `.totalw` span, so the
+         line read "12 tasks finished across 4 categories the last 30 days"
+         directly under a picker already reading "Past 30 days". The picker
+         governs the whole column and says so in its own head; saying it twice
+         made the sentence longer without making it truer. */
+      '</span></div>' +
     (total ? rows.map(rowHTML).join('')
            : '<div class="empty">Nothing has been ticked off with a date ' +
              reportWindowPhrase() + '.</div>');

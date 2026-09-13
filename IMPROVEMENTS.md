@@ -18,8 +18,12 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **The Completed total names its own window a second time, right next to the
-  picker that already says it.** `completedByCategoryReport()`
+- ~~**The Completed total names its own window a second time, right next to the
+  picker that already says it.**~~ **Done, 13 Sep 2026.** The `.totalw` span is
+  gone from `completedByCategoryReport()`, and with it `reportWindowLabel()`,
+  which fed nothing else, and the two `.totalw` rules in `board.css`. The line
+  now reads "N tasks finished across M categories" under a picker that already
+  says which window it means. `completedByCategoryReport()`
   (`kanban/js/12-reports.js:285-289`) renders `'<span class="totalw">' +
   esc(reportWindowLabel()) + '</span>'` after "N tasks finished across M
   categories", so the label reads "12 tasks finished across 4 categories the
@@ -640,9 +644,10 @@ they settled is written up in the README rather than left here:
   is what the entry below already decided and what "the board asks; the stream
   writes" says everywhere else.
 
-  The original entry follows.
+  The original entry follows, kept because it is the reasoning the fold was
+  built from.
 
-- **Plans and Execution are two boards holding one pipeline, and the seam
+  **Plans and Execution are two boards holding one pipeline, and the seam
   between them is a second manual gate on work he has already approved.**
   Accepting a plan writes `state: accepted` on the plan document, and `sync()`
   (`agents/implementing_agent/stream.py:238`) mints a second document into
@@ -674,7 +679,19 @@ they settled is written up in the README rather than left here:
   session he is sitting in, and that is what stops six accepted plans running
   at once regardless of whether they sit in a queue or a separate column.
 
-- **A finished run and a dead one are the same document, because the acting
+- ~~**A finished run and a dead one are the same document, because the acting
+  agent cannot move its own card.**~~ **Done, 13 Sep 2026**, by the fold above
+  rather than on its own terms. There are no run documents any more, so the
+  state that read as "died mid-work" cannot occur; and the decision recorded
+  here — that the driving session performs both transitions — is what `pa-do`
+  now does, writing `production: doing` on handover and `production: review`
+  when the report lands. `implementing-agent.md` no longer tells the agent to
+  move its own card, which it could never do: it holds no Bash tool, so it
+  cannot run the writer.
+
+  The original entry follows.
+
+  **A finished run and a dead one are the same document, because the acting
   agent cannot move its own card.** `implementing-agent` is defined with `tools:
   Read, Grep, Glob, Write, Edit, WebFetch, WebSearch` and no Bash
   (`.claude/agents/implementing-agent.md:4`), and the runs stream's writer is a
@@ -714,6 +731,22 @@ they settled is written up in the README rather than left here:
   who is allowed to write `doing` and `review` in the first place) is
   unresolved, so no run will actually reach this column until that is
   decided; the column is built so it is ready the moment something does.
+
+- ~~**A plan he does not want has nowhere to go but back to the planning
+  agent.**~~ **Done, 13 Sep 2026**, as the entry decided: a `declined`
+  resolution rather than an eighth state, drawn in Done beside completed and
+  replaced. `planWord()` gives it its own word, `planColumn()` branches on it
+  **above** the fallback so a declined plan written before the branch existed
+  cannot read as accepted, and `planClass()` draws it folded like the other
+  closed states. The modal has a fourth button, `declinePlan()`, which collects
+  the reason the redo path already collects — the server refuses a decline
+  without one, for the same purpose: the reason is all that is left of the idea.
+
+  One thing the entry did not name. `is_stale()` in
+  `agents/planning_agent/pick.py` would have reported a declined plan as "plan
+  accepted on <date>", which is the opposite of true, so it has its own branch
+  saying "turned down on <date>". Not stale either way — planning it again is
+  exactly what declining exists to prevent.
 
 - **A plan he does not want has nowhere to go but back to the planning agent.**
   `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept

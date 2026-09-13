@@ -1059,12 +1059,6 @@
     letter-spacing:-.03em; font-variant-numeric:tabular-nums;
   }
   .reportsview .totall{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
-  /* The period the number covers, said next to it rather than left to the
-     picker above — a screenshot of this block should not be ambiguous. */
-  .reportsview .totalw{color:var(--ink); font-weight:600; white-space:nowrap}
-  .reportsview .totalw::before{
-    content:'·'; color:var(--ink-faint); font-weight:400; margin:0 6px 0 2px;
-  }
   /* One bucket is a group, not a row: the count and the list behind it are the
      same fact, so the rule goes under the pair. With the rule under the row
      instead, an opened list sat below its own divider and read as the next

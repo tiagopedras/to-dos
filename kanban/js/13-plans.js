@@ -57,6 +57,7 @@ function planClass(p){
   /* A superseded plan still reads as the rejection it was. It is finished, but
      what it carries is the reason he sent it back, and that is the only written
      record of what he asked for. */
+  if (p.resolution === 'declined') return ' actioned';
   if (p.resolution === 'superseded') return ' redo';
   /* Green, not dimmed, for a plan accepted under the old spelling: it is
      sitting in Ready to be produced with work still owed on it, so it reads
@@ -80,6 +81,12 @@ function planWord(p){
      finished — see planColumn(), which puts it in the same column that word
      names. */
   if (p.state === 'done') {
+    /* Three ways a plan can be closed, and the badge says which. `declined` is
+       the one added 13 Sep 2026: a plan he read and turned down outright.
+       Before it, the only ways to say no were Plan it again — which sends the
+       task round for a second opinion he never asked for — and Leave it alone,
+       which drops it in Backlog reading as undecided. */
+    if (p.resolution === 'declined') return 'declined';
     if (p.resolution === 'superseded') return 'replaced';
     return p.resolution === 'actioned' ? 'accepted' : 'finished';
   }
@@ -159,7 +166,8 @@ function planColumn(p){
      rewrites those files; core/migrations/migrate-plans-accepted.py tidies
      them if he wants them tidied, and this reads them correctly either way. */
   if (p.state === 'done' &&
-      (p.resolution === 'completed' || p.resolution === 'superseded')) return PLAN_COL.done;
+      (p.resolution === 'completed' || p.resolution === 'superseded' ||
+       p.resolution === 'declined')) return PLAN_COL.done;
   /* `accepted`, and the `ready / implementing-agent` a plan agreed before
      11 Sep 2026 still carries. Both mean he has accepted it and the work has
      not finished, which is what Ready to be produced says. It is also the
@@ -283,9 +291,11 @@ function openPlanModal(p){
     buttons: planColumn(p) === PLAN_COL.produced
       ? [{ label:'It is finished', agree:true, run: () => finishPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
          { label:'Leave it alone', run: () => parkPlan(p) }]
       : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
          { label:'Leave it alone', run: () => parkPlan(p) }]
   });
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
@@ -334,6 +344,40 @@ function finishPlan(p){
       'and stays there as the record.</p>' +
     '</div>',
     [{ label:'Yes, it is finished', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'completed' }) },
+     { label:'Cancel' }]);
+}
+
+/* Declined. He has read the plan and does not want the idea at all — which the
+   other three moves could not say. Plan it again sends the task round for a
+   second opinion he never asked for, and Leave it alone drops it in Backlog
+   where it reads as undecided and the picker can still reach the task.
+
+   A resolution rather than an eighth state, decided 13 Sep 2026: `done` already
+   closes an item with `resolution` saying how, this stream already writes two,
+   and a third is the cheaper answer. It carries the same reason the redo path
+   collects — what was wrong with it is worth keeping whether or not anything
+   acts on it — and it draws in Done beside completed and replaced, because a
+   declined plan should read as its own word next to those rather than sit
+   somewhere separate from them. */
+let declineText = '';
+function declinePlan(p){
+  declineText = '';
+  showModal('Turn this one down?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>The idea itself is turned down, not just this plan of it. It moves to ' +
+      '<strong>Done</strong> and stays there as the record, and the planning ' +
+      'agent will not come back to the task.</p>' +
+      '<p>Say why, so the record is worth reading later.</p>' +
+      '<textarea class="redoinput" id="declineWhy" rows="3" ' +
+        'placeholder="Why this is not worth doing"></textarea>' +
+    '</div>',
+    [{ label:'Yes, turn it down', primary:true, keep:true, run: () => {
+        const el = document.querySelector('#declineWhy');
+        declineText = (el && el.value || '').trim();
+        if (!declineText) { if (el) el.focus(); return; }
+        closeModal();
+        movePlan(p, 'done', 'me', { resolution:'declined', reason: declineText });
+      } },
      { label:'Cancel' }]);
 }
 

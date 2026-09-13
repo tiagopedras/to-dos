@@ -314,6 +314,12 @@ def is_stale(task, ledger):
         # accepted until `accepted` existed.
         if seen.get("resolution") == "superseded":
             return True, "last plan was replaced"
+        # Turned down outright, 13 Sep 2026 onwards. Not stale — the whole point
+        # of declining is that the idea is finished, so planning it again is the
+        # one thing that must not happen — but it is not "accepted" either, and
+        # the board prints this line in its not-eligible fold.
+        if seen.get("resolution") == "declined":
+            return False, "turned down on %s" % seen.get("planned", "?")
         return False, "plan accepted on %s" % seen.get("planned", "?")
     if state == "backlog":
         return False, "parked; the agent leaves it alone"

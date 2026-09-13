@@ -62,7 +62,12 @@ OWNERS = {
 # readable as what it meant — see planColumn() in kanban/js/13-plans.js and
 # core/migrations/migrate-plans-accepted.py, which tidies it if he wants it
 # tidied.
-RESOLUTIONS = ("actioned", "completed", "superseded", "dropped")
+# `declined` arrived 13 Sep 2026: a plan he read and turned down outright. Until
+# then the only ways to say no were Plan it again, which sends the task round for
+# a second opinion he never asked for, and Leave it alone, which drops it in
+# Backlog reading as undecided. A resolution rather than an eighth state, because
+# `done` already closes an item with `resolution` saying how.
+RESOLUTIONS = ("actioned", "completed", "superseded", "dropped", "declined")
 
 # How far the implementing agent's half has got, on a plan he accepted. A second
 # field rather than more states, because the contract allows one `state:` per
@@ -135,6 +140,10 @@ def apply(req):
     # same plan, having spent the money twice.
     if state == "ready" and owner == "planning-agent" and not reason:
         return {"ok": False, "error": "sending a plan back needs a reason"}
+    # Same rule, different direction: a declined plan is the end of the idea, and
+    # the reason is the only thing left of it worth reading.
+    if resolution == "declined" and not reason:
+        return {"ok": False, "error": "turning a plan down needs a reason"}
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or ""):
         return {"ok": False, "error": "bad plan reference"}
     if not name or "/" in name or not name.endswith(".md"):

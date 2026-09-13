@@ -620,6 +620,21 @@ def test_server():
                                           "production": "review"}).get("ok"), True)
                 check("and the stage it reached is on the plan",
                       server.plan_listing()[0]["production"], "review")
+                # Turning one down: a resolution rather than an eighth state,
+                # and it needs a reason for the same purpose sending one back
+                # does — the record is all that is left of the idea.
+                check("turning a plan down needs a reason",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "done", "resolution": "declined"}).get("ok"), False)
+                check("and with one it closes",
+                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                                          "to": "done", "resolution": "declined",
+                                          "reason": "not worth the effort"}).get("ok"), True)
+                check("landing in done, said as declined",
+                      (server.plan_listing()[0]["state"], server.plan_listing()[0]["resolution"]),
+                      ("done", "declined"))
+                check("and the reason is kept on the plan",
+                      server.plan_listing()[0]["feedback"], "not worth the effort")
                 check("but a stage this stream has never heard of is refused",
                       plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
                                           "to": "accepted", "production": "halfway"}).get("ok"), False)
