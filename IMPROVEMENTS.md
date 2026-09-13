@@ -2088,6 +2088,19 @@ they settled is written up in the README rather than left here:
   but `.refnum` beside each card then shows the row's position rather than the
   stored rank, since the two no longer agree.
 
+  **Checked against the code 13 Sep 2026, and this needs a re-read before it's
+  built rather than building it as written.** Neither half still matches what
+  it says. `quickSection()` sorts by `byPriority()` — the dependency chain's
+  own assessment, not due date — inside meaningful groups (meetings, messages,
+  a decision, a conversation), not the flat single order this entry assumes as
+  today's starting point; whether flattening to due-date order is still wanted
+  against that more considered ordering is a real question, not a mechanical
+  port. And `delegateSection()` now has a manual drag-to-reorder on `rank:`
+  (this file, above, done 13 Sep 2026) — a dragged order and this entry's
+  proposed automatic impact-against-effort sort can't both govern the same
+  list, so this entry and that one are in direct tension and one of them is
+  wrong now.
+
 - ~~**Rework the bucket editor.**~~ **Done, 6 Sep 2026.** The task-count
   column is gone. In its place, each bucket's dot (`.bkpick`, in
   `kanban/js/08-buckets.js`) opens a popover of the board's own ten preset
