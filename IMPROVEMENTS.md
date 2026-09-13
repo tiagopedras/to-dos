@@ -748,7 +748,10 @@ they settled is written up in the README rather than left here:
   saying "turned down on <date>". Not stale either way — planning it again is
   exactly what declining exists to prevent.
 
-- **A plan he does not want has nowhere to go but back to the planning agent.**
+  The original entry follows, kept because it is the reasoning this was built
+  from.
+
+  **A plan he does not want has nowhere to go but back to the planning agent.**
   `openPlanModal()` (`kanban/js/13-plans.js:236`) offers three moves — Accept
   it, Plan it again, Leave it alone — and every one of them keeps the task
   alive: `replanPlan()` (`:315`) sends it to `ready / planning-agent` to be
