@@ -1001,6 +1001,30 @@ they settled is written up in the README rather than left here:
   Overview and the Timeline all hang off — and it wants deciding rather than
   drifting into.
 
+  **Decided and begun, 13 Sep 2026: Plans, and its shell first.** `PlansView`
+  draws the six columns and nothing inside them. The bodies still arrive as
+  HTML from the sixteen `innerHTML` assignments in `13-plans.js`, which is a
+  narrower bargain than the one ReportsView makes and is written into the
+  component's own header rather than left to be discovered: four independent
+  fetches fill those columns at different times and each paints as it arrives,
+  so the shell is mounted once per visit and never re-rendered. Half-ported and
+  re-rendering is the one arrangement that would silently drop a column, so the
+  next step on this view is all sixteen at once, not some of them.
+
+  Two things came out of doing it. `mountSync()` is new beside `mount()` —
+  React 18 renders when it gets round to it, and Plans reaches into the nodes
+  it just mounted, so the shell has to have happened by the time the call
+  returns; `flushSync` is React saying this is not how it wants to be used, and
+  it is right, which is why the only caller is this one and the fix is the same
+  port finishing. And Plans gets a `#plansRoot` of its own, the same rule
+  Projects already set.
+
+  The evidence is `kanban/test_plans.mjs` passing all 123 checks unchanged,
+  including the ten it makes about what the view is allowed to write.
+
+  Still the next real choice, unchanged by any of this: the rest of Plans'
+  bodies, `12-reports.js`, or the `18-timeline.js` composition.
+
   **One piece did not depend on any of the above, and it is done, 13 Sep
   2026** — though most of it turned out to be done already, which this entry
   had not noticed.

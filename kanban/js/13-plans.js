@@ -1557,69 +1557,63 @@ function openRefCards(){
    To do's own title to say so; Done held two facts at once — accepted, and
    finished — which is the split the `accepted` state was added for. See
    planColumn(). */
+/* The React root goes on a child of #lists rather than on #lists itself, for
+   the reason projectsMountPoint() in 26-projects.js sets out at length: nine
+   views still draw by assigning to $('#lists').innerHTML, which tears out
+   whatever is under it without telling React. A view owns a node it created,
+   and treats that node going missing as another view having been here. */
+let plansRoot = null;
+function plansMountPoint(){
+  const lists = $('#lists');
+  if (!lists) return null;
+  let host = lists.querySelector('#plansRoot');
+  if (!host) {
+    if (plansRoot) BoardUI.unmount(plansRoot);
+    lists.innerHTML = '<div id="plansRoot"></div>';
+    host = lists.querySelector('#plansRoot');
+    plansRoot = host;
+  }
+  return host;
+}
+
+/* Mounted once per visit to the view, and deliberately never re-rendered.
+   Everything below still fills the six bodies by assigning to the ids inside
+   them \u2014 $('#plansOut').innerHTML and its fifteen siblings \u2014 because four
+   independent fetches land at different times and each paints as it arrives
+   rather than the view waiting on the slowest. That is safe precisely while
+   this is the only render: React has no reason to put a stale body back if it
+   is never asked to render again.
+
+   So the bargain here is narrower than the one ReportsView makes, and it is
+   written down rather than assumed. The moment anything wants to re-render
+   this view, those assignments become props and this comment goes with them
+   \u2014 half and half is the one arrangement that would silently drop a column. */
+function mountPlansShell(){
+  const host = plansMountPoint();
+  if (!host) return false;
+  BoardUI.mountSync(host, BoardUI.PlansView({
+    backlogHTML: 'Loading\u2026',
+    queueErrorHTML: '',
+    statusHTML: 'Loading\u2026',
+    queueHTML: 'Loading\u2026',
+    orphanHTML: '',
+    doingHTML: '',
+    plansDoingHTML: '',
+    doingEmptyHTML: '',
+    doneStatsHTML: '',
+    reviewHTML: 'Loading\u2026',
+    producedHTML: 'Loading\u2026',
+    doneHTML: 'Loading\u2026',
+    reviewFilterHTML: '',
+    doneFilterHTML: '',
+    onRunQueue: () => confirmNightAgentRun(),
+    onOpenRefCards: () => openRefCards()
+  }));
+  return true;
+}
+
 async function renderPlansView(){
-  $('#lists').innerHTML =
-    '<div class="lists pview">' +
-      colHTML({
-        heading: 'h3', title: 'Backlog', cls: 'reportsview backlogview',
-        desc: 'The agent leaves these alone. Held back by you, or excluded by a rule.',
-        action: '<button class="btn small" id="refCardsBtn" type="button">Spend and clocks</button>',
-        /* Filled by the renderer once /queue.json is back, like every other
-           column here. The two columns with a filter carry none: their filter
-           button already says "All 12", and a count beside it would be the
-           same number twice. */
-        count: '', attrs: 'id="backlogCol"',
-        body: '<div id="backlogOut">Loading\u2026</div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'To do', cls: 'reportsview queueview',
-        attrs: 'id="queueDoingCard"',
-        count: '',
-        desc: 'What tonight\u2019s run picks up, in order.',
-        action: '<button class="btn small" id="runQueueBtn" type="button">Run now</button>',
-        /* The Status line stays here rather than going to Doing with the live
-           run. It reports capacity — how much of the usage window is left —
-           which is an answer about whether tonight can run at all, not about
-           the run that is already going. */
-        body: '<div class="err hidden" id="nightAgentErr"></div>' +
-              '<h4 class="fhead">Status</h4>' +
-              '<div id="statusOut">Loading\u2026</div>' +
-              '<div id="queueOut">Loading\u2026</div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'Doing', cls: 'reportsview doingview',
-        count: '', attrs: 'id="doingCol"',
-        desc: 'Currently running.',
-        body: '<div class="hidden" id="qdOrphan"></div>' +
-              '<div id="doingOut"></div>' +
-              '<div id="plansDoing"></div>' +
-              '<div id="doingEmpty"></div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'Waiting for review', cls: 'reportsview processed', style: 'agent',
-        desc: 'The agent\u2019s own column \u2014 what it has worked out, waiting on ' +
-              'you. Drag out of it, not into it.',
-        filters: '<span class="colfilter-slot" id="reviewFilterSlot"></span>',
-        body: '<div id="doneStatsOut"></div><div id="plansOut">Loading\u2026</div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'Ready to be produced', cls: 'reportsview decided',
-        count: '', attrs: 'id="producedCol"',
-        /* No filter on this one: every card in it is the same thing, a plan he
-           has accepted whose work has not finished. A dropdown with one
-           option is a control that only ever says All. */
-        desc: 'Accepted as written, and waiting on the implementing agent.',
-        body: '<div id="plansProduced">Loading\u2026</div>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'Done', cls: 'reportsview finished',
-        desc: 'Completed.',
-        filters: '<span class="colfilter-slot" id="doneFilterSlot"></span>',
-        body: '<div id="plansDone">Loading\u2026</div>'
-      }) +
-    '</div>';
-  $('#runQueueBtn').onclick = () => confirmNightAgentRun();
-  $('#refCardsBtn').onclick = () => openRefCards();
+  if (!mountPlansShell()) return;
   const out = $('#plansOut');
   try {
     const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });

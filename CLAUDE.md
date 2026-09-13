@@ -254,6 +254,17 @@ Two rules came out of doing it, and both apply to every view that follows:
 `kanban/test_projects.mjs` covers both, on top of the 44 checks that passed
 through the port unchanged — which is the real evidence the markup did not move.
 
+**Plans went next**, 13 Sep 2026, and only its shell: `PlansView` draws the six
+columns and nothing inside them. The bodies still arrive as HTML from the
+sixteen `innerHTML` assignments in `13-plans.js`, because four independent
+fetches fill those columns at different times and each paints as it arrives.
+That works only while the shell is mounted once per visit and never
+re-rendered, which is why it is — a half-ported view that re-renders is the one
+arrangement that would silently drop a column, so the next step here is all
+sixteen at once or none. `mountSync()` came with it, beside `mount()`: React 18
+renders when it gets round to it, and this view reaches into the nodes it just
+mounted. It is the only caller, and it stops being needed when the bodies do.
+
 ## After changing `kanban/server.py`
 
 **Restart the server, and say so.** The board loads `index.html` fresh on every
