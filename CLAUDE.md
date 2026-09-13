@@ -208,6 +208,31 @@ by everything in Plans' Ready to be produced column": it mints a run for every
 accepted plan that has not got one, it is idempotent, and the Execution view
 calls it on every load.
 
+## The React half, and why it is only a half
+
+`kanban/ui/` is the component layer, begun 13 Sep 2026 against the entry of that
+name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
+built to `kanban/dist/board-ui.js`, which is where the build step above comes
+from. **Nothing is ported yet.** What exists is `Column` and `Card` — the two
+primitives every view is written against — plus `mount()` and `unmount()`.
+
+The point of doing the primitives first is that a column is one object across
+the whole app, and the section above is what rests on it. So `Column` is not a
+new column: it is the same markup `colHTML()` (`kanban/js/09-columns.js`) emits,
+element for element and class for class, and `Card` is `cardShellHTML()`'s the
+same way. One stylesheet answers for both while the port is half done, which
+only works while they agree. `kanban/ui/test_primitives.mjs` is what holds them
+to it — it renders 32 cases both ways and fails on any difference, with no
+browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
+`document`. **Change one of the four and change the other**, the same rule
+`core/todo.js` and `core/todo.py` already live under.
+
+The port can be incremental because every view already owns `#lists` wholesale:
+a ported view calls `BoardUI.mount()` where it used to assign to
+`$('#lists').innerHTML`, and the other nine carry on untouched. That also means
+this work can stop at any stage with a working board, which is the state it is
+in now.
+
 ## After changing `kanban/server.py`
 
 **Restart the server, and say so.** The board loads `index.html` fresh on every
@@ -216,14 +241,32 @@ process, and a new route added to it does not exist until that process is
 restarted. The board's own error says "the board helper needs restarting" when it
 gets a 404 on a route it expects, which is the symptom.
 
-`To-Do Board.app` and `run.command` both read `server.py` off disk at launch and
-bundle nothing, so there is never anything to rebuild — the same is true of
-`To-Do Companion.app` and `companion/app.py`. What goes stale is only ever the
-process:
+`To-Do Board.app` and `run.command` both read `server.py` off disk at launch, so
+what goes stale there is only ever the process — the same is true of
+`To-Do Companion.app` and `companion/app.py`:
 
 ```
 lsof -ti tcp:8765 | xargs kill      # then open To-Do Board.app
 ```
+
+**There is one thing to rebuild now, and it is not `server.py`.** Since 13 Sep
+2026 the board has a React half in `kanban/ui/`, built by vite into
+`kanban/dist/board-ui.js` and loaded by `index.html` as an ordinary classic
+script. `run.command` runs the build before it starts the server, and
+`To-Do Board.app` execs `run.command`, so opening the board the normal way is
+never stale and there is nothing to remember. Working on a `.tsx` at a server
+that is already up is the case that needs a build by hand:
+
+```
+npm run build        # or npm run watch, to rebuild as you edit
+```
+
+then Reload the tab. `npm install` is needed once after a fresh clone, since
+`node_modules/` and `kanban/dist/` are both gitignored; `run.command` says so
+rather than failing with npm's own error. The bundle is an IIFE hanging one
+global, `BoardUI` — **keep it one**, for the same reason every file in
+`kanban/js/` is a classic script: a module would be deferred past all 28 of
+them.
 
 Tell him to **Reload** the board tab afterwards rather than save, in that order.
 A tab that has been open since before the file changed is holding a stale
@@ -327,10 +370,11 @@ which ones it reached:
 ```
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
+node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 agents/implementing_agent/test_implementing_agent.py   # the runs stream
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the five below need the board running
+node kanban/test_plans.mjs         # the six below need the board running
 node kanban/test_execution.mjs
 node kanban/test_schedule.mjs
 node kanban/test_chats.mjs

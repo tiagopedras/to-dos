@@ -189,6 +189,15 @@
 <script src="js/25-archiving.js"></script>
 <script src="js/26-projects.js"></script>
 <script src="js/27-execution.js"></script>
+<!-- The React half, built from kanban/ui/ by vite into kanban/dist/. An IIFE
+     hanging one global, BoardUI, loaded as an ordinary classic script so it
+     joins the source order above rather than being deferred past it the way a
+     module would. It sits before boot.js because boot.js is the tail that
+     starts everything, and after the views because a ported view reads BoardUI
+     at render time rather than at parse time — but nothing is ported yet, so
+     today this only has to be present and not throw. run.command builds it
+     before starting the server, so it is never stale. -->
+<script src="dist/board-ui.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

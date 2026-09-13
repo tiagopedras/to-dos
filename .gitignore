@@ -70,3 +70,17 @@ companion/dist/
 
 # writer claims — see PACKAGES/work_streams/writer.py
 *.lock
+
+# The board's own React half: dependencies and the vite build output.
+# package-lock.json stays tracked, same as the companion and ai_canvas, so a
+# clone builds against the exact versions this was built against.
+#
+# kanban/dist/ is ignored rather than committed because run.command builds
+# before it starts the server — the build is never the thing that is out of
+# date, so there is nothing to be gained by keeping a copy of it in git and a
+# stale bundle to be lost by doing so. The cost is that a fresh clone needs
+# `npm install` once before the board will open; run.command says so when it
+# cannot find node_modules rather than failing with npm's own error.
+node_modules/
+kanban/dist/
+node_modules/.cache-board-ui-*

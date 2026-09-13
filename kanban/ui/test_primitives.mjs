@@ -1,0 +1,203 @@
+#!/usr/bin/env node
+/* The React primitives against the string builders they replace.
+ *
+ *     node kanban/ui/test_primitives.mjs      (or: npm test)
+ *
+ * Column and Card exist to be the same object colHTML() and cardShellHTML()
+ * already emit — same elements, same classes, same optional parts — because
+ * one stylesheet answers for both while the port is half done, and because the
+ * whole "three boards, one shape" arrangement rests on there being one column
+ * rather than a family resemblance. This suite is what stops them drifting: it
+ * renders each case both ways and fails on any difference.
+ *
+ * It needs no browser and no server. kanban/js/09-columns.js is run in a `vm`
+ * with a stubbed `document` — it registers two delegated click listeners at
+ * top level and touches nothing else a host would provide — and the TSX is
+ * transformed by esbuild, which is already in the tree as one of vite's own
+ * dependencies rather than as a dependency of this.
+ *
+ * The last check is a different kind and belongs here anyway: that the built
+ * bundle carries React's production build. Vite substitutes NODE_ENV for an
+ * application build and not in lib mode, and getting that wrong ships a bundle
+ * that throws on `process` at load.
+ */
+import fs from 'node:fs'
+import path from 'node:path'
+import url from 'node:url'
+import vm from 'node:vm'
+import * as esbuild from 'esbuild'
+import { createElement as h } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+
+const HERE = path.dirname(url.fileURLToPath(import.meta.url))
+const REPO = path.join(HERE, '..', '..')
+
+let failures = 0
+const fail = (...m) => { console.log('FAIL', ...m); failures++ }
+
+/* ---- the string builders, out of the board's own file ---------------------
+   esc() lives in 04-tier-two-the-one-thing.js and is the one symbol these two
+   functions need from outside their file. It is copied here rather than
+   imported because pulling in that file drags the rest of the board with it,
+   and a four-line escape is not the thing this suite is testing. If it ever
+   diverges, every case below fails loudly on the escaping ones. */
+const ESC = `const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));`
+const columnsSrc = fs.readFileSync(path.join(REPO, 'kanban/js/09-columns.js'), 'utf8')
+const legacy = vm.runInNewContext(
+  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML });',
+  { document: { addEventListener() {} } },
+  { filename: 'kanban/js/09-columns.js' })
+
+/* ---- the components ------------------------------------------------------- */
+/* Inside the repo rather than in /tmp, because the transformed files import
+   `react` and node resolves that from the importing file's own directory
+   upwards — from /tmp there is no node_modules to find. */
+const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
+await esbuild.build({
+  entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx')],
+  outdir, bundle: true, format: 'esm', jsx: 'automatic',
+  external: ['react', 'react-dom', 'react/jsx-runtime'],
+  logLevel: 'silent',
+})
+const { Column } = await import(url.pathToFileURL(path.join(outdir, 'Column.js')))
+const { Card } = await import(url.pathToFileURL(path.join(outdir, 'Card.js')))
+
+/* ---- comparing two spellings of the same markup ---------------------------
+   Neither side is wrong where they differ, so both are put in one form first:
+   React writes a boolean attribute as open="" and the string builder writes a
+   bare `open`; React escapes an apostrophe as &#x27; where esc() writes &#39;;
+   and attribute order follows each side's own source, which is nobody's
+   contract. Anything left after that is a real difference. */
+const canon = html => html
+  .replace(/&#x27;/g, '&#39;')
+  .replace(/&#x2F;/g, '/')
+  .replace(/ open=""/g, ' open')
+  .replace(/<([a-z0-9]+)((?:\s+[a-zA-Z-]+(?:="[^"]*")?)+)(\s*\/?)>/g,
+    (_, tag, attrs, close) =>
+      '<' + tag + ' ' + (attrs.match(/[a-zA-Z-]+(?:="[^"]*")?/g) || []).sort().join(' ') + close + '>')
+
+let checks = 0
+const check = (why, legacyHTML, node) => {
+  checks++
+  const a = canon(legacyHTML)
+  const b = canon(renderToStaticMarkup(node))
+  if (a === b) return
+  let i = 0
+  while (i < a.length && a[i] === b[i]) i++
+  fail(`${why}\n     colHTML  ...${a.slice(Math.max(0, i - 40), i + 60)}\n     Column   ...${b.slice(Math.max(0, i - 40), i + 60)}`)
+}
+
+/* ---- the columns ----------------------------------------------------------
+   Every optional part the component carries, on its own and together, plus the
+   two variants that are not parts at all — the agent dash and the collapsible
+   <details>. */
+const COLUMNS = [
+  ['a bare column', { title: 'Backlog' }],
+  ['a heading of h3', { title: 'To do', heading: 'h3' }],
+  ['a hint', { title: 'Doing', hint: 'one at a time' }],
+  ['a count', { title: 'Done', count: 12 }],
+  ['a count of nought, which is not nothing', { title: 'Done', count: 0 }],
+  ['extra classes, half-empty the way callers build them', { title: 'X', cls: '  wide   plans ' }],
+  ['a body class', { title: 'X', bodyCls: 'droptarget' }],
+  ['the agent variant', { title: 'Waiting for review', style: 'agent' }],
+  ['a title needing escaping', { title: `Alex's "review" & <b>bold</b>` }],
+  ['a hint needing escaping', { title: 'X', hint: `a < b & c's` }],
+  ['collapsible, open by default', { title: 'Overview', collapsible: true }],
+  ['collapsible, starting shut', { title: 'Overview', collapsible: true, open: false }],
+  ['collapsible under its own key', { title: 'Overview', collapsible: true, collapseKey: 'ov-1' }],
+  ['every part at once', {
+    title: 'Ready to be produced', heading: 'h3', hint: 'six', count: 3,
+    cls: 'pcol', bodyCls: 'pbody', style: 'agent',
+  }],
+]
+
+for (const [why, o] of COLUMNS) {
+  check('column — ' + why, legacy.colHTML(o), h(Column, o))
+}
+
+/* The parts a caller passes as markup. The string builder takes them
+   pre-escaped and the component takes nodes, so the two are given the same
+   thing in each one's own currency — which is the one place the signatures
+   deliberately differ, and worth pinning precisely because of that. */
+check('column — a sort control in the head',
+  legacy.colHTML({ title: 'Backlog', sort: '<button class="sortbtn">Priority</button>' }),
+  h(Column, { title: 'Backlog', sort: h('button', { className: 'sortbtn' }, 'Priority') }))
+
+check('column — an action button',
+  legacy.colHTML({ title: 'Plans', action: '<button class="act">Run</button>' }),
+  h(Column, { title: 'Plans', action: h('button', { className: 'act' }, 'Run') }))
+
+check('column — a description',
+  legacy.colHTML({ title: 'People', desc: 'What this bucket is for.' }),
+  h(Column, { title: 'People', desc: 'What this bucket is for.' }))
+
+check('column — a footer outside the body',
+  legacy.colHTML({ title: 'Backlog', footer: '<button class="addtask">+ Add task</button>' }),
+  h(Column, { title: 'Backlog', footer: h('button', { className: 'addtask' }, '+ Add task') }))
+
+check('column — a body',
+  legacy.colHTML({ title: 'Backlog', body: '<article class="card"></article>' }),
+  h(Column, { title: 'Backlog', body: h('article', { className: 'card' }) }))
+
+/* ---- the cards ------------------------------------------------------------ */
+const CARDS = [
+  ['a bare card', { title: 'Write the review' }],
+  ['an eyebrow', { title: 'X', eyebrow: 'PEOPLE' }],
+  ['a position', { title: 'X', position: '1' }],
+  ['a stripe', { title: 'X', stripe: '#2f6feb' }],
+  ['no stripe, which is not a grey one', { title: 'X' }],
+  ['extra classes', { title: 'X', cls: ' agreed  plan ' }],
+  ['a note count', { title: 'X', note: '3 notes' }],
+  ['a summary', { title: 'X', summary: 'What the plan proposes.' }],
+  ['a meta row', { title: 'X', meta: 'Design System · To do' }],
+]
+
+for (const [why, o] of CARDS) {
+  /* Every row above is plain text, so the string builder's markup and the
+     component's node are the same characters and passing one object to both is
+     comparing like with like. The two below are not: a row holding markup has
+     to be given to each side in its own currency, or the component escapes
+     what the string builder passed through — which is the components being
+     right and the test being lazy. */
+  check('card — ' + why, legacy.cardShellHTML(o), h(Card, o))
+}
+
+check('card — tags, which are markup rather than text',
+  legacy.cardShellHTML({ title: 'X', tags: '<span class="tag">S</span>' }),
+  h(Card, { title: 'X', tags: h('span', { className: 'tag' }, 'S') }))
+
+check('card — every row at once', legacy.cardShellHTML({
+  title: 'X', eyebrow: 'DS', position: '2', tags: '<span class="tag">M</span>',
+  meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
+  cls: 'plancard',
+}), h(Card, {
+  title: 'X', eyebrow: 'DS', position: '2', tags: h('span', { className: 'tag' }, 'M'),
+  meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
+  cls: 'plancard',
+}))
+
+check('card — a different tag',
+  legacy.cardShellHTML({ title: 'X', tag: 'li' }),
+  h(Card, { title: 'X', tag: 'li' }))
+
+check('card — an action',
+  legacy.cardShellHTML({ title: 'X', action: '<button class="cardact-btn">Open</button>' }),
+  h(Card, { title: 'X', action: h('button', { className: 'cardact-btn' }, 'Open') }))
+
+/* ---- the built bundle ----------------------------------------------------- */
+const bundle = path.join(REPO, 'kanban/dist/board-ui.js')
+if (!fs.existsSync(bundle)) {
+  console.log('note: kanban/dist/board-ui.js not built, skipping the bundle checks')
+} else {
+  const built = fs.readFileSync(bundle, 'utf8')
+  if (built.includes('react-dom.development'))
+    fail("the bundle carries React's development build — check `define` in vite.config.ts")
+  if (built.includes('process.env.NODE_ENV'))
+    fail('the bundle references process.env.NODE_ENV, which does not exist in a browser')
+  if (!built.includes('BoardUI'))
+    fail('the bundle does not hang the BoardUI global the page loads it for')
+}
+
+fs.rmSync(outdir, { recursive: true, force: true })
+console.log(`${checks} primitives against their string builders — ${failures ? 'see above' : 'all agree'}`)
+process.exit(failures ? 1 : 0)
