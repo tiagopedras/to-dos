@@ -12,7 +12,11 @@
    indistinguishable from the board losing work.
    ========================================================================= */
 
-const ARCHIVE_DAYS = 30;
+/* Raised from 30 on 13 Sep 2026, when archiving stopped needing a press. A task
+   ticked off within the last two months is still recent enough to want to see
+   on the board; at 30 days things he had only just finished were being offered
+   up, which is part of why the button was hidden rather than used. */
+const ARCHIVE_DAYS = 60;
 
 function daysSince(iso){
   const d = parseDue(iso);
@@ -89,32 +93,83 @@ async function archiveOldDone(){
     [{ label:'Archive ' + list.length, primary:true, run:runArchive },
      { label:'Not now' }]);
 
-  async function runArchive(){
-    const text = archiveMarkdown(list);
-    try {
-      await postJSON('/archive', { text });
-    } catch (err) {
+  async function runArchive(){ await performArchive(list, true); }
+}
+
+/* The doing half, with no asking in it. Split out of archiveOldDone() on
+   13 Sep 2026 so the same work can happen on a timer as well as on a press —
+   the modal above is the press, autoArchiveTick() below is the timer, and both
+   land here so there is one copy of the order these steps have to happen in.
+
+   That order is the part that matters. The copy reaches disk first, and only
+   then are the tasks taken out of the document in memory; a failure between the
+   two leaves the work in both files rather than in neither. */
+async function performArchive(list, loud){
+  const text = archiveMarkdown(list);
+  try {
+    await postJSON('/archive', { text });
+  } catch (err) {
+    if (loud) {
       alert('Nothing was archived, and nothing was removed from todo.md.\n\n' +
             (err.message || err));
-      return;
     }
-    // Only now is it safe to take them out: the copy is already on disk.
-    list.forEach(it => {
-      const i = it.tier.tasks.indexOf(it.task);
-      if (i > -1) it.tier.tasks.splice(i, 1);
-    });
-    invalidateArchiveEntries();       // this batch is now in the file the reports view reads
-    closeDrawer();
-    markDirty();
-    refreshView();
-    await saveFile(false, true);
-    $('#status').textContent = 'archived ' + list.length + ' finished task' +
-      (list.length === 1 ? '' : 's') + ' → data/backups/done-archive.md';
+    return false;
+  }
+  // Only now is it safe to take them out: the copy is already on disk.
+  list.forEach(it => {
+    const i = it.tier.tasks.indexOf(it.task);
+    if (i > -1) it.tier.tasks.splice(i, 1);
+  });
+  invalidateArchiveEntries();       // this batch is now in the file the reports view reads
+  if (loud) closeDrawer();
+  markDirty();
+  refreshView();
+  await saveFile(false, true);
+  $('#status').textContent = 'archived ' + list.length + ' finished task' +
+    (list.length === 1 ? '' : 's') + ' → data/backups/done-archive.md';
+  return true;
+}
+
+/* Archiving with no click, which is what the entry in IMPROVEMENTS.md decided.
+   The button has been hidden the whole time it existed, so nothing was moving
+   out of todo.md at all and the working file only ever grew.
+
+   Four guards, and each one is load-bearing:
+
+     locked      a backup preview holds somebody else's document, and this
+                 would rewrite today's list out from under it
+     no document nothing to read
+     dirty       his edit is mid-flight; taking tasks out underneath it would
+                 merge two changes nobody asked to merge. It waits for the
+                 autosave to settle and tries again on the next pass.
+     a modal     archiving closes the drawer and re-renders, which is not a
+                 thing to do while he is reading something
+
+   Once an hour rather than on the autosave tick itself: a task crosses the
+   sixty-day line at midnight and not a second earlier, so checking every two
+   seconds would be two thousand answers to a question that changes once a day. */
+const AUTO_ARCHIVE_MS = 60 * 60 * 1000;
+let autoArchiving = false;
+async function autoArchiveTick(){
+  if (autoArchiving) return;
+  if (state.locked || !state.doc || state.dirty || modalEl) return;
+  const list = archivable();
+  if (!list.length) return;
+  autoArchiving = true;
+  try {
+    await performArchive(list, false);
+  } finally {
+    autoArchiving = false;
   }
 }
 
 setInterval(autosaveTick, 2 * 1000);                // checked often, saves at most every 4 seconds
 setInterval(watchTick, WATCH_MS);
+/* Once an hour, and once a minute after the board opens — the common case is a
+   tab opened in the morning and left all day, so waiting a full hour for the
+   first check would mean most days never got one. */
+setInterval(autoArchiveTick, AUTO_ARCHIVE_MS);
+setTimeout(autoArchiveTick, 60 * 1000);
 
 /* The Data menu: one button standing in for the four it used to show at once.
    Closes on a second click of the button, a click anywhere else, Escape, or

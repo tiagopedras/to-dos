@@ -782,7 +782,34 @@ they settled is written up in the README rather than left here:
   `kanban/test_plans.mjs` wants a case for the new resolution in the Done
   column and the new move in its blocked-writes list.
 
-- **Archiving finished work should run on its own rather than wait for a
+- ~~**Archiving finished work should run on its own rather than wait for a
+  click.**~~ **Done, 13 Sep 2026**, as decided: `ARCHIVE_DAYS` is 60, the header
+  chip stays hidden, and `autoArchiveTick()` does the work with no press. The
+  doing half came out of `archiveOldDone()` into `performArchive()` so the modal
+  and the timer share one copy of the order the steps have to happen in — the
+  copy reaches `done-archive.md` before the tasks leave the document, so a
+  failure between the two leaves the work in both files rather than in neither.
+
+  It runs hourly rather than on the autosave tick, which is where the entry
+  pointed: a task crosses the sixty-day line at midnight and not a second
+  earlier, so the two-second tick would be two thousand answers to a question
+  that changes once a day. Once a minute after load as well, since the common
+  case is a tab opened in the morning and left all day.
+
+  Four guards, all four covered by the new `kanban/test_archiving.mjs` (21
+  checks) — locked, no document, dirty, and a modal open. This is the only
+  thing in the board that rewrites `todo.md` without being asked, so those
+  guards are the whole of what makes it safe; dropping the row fails four
+  checks, and archiving before the copy lands fails four more.
+
+  Still open and named in the entry: `check_todo.py` has no archive reader, so a
+  task that has aged out is invisible to the checker and to every `pa-*` skill
+  that reads `todo.md` directly. That gap gets wider now that ageing out happens
+  on its own.
+
+  The original entry follows.
+
+  **Archiving finished work should run on its own rather than wait for a
   click.** `ARCHIVE_CHIP_HIDDEN` (`kanban/js/25-archiving.js:39`) takes the
   "Archive N finished" button out of the header on every view; `archivable()`
   (`:24`) and `archiveOldDone()` (`:70`) are untouched underneath it, and today

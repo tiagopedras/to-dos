@@ -393,7 +393,7 @@ node core/test_todo.mjs            # the same fixtures, the other language
 node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the seven below need the board running
+node kanban/test_plans.mjs         # the eight below need the board running
 node kanban/test_schedule.mjs
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs
@@ -401,6 +401,7 @@ node kanban/test_notes.mjs
 node kanban/test_backups.mjs       # and the read-only preview it opens
 node kanban/test_matrix.mjs
 node kanban/test_reports.mjs       # both halves, and the window picker over them
+node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
 ```
 
 ## Pushing
