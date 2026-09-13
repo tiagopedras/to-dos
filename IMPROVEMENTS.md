@@ -922,12 +922,46 @@ they settled is written up in the README rather than left here:
   heading to itself. So `bucket_stream()` slugifies the heading instead: strip
   the leading number, lowercase, and that is the stream. `3. DS` becomes `ds`,
   `2. BAU` becomes `bau`, and the two files that no longer match get renamed to
-  match — `planning-design-system.md` to `plan-ds.md` and `planning-work-oversight.md`
-  to `plan-bau.md`, with `buckets/design-system/` and `buckets/work-oversight/`
-  renamed alongside them and the `.claude/agents/` symlinks repointed once.
-  After that a new bucket needs nothing written down anywhere: the heading is
-  the stream, and a new list needs only its own planner files, which a new
-  stream needed regardless of where the mapping lived.
+  match — `planning-design-system.md` and `planning-work-oversight.md` to
+  `planning-ds.md` and `planning-bau.md` (the naming this needs to land on —
+  `bucket_agent()` builds the agent name as `"planning-%s" % stream`, so it has
+  to be `planning-ds`/`planning-bau` rather than `plan-ds`/`plan-bau`, which is
+  what an earlier pass at this entry said), with `buckets/design-system/` and
+  `buckets/work-oversight/` renamed alongside them and the `.claude/agents/`
+  symlinks repointed once. After that a new bucket needs nothing written down
+  anywhere: the heading is the stream, and a new list needs only its own
+  planner files, which a new stream needed regardless of where the mapping
+  lived.
+
+  **[needs you] — a real regression this needs deciding before it is built,
+  found while checking whether the "safe half" of this entry (just the
+  createDataset scaffolding, leaving STREAMS alone) could be done on its own.
+  It can't: a scaffolded bucket needs its own stream identity to find its own
+  brief folder, and today that identity only exists via `STREAMS`, which is
+  the very thing direct slugification retires — so the two halves are one
+  piece of work, not two.**
+
+  Checked against the real data 13 Sep 2026: `personal`'s only heading is
+  `1. Personal Tasks` (`data/personal/todo.md:3`), and today that maps to
+  `general` not because `STREAMS` names it — it doesn't, "tasks" is the only
+  key close to it and "personal tasks" never matches that — but because
+  *nothing* matches and `bucket_stream()` falls back to `FALLBACK_STREAM =
+  "general"` (`plan.py:70`). Direct slugification would strip the leading
+  number and lowercase the rest, same as it does for every other heading, and
+  "Personal Tasks" would become the stream `personal-tasks` — a real,
+  non-fallback stream with no `planning-personal-tasks.md` and no
+  `buckets/personal-tasks/` folder, where today's `general` fallback has both.
+  Every task on the real `personal` list would start planning against a
+  bucket the planning agent cannot find, the same night this landed, silently
+  — `run()`'s dry-run flag catches an orphaned bucket and says so, but the
+  real overnight run does not stop for one, it just logs it and keeps going
+  (`agents/planning_agent/plan.py:921-925`).
+
+  Two ways out, and which is right is his call: give `personal`'s bucket a
+  real heading before this ships — rename `1. Personal Tasks` to something
+  that slugifies to `general` on the nose, i.e. `1. General` — or keep one
+  narrow exception in `bucket_stream()` for exactly this heading. Either is a
+  few lines; guessing which is not this entry's to do.
 
   What is lost with the table is the whitelist half — an unmapped heading used
   to reach `general` and log loudly, which is how a renamed bucket got noticed.
