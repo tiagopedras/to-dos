@@ -76,6 +76,11 @@ const state = {
   /* Last-Modified of todo.md as this tab last agreed with it. Used to notice
      edits made outside the board. */
   diskStamp: null,
+  /* The same agreement, asked of the content rather than the clock: the
+     X-Todo-Hash the server sent with the last read. The stamp carries one
+     second, so a write landing inside the same second as the read looks
+     unchanged to it; this does not. Sent back as If-Match on every save. */
+  diskHash: null,
   drawerWidth: (+localStorage.getItem('todo-board-drawer')) || 400,
   /* Backup Preview: state.doc holds an old backup instead of the live file, and
      nothing may write to it. Every mutation path checks this before touching

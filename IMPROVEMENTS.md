@@ -18,6 +18,19 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The coloured stripe on a card is thinner than it reads.** The shared card
+  rule, `.card, .repitem, .chaincard` (`kanban/board.css:2017-2021`), sets
+  `border-left:3px solid var(--bc,var(--line))` — one rule feeding all four
+  card kinds since the 12 Sep 2026 unification the comment above it
+  describes. Bumping it to 4px is the one-line change, but the same comment
+  notes the padding was set against the old width: `padding:9px 10px 9px 9px`
+  pairs a 9px left inset with the 3px stripe to make "the component's 12"
+  against 10px on the right, deliberately asymmetric. Going to 4px without
+  touching padding pushes that to 13 and widens the gap the comment argues
+  for keeping close; dropping the left padding to 8px keeps the 12 the
+  argument is built on. `.card.nostripe, .repitem.nostripe` (`:2031`) sets
+  its own 1px width and 11px padding and is unaffected either way.
+
 - ~~**The Completed total names its own window a second time, right next to the
   picker that already says it.**~~ **Done, 13 Sep 2026.** The `.totalw` span is
   gone from `completedByCategoryReport()`, and with it `reportWindowLabel()`,
@@ -988,13 +1001,40 @@ they settled is written up in the README rather than left here:
   Overview and the Timeline all hang off — and it wants deciding rather than
   drifting into.
 
-  One piece does not depend on any of the above and is worth doing first. The
-  board guards a save with mtime and the conflict modal, both in the tab;
-  `agents/planning_agent/plan.py` guards the same file with `file_hash()` before a
-  batch and after every task. Both real overwrites of the live list got past
-  the tab-side guard. If `PUT /data/todo.md` carried the hash the tab last read
-  and `do_PUT` (`kanban/server.py:2083`) refused a mismatch, the check would
-  sit in the one place every writer passes through.
+  **One piece did not depend on any of the above, and it is done, 13 Sep
+  2026** — though most of it turned out to be done already, which this entry
+  had not noticed.
+
+  What it asked for was a check in the one place every writer passes through,
+  on the grounds that the board guards a save with mtime and the conflict modal
+  in the tab, and both real overwrites of the live list got past that. The
+  server-side half had in fact landed in `f040164`, the work-streams commit,
+  before this entry was written: `do_PUT` already demanded `If-Unmodified-Since`
+  and answered 428 without one, 409 when the stamp had moved, and behind that
+  sat the writer lock and the migration gate.
+
+  What was genuinely missing is the difference between a stamp and a hash, and
+  the code's own comment named it: `Last-Modified` carries one second, so two
+  writes inside the same second are indistinguishable and the later document
+  lands on a file it never read. Closed now. Every read of `todo.md` carries
+  `X-Todo-Hash` — a truncated sha256, added in `end_headers()` so `GET` and the
+  watcher's `HEAD` both get it — the tab holds it as `state.diskHash` beside
+  the stamp, sends it back as `If-Match`, and `do_PUT` refuses a mismatch with
+  the same 409 the conflict modal already answers. `watchTick()` prefers it too:
+  "did the bytes change" is a better question than "did the second change", with
+  the stamp kept as the fallback for a server from before this.
+
+  `If-Match` is checked when offered rather than demanded the way the stamp is.
+  The board always offers it, so a write without one is a tab from before this
+  landed or a script, and the 428 already holds both.
+
+  `kanban/test_save_guard.mjs` is the suite, 16 checks, and the thing to know
+  before editing it is that every `PUT` in it is meant to be refused and is
+  given the file's own current bytes as its body — so a regression that lets one
+  through rewrites `todo.md` with what it already said. It needs no browser. The
+  accepting half is deliberately not in it: proving a correct pair writes means a
+  real write, which is `data/_test` and a throwaway, and that was run once by
+  hand rather than left in a suite anyone might run against the live list.
 
   Whenever this is picked up it runs on its own branch off `main`, never
   directly on it, and it is a weekly-allowance-sized spend rather than an

@@ -15,14 +15,23 @@ const AUTOSAVE_MS = 4 * 1000;
 const WATCH_MS = 15 * 1000;
 let conflictShown = false;
 
-async function diskStamp(){
+/* One HEAD, both answers: the timestamp and the content hash the server sends
+   with every read of todo.md. Returns nulls rather than throwing when the
+   helper is down, which is the shape every caller here already copes with. */
+async function diskVersion(){
   try {
     const res = await fetch(FILE_URL, { method:'HEAD', cache:'no-store' });
-    if (!res.ok) return null;
-    return res.headers.get('Last-Modified') || null;
-  } catch (err) { return null; }
+    if (!res.ok) return { stamp:null, hash:null };
+    return { stamp: res.headers.get('Last-Modified') || null,
+             hash:  res.headers.get('X-Todo-Hash') || null };
+  } catch (err) { return { stamp:null, hash:null }; }
 }
-async function rememberStamp(){ state.diskStamp = await diskStamp(); }
+async function diskStamp(){ return (await diskVersion()).stamp; }
+async function rememberStamp(){
+  const v = await diskVersion();
+  state.diskStamp = v.stamp;
+  state.diskHash = v.hash;
+}
 
 /* Saves only when there is something to save, so an idle tab never touches the
    file and never triggers a backup for no reason. The clock runs from the last
@@ -47,21 +56,26 @@ async function autosaveTick(){
    asking first. Only his own unsaved work turns it into a question. */
 async function watchTick(){
   if (state.locked || !state.doc || modalEl || conflictShown) return;
-  const stamp = await diskStamp();
+  const { stamp, hash } = await diskVersion();
   if (!stamp) return;                              // helper stopped; saveFile reports that
-  if (!state.diskStamp) { state.diskStamp = stamp; return; }
-  if (stamp === state.diskStamp) return;
+  if (!state.diskStamp) { state.diskStamp = stamp; state.diskHash = hash; return; }
+  /* The hash is the better question where both sides have one — it answers
+     "did the bytes change" rather than "did the second change" — and the stamp
+     is the fallback for a server from before X-Todo-Hash existed. */
+  const moved = (hash && state.diskHash) ? hash !== state.diskHash : stamp !== state.diskStamp;
+  if (!moved) { state.diskStamp = stamp; state.diskHash = hash; return; }
 
   if (!hasOwnChanges()) {
     try {
       const res = await fetch(FILE_URL + '?t=' + Date.now(), { cache:'no-store' });
       if (!res.ok) return;
       const text = await res.text();
-      if (text === state.originalText) { state.diskStamp = stamp; return; }
+      if (text === state.originalText) { state.diskStamp = stamp; state.diskHash = hash; return; }
       const changes = describeChanges(state.originalText, text);
       closeDrawer();                               // ids are rebuilt by the parse
       load(text, 'todo.md');
       state.diskStamp = stamp;
+      state.diskHash = hash;
       const n = changes ? changes.length : 0;
       const note = 'reloaded — the file changed on disk' +
         (n ? ' (' + n + ' task' + (n > 1 ? 's' : '') + ')' : '');
@@ -80,6 +94,7 @@ async function watchTick(){
     if (res.ok) diskText = await res.text();
   } catch (err) { /* offerReload copes with null */ }
   state.diskStamp = stamp;                         // asked once per outside change
+  state.diskHash = hash;
   conflictShown = false;
   offerReload(diskText);
 }

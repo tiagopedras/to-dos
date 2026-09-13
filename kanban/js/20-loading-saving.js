@@ -110,6 +110,7 @@ async function loadFile(){
     if (!res.ok) throw new Error('the server answered ' + res.status);
     load(await res.text(), 'todo.md');
     state.diskStamp = res.headers.get('Last-Modified') || null;
+    state.diskHash = res.headers.get('X-Todo-Hash') || null;
     /* A real list always wins: whatever was standing in for it stops here. */
     state.demo = false;
     state.locked = false;

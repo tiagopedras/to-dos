@@ -21,6 +21,7 @@ Run it with run.command, or directly:  python3 kanban/server.py
 """
 
 import datetime
+import hashlib
 import http.server
 import json
 import mimetypes
@@ -145,6 +146,32 @@ def migrating_path(name=None):
 
 def backup_dir(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "backups")
+
+
+def file_hash(path):
+    """What todo.md holds right now, as a short content hash.
+
+    Last-Modified is what do_PUT checked first, and it carries one second of
+    precision. Two writes inside the same second are indistinguishable to it,
+    so the second one lands unrefused on a document built before the first —
+    which is the narrow half of the hole the two real losses went through.
+    A content hash has no such granularity: it changes when the bytes change
+    and not otherwise.
+
+    sha256, the same as file_hash() in agents/planning_agent/plan.py, which
+    guards the same file for the same reason from the other side. Truncated to
+    16 characters because this travels in a header on every read: it is a
+    fingerprint for equality, not a signature, and 64 bits is far past enough
+    for telling two versions of one file apart.
+
+    None when the file is not there, which is a real state — a dataset that
+    has never been written — and one the callers treat as "no opinion".
+    """
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()[:16]
+    except OSError:
+        return None
 
 
 def chat_viewed_path(name=None):
@@ -1595,6 +1622,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        # Every read of todo.md carries the hash of what was read, so the tab
+        # can hand it back on the next save and do_PUT can check content rather
+        # than a second-precision timestamp. GET and HEAD both — the watcher
+        # polls with HEAD and never sees a body.
+        if self.command in ("GET", "HEAD") and self.path.split("?")[0].lstrip("/") == TARGET:
+            digest = file_hash(todo_path())
+            if digest:
+                self.send_header("X-Todo-Hash", digest)
         super().end_headers()
 
     def translate_path(self, path):
@@ -2070,7 +2105,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         #
         # Second precision, because that is all Last-Modified carries. The string
         # is built the same way SimpleHTTPRequestHandler built the one the tab was
-        # given, so the two compare directly without parsing either.
+        # given, so the two compare directly without parsing either. What that
+        # second cannot see is checked below, by If-Match against the content.
         # One writer per stream, checked rather than assumed. The board is the
         # writer for this list, so it takes the claim and keeps it; what this
         # refuses is a second live process writing underneath it. Advisory: a
@@ -2098,7 +2134,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             current = self.date_time_string(os.stat(path).st_mtime)
             if since != current:
                 return self._json(409, {"error": "todo.md changed on disk since this tab last read it",
-                                        "stale": True, "disk": current})
+                                        "stale": True, "disk": current,
+                                        "hash": file_hash(path)})
+
+        # And the same question asked of the content, which is the half the
+        # stamp above cannot answer. Last-Modified is second-precision, so a
+        # write landing in the same second as the read this document was built
+        # on passes that check while replacing a file it never saw. The hash
+        # does not have that blind spot.
+        #
+        # Checked when offered rather than demanded the way the stamp is. The
+        # board always offers it — every read sets state.diskHash — so a write
+        # without one is either a tab from before this landed or a script, and
+        # both are already held by the 428 above. Making it required as well
+        # would refuse the first save after an upgrade for no gain.
+        match = self.headers.get("If-Match")
+        if match and os.path.exists(path):
+            digest = file_hash(path)
+            if digest and match != digest:
+                return self._json(409, {"error": "todo.md changed on disk since this tab last read it",
+                                        "stale": True,
+                                        "disk": self.date_time_string(os.stat(path).st_mtime),
+                                        "hash": digest})
 
         backup_name = None
 
@@ -2132,8 +2189,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             os.fsync(fh.fileno())
         os.replace(tmp, path)
 
+        # The hash of what was just written, reported rather than adopted. The
+        # tab takes both halves from rememberStamp()'s own HEAD instead, so the
+        # stamp and the hash it holds always describe the same read — taking
+        # one from here and one from there is how they would come to disagree
+        # if a second write landed in between. It is here for the suites, which
+        # assert on what a write produced without a second request.
         self._json(200, {"ok": True, "bytes": len(data),
-                         "backup": backup_name, "weekly": weekly_name})
+                         "backup": backup_name, "weekly": weekly_name,
+                         "hash": file_hash(path)})
 
 
 def main():

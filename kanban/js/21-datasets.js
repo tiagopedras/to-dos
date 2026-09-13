@@ -108,6 +108,7 @@ async function loadDemo(){
     closeDrawer();
     load(text, 'demo.md', { readOnly:true });
     state.diskStamp = null;
+    state.diskHash = null;
     state.demo = true;
     state.locked = true;
     state.lockedLabel = 'an example list, not yours';
@@ -137,6 +138,10 @@ async function saveFile(auto, forceBackup){
        the right one for a tab that has not yet read the file. */
     const headers = { 'Content-Type':'text/markdown; charset=utf-8' };
     if (state.diskStamp) headers['If-Unmodified-Since'] = state.diskStamp;
+    /* And the content this document was built on, which is the check the stamp
+       cannot make: Last-Modified carries one second, so a write landing inside
+       the same second as this tab's last read looks unchanged to it. */
+    if (state.diskHash) headers['If-Match'] = state.diskHash;
     const res = await fetch(FILE_URL + (forceBackup ? '?backup=force' : ''), {
       method: 'PUT', headers, body: text
     });
@@ -153,6 +158,7 @@ async function saveFile(auto, forceBackup){
        reason. */
     if (res.status === 409) {
       if (info.disk) state.diskStamp = info.disk;
+      if (info.hash) state.diskHash = info.hash;
       if (info.migrating) {
         markDirty();
         autoStatus('not saved — a migration is running on this list. Your changes are still here.');

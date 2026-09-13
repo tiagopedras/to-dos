@@ -402,7 +402,15 @@ node kanban/test_backups.mjs       # and the read-only preview it opens
 node kanban/test_matrix.mjs
 node kanban/test_reports.mjs       # both halves, and the window picker over them
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
+node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md
 ```
+
+`test_save_guard.mjs` is the odd one in that list: it needs the server but no
+browser, because what it checks is the server's own contract. Every `PUT` it
+sends is meant to be refused and carries the file's own current bytes as its
+body, so a regression that lets one through rewrites `todo.md` with what it
+already said rather than with a fixture. Keep it that way — never give one of
+those requests a body of its own.
 
 ## Pushing
 
