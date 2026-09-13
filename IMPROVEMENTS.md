@@ -483,11 +483,12 @@ they settled is written up in the README rather than left here:
   its own; `PROJECT_SORT_KEY` (`kanban/js/26-projects.js:25`) is the precedent
   for that. And the board's button toggles between priority and his own file
   order, which Plans has no equivalent of — a folder of plan files carries no
-  hand order — so the second order has to be picked rather than inherited: date
-  written (`p.night`, read by `planGeneratedLabel()` at `:167`), bucket
-  (`p.bucket`), or state. Nothing here reaches disk, so
-  `kanban/test_plans.mjs`'s assertion that the view posts only `/stream/apply`
-  and `/queue/order` still holds.
+  hand order — so the second order is date written (`p.night`, read by
+  `planGeneratedLabel()` at `:167`) rather than bucket or state: the natural
+  complement to priority order, answering "what landed last night" where
+  priority answers "what matters most", and the field is already on every
+  plan. Nothing here reaches disk, so `kanban/test_plans.mjs`'s assertion that
+  the view posts only `/stream/apply` and `/queue/order` still holds.
 
 - ~~**The two agents are named on different axes: one says when it runs, the
   other says what it does.**~~ **Done, 12 Sep 2026.** `night_agent` is
@@ -577,15 +578,14 @@ they settled is written up in the README rather than left here:
   `:255`) going with the view, and `agents/implementing_agent/stream.json` either
   retiring or shrinking to the agent definition alone.
 
-  Two things have to be decided before any of it. What happens to the seven
-  documents already in `data/twinkl/runs/` — two are `done`, three carry the
-  implementing agent's full written reports in their bodies which would have to move
-  onto their plan, and two are empty stubs. And what replaces the gate, since
-  removing it is only safe while something else stops six approved plans running
-  at once. Settled 12 Sep 2026 and explicitly not the answer: a nightly drain of
-  `accepted`. The overnight entry below still holds, so the implementing agent runs
-  only from a session he is sitting in, and collapsing the boards does not make
-  `accepted` a queue anything empties by itself.
+  Decided, 13 Sep 2026: fold the boards. The three review-state run documents
+  carrying the implementing agent's full written reports move onto their plan;
+  the two `done` runs and the two empty backlog stubs are dropped rather than
+  migrated, since a completed state and an empty stub carry nothing a folded
+  board needs to keep separately. What replaces the gate is nothing new — the
+  overnight entry below still holds, so the implementing agent runs only from a
+  session he is sitting in, and that is what stops six accepted plans running
+  at once regardless of whether they sit in a queue or a separate column.
 
 - **A finished run and a dead one are the same document, because the acting
   agent cannot move its own card.** `implementing-agent` is defined with `tools:
@@ -608,15 +608,11 @@ they settled is written up in the README rather than left here:
   full, all three sitting in `ready / implementing-agent`, indistinguishable from
   abandoned. The reports are in the run documents and are real work.
 
-  Three ways out and they are not equivalent. Give the agent Bash, which is the
-  smallest change and the largest one to think about, since the whole reason
-  this agent is safe is the list of things it cannot reach. Let the driving
-  session perform the two transitions — `doing` on handover, `review` on the
-  report landing — which is what "the board asks; the stream writes" already
-  says everywhere else, and which makes `pa-do:88` and its own next paragraph
-  agree. Or give the stream a queue-file writer, the contract's third kind,
-  which the agent could append to with Write alone. The middle one looks right
-  and the choice is his.
+  Decided, 13 Sep 2026: the driving session performs both transitions —
+  `doing` on handover, `review` on the report landing — which is what "the
+  board asks; the stream writes" already says everywhere else, and which
+  makes `pa-do:88` and its own next paragraph agree. `implementing-agent`
+  keeps its current tool list; no Bash, no queue-file writer.
 
 - ~~**Nothing moves a run to `doing`, so the Execution view cannot show one in
   flight.**~~ **Done, 13 Sep 2026.** `runColumn()` (`kanban/js/27-execution.js`)
@@ -640,50 +636,46 @@ they settled is written up in the README rather than left here:
   can still reach the task, and there is no way to say the idea itself is
   turned down. So a plan he has read and rejected outright either sits in
   Backlog looking undecided or goes round again for a second opinion he never
-  wanted. It wants a seventh column on the view and a fourth button in the
-  modal, both carrying the same reason the redo path already collects into
-  `feedback`.
+  wanted. It wants a fourth button in the modal, carrying the same reason the
+  redo path already collects into `feedback`.
 
-  Two things have to be decided before it is built. **The first is whether it
-  is a state or a resolution.** `PACKAGES/work_streams/CONTRACT.md` says `done`
-  closes an item with `resolution` saying how, and this stream already writes
-  two — `completed` from `finishPlan()` (`:299`) and `superseded` from a
-  replaced rejection — so a third, `declined`, is the cheaper answer and the
-  one the contract's own test for an eighth state points at. **The second is
-  what the column is called**, since Plans' six words are its own rather than
-  the board's, and `states` in `agents/planning_agent/stream.json` is where they
-  live.
+  Decided, 13 Sep 2026. It is a resolution rather than a state: `done` closes
+  an item with `resolution` saying how, this stream already writes two —
+  `completed` from `finishPlan()` (`:299`) and `superseded` from a replaced
+  rejection — and a third, `declined`, is the cheaper answer and the one the
+  contract's own test for an eighth state points at. It draws inside the Done
+  column rather than a column of its own — a declined plan should read as its
+  own word and colour next to completed and superseded, not sit somewhere
+  separate from them.
 
-  The work after that is contained but touches four places that have to agree.
   `planColumn()` (`:125`) needs a branch for the new resolution **above** the
   fallback on `:145`, which currently returns Ready to be produced for any
   state it does not recognise — so a declined plan written before that branch
   exists would draw as accepted. `planWord()` (`:75`) and `planStripe()`
-  (`:108`) need the word and the colour. `renderPlansView()` (`:1461`) gains a
-  seventh `colHTML()` block and a `#plansDeclined` body, and the drop wiring at
-  `:880` gains it as a target. The implementing agent needs nothing: `stream.py
-  --sync` in `agents/implementing_agent/` mints runs from accepted plans only, so
-  a declined one never reaches Execution. `kanban/test_plans.mjs` wants the
-  column in its count and the new move in its blocked-writes list.
+  (`:108`) need the word and the colour, the same two functions that already
+  tell `completed` and `superseded` apart. The implementing agent needs
+  nothing: `stream.py --sync` in `agents/implementing_agent/` mints runs from
+  accepted plans only, so a declined one never reaches Execution.
+  `kanban/test_plans.mjs` wants a case for the new resolution in the Done
+  column and the new move in its blocked-writes list.
 
-- **Archiving finished work may not be worth having at all, and it is hidden
-  behind a constant until that is decided.** `ARCHIVE_CHIP_HIDDEN`
-  (`kanban/js/25-archiving.js:39`) takes the "Archive N finished" button out of
-  the header on every view; `archivable()` (`:24`), `archiveOldDone()` (`:70`)
-  and the `ARCHIVE_DAYS` threshold of 30 (`:15`) are all untouched underneath
-  it, so the decision is which way to go rather than what to unpick. The case
-  against keeping it: on the twinkl list it currently offers to move four
-  tasks, which is not a list under any pressure, and moving anything out of
-  `todo.md` buys a second file that every count then has to read back in —
-  `parseArchiveEntries()` (`kanban/js/12-reports.js:120`) and
-  `completedRecently()` (`:165`) exist only to rejoin the two, and
-  `check_todo.py` has no archive reader at all, so the Python side already sees
-  a partial list. The case for: nothing prunes `done-archive.md`, so it is the
-  only record that outlives the rolling backups, and a list that does grow has
-  no other way to shed a year of ticked work. Deciding it means either deleting
-  the feature and the two readers with it, or raising `ARCHIVE_DAYS` to
-  something that only fires when the file is genuinely long and dropping the
-  constant.
+- **Archiving finished work should run on its own rather than wait for a
+  click.** `ARCHIVE_CHIP_HIDDEN` (`kanban/js/25-archiving.js:39`) takes the
+  "Archive N finished" button out of the header on every view; `archivable()`
+  (`:24`) and `archiveOldDone()` (`:70`) are untouched underneath it, and today
+  the only caller either of them has is `$('#archiveBtn').onclick` (`:138`) —
+  so even unhidden, nothing moves a task into `done-archive.md` unless he
+  clicks the button. Decided, 13 Sep 2026: raise `ARCHIVE_DAYS` (`:15`) from 30
+  to 60, unhide nothing, and instead call `archiveOldDone()` on its own —
+  the same load-bearing point `autosaveTick()` already fires from — so a task
+  done more than 60 days ago moves itself out with no click required. Nothing
+  prunes `done-archive.md` itself, so it stays the one record that outlives
+  the rolling backups, and the working file stops growing without him having
+  to remember to tend it. `parseArchiveEntries()` (`kanban/js/12-reports.js:120`)
+  and `completedRecently()` (`:165`) still exist to rejoin the two files for
+  reports, and `check_todo.py`'s missing archive reader is a real remaining
+  gap worth fixing alongside this — a task that has aged out is invisible to
+  the checker as well as to every `pa-*` skill that reads `todo.md` directly.
 
 - **The board has no component layer, so the same column is written twice and
   every view redraws by replacing `innerHTML`.** 13,972 lines across 28 classic
@@ -704,11 +696,11 @@ they settled is written up in the README rather than left here:
   — `renderExecutionView()` (`:249`) and every sibling open by assigning to
   `$('#lists').innerHTML` — so a new renderer can mount into one view while the
   other nine carry on untouched, and the work can stop at any stage with a
-  working board. React with Vite and TypeScript is the choice that converges
-  this with `ai_canvas`, at the cost of a build step that `run.command` would
-  have to run before starting the server, since it and `To-Do Board.app` bundle
-  nothing today. Preact with `htm` keeps the no-build property and gives up the
-  tooling. That decision is the one thing this entry is holding.
+  working board. Decided, 13 Sep 2026: React with Vite and TypeScript, which
+  converges this with `ai_canvas` rather than Preact's no-build path. Both
+  `run.command` and `To-Do Board.app` bundle nothing today, so this is a real
+  cost: they need to run the build before starting the server, which they
+  don't do now.
 
   Order, if it goes ahead: a round-trip fixture over a whole `todo.md` in both
   languages first, since `core/fixtures/` covers the grammar and not the
@@ -792,16 +784,18 @@ they settled is written up in the README rather than left here:
   `agents/planning_agent/` are two claimants on one allowance and a third would be
   a third, so the harvester belongs in `PACKAGES/` by the rule in
   `~/Code/CLAUDE.md` — anything two apps depend on moves there — and each agent
-  reads it rather than carrying a copy. Two decisions before it can be built.
-  What an agent does with the number: advisory, with `core/windows.py` staying
-  the gate, or authoritative, in which case a night that cannot harvest has to
-  choose between declining to start and running blind. And where the reading is
-  written: `limit_tok` and the window state are one file today, and a percentage
-  sampled twice a night is a series rather than a state, so it either grows into
-  a small log beside the plans or it overwrites and keeps only the last night.
-  The API call is what forces that shape — it makes the harvest a once-per-batch
-  reading rather than a per-task one, so it cannot catch a window filling up
-  mid-night.
+  reads it rather than carrying a copy.
+
+  Decided, 13 Sep 2026, both halves. The number is advisory: `core/windows.py`
+  stays the gate on time left, and the harvested figure is logged alongside
+  rather than able to stop a night by itself — the harvester is new and
+  unproven, and a night should not fail to start because a pty session failed
+  to spawn. And the reading is written as a small log beside the plans rather
+  than overwritten each time, since a percentage sampled twice a night is a
+  series worth seeing trend over weeks, which is the actual point of
+  harvesting it. The API call is what forces the sampling shape — it makes the
+  harvest a once-per-batch reading rather than a per-task one, so it cannot
+  catch a window filling up mid-night.
 
 - **The board can start a conversation about a task but not about the list, so
   every PA sitting means leaving it for a terminal.** `newChat()`
@@ -810,17 +804,17 @@ they settled is written up in the README rather than left here:
   (`PACKAGES/ai_chat_engine/engine.py:472`) shells `claude -p <prompt>` in the
   configured cwd — so `/pa-checkin` typed into that modal would run today, and
   what is missing is a chat that belongs to the board rather than to one card,
-  plus somewhere in the header to open it. The decision it is waiting on is the
-  writer rule: `todo.md` has exactly one writer, and a PA turn is a second one
-  firing inside a tab whose `autosaveTick()`
-  (`kanban/js/24-autosave-watching.js:38`) is four seconds from overwriting
-  whatever it just wrote. `watchTick()` (`:47`) already covers the shape of it,
-  reloading quietly on an outside change and asking only when the tab has
-  unsaved work of its own, so the choice is between trusting that and setting
-  `state.locked` for the length of the turn — the harder, safer option, since a
-  lock cannot lose an edit and a race can. Which of the ten `pa-*` skills are
-  reachable this way is the second question: `pa-checkin` and `pa-checkout` are
-  sittings that suit a panel, `pa-mobile` has no business here at all.
+  plus somewhere in the header to open it.
+
+  Decided, 13 Sep 2026, both halves. `state.locked` is set for the length of
+  the turn rather than trusting `watchTick()` (`kanban/js/24-autosave-watching.js:47`)
+  — the harder option, but a lock cannot lose an edit where a race can, and
+  `watchTick()`'s quiet-reload is built around an occasional outside change,
+  not a conversation that may write repeatedly in one sitting. And only the
+  plain `pa` skill is reachable this way — ad hoc changes and
+  re-prioritisation, the open-ended kind of turn a panel actually suits.
+  `pa-checkin`, `pa-checkout`, `pa-focus` and the rest stay terminal-only
+  sittings.
 
 - ~~**The companion is a menu, and a menu is why the plans half had to come
   back out of it.**~~ **Done, 10 Sep 2026.** Rebuilt as an Electron app —
@@ -933,13 +927,12 @@ they settled is written up in the README rather than left here:
   planner files, which a new stream needed regardless of where the mapping
   lived.
 
-  **[needs you] — a real regression this needs deciding before it is built,
-  found while checking whether the "safe half" of this entry (just the
-  createDataset scaffolding, leaving STREAMS alone) could be done on its own.
-  It can't: a scaffolded bucket needs its own stream identity to find its own
-  brief folder, and today that identity only exists via `STREAMS`, which is
-  the very thing direct slugification retires — so the two halves are one
-  piece of work, not two.**
+  A real regression turned up while checking whether the "safe half" of this
+  entry (just the createDataset scaffolding, leaving STREAMS alone) could be
+  done on its own. It can't: a scaffolded bucket needs its own stream identity
+  to find its own brief folder, and today that identity only exists via
+  `STREAMS`, which is the very thing direct slugification retires — so the two
+  halves are one piece of work, not two.
 
   Checked against the real data 13 Sep 2026: `personal`'s only heading is
   `1. Personal Tasks` (`data/personal/todo.md:3`), and today that maps to
@@ -951,24 +944,38 @@ they settled is written up in the README rather than left here:
   "Personal Tasks" would become the stream `personal-tasks` — a real,
   non-fallback stream with no `planning-personal-tasks.md` and no
   `buckets/personal-tasks/` folder, where today's `general` fallback has both.
-  Every task on the real `personal` list would start planning against a
-  bucket the planning agent cannot find, the same night this landed, silently
-  — `run()`'s dry-run flag catches an orphaned bucket and says so, but the
-  real overnight run does not stop for one, it just logs it and keeps going
-  (`agents/planning_agent/plan.py:921-925`).
 
-  Two ways out, and which is right is his call: give `personal`'s bucket a
-  real heading before this ships — rename `1. Personal Tasks` to something
-  that slugifies to `general` on the nose, i.e. `1. General` — or keep one
-  narrow exception in `bucket_stream()` for exactly this heading. Either is a
-  few lines; guessing which is not this entry's to do.
+  Decided, 13 Sep 2026: `personal-tasks` gets scaffolded properly rather than
+  the heading being renamed to dodge it — a real bucket with its own brief and
+  planner file, the same as DS or BAU, rather than sharing the general
+  catch-all by accident. And the scaffolding this entry already builds for
+  `createDataset()` extends to the bucket editor (`kanban/js/08-buckets.js`)
+  as well: adding a bucket on a list that already exists is the same action as
+  naming one at list creation, and today it is free text with nothing behind
+  it, so both paths write the brief and the planner file as part of the
+  action.
+
+  Renaming is different from adding, and has to be, or the same regression
+  just moves to a different verb: the slug a bucket's stream identity is built
+  from is fixed at the moment the bucket is created, not re-derived from its
+  heading on every read. `## N. Personal Tasks` renamed to `## N. Family
+  stuff` keeps the same brief folder, the same planner file, the same stream —
+  only the label he reads changes. That means the slug has to live somewhere
+  other than the heading text itself once a bucket exists — a line in
+  `buckets/README.md` beside each stream is the natural place, since that file
+  already says which buckets a list has. `bucket_stream()` reads it there
+  first and only falls back to slugifying the live heading for a bucket that
+  has never been through the editor, which is what lets an old hand-written
+  `todo.md` keep working unchanged.
 
   What is lost with the table is the whitelist half — an unmapped heading used
   to reach `general` and log loudly, which is how a renamed bucket got noticed.
   A slugified heading always resolves, so the loud log moves to the missing
   file instead: `bucket_agent()` naming a `planning-<stream>.md` that is not on disk
   is the same signal one step later, and it is a stronger one, since it names
-  the file to create rather than a table row to add.
+  the file to create rather than a table row to add. With both creation paths
+  scaffolding as they go, this log becomes a safety net for a hand-edited
+  `todo.md` rather than the main defence.
 
 - ~~**The Done column on Plans holds six states that ask two different
   questions, and only one of them is "read this".**~~ **Done, 10 Sep 2026.**
@@ -2071,35 +2078,29 @@ they settled is written up in the README rather than left here:
   the four board ones — 69/69, 39/39, 54/54, 48/48) pass clean against it,
   checked against the actual running server, not just the fixtures.
 
-- **"Quick wins" sorts by due date and "Delegate to Claude" by impact against
-  effort, and both replace the order they have now rather than being offered
-  as a second choice.** Nothing to draw and nothing to remember: each column
-  has one order. `quickSection()` (`kanban/js/10-reference-sections.js:399`)
-  groups before it sorts today — meetings with an agenda first by nearest
-  date, then messages, then S-effort tasks, `byPriority()` ranking inside each
-  — and the groups go with the change: one flat list, earliest `due:` first,
-  undated at the bottom. What is in the column at all is untouched, since
-  those filters are about eligibility rather than order — `ai:full` belongs to
+- **Quick wins wants a due-date order as well as its grouped/priority one, and
+  Delegate to Claude goes back to an automatic sort.** `quickSection()`
+  (`kanban/js/10-reference-sections.js:399`) groups before it sorts today —
+  meetings with an agenda first by nearest date, then messages, then S-effort
+  tasks, `byPriority()` ranking inside each. Decided, 13 Sep 2026: rather than
+  replacing that with a flat due-date list, it becomes a second order he can
+  switch to, the same toggle shape `sortMode()`/`setSortMode()`
+  (`kanban/js/03-tier-one-impact-effort.js:22`) already gives the board's own
+  columns — grouped/priority stays the default, due-date-first (undated at the
+  bottom) is the alternative, and the groups collapse into one flat list only
+  in that second mode. What is in the column at all is untouched, since those
+  filters are about eligibility rather than order — `ai:full` belongs to
   Delegate, Backlog is parked on purpose, and a task waiting on another or on
   a `start:` date still counts in the held tallies rather than appearing.
-  `delegateSection()` (`:577`) drops `rank:` as its sort for the same
-  impact-against-effort score the board already computes (`EFFORT_N`,
-  `core/todo.js:565`). The tag stays — the planning agent's queue orders by it —
-  but `.refnum` beside each card then shows the row's position rather than the
-  stored rank, since the two no longer agree.
 
-  **Checked against the code 13 Sep 2026, and this needs a re-read before it's
-  built rather than building it as written.** Neither half still matches what
-  it says. `quickSection()` sorts by `byPriority()` — the dependency chain's
-  own assessment, not due date — inside meaningful groups (meetings, messages,
-  a decision, a conversation), not the flat single order this entry assumes as
-  today's starting point; whether flattening to due-date order is still wanted
-  against that more considered ordering is a real question, not a mechanical
-  port. And `delegateSection()` now has a manual drag-to-reorder on `rank:`
-  (this file, above, done 13 Sep 2026) — a dragged order and this entry's
-  proposed automatic impact-against-effort sort can't both govern the same
-  list, so this entry and that one are in direct tension and one of them is
-  wrong now.
+  Delegate to Claude gained manual drag-to-reorder on `rank:` on 13 Sep 2026
+  (this file, above). Decided the same day, after a re-read: drop it again in
+  favour of the automatic impact-against-effort score this entry originally
+  asked for (`EFFORT_N`, `core/todo.js:565`) — `delegateSection()` (`:577`)
+  sorts by that score rather than by `rank:`. The tag stays, since the
+  planning agent's queue orders by it, but `.refnum` beside each card shows
+  the row's position rather than the stored rank, since the two no longer
+  agree. The drag grip built for the manual order comes back out.
 
 - ~~**Rework the bucket editor.**~~ **Done, 6 Sep 2026.** The task-count
   column is gone. In its place, each bucket's dot (`.bkpick`, in
