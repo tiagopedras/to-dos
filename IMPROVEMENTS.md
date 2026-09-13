@@ -36,16 +36,14 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   asserts it, and the next ported view can reintroduce either pattern without
   failing anything.
 
-- **The coloured stripe on a card is thinner than it reads.** The shared card
-  rule, `.card, .repitem, .chaincard` (`kanban/board.css:2017-2021`), sets
-  `border-left:3px solid var(--bc,var(--line))` — one rule feeding all four
-  card kinds since the 12 Sep 2026 unification the comment above it
-  describes. It goes to 4px, and the left padding drops from 9px to 8px
-  alongside it, so the two together still read as the component's 12px
-  against 10px on the right — the same asymmetric pairing the comment already
-  argues for, just re-balanced against the wider stripe. `.card.nostripe,
-  .repitem.nostripe` (`:2031`) sets its own 1px width and 11px padding and is
-  unaffected either way.
+- ~~**The coloured stripe on a card is thinner than it reads.**~~ **Done,
+  13 Sep 2026.** The shared card rule, `.card, .repitem, .chaincard`
+  (`kanban/board.css:2010`), now sets `border-left:4px solid
+  var(--bc,var(--line))` with `padding:9px 10px 9px 8px`, so the two together
+  still read as the component's 12px against 10px on the right — the same
+  asymmetric pairing the comment above it already argued for, just
+  re-balanced against the wider stripe. `.card.nostripe, .repitem.nostripe`
+  keeps its own 1px width and 11px padding, unaffected either way.
 
 - ~~**The Completed total names its own window a second time, right next to the
   picker that already says it.**~~ **Done, 13 Sep 2026.** The `.totalw` span is
@@ -77,24 +75,23 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   this chart. Line stays the default. `kanban/test_reports.mjs` wants a case
   for whichever state renders at rest and one for the switch.
 
-- **The counted reports carry a caveat about undated finished work that can
-  never appear.** `countedLeadHTML()` (`kanban/js/12-reports.js:336`) reads
-  `undatedDoneCount()` (`:188`), which counts tasks that are `done` with no
-  `doneOn`, so the lead note can say how much finished work the count cannot
-  place. Nothing can ever be in that state by the time it is asked.
-  `stampDoneDates()` (`kanban/js/04-tier-two-the-one-thing.js:80`) runs inside
-  `load()` (`kanban/js/20-loading-saving.js:13`) and stamps every undated done
-  task with today, on every load including a locked one; and `setDone()`
-  (`04-tier-two-the-one-thing.js:377`) is the only thing in the app that sets
-  `t.done`, and it always writes `doneOn` alongside. So the function returns
-  nought for the life of the tab, and the sentence it guards is unreachable —
-  written when tasks ticked before the board dated them still existed, and
-  `stampDoneDates()` is what closed that gap. `undatedDoneCount()` and the
-  sentence it guards come out; `kanban/test_reports.mjs`'s assertion of the
-  nought goes with them.
+- ~~**The counted reports carry a caveat about undated finished work that can
+  never appear.**~~ **Done, 13 Sep 2026.** `undatedDoneCount()` and the
+  sentence it guarded in `countedLeadHTML()` (`kanban/js/12-reports.js`) are
+  gone, along with `kanban/test_reports.mjs`'s assertion of the nought.
 
-- **`pa-do` is filed with the skills that read and write his to-do list, and it
-  is the only one of them that makes work happen.** Its own SKILL.md says so —
+- ~~**`pa-do` is filed with the skills that read and write his to-do list, and it
+  is the only one of them that makes work happen.**~~ **Done, 13 Sep 2026.**
+  Moved to `agents/implementing_agent/skills/do/`, dropping the `pa-` prefix
+  since it isn't the PA's. The `~/.claude/skills/pa-do` symlink now points
+  there as `do`, and every reference — `CLAUDE.md`, `agents/pa_agent/CLAUDE.md`,
+  `PA-PLAN.md`, `pa/SKILL.md`, `planning_agent/README.md`,
+  `implementing_agent/README.md` and `implementing-agent.md`,
+  `planning_agent/plan.py`, `kanban/server.py`, `kanban/js/13-plans.js`'s own
+  `/pa-do` hint text, `pa-skills.svg`'s label, and `SKILLS.md` (moved into the
+  implementing agent's own table) — now says `do` instead.
+
+  Its own SKILL.md says so —
   "This is the only skill in the set that causes work to happen rather than
   recording a decision about it" — while the other eight under
   `agents/pa_agent/skills/` all read `todo.md` or write it after a conversation.
@@ -128,15 +125,12 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   check that the picker renders as `.tabs.small` with seven `.tab`s and still
   switches and re-renders on click.
 
-- **`.aic-addsub` is the one small button still outside `.btn`.** The five that
-  were folded into `.btn.outline.small` and `.btn.dashed.small` on 12 Sep 2026
-  — `.btn.mini`, `.addsub`, `.completeall`, `.qhold` — all live in
-  `kanban/board.css`. The sixth, `+ New chat` and `+ Attach` in the task
-  drawer's Chats field (`kanban/js/10-reference-sections.js:946-947`), takes its
-  styling from `PACKAGES/ai_chat_engine`, which `ai_canvas` also loads. So the
-  fold is a change to a shared package with a second consumer, and the Figma
-  merge put it at Dashed/Small (12px, padding 4/9, radius 6) the same as
-  `.addsub`. Worth doing with `ai_canvas` open beside it rather than blind.
+- ~~**`.aic-addsub` is the one small button still outside `.btn`.**~~ **Done,
+  13 Sep 2026.** It already matched `.btn.dashed.small`'s size, padding and
+  radius; the one real difference was font-weight, 600 against 560. Fixed in
+  `PACKAGES/ai_chat_engine/interface/chat.css`, which both `to-dos` and
+  `ai_canvas` load, so `+ New chat` / `+ Attach` now weigh the same as every
+  other small dashed button in either app.
 
 - **The night's size is set in dollars, and nothing says how many plans he
   wants.** The batch loop in `run()` (`agents/planning_agent/plan.py:898`) stops on
