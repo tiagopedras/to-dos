@@ -288,6 +288,15 @@ $('#lists').addEventListener('click', e => {
     return;
   }
 
+  /* Quick wins' own toggle, the same shape as the board's .sortbtn but keyed
+     separately since "Quick wins" is not a column name the board's own
+     sortMode() reads. */
+  if (e.target.closest('[data-quicksort]')) {
+    setQuickSortMode(quickSortMode() === 'due' ? 'priority' : 'due');
+    renderView();
+    return;
+  }
+
   /* Open the task where he is standing. This used to throw him onto the board
      first, which lost his place in the list he was reading and made a two second
      edit feel like a detour. The drawer edits the task itself, not the card, so

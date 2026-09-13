@@ -396,6 +396,31 @@ function weekSection(items){
    assessment: a two-minute message that happens to unblock a big rock outranks
    one that unblocks nothing, the same way the chain ranks a blocked card by
    what is riding on it rather than its own score alone. */
+/* Quick wins' second order: due-date-first rather than grouped/priority, the
+   same toggle shape sortMode()/setSortMode() (03-tier-one-impact-effort.js)
+   already gives the board's own columns — needing a key of its own since
+   "Quick wins" is not a board column name, the same reason PROJECT_SORT_KEY
+   exists rather than sharing state.sort. Grouped/priority is the default. */
+const QUICK_SORT_KEY = 'todo-board-quickwins-sort';
+function readQuickSortMode(){
+  try { return localStorage.getItem(QUICK_SORT_KEY) === 'due' ? 'due' : 'priority'; }
+  catch (e) { return 'priority'; }
+}
+let quickSortState = readQuickSortMode();
+function quickSortMode(){ return quickSortState; }
+function setQuickSortMode(mode){
+  quickSortState = mode === 'due' ? 'due' : 'priority';
+  try { localStorage.setItem(QUICK_SORT_KEY, quickSortState); } catch (e) {}
+}
+function quickSortBtnHTML(){
+  const due = quickSortMode() === 'due';
+  return '<button class="sortbtn' + (due ? ' on' : '') + '" type="button" data-quicksort' +
+    ' title="' + (due
+      ? 'Showing the nearest deadline first, undated at the bottom. Click to sort by what is worth doing first.'
+      : 'Grouped by what it costs, worth doing first inside each. Click to sort by due date instead.') + '">' +
+    (due ? 'by due date' : 'grouped') + '</button>';
+}
+
 function quickSection(items){
   // ai:full belongs to Delegate to Claude, and Backlog is not a real priority —
   // neither belongs here.
@@ -403,13 +428,52 @@ function quickSection(items){
   // Two separate reasons something is not a quick win yet: it waits on another
   // task, or its start date has not arrived. Neither is about the deadline —
   // an overdue task is the most actionable thing on the list, not the least.
-  const live = byPriority(items, open.filter(i => actionable(items, i) && !notYet(i.start))).order;
+  const actionableNow = open.filter(i => actionable(items, i) && !notYet(i.start));
+  const live = quickSortMode() === 'due' ? actionableNow.slice().sort(byDue) : byPriority(items, actionableNow).order;
   const heldByDep = open.filter(i => !actionable(items, i)).length;
   const heldByDate = open.filter(i => actionable(items, i) && notYet(i.start)).length;
   const heldByBacklog = items.filter(i => !i.done && i.ai !== 'full' && i.tier === HELD_TIER).length;
   const isS = i => i.sub === null && i.effort === 'S';
   const seen = new Set();
   const take = arr => arr.filter(i => { const k = i.id + '|' + i.title; if (seen.has(k)) return false; seen.add(k); return true; });
+
+  const dismissed = quickDismissedSet();
+  const notDismissed = i => !dismissed.has(quickKey(i));
+
+  const reasons = [];
+  if (heldByDep)  reasons.push('<strong>' + heldByDep + '</strong> waiting on another task');
+  if (heldByDate) reasons.push('<strong>' + heldByDate + '</strong> not startable yet');
+  if (heldByBacklog) reasons.push('<strong>' + heldByBacklog + '</strong> parked in ' + esc(HELD_TIER));
+  const note = reasons.length
+    ? '<p class="refheld">Left out: ' + reasons.join(' · ') + '.</p>'
+    : '';
+
+  if (quickSortMode() === 'due') {
+    /* Flat once sorted by due date: the four groups below answer "what kind of
+       win is this", which stops meaning anything once the order is "what is
+       nearest" — a due-date read is one list rather than four short ones, the
+       same call the entry that asked for this made. */
+    const preAll = take(live);
+    const all = preAll.filter(notDismissed);
+    const dismissedShown = preAll.length - all.length;
+    const capped = capCards(all);
+    const cards = capped.shown.map(i => refCard(i, {
+      agenda: !!(i.repeat && i.agenda && i.sub === null),
+      message: !!i.message,
+      quickDismiss: true
+    })).join('');
+    const dismissedNote = dismissedShown
+      ? '<p class="refmore">' + dismissedShown + ' dismissed. ' +
+        '<button type="button" class="reflink" data-quickrestore>Show them again</button></p>'
+      : '';
+    return {
+      html: cards
+        ? note + cards + moreNote(capped.hidden) + dismissedNote
+        : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>',
+      n: all.length,
+      sort: quickSortBtnHTML()
+    };
+  }
 
   /* Meetings first, and before the messages, because a standing meeting is the
      one thing here with a time on it rather than a deadline: 9:15 on Wednesday
@@ -429,22 +493,12 @@ function quickSection(items){
   /* Dismissed here, not filtered out of `open` above: a dismissal is a
      preference about this list, not a fact about the task, so it must not
      touch heldByDep/heldByDate/heldByBacklog, which describe the task itself. */
-  const dismissed = quickDismissedSet();
-  const notDismissed = i => !dismissed.has(quickKey(i));
   const meetings = preMeetings.filter(notDismissed);
   const messages = preMessages.filter(notDismissed);
   const decide   = preDecide.filter(notDismissed);
   const talk     = preTalk.filter(notDismissed);
   const dismissedShown = (preMeetings.length - meetings.length) + (preMessages.length - messages.length) +
     (preDecide.length - decide.length) + (preTalk.length - talk.length);
-
-  const reasons = [];
-  if (heldByDep)  reasons.push('<strong>' + heldByDep + '</strong> waiting on another task');
-  if (heldByDate) reasons.push('<strong>' + heldByDate + '</strong> not startable yet');
-  if (heldByBacklog) reasons.push('<strong>' + heldByBacklog + '</strong> parked in ' + esc(HELD_TIER));
-  const note = reasons.length
-    ? '<p class="refheld">Left out: ' + reasons.join(' · ') + '.</p>'
-    : '';
 
   const capped = capGroups([meetings, messages, decide, talk]);
   const [sMeetings, sMessages, sDecide, sTalk] = capped.shown;
@@ -466,7 +520,8 @@ function quickSection(items){
     html: out
       ? note + out + moreNote(capped.hidden) + dismissedNote
       : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>',
-    n
+    n,
+    sort: quickSortBtnHTML()
   };
 }
 
@@ -578,147 +633,31 @@ function chainMissing(slug){
   '</div>';
 }
 
-/* Only ai:full work belongs here, and the ai: tag is the gate rather than the
-   rank. A rank left behind on something he has taken back off Claude must not
-   keep it in the list, otherwise the section quietly recommends delegating work
-   he has already decided is his. */
+/* Only ai:full work belongs here, and the ai: tag is the gate. Manual
+   drag-to-reorder on `rank:` (10 Sep 2026) came back out on a re-read: the
+   automatic impact-against-effort score this entry originally asked for is
+   what sorts it now, the same priorityScore() every other section already
+   ranks by. `rank:` itself stays on the task — the planning agent's own queue
+   still orders by it (agents/planning_agent/pick.py) — but this view no
+   longer shows that number, since a task's scores can move without anyone
+   re-ranking it and a stale rank next to a live sort would disagree with
+   itself. What's on the row now is its position in the order shown. */
 function delegateSection(items){
-  const ranked = items.filter(i => i.ai === 'full' && !i.done && i.rank != null)
-                      .sort((a, b) => a.rank - b.rank);
-  const unranked = items.filter(i => i.ai === 'full' && !i.done && i.rank == null);
-  if (!ranked.length && !unranked.length) return { html: '<p class="empty">Nothing is tagged <code>ai:full</code>.</p>', n: 0 };
+  const eligible = items.filter(i => i.ai === 'full' && !i.done);
+  if (!eligible.length) return { html: '<p class="empty">Nothing is tagged <code>ai:full</code>.</p>', n: 0 };
 
-  const capped = capGroups([ranked, unranked]);
-  const [sRanked, sUnranked] = capped.shown;
+  const ranked = eligible
+    .map((i, idx) => ({ i, idx }))
+    .sort((a, b) => (priorityScore(b.i) - priorityScore(a.i)) || (a.idx - b.idx))
+    .map(x => x.i);
 
-  /* The number is the grip. It is already the one part of the row that stands
-     for the order, so nothing here needs a second handle beside it — and only
-     the ranked rows get one, since dragging an unranked card would be giving
-     it a rank rather than changing one. */
-  let html = sRanked.map(i =>
-    '<div class="refrow" data-rank="' + esc(quickKey(i)) + '">' +
-      '<span class="refnum"' +
-        (state.locked ? '' : ' draggable="true" title="Drag to reorder the queue"') + '>' +
-        i.rank + '</span>' +
+  const { shown, hidden } = capCards(ranked);
+  const html = '<div class="refrank">' + shown.map((i, n) =>
+    '<div class="refrow"><span class="refnum">' + (n + 1) + '</span>' +
       refCard(i, { prompt:true }) +
     '</div>'
-  ).join('');
-  if (html) html = '<div class="refrank">' + html + '</div>';
-  if (sUnranked.length) {
-    html += refGroup('Not ranked yet', sUnranked.map(i => refCard(i, { prompt:true })));
-  }
-  return { html: html + moreNote(capped.hidden), n: ranked.length + unranked.length };
-}
-
-/* Dragging a row's number rewrites `rank:` across every `ai:full` task in the
-   file, dense 1..n in the new order. Two things make a whole-queue renumber the
-   right shape rather than swapping the dragged row with its neighbour, the way
-   the timeline's `tlrank` drag can afford to: `rank` is global across the file
-   where `tlrank` is scoped to one bucket lane, and the numbers on this list
-   drift on their own — a rank stays on the line when a task is ticked off or
-   taken back off Claude, so the list already reads 1..9, 11, 12, and nothing
-   stops two tasks sharing a number, which leaves their order against each other
-   to whatever the sort happens to do. A dense pass on every write is what makes
-   the number on screen mean the position in the queue. It costs nothing: the
-   board writes the whole document on save regardless of how many lines moved.
-
-   The rows on screen are not the whole queue — Overview caps the column at
-   OV_CARD_LIMIT and the bucket tabs narrow it further — so the drop is read as
-   the one thing it actually states, which card the dragged one now sits above.
-   See applyDelegateOrder below for what that does to the tasks it cannot see. */
-let delegateDragKey = null;
-function delegateRows(zone){
-  return Array.from(zone.querySelectorAll(':scope > .refrow[data-rank]'));
-}
-function delegateInsertAfterEl(zone, clientY, skipKey){
-  let after = null;
-  delegateRows(zone).forEach(el => {
-    if (el.dataset.rank === skipKey) return;
-    const r = el.getBoundingClientRect();
-    if (clientY > r.top + r.height / 2) after = el;
-  });
-  return after;
-}
-function wireDelegateReorder(){
-  if (state.locked) return;
-  $('#lists').querySelectorAll('.refrank').forEach(zone => {
-    zone.querySelectorAll('.refnum[draggable]').forEach(num => {
-      const row = num.closest('.refrow');
-      num.ondragstart = e => {
-        delegateDragKey = row.dataset.rank;
-        row.classList.add('dragging');
-        e.dataTransfer.setData('text/plain', delegateDragKey);
-        e.dataTransfer.effectAllowed = 'move';
-      };
-      num.ondragend = () => {
-        row.classList.remove('dragging');
-        delegateDragKey = null;
-        hideDropLine();
-      };
-    });
-    zone.ondragover = e => {
-      if (!delegateDragKey) return;
-      e.preventDefault();
-      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'dropline'; }
-      const after = delegateInsertAfterEl(zone, e.clientY, delegateDragKey);
-      if (after) after.after(dropLine); else zone.prepend(dropLine);
-    };
-    zone.ondragleave = e => { if (!zone.contains(e.relatedTarget)) hideDropLine(); };
-    zone.ondrop = e => {
-      if (!delegateDragKey) return;
-      e.preventDefault();
-      const after = delegateInsertAfterEl(zone, e.clientY, delegateDragKey);
-      const before = delegateRows(zone).map(el => el.dataset.rank);
-      const shown = before.slice();
-      shown.splice(shown.indexOf(delegateDragKey), 1);
-      const at = after ? shown.indexOf(after.dataset.rank) + 1 : 0;
-      shown.splice(at, 0, delegateDragKey);
-      const key = delegateDragKey;
-      hideDropLine();
-      delegateDragKey = null;
-      if (shown.join() === before.join()) return;        // dropped back where it started
-      applyDelegateOrder(key, shown);
-    };
-  });
-}
-
-/* The visible order the drop produced, folded back into the whole `ai:full`
-   queue and written out dense 1..n. The dragged card goes immediately above the
-   next card that was on screen with it, or below the last one if it was dropped
-   at the foot — either way it lands where the drop said it should, and every
-   task the cap or the bucket tabs kept off screen holds the order it already
-   had rather than being shuffled by a drag that never saw it. */
-function applyDelegateOrder(key, shown){
-  const queue = allItems().filter(i => i.ai === 'full' && !i.done && i.rank != null)
-                          .sort((a, b) => a.rank - b.rank);
-  const byKey = new Map(queue.map(i => [quickKey(i), i]));
-  const moved = byKey.get(key);
-  if (!moved) return;
-  const at = shown.indexOf(key);
-  const next = shown.slice(at + 1).find(k => byKey.has(k));
-  const prev = shown.slice(0, at).reverse().find(k => byKey.has(k));
-  const order = queue.filter(i => i !== moved);
-  const to = next ? order.indexOf(byKey.get(next))
-           : prev ? order.indexOf(byKey.get(prev)) + 1
-           : order.length;
-  order.splice(to, 0, moved);
-  order.forEach((it, n) => setRank(it, n + 1));
-  markDirty();
-  refreshView();
-}
-
-/* One `rank:`, written where that item's rank actually lives. A task carries it
-   as a parsed field and the serialiser puts it back; a sub-step has no
-   serialiser — its line is part of the parent's body, written back verbatim —
-   so the tag has to be edited in the raw text, the same way toggleSub edits the
-   tick. No branch that adds a missing tag, because only items that already
-   parsed a rank reach here. */
-function setRank(it, n){
-  if (!it.sub) { it.task.rank = n; it.task.dirty = true; return; }
-  const m = SUB_RE.exec(it.task.body[it.sub.line]);
-  if (!m) return;
-  it.task.body[it.sub.line] =
-    m[1] + '- [' + m[2] + '] ' + m[3].replace(/`rank:\d+`/, '`rank:' + n + '`');
+  ).join('') + '</div>';
+  return { html: html + moreNote(hidden), n: ranked.length };
 }
 
 /* ---- Small shared renderers ---- */

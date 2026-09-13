@@ -1929,13 +1929,6 @@
     flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--chip);
     color:var(--ink-soft); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
   }
-  /* The number is the grip for reordering the queue, so it has to say so on
-     hover. Nothing else in the row is draggable — the card itself opens the
-     task — and the selection block matters because dragging a text node picks
-     up the digits instead of starting the reorder. */
-  .refnum[draggable]{cursor:grab; user-select:none; -webkit-user-select:none}
-  .refnum[draggable]:active{cursor:grabbing}
-  .refrow.dragging{opacity:.45}
   /* Dependency chain: the blocker(s) sit beside the card waiting on them.
      Each blocker gets its own arrow into the target, so a task with several
      blockers still reads as several distinct dependencies rather than one

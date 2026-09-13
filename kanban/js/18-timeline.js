@@ -620,6 +620,7 @@ function refSection(title, hint, sec, opts){
     heading: 'h3',
     title,
     count: sec && sec.n != null ? sec.n : null,
+    sort: sec && sec.sort ? sec.sort : '',
     filters: sec && sec.filters ? sec.filters : '',
     desc: hint ? mdInline(hint) : '',
     body: (sec && sec.html) || '',
@@ -700,10 +701,6 @@ function renderSections(viewId){
     'Open one to change it, then Save.</p>';
   capMsgCards();
   if (tview) wireTimelineDrag();
-  // Delegate is an Overview column, so its reorder is wired on the same terms
-  // the timeline's is: after the HTML is in the DOM, and only for the view that
-  // actually drew it.
-  if (split) wireDelegateReorder();
 }
 
 /* .ref .msg's three-line clamp is CSS, and CSS alone cannot tell a card that
