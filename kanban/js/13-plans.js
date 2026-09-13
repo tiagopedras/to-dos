@@ -592,40 +592,47 @@ function colFilterHTML(id, shown, filters, current){
   '</span>';
 }
 
-/* Both columns wire the same three controls — their own chip row, and the open
-   and open-the-card buttons on every row in them. Only the chip handler
-   differs, since each column holds its own filter. Wiring is scoped to the
-   container, so the two chip rows never see each other's clicks despite
-   sharing the attribute name. */
-function wirePlanColumn(out, setFilter){
-  if (!out) return;
-  /* The filter lives in the column's head now, which is a sibling of the body
-     each renderer writes into rather than part of it — so this reaches up to
-     the column and back down, and every other control stays scoped to `out`.
-     Falls back to `out` itself so a caller with no column around it (a test
-     rendering one body on its own) still wires. */
-  const col = out.closest('.col') || out;
-  const panel = col.querySelector('.colfilter .dropdown-panel');
-  const fbtn = col.querySelector('.colfilter-btn');
-  if (fbtn && panel) {
-    fbtn.onclick = e => {
-      e.stopPropagation();
-      const open = !panel.classList.toggle('hidden');
-      fbtn.setAttribute('aria-expanded', String(open));
-    };
+/* The two filter dropdowns, wired once for the life of the page rather than
+   once per paint.
+
+   They are the only controls on this view still found by selector, and the
+   reason is that they are the only ones this view does not own: colFilterHTML()
+   builds them as a string and PlansView hands them to the browser through
+   dangerouslySetInnerHTML, so React never sees the buttons and cannot be given
+   a handler for them. Delegation is the answer that costs nothing — it is what
+   the closing half of the same dropdown already does, in 09-columns.js, and
+   for the same reason: the panel is rebuilt on every render and anything bound
+   to it directly would need rebinding straight after.
+
+   Which column a press came from is read off the wrapper's own
+   `data-colfilter`, which colFilterHTML() already wrote, so the two panels
+   never see each other's clicks despite sharing the attribute name. */
+const PLAN_FILTER_SETTERS = {
+  review: k => { reviewFilter = k; },
+  done: k => { doneFilter = k; }
+};
+
+document.addEventListener('click', e => {
+  const wrap = e.target.closest('.colfilter[data-colfilter]');
+  if (!wrap) return;
+  const setFilter = PLAN_FILTER_SETTERS[wrap.dataset.colfilter];
+  if (!setFilter) return;
+
+  const chip = e.target.closest('[data-planfilter]');
+  if (chip) {
+    setFilter(chip.dataset.planfilter);
+    renderPlansList();
+    return;
   }
-  col.querySelectorAll('[data-planfilter]').forEach(btn => {
-    btn.onclick = () => { setFilter(btn.dataset.planfilter); renderPlansList(); };
-  });
-  out.querySelectorAll('[data-plan-open]').forEach(btn => {
-    const p = planList.find(x => x.url === btn.dataset.planOpen);
-    btn.onclick = () => openPlanModal(p);
-  });
-  out.querySelectorAll('[data-plan-goto]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
-  });
-  wirePlanDrags(out);
-}
+
+  const btn = e.target.closest('.colfilter-btn');
+  if (!btn) return;
+  e.stopPropagation();
+  const panel = wrap.querySelector('.dropdown-panel');
+  if (!panel) return;
+  const open = !panel.classList.toggle('hidden');
+  btn.setAttribute('aria-expanded', String(open));
+});
 
 /* A move can land a card in any of the six, so all six are worked out together
    rather than each render guessing which two were touched. None of them paints
@@ -649,7 +656,12 @@ function renderPlansList(){
    goes on being read in one place.
 
    Keyed by the plan's own file, which is its identity everywhere on this view,
-   so React moves a card between columns rather than rebuilding it. */
+   so React moves a card between columns rather than rebuilding it.
+
+   The three handlers come from here too, closed over this plan, which is what
+   let the post-paint wiring go: opening it, the link back to its task, and the
+   drag off it were all found by selector after every paint until 13 Sep 2026,
+   and finding them was the only reason the paint had to be flushed. */
 function planCardNode(p){
   const task = planTask(p);
   const key = planTaskKey(p);
@@ -679,7 +691,16 @@ function planCardNode(p){
     summaryHTML: p.summary ? mdInline(p.summary) : '',
     /* On a rejected plan the reason is worth more than the summary: it is what
        he told the agent, and it is what tonight's run will be working from. */
-    feedback: p.feedback || ''
+    feedback: p.feedback || '',
+    onOpen: () => openPlanModal(p),
+    onGoto: () => goToPlanTask(key),
+    onDragStart: e => {
+      drag = { kind:'plan', url: p.url, from: 'plan' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', p.url);
+      e.currentTarget.classList.add('dragging');
+    },
+    onDragEnd: e => { drag = null; e.currentTarget.classList.remove('dragging'); }
   });
 }
 
@@ -737,8 +758,8 @@ function renderPlanDoing(){
 
    The one column that takes plans and nothing else: there is nothing to accept
    about a task nobody has planned, so a task dropped here is refused with a
-   word rather than silently ignored — see the `deny` argument in
-   wirePlansView(). */
+   word rather than silently ignored — see the `deny` argument on this column's
+   `columnDropProps()` in paintPlans(). */
 function renderPlanProduced(){
   const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced));
   plansProps.produced = shown.length
@@ -811,10 +832,14 @@ let drag = null;         // { kind:'task'|'plan', title, from } | { kind:'plan',
    written about it, so it needs the same way back rather than a copy of it. */
 function gotoButtonNode(r, label){
   const key = r.slug || r.title || '';
-  return key
-    ? BoardUI.h('button', { className: 'plangoto', 'data-plan-goto': key,
-        title: 'Open this task on the board', key: 'goto' }, label || 'open the card ↗')
-    : null;
+  if (!key) return null;
+  return BoardUI.h('button', {
+    className: 'plangoto', title: 'Open this task on the board', key: 'goto',
+    /* The same stop the plan card's own link makes: a queue row is a card and
+       the whole card is a drag handle, so a press that carried on up would
+       start one. */
+    onClick: e => { e.stopPropagation(); goToPlanTask(key); }
+  }, label || 'open the card ↗');
 }
 
 /* Bucket, column, agent and the way back to the card, on one line. The
@@ -827,15 +852,65 @@ function rowMetaNode(r){
   return BoardUI.h(BoardUI.Fragment, null, where, goto ? ' · ' : '', goto);
 }
 
+/* The reorder gesture every queue row carries: drop above or below whichever
+   card the cursor is over, decided by its midpoint — the same one the drawer's
+   sub-steps use. A card dragged in from the Backlog column lands the same way,
+   since the target decides the position whichever list the card came from. A
+   plan dropped on a row has no rank to take, so it falls through to the
+   column's own handler.
+
+   These were assigned onto `.qitem` after every paint until 13 Sep 2026, along
+   with a `clear()` that walked every row in the column to strip the two edge
+   classes. A row only ever marks itself, so each one clears its own now, and
+   dragend clears the row the drag started from — which is the row this is. */
+function queueRowDragProps(r, listOf, from){
+  const edges = el => el.classList.remove('over-top', 'over-bottom');
+  return {
+    draggable: true,
+    'data-qtitle': r.title,
+    onDragStart: e => {
+      drag = { kind:'task', title: r.title, from };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', r.title);
+      e.currentTarget.classList.add('dragging');
+    },
+    onDragEnd: e => {
+      drag = null;
+      e.currentTarget.classList.remove('dragging');
+      edges(e.currentTarget);
+    },
+    onDragOver: e => {
+      if (!drag || drag.kind !== 'task' || !listOf) return;
+      e.preventDefault();
+      const box = e.currentTarget.getBoundingClientRect();
+      const after = e.clientY > box.top + box.height / 2;
+      e.currentTarget.classList.toggle('over-bottom', after);
+      e.currentTarget.classList.toggle('over-top', !after);
+    },
+    onDragLeave: e => edges(e.currentTarget),
+    onDrop: e => {
+      if (!drag || drag.kind !== 'task' || !listOf) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const box = e.currentTarget.getBoundingClientRect();
+      const at = listOf().findIndex(x => x.title === r.title);
+      const to = at + (e.clientY > box.top + box.height / 2 ? 1 : 0);
+      edges(e.currentTarget);
+      dropOnQueue(to);
+    }
+  };
+}
+
 function queueRowNode(r){
   return BoardUI.h(BoardUI.Card, {
     key: 'q:' + r.title,
     cls: 'qitem nostripe',
-    attrs: { draggable: true, 'data-qtitle': r.title },
+    attrs: queueRowDragProps(r, () => queueRows, 'queue'),
     position: r.position,
     title: r.title,
     action: BoardUI.h('button', { className: 'btn outline small qhold',
-      'data-qhold': r.title, title: 'Hold it back from tonight' }, 'Hold'),
+      title: 'Hold it back from tonight',
+      onClick: e => { e.stopPropagation(); holdTask(r.title); } }, 'Hold'),
     meta: rowMetaNode(r),
     extra: BoardUI.h('div', { className: 'qwhy' },
       (r.why || '') + (r.last ? ' · last planned ' + r.last : ''))
@@ -885,132 +960,67 @@ function renderQueueList(){
                         is refused with a word rather than silently ignored.
    ------------------------------------------------------------------------- */
 
-/* Every column but Waiting for review takes drops. Wired once per render, on
-   the container rather than on its rows, so an empty column is still a target.
+/* Every column but Waiting for review takes drops, and this is what it gets:
+   the three handlers as props, spread onto the column's own body by PlansView.
+
+   It was `wireColumnDrop(el, ...)` and it assigned onto a node found after the
+   paint, which is the arrangement that retired on 13 Sep 2026 along with
+   mountSync(). Nothing about the behaviour moved — the element is
+   `e.currentTarget` rather than a captured `el`, which is the same element by
+   another name — and the column rather than its rows is still the target, so
+   an empty column is still something a card can be let go over.
 
    `deny` is what a column says to a card it will not take. The two plans-only
    columns refuse a task with a word rather than ignoring it, and that used to
    be written by wrapping the two handlers this function had just assigned.
    That worked while every render built fresh nodes; React reuses them, so a
    wrapper would wrap last paint's wrapper and the nesting would never stop.
-   One assignment, both answers in it. */
-function wireColumnDrop(el, onDrop, canTake, deny){
-  if (!el) return;
+   One set of handlers, both answers in them. */
+function columnDropProps(onDrop, canTake, deny){
   const refused = () => canTake && !canTake(drag);
-  el.ondragover = e => {
-    if (!drag) return;
-    if (refused()) {
-      if (!deny) return;
+  return {
+    onDragOver: e => {
+      const el = e.currentTarget;
+      if (!drag) return;
+      if (refused()) {
+        if (!deny) return;
+        e.preventDefault();
+        el.classList.add('coldeny');
+        return;
+      }
       e.preventDefault();
-      el.classList.add('coldeny');
-      return;
-    }
-    e.preventDefault();
-    el.classList.add('coldrop');
-  };
-  el.ondragleave = e => {
-    if (e.target === el) el.classList.remove('coldrop', 'coldeny');
-  };
-  el.ondrop = e => {
-    el.classList.remove('coldeny');
-    if (!drag) return;
-    if (refused()) {
-      if (!deny) return;
+      el.classList.add('coldrop');
+    },
+    onDragLeave: e => {
+      const el = e.currentTarget;
+      if (e.target === el) el.classList.remove('coldrop', 'coldeny');
+    },
+    onDrop: e => {
+      const el = e.currentTarget;
+      el.classList.remove('coldeny');
+      if (!drag) return;
+      if (refused()) {
+        if (!deny) return;
+        e.preventDefault();
+        drag = null;
+        showToast(deny, 'bad');
+        return;
+      }
       e.preventDefault();
+      el.classList.remove('coldrop');
+      const d = drag;
       drag = null;
-      showToast(deny, 'bad');
-      return;
+      onDrop(d);
     }
-    e.preventDefault();
-    el.classList.remove('coldrop');
-    const d = drag;
-    drag = null;
-    onDrop(d);
   };
-}
-
-/* Start a drag from a plan row, wherever it is drawn. */
-function wirePlanDrags(out){
-  out.querySelectorAll('.planitem[draggable="true"]').forEach(row => {
-    row.ondragstart = e => {
-      drag = { kind:'plan', url: row.dataset.plan, from: 'plan' };
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', row.dataset.plan);
-      row.classList.add('dragging');
-    };
-    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
-  });
 }
 
 const draggedPlan = d => planList.find(x => x.url === d.url);
 
-function wireQueue(){
-  const out = $('#queueOut');
-  if (!out) return;
-  out.querySelectorAll('[data-qhold]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); holdTask(btn.dataset.qhold); };
-  });
-  out.querySelectorAll('[data-plan-goto]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
-  });
-  /* The plans going back for another night sit under the queue in this column,
-     so opening one is wired here rather than in wirePlanColumn — which is the
-     four columns that hold nothing else. */
-  out.querySelectorAll('[data-plan-open]').forEach(btn => {
-    const p = planList.find(x => x.url === btn.dataset.planOpen);
-    btn.onclick = () => openPlanModal(p);
-  });
-
-  /* The same reorder gesture the sub-steps in the drawer use: drop above or
-     below whichever card the cursor is over, decided by its midpoint. A card
-     dragged in from the Backlog column lands the same way — the drop target
-     decides the position whichever list the card came from. A plan dropped on
-     a row has no rank to take, so it goes through the column handler below. */
-  const rows = out.querySelectorAll('.qitem');
-  const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
-  rows.forEach(row => {
-    row.ondragstart = e => {
-      drag = { kind:'task', title: row.dataset.qtitle, from: 'queue' };
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
-      row.classList.add('dragging');
-    };
-    row.ondragend = () => { drag = null; clear(); };
-    row.ondragover = e => {
-      if (!drag || drag.kind !== 'task') return;
-      e.preventDefault();
-      const r = row.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      row.classList.toggle('over-bottom', after);
-      row.classList.toggle('over-top', !after);
-    };
-    row.ondragleave = () => row.classList.remove('over-top','over-bottom');
-    row.ondrop = e => {
-      if (!drag || drag.kind !== 'task') return;
-      e.preventDefault(); e.stopPropagation();
-      const r = row.getBoundingClientRect();
-      const at = queueRows.findIndex(x => x.title === row.dataset.qtitle);
-      const to = at + (e.clientY > r.top + r.height / 2 ? 1 : 0);
-      clear();
-      dropOnQueue(to);
-    };
-  });
-  wirePlanDrags(out);
-}
-
-/* The To do column as a whole: a task dropped anywhere but on a row appends at
-   the end, and a plan dropped anywhere at all goes back for another night. */
-function wireTodoColumn(){
-  wireColumnDrop($('#queueOut'), d => {
-    if (d.kind === 'task') { drag = d; dropOnQueue(queueRows.length); return; }
-    const p = draggedPlan(d);
-    if (p) replanPlan(p);
-  });
-}
-
 /* The single place a card's position in the queue actually changes, whichever
    list it started in. `toIndex` is where it lands, in queueRows' own terms —
-   wireQueue works it out from the drop target before calling in. */
+   the row's own drop handler works it out from where the cursor let go, and
+   the column's appends at the end. */
 function dropOnQueue(toIndex){
   if (!drag || drag.kind !== 'task') return;
   const { title, from } = drag;
@@ -1091,15 +1101,18 @@ function releaseHeld(title){
    files were deliberately never given a say over what the queue contains.
    ------------------------------------------------------------------------- */
 
+/* A held card drags but does not reorder: it has no rank to be dropped above
+   or below, which is why it gets no list to position itself in. */
 function heldRowNode(r){
   return BoardUI.h(BoardUI.Card, {
     key: 'h:' + r.title,
     cls: 'qitem held nostripe',
-    attrs: { draggable: true, 'data-qtitle': r.title },
+    attrs: queueRowDragProps(r, null, 'held'),
     position: '—',
     title: r.title,
     action: BoardUI.h('button', { className: 'btn outline small qhold',
-      'data-qrelease': r.title, title: 'Put it back in the queue' }, 'Release'),
+      title: 'Put it back in the queue',
+      onClick: e => { e.stopPropagation(); releaseHeld(r.title); } }, 'Release'),
     meta: rowMetaNode(r),
     extra: BoardUI.h('div', { className: 'qwhy' }, r.why || '')
   });
@@ -1175,7 +1188,7 @@ async function saveQueueOrder(ranked){
 }
 
 async function renderQueue(){
-  if (!$('#queueOut')) return;
+  if (!plansShowing()) return;
   const say = (queueNode, backNode) => {
     plansProps.queue = queueNode;
     plansProps.backlog = backNode;
@@ -1396,7 +1409,7 @@ async function startNightAgentRun(){
    ignore. */
 async function renderNightAgent(){
   clearTimeout(flightTimer);
-  if (!$('#queueDoingCard')) return;
+  if (!plansShowing()) return;
   let live = false;
   try {
     const n = await getJSON('/planning-agent.json');
@@ -1415,7 +1428,7 @@ async function renderNightAgent(){
     paintPlans();
   }
   flightTimer = setTimeout(() => {
-    if (state.view === 'plans' && $('#queueDoingCard')) renderNightAgent();
+    if (state.view === 'plans' && plansShowing()) renderNightAgent();
   }, live ? 10000 : 60000);
 }
 
@@ -1479,6 +1492,20 @@ function openRefCards(){
    whatever is under it without telling React. A view owns a node it created,
    and treats that node going missing as another view having been here. */
 let plansRoot = null;
+/* Is Plans still the view on screen? Asked by the three renderers whose fetch
+   can come back after he has switched away, so a late answer paints nothing.
+
+   It asks about `#plansRoot` rather than about anything inside the tree, and
+   that is the point: the root is made by the assignment below and is there the
+   moment paintPlans() returns, where every node React draws arrives whenever
+   React gets round to it. Both of these used to ask about a node in the tree —
+   `#queueOut` and `#queueDoingCard` — which was safe only because the mount was
+   flushed. */
+function plansShowing(){
+  const lists = $('#lists');
+  return !!(lists && lists.querySelector('#plansRoot'));
+}
+
 function plansMountPoint(){
   const lists = $('#lists');
   if (!lists) return null;
@@ -1527,89 +1554,61 @@ const PLANS_BLANK = {
 };
 let plansProps = Object.assign({}, PLANS_BLANK);
 
-/* mountSync rather than mount, and it is still load-bearing: the wiring below
-   queries for nodes this call has just made. React 18 renders when it gets
-   round to it, so without the flush every handler would be hung on the paint
-   before this one. It goes when the cards take their handlers as props, which
-   is a change to make once rather than per column. */
+/* mount rather than mountSync, as of 13 Sep 2026, and nothing follows it.
+
+   This used to be a flushed mount with wirePlansView() straight after, because
+   every handler on this view was assigned onto a node found by selector once
+   the paint had landed — so the paint had to have landed. All of them are
+   props now, built where the thing they act on is built: a plan card's in
+   planCardNode(), a queue row's in queueRowDragProps(), and a column's in
+   columnDropProps() below. React is left to schedule, and the one thing still
+   found by selector — the two filter dropdowns, which are markup this view
+   hands over rather than owns — is wired by a delegated listener on document
+   that runs once for the life of the page. */
 function paintPlans(){
   const host = plansMountPoint();
   if (!host) return false;
-  BoardUI.mountSync(host, BoardUI.PlansView(Object.assign({}, plansProps, {
+  BoardUI.mount(host, BoardUI.PlansView(Object.assign({}, plansProps, {
     onRunQueue: () => confirmNightAgentRun(),
-    onOpenRefCards: () => openRefCards()
+    onOpenRefCards: () => openRefCards(),
+
+    /* Backlog. Dropping a card from the queue anywhere on this column holds it
+       back — the drag equivalent of pressing Hold. There is nothing to
+       position it against, since a held card has no rank, so the whole column
+       is the target rather than any one row within it. A plan dropped here is
+       parked, and its task held with it. */
+    backlogDrop: columnDropProps(d => {
+      if (d.kind === 'task') { if (d.from === 'queue') holdTask(d.title); return; }
+      const p = draggedPlan(d);
+      if (p) parkPlan(p);
+    }, d => d.kind === 'plan' || d.from === 'queue'),
+
+    /* To do as a whole: a task dropped anywhere but on a row appends at the
+       end, and a plan dropped anywhere at all goes back for another night. */
+    queueDrop: columnDropProps(d => {
+      if (d.kind === 'task') { drag = d; dropOnQueue(queueRows.length); return; }
+      const p = draggedPlan(d);
+      if (p) replanPlan(p);
+    }),
+
+    /* Ready to be produced takes plans and nothing else: there is nothing to
+       accept about a task nobody has planned. */
+    producedDrop: columnDropProps(d => {
+      const p = draggedPlan(d);
+      if (p) acceptPlan(p);
+    }, d => d.kind === 'plan',
+       'Nothing has been planned for that yet, so there is nothing to accept.'),
+
+    /* Done takes them from the column before it, so a plan whose work has
+       landed can be dragged across rather than only closed from inside the
+       modal. */
+    doneDrop: columnDropProps(d => {
+      const p = draggedPlan(d);
+      if (p) finishPlan(p);
+    }, d => d.kind === 'plan',
+       'Nothing has been planned for that yet, so there is nothing to finish.')
   })));
-  wirePlansView();
   return true;
-}
-
-/* Everything the view wires onto its own nodes, in one place, run after every
-   paint. It has to be after every paint rather than once: React keeps the
-   nodes it can but a handler set with `onclick` is not something it knows
-   about, so a body that has just been rebuilt has nothing on it. Assigning
-   rather than adding is what keeps that safe to repeat — there is no
-   listener here that could be stacked twice. */
-function wirePlansView(){
-  wirePlanColumn($('#plansOut'), k => { reviewFilter = k; });
-  wirePlanColumn($('#plansDoing'), () => {});
-  wirePlanColumn($('#plansProduced'), () => {});
-  wirePlanColumn($('#plansDone'), k => { doneFilter = k; });
-
-  /* Ready to be produced takes plans and nothing else: there is nothing to
-     accept about a task nobody has planned. */
-  wireColumnDrop($('#plansProduced'), d => {
-    const p = draggedPlan(d);
-    if (p) acceptPlan(p);
-  }, d => d.kind === 'plan',
-     'Nothing has been planned for that yet, so there is nothing to accept.');
-
-  /* Done takes them from the column before it, so a plan whose work has landed
-     can be dragged across rather than only closed from inside the modal. */
-  wireColumnDrop($('#plansDone'), d => {
-    const p = draggedPlan(d);
-    if (p) finishPlan(p);
-  }, d => d.kind === 'plan',
-     'Nothing has been planned for that yet, so there is nothing to finish.');
-
-  wireQueue();
-  wireTodoColumn();
-  wireBacklogColumn();
-}
-
-/* Backlog: the Release buttons, the drag off a held card, and the column's own
-   drop. Dropping a card from the queue anywhere on this column holds it back —
-   the drag equivalent of pressing Hold. There is nothing to position it
-   against, since a held card has no rank, so the whole column is the target
-   rather than any one row within it. A plan dropped here is parked, and its
-   task held with it. */
-function wireBacklogColumn(){
-  const wrap = $('#backlogOut');
-  if (!wrap) return;
-  wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
-  });
-  wrap.querySelectorAll('[data-plan-goto]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
-  });
-  wrap.querySelectorAll('[data-plan-open]').forEach(btn => {
-    const p = planList.find(x => x.url === btn.dataset.planOpen);
-    btn.onclick = () => openPlanModal(p);
-  });
-  wirePlanDrags(wrap);
-  wrap.querySelectorAll('.qitem.held').forEach(row => {
-    row.ondragstart = e => {
-      drag = { kind:'task', title: row.dataset.qtitle, from: 'held' };
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
-      row.classList.add('dragging');
-    };
-    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
-  });
-  wireColumnDrop(wrap, d => {
-    if (d.kind === 'task') { if (d.from === 'queue') holdTask(d.title); return; }
-    const p = draggedPlan(d);
-    if (p) parkPlan(p);
-  }, d => d.kind === 'plan' || d.from === 'queue');
 }
 
 /* The Status line on the To do card is drawn by renderStatus() in

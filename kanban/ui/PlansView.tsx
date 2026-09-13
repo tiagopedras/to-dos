@@ -35,13 +35,28 @@
  * writes into this tree either: the Status line is handed over by
  * `setPlansStatus()` rather than assigned from `14-schedule.js`.
  *
- * The consequence to keep in mind: the board still wires its own handlers onto
- * these nodes, so a paint is followed by `wirePlansView()` every time. That is
- * why the wiring lives next to the painting rather than anywhere else, and it
- * is what keeps `mountSync()` load-bearing.
+ * Nothing is wired after a paint, as of 13 Sep 2026, and that is what retired
+ * `mountSync()`. Every handler on a node this component owns arrives as a
+ * prop: opening a plan and dragging it are `PlanCard`'s, holding and
+ * reordering a queue row go through `Card`'s `attrs`, and the four columns
+ * that take drops get theirs here as `DropZone`. The two filter dropdowns are
+ * the one exception and they are not an exception to the rule — they are
+ * markup this component never owns the handlers of, wired by one delegated
+ * listener on `document` the same way their closing half already was.
  */
-import type { ReactNode } from 'react'
+import type { DragEvent, ReactNode } from 'react'
 import { Column } from './Column'
+
+/* What a column that takes drops is given. Three handlers rather than a
+   callback, because the answer to "will you take this" has to be given on
+   every dragover — it is what paints the green edge or the red one — and only
+   the caller knows what is being dragged. `13-plans.js` builds these with
+   `columnDropProps()`; the component only spreads them. */
+export interface DropZone {
+  onDragOver: (e: DragEvent<HTMLElement>) => void
+  onDragLeave: (e: DragEvent<HTMLElement>) => void
+  onDrop: (e: DragEvent<HTMLElement>) => void
+}
 
 export interface PlansViewProps {
   /** Backlog: what the agent is to leave alone — held tasks, parked plans, and
@@ -73,7 +88,10 @@ export interface PlansViewProps {
   queueCount?: string
   doingCount?: string
   producedCount?: string
-  /** The two filter dropdowns, built by colFilterHTML() and wired after paint. */
+  /** The two filter dropdowns, built by colFilterHTML(). Markup rather than a
+   *  component, and the only thing on this view still wired off the DOM — by
+   *  one delegated listener on `document` rather than a query after a paint,
+   *  which is why it costs no flush. */
   reviewFilterHTML: string
   doneFilterHTML: string
   /** Whether a run is actually going. It decides two things and nothing else:
@@ -83,6 +101,13 @@ export interface PlansViewProps {
   runLive?: boolean
   onRunQueue: () => void
   onOpenRefCards: () => void
+  /** The four columns that take a card. Waiting for review takes none — it is
+   *  the agent's own column, which is what the dashed edge says — and Doing
+   *  takes none either, since nothing puts a run in flight by hand. */
+  backlogDrop?: DropZone
+  queueDrop?: DropZone
+  producedDrop?: DropZone
+  doneDrop?: DropZone
 }
 
 /* Every body in here is HTML the board just built. See the note above on why,
@@ -102,6 +127,7 @@ export function PlansView (props: PlansViewProps) {
     doneStatsHTML, doingPlans, review, produced, done,
     backlogCount, queueCount, doingCount, producedCount,
     reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
+    backlogDrop, queueDrop, producedDrop, doneDrop,
   } = props
 
   return (
@@ -118,7 +144,7 @@ export function PlansView (props: PlansViewProps) {
             Spend and clocks
           </button>
         }
-        body={<div id="backlogOut">{backlog}</div>}
+        body={<div id="backlogOut" {...backlogDrop}>{backlog}</div>}
       />
 
       <Column
@@ -144,7 +170,7 @@ export function PlansView (props: PlansViewProps) {
               dangerouslySetInnerHTML={raw(queueErrorHTML)} />
             <h4 className="fhead">Status</h4>
             <div id="statusOut" dangerouslySetInnerHTML={raw(statusHTML)} />
-            <div id="queueOut">{queue}</div>
+            <div id="queueOut" {...queueDrop}>{queue}</div>
           </>
         }
       />
@@ -196,7 +222,7 @@ export function PlansView (props: PlansViewProps) {
         id="producedCol"
         count={producedCount ?? ''}
         desc="Accepted as written, and waiting on the implementing agent."
-        body={<div id="plansProduced">{produced}</div>}
+        body={<div id="plansProduced" {...producedDrop}>{produced}</div>}
       />
 
       <Column
@@ -208,7 +234,7 @@ export function PlansView (props: PlansViewProps) {
           <span className="colfilter-slot" id="doneFilterSlot"
             dangerouslySetInnerHTML={raw(doneFilterHTML)} />
         }
-        body={<div id="plansDone">{done}</div>}
+        body={<div id="plansDone" {...doneDrop}>{done}</div>}
       />
     </div>
   )

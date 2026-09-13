@@ -212,7 +212,12 @@ check('card — an action',
    The escaping is not incidental. planItemHTML() called esc() on every one of
    these by hand and the component does not, because React escapes what it
    writes — so this case carries the characters that would show the difference
-   if that ever stopped being true. */
+   if that ever stopped being true.
+
+   `data-plan` is the only attribute left and that is the point: the card
+   carried `data-plan-open` and `data-plan-goto` until 13 Sep 2026, when
+   opening and the link back became props. A handler is not markup, so nothing
+   here holds them — what holds them is test_plans.mjs, which clicks. */
 const PLAN = {
   url: 'plans/2026-09-13-buttons.md',
   title: `Alex's "button" audit & <b>the rest</b>`,
@@ -233,7 +238,7 @@ const PLAN = {
 check('plan card — every row a plan carries',
   legacy.cardShellHTML({
     cls: 'repitem planitem agreed folded',
-    attrs: 'draggable="true" data-plan="' + PLAN.url + '" data-plan-open="' + PLAN.url + '"',
+    attrs: 'draggable="true" data-plan="' + PLAN.url + '"',
     stripe: PLAN.stripe,
     eyebrow: '<span class="bucket">accepted</span><span class="right">' +
       '<span class="planprod planprod-doing" ' +
@@ -243,7 +248,7 @@ check('plan card — every row a plan carries',
     title: legacy.esc(PLAN.title),
     tags: PLAN.scoresHTML,
     meta: '<span class="planwhere">Design System · To do · 13 Sep 12:04</span>' +
-      '<button class="plangoto" data-plan-goto="close-the-figma-gap" ' +
+      '<button class="plangoto" ' +
       'title="Open this task on the board">Close the Figma gap ↗</button>',
     summary: PLAN.summaryHTML,
     extra: '<div class="planredo"><b>Sent back:</b> ' + legacy.esc(PLAN.feedback) + '</div>',
@@ -253,7 +258,7 @@ check('plan card — every row a plan carries',
 check('plan card — nothing optional, which is most of them',
   legacy.cardShellHTML({
     cls: 'repitem planitem',
-    attrs: 'draggable="true" data-plan="p.md" data-plan-open="p.md"',
+    attrs: 'draggable="true" data-plan="p.md"',
     stripe: 'var(--line)',
     eyebrow: '<span class="bucket">new</span>',
     title: 'Write the review',
@@ -263,11 +268,11 @@ check('plan card — nothing optional, which is most of them',
 check('plan card — a plan with no task left on the board keeps its own name',
   legacy.cardShellHTML({
     cls: 'repitem planitem read',
-    attrs: 'draggable="true" data-plan="p.md" data-plan-open="p.md"',
+    attrs: 'draggable="true" data-plan="p.md"',
     stripe: 'var(--line)',
     eyebrow: '<span class="bucket">read</span>',
     title: 'X',
-    meta: '<button class="plangoto" data-plan-goto="a-slug" ' +
+    meta: '<button class="plangoto" ' +
       'title="Open this task on the board">a-slug ↗</button>',
   }),
   h(PlanCard, {

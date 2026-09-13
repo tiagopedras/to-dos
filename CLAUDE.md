@@ -213,9 +213,9 @@ that changes, `production` is what the two extra columns get drawn from.
 name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
-written against, plus `mount()`, `mountSync()` and `unmount()`. Four views are
-ported: Projects, Backups and Reports whole, Plans in the two passes described
-below.
+written against, plus `mount()` and `unmount()`. Four views are
+ported: Projects, Backups and Reports whole, Plans in the three passes
+described below.
 
 The point of doing the primitives first is that a column is one object across
 the whole app, and the section above is what rests on it. So `Column` is not a
@@ -282,12 +282,28 @@ queue rows built through `Card` directly, and the bodies four independent
 fetches fill at different times are markup, because each paints as it arrives
 rather than the view waiting on the slowest.
 
-`mountSync()` is still load-bearing and still Plans' only caller. The board
-wires opening a plan, the link back to its task and every drag by querying for
-the nodes it has just painted, so a paint is followed by `wirePlansView()` and
-the nodes have to exist by then. What retires it is `PlanCard` taking `onOpen`
-and `onDragStart` as props instead of carrying the data attributes the board
-wires against.
+**`mountSync()` is gone**, and with it the seven kinds of node the board used
+to find by selector after every paint. Every handler on this view is a prop:
+a plan card's three are built in `planCardNode()`, a queue row's in
+`queueRowDragProps()`, and a column's drop in `columnDropProps()`, which
+`PlansView` spreads onto the body. Nothing queries after a paint, so React is
+left to schedule.
+
+Two things follow from that and both bite outside this file. A renderer asking
+"is Plans still on screen" must ask `plansShowing()`, which asks about
+`#plansRoot` — the board makes that node itself, so it is there the moment
+`paintPlans()` returns, where anything React draws arrives whenever React gets
+round to it. And a test that renders and then reads has to wait a paint:
+`test_plans.mjs` has a `painted()` helper for it, and every render step returns
+it.
+
+The one thing still found by selector is the pair of filter dropdowns, and that
+is correct rather than left over. `colFilterHTML()` builds them as a string and
+the component hands them over through `dangerouslySetInnerHTML`, so React never
+owns those buttons. They are wired by one delegated listener on `document`,
+keyed off the wrapper's own `data-colfilter` — which is what the closing half of
+the same dropdown already did in `09-columns.js`. Delegation queries nothing
+after a paint, so it costs no flush.
 
 ## After changing `kanban/server.py`
 

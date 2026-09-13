@@ -41,11 +41,14 @@
  * eyebrow takes --bc, so the word and the stripe are the same colour and say
  * the same thing once.
  *
- * The data attributes are load-bearing. `13-plans.js` wires opening, the link
- * back to the task and the drag off this card by querying for them after every
- * paint — see the note at the top of PlansView about why the wiring lives next
- * to the painting. They go when the whole view takes handlers, not before.
+ * The handlers are props, and that is what retired `mountSync()`. The card
+ * carried `data-plan-open` and `data-plan-goto` until 13 Sep 2026 and
+ * `13-plans.js` queried for them after every paint, which meant the paint had
+ * to have happened by the time the mount call returned. Nothing queries now,
+ * so nothing has to be flushed. `data-plan` stays, because it is the card's
+ * identity rather than a hook — it is how a suite says which plan it means.
  */
+import type { DragEvent, MouseEvent } from 'react'
 import { Card } from './Card'
 
 export interface PlanCardProps {
@@ -77,12 +80,22 @@ export interface PlanCardProps {
   summaryHTML?: string
   /** What he told the agent when he sent it back. */
   feedback?: string
+  /** Opening the plan, and the link back to the task it is about. Both are
+   *  `13-plans.js`'s — `openPlanModal` and `goToPlanTask` — closed over the
+   *  plan this card was built from, so neither needs reading back off the DOM. */
+  onOpen?: () => void
+  onGoto?: () => void
+  /** Dragging the card between columns. The drop half is the column's, since a
+   *  card cannot know which of the six it has been let go over. */
+  onDragStart?: (e: DragEvent<HTMLElement>) => void
+  onDragEnd?: (e: DragEvent<HTMLElement>) => void
 }
 
 export function PlanCard(props: PlanCardProps) {
   const {
     url, title, variant, stripe, word, production, productionKind,
     needsYou, gotoKey, gotoLabel, where, scoresHTML, summaryHTML, feedback,
+    onOpen, onGoto, onDragStart, onDragEnd,
   } = props
 
   const cls = 'repitem planitem' + (variant || '') +
@@ -93,7 +106,13 @@ export function PlanCard(props: PlanCardProps) {
     <Card
       cls={cls}
       stripe={stripe}
-      attrs={{ draggable: true, 'data-plan': url, 'data-plan-open': url }}
+      attrs={{
+        draggable: true,
+        'data-plan': url,
+        onClick: onOpen,
+        onDragStart,
+        onDragEnd,
+      }}
       eyebrow={
         <>
           <span className="bucket">{word}</span>
@@ -120,9 +139,13 @@ export function PlanCard(props: PlanCardProps) {
       meta={(line || gotoKey) ? (
         <>
           {line ? <span className="planwhere">{line}</span> : null}
+          {/* The link sits inside the card, and the card opens the plan — so
+              the press has to stop here or both happen at once. It did
+              already: the old handler called stopPropagation for the same
+              reason, from the other side of the query. */}
           {gotoKey ? (
-            <button className="plangoto" data-plan-goto={gotoKey}
-              title="Open this task on the board">
+            <button className="plangoto" title="Open this task on the board"
+              onClick={(e: MouseEvent) => { e.stopPropagation(); if (onGoto) onGoto() }}>
               {(gotoLabel || gotoKey) + ' ↗'}
             </button>
           ) : null}

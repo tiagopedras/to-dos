@@ -546,6 +546,26 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **`implementing-agent` should run unattended on accepted plans, fenced the
+  way `improve_agent` already is.** The struck entry at the foot of this
+  section settled the opposite on 13 Sep 2026: being able to stop and ask is
+  what makes it safe to hold write tools, so it only ever runs from `pa-do`
+  (`agents/pa_agent/skills/pa-do/SKILL.md`) with him in the session
+  (`agents/implementing_agent/README.md:30`). That is what stalls the loop. Of
+  41 plans written, 5 are accepted and 2 produced, because accepting one still
+  costs him a sitting he does not have. `improve_agent` is the counter-example
+  and it runs every night: `run.sh` builds an `IMPROVEMENTS.md` entry onto
+  `improve/<date>`, runs that repo's tests, and never merges, never pushes,
+  never restarts a process, so a bad night costs a branch rather than the work
+  (`~/Code/improve_agent/README.md:8-11`). Applied here the fence is a named
+  project folder under `data/<dataset>/projects/`, a git branch for anything
+  written outside it, no merge, no push, and no write to `todo.md`, which the
+  agent is already forbidden. Figma is the one half with no equivalent: the
+  plugin API has no branch-creation call, so a plan touching Figma can only
+  run against a branch he has created and opened in the desktop app himself,
+  and that precondition has to be checked at the start of the run rather than
+  assumed.
+
 - **Opening an accepted plan offers no way to start, or return to, the
   session actually carrying it out.** `openPlanModal()`
   (`kanban/js/13-plans.js:278`) draws the same four buttons — It is finished,
@@ -1155,11 +1175,56 @@ they settled is written up in the README rather than left here:
   paired: pin the shape, not a second implementation. 37 cases now, and all 123
   in `test_plans.mjs` still pass.
 
-  What is left on this view is the wiring, not the markup. The board still
-  finds its own nodes by `[data-plan-open]`, `[data-plan-goto]` and
-  `[draggable]` after every paint, which is what keeps `mountSync()` alive.
-  `PlanCard` taking `onOpen` and `onDragStart` as props is the change that
-  retires both.
+  **And then the wiring, 13 Sep 2026, which finished the view.** The paragraph
+  above named the change — `PlanCard` taking `onOpen` and `onDragStart` as
+  props — and it was the smaller half of it. `wirePlansView()` ran after every
+  paint and found *seven* kinds of node by selector, not three: the plan card's
+  three, the queue row's Hold and its reorder handlers, the held row's Release
+  and its drag, and `wireColumnDrop()` on four column bodies. All of them were
+  the reason for the flush, so all of them had to go, and `mountSync()` is
+  deleted rather than merely unused. Six functions went with it —
+  `wirePlansView`, `wirePlanColumn`, `wirePlanDrags`, `wireColumnDrop`,
+  `wireQueue`, `wireTodoColumn` and `wireBacklogColumn`.
+
+  Where each handler went is decided by what it acts on. A plan card's three
+  are built in `planCardNode()`, closed over the plan, so nothing is read back
+  off the DOM. A queue row's are `queueRowDragProps()`, which both row kinds
+  share — a held card passes no list and so drags without reordering, which is
+  exactly what it could already do and is now said rather than implied.
+  `wireColumnDrop(el, …)` became `columnDropProps(…)`, returning the three
+  handlers for `PlansView` to spread onto the column's own body; the element is
+  `e.currentTarget` rather than a captured `el`, which is the same element by
+  another name.
+
+  **One thing is still found by selector and it is the right answer, not a
+  leftover.** The two filter dropdowns are built by `colFilterHTML()` as a
+  string and handed to the browser through `dangerouslySetInnerHTML`, so React
+  never owns those buttons and cannot be given a handler for them. They are
+  wired by a single delegated listener on `document`, which reads the
+  wrapper's own `data-colfilter` to know which column a press came from. That
+  is what the *closing* half of the same dropdown already did in
+  `09-columns.js`, and for the same reason. A delegated listener costs no
+  flush, because it queries nothing after a paint.
+
+  Two things the change broke that the flush had been hiding, and both are the
+  general lesson. Three renderers guarded themselves with `$('#queueOut')` or
+  `$('#queueDoingCard')` — "is Plans still on screen" asked of a node React
+  draws, which is only a safe question while the mount is flushed. They ask
+  `plansShowing()` now, which asks about `#plansRoot`: the board makes that one
+  itself, in `plansMountPoint()`, so it is there the moment `paintPlans()`
+  returns. And `test_plans.mjs` had a check that rendered and read in one
+  `evalJS`, which passed on luck; it is three steps now, and the suite has a
+  `painted()` helper that every render step returns. **Any suite driving a
+  ported view has to wait for a paint** — that is the cost of the flush going,
+  and it is a cost in the tests rather than in the board.
+
+  130 checks now, up from 123. Four are new and one of them covers something
+  that was never covered: Release, the button half of dragging a held card back
+  into the queue, which mutation-testing showed could be gutted without failing
+  anything. The other three replace the two assertions that read
+  `data-plan-goto` off a button — the better question was always what the
+  button *does*, and pressing it is the only way left to ask. Nine mutations
+  were run over the new wiring and every one of them fails a check.
 
   Still the next real choice, unchanged by any of this: `12-reports.js`, or the
   `18-timeline.js` composition.
@@ -2655,3 +2720,6 @@ they settled is written up in the README rather than left here:
   `if not written: return` made a quiet planning night silent regardless of
   what was waiting in Execution — and the notification's `view` points at
   Execution rather than Plans when that is the only news.
+
+  **Reopened 13 Sep 2026** with the fence it was settled without: see the
+  entry at the top of this section.

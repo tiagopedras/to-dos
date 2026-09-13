@@ -52,10 +52,13 @@ export interface CardProps {
   cls?: string
   /** 'article' unless a caller needs the card to be something else. */
   tag?: 'article' | 'div' | 'li'
-  /** Anything else the card's own element carries — `draggable`, the data
-   *  attributes a view wires itself against. cardShellHTML takes the same thing
-   *  as a string of attributes; this takes them as props because React writes
-   *  them and a half-escaped string here would be a hole rather than a shape. */
+  /** Anything else the card's own element carries — `draggable`, the handful
+   *  of data attributes that are a card's identity, and its handlers.
+   *  cardShellHTML takes the first two as a string of attributes; this takes
+   *  them as props because React writes them and a half-escaped string here
+   *  would be a hole rather than a shape. Handlers go here too rather than
+   *  getting a prop each: a card is clicked, dragged and dropped on, and
+   *  naming all of those would be React's own list written out again. */
   attrs?: Record<string, unknown>
   children?: ReactNode
 }

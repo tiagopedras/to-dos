@@ -76,6 +76,18 @@ async function evalJS (expr) {
 await new Promise(r => setTimeout(r, 2500))
 check('the board loaded', await evalJS(`typeof renderPlansView === 'function'`))
 
+/* Waiting for a paint, which this suite has to do since 13 Sep 2026 and did
+   not before. paintPlans() mounted through BoardUI.mountSync() until then,
+   because the view wired its own handlers onto the nodes it had just painted
+   and so needed them to exist by the time the call returned. Every handler is
+   a prop now and the mount is an ordinary one, so React schedules the paint
+   and a render followed by a read in the same breath reads the paint before
+   it. Two frames, because React commits in one and the browser lays out in
+   the next. evalJS awaits a returned promise, so `return painted()` is all a
+   render step needs. */
+await evalJS(`(window.painted = () => new Promise(
+  r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))) && 1`)
+
 // LOCK FIRST, then fixtures. Nothing below can write anything.
 await evalJS(`(() => {
   const real = window.fetch;
@@ -368,7 +380,7 @@ check('and a held title is carried through rather than dropped', await evalJS(`
 `))
 
 // Holding one takes it out of the queue and says so in the same post.
-await evalJS(`document.querySelector('#queueOut > .qitem [data-qhold]').click()`)
+await evalJS(`document.querySelector('#queueOut > .qitem .qhold').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('holding a card removes it from the queue', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 2
@@ -440,6 +452,32 @@ check('and the post names both held titles', await evalJS(`
   (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
     .split(' ').slice(2).join(' ')).hold;
     return hold.includes('Rename the text styles') && hold.includes('Adoption and usage report') })()
+`))
+
+// Release is the button half of that drag, and until 13 Sep 2026 nothing
+// exercised it — it was found after every paint by `[data-qrelease]`, and it
+// takes an onClick prop now like every other control on this view. Two cards
+// are held at this point; releasing one puts it back at the end of the queue
+// and leaves the other where it is.
+await evalJS(`(() => {
+  const row = [...document.querySelectorAll('#backlogOut .qitem.held')]
+    .find(r => r.querySelector('.title').textContent === 'Rename the text styles');
+  row.querySelector('.qhold').click();
+  return painted();
+})()`)
+check('Release puts a held card back in the queue', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem .title')].map(e => e.textContent)
+    .includes('Rename the text styles')
+`))
+check('and takes it out of the backlog', await evalJS(`
+  ![...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
+    .includes('Rename the text styles')
+`))
+check('and drops only that title from the hold list', await evalJS(`
+  (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
+    .split(' ').slice(2).join(' ')).hold;
+    return !hold.includes('Rename the text styles') &&
+           hold.includes('Adoption and usage report') })()
 `))
 
 // --- Doing --------------------------------------------------------------
@@ -554,7 +592,7 @@ check('confirming posts the run', await evalJS(`
 
 // Opening one: the body loads, and reading it is recorded as read — the one
 // write that happens without being asked for.
-await evalJS(`document.querySelector('#plansOut [data-plan-open]').click()`)
+await evalJS(`document.querySelector('#plansOut .planitem').click()`)
 await new Promise(r => setTimeout(r, 500))
 check('it opens in the wide modal', await evalJS(`!!document.querySelector('.mscrim .sheet.wide')`))
 // mdBlocks renders every heading below h1 as an h4 — the h1 is the document's
@@ -712,7 +750,7 @@ check('and the row moves out of Waiting for review into Ready to be produced', a
 // To do. The plan is wrong and tonight should write another, so the move has to
 // carry a reason — the reason is the whole feature, since it is what the next
 // night's agent is handed.
-await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await evalJS(`document.querySelectorAll('#plansOut .planitem')[0].click()`)
 await new Promise(r => setTimeout(r, 400))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Plan it again').click()`)
 await new Promise(r => setTimeout(r, 200))
@@ -723,7 +761,7 @@ await new Promise(r => setTimeout(r, 300))
 check('and posts nothing when it is empty',
   ((await evalJS(`String(window.__blocked.length)`)) | 0) === beforeEmpty)
 
-await evalJS(`document.querySelectorAll('#plansOut [data-plan-open]')[0].click()`)
+await evalJS(`document.querySelectorAll('#plansOut .planitem')[0].click()`)
 await new Promise(r => setTimeout(r, 400))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Plan it again').click()`)
 await new Promise(r => setTimeout(r, 200))
@@ -758,7 +796,7 @@ check('an emptied Waiting for review says so rather than going blank', await eva
 // Backlog. Not a verdict on the plan at all, so it does two things: parks the
 // plan, and holds the task itself back — the hold list being the only thing the
 // picker actually reads.
-await evalJS(`document.querySelector('#queueOut .repitem.redo[data-plan-open]').click()`)
+await evalJS(`document.querySelector('#queueOut .repitem.redo').click()`)
 await new Promise(r => setTimeout(r, 400))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Leave it alone').click()`)
 await new Promise(r => setTimeout(r, 200))
@@ -779,27 +817,42 @@ check('the parked plan is drawn in Backlog', await evalJS(`
 `))
 
 /* The two filters are independent: a pick in one must not reset the other.
-   Both live in their column's own head now rather than as a chip row inside
-   it, which is also what keeps them from seeing each other's clicks despite
-   sharing the attribute name — wirePlanColumn scopes to the column. */
+   Both live in their column's own head, and both are wired by the one
+   delegated listener on document in 13-plans.js — which is why this matters
+   enough to check. The listener reads the wrapper's own `data-colfilter` to
+   know which column a press came from, so the two panels never see each
+   other's clicks despite sharing the attribute name.
+
+   They are also the one thing on this view still found by selector rather than
+   given a handler, because colFilterHTML() builds them as a string and
+   PlansView hands them over through dangerouslySetInnerHTML. React never owns
+   those buttons, so it cannot be given a handler for them.
+
+   A step per paint rather than one closure doing all of it: renderPlansList()
+   schedules a paint now rather than performing one, so a chip read in the same
+   breath as the render that drew it is last paint's chip. */
+const colChip = (body, key) => `(() => {
+  const head = document.querySelector('${body}').closest('.col').querySelector('.colhead');
+  const chip = [...head.querySelectorAll('[data-planfilter]')]
+    .find(b => b.dataset.planfilter === '${key}');
+  if (!chip) return 0;
+  chip.click();
+  return painted();
+})()`
+
+await evalJS(`(() => {
+  planList = window.__plans.slice();
+  reviewFilter = 'all'; doneFilter = 'all';
+  renderPlansList();
+  return painted();
+})()`)
+check('the review column offers the statuses it actually holds',
+  !!(await evalJS(colChip('#plansOut', 'read'))))
 check('each column keeps its own status filter', await evalJS(`
-  (() => {
-    planList = window.__plans.slice();
-    reviewFilter = 'all'; doneFilter = 'all';
-    renderPlansList();
-    const head = document.querySelector('#plansOut').closest('.col').querySelector('.colhead');
-    const read = [...head.querySelectorAll('[data-planfilter]')]
-      .find(b => b.dataset.planfilter === 'read');
-    if (!read) return false;
-    read.click();
-    if (reviewFilter !== 'read') return false;
-    // The other column's filter is untouched by a pick in this one.
-    if (doneFilter !== 'all') return false;
-    document.querySelector('#plansOut').closest('.col')
-      .querySelector('.colhead [data-planfilter=\"all\"]').click();
-    return reviewFilter === 'all';
-  })()
-`))
+  reviewFilter === 'read' && doneFilter === 'all'
+`), await evalJS(`reviewFilter + '/' + doneFilter`))
+await evalJS(colChip('#plansOut', 'all'))
+check('and All puts it back', await evalJS(`reviewFilter === 'all'`))
 /* Ready to be produced carries no filter, because every card in it is the same
    thing: a plan he has accepted whose work has not finished. */
 check('and Ready to be produced needs none', await evalJS(`
@@ -821,7 +874,7 @@ await evalJS(`(() => {
   ];
   reviewFilter = 'all'; doneFilter = 'all';
   renderPlansList();
-  return 1;
+  return painted();
 })()`)
 check('a plan row is draggable out of Waiting for review', await evalJS(`
   document.querySelector('#plansOut .planitem').getAttribute('draggable') === 'true'
@@ -913,7 +966,7 @@ await evalJS(`(() => {
   ];
   doneFilter = 'all'; reviewFilter = 'all';
   renderPlansList();
-  return 1;
+  return painted();
 })()`)
 // A plan sent back is in To do now, under the queue, rather than in a verdict
 // column: it is work the planning agent is about to redo, which is what To do
@@ -962,7 +1015,7 @@ await evalJS(`(() => {
   planList = planList.filter(p => p.name !== 'twice-old.md');
   doneFilter = 'all';
   renderPlansList();
-  return 1;
+  return painted();
 })()`)
 check('with nothing replaced the option is not drawn at all', await evalJS(`
   ![...document.querySelector('#plansDone').closest('.col')
@@ -998,7 +1051,7 @@ await evalJS(`(() => {
   ];
   doneFilter = 'all'; reviewFilter = 'all';
   renderPlansList();
-  return 1;
+  return painted();
 })()`)
 check('the highest priority task is at the top, not the newest night', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
@@ -1041,10 +1094,36 @@ check('the link is named after the task it opens', await evalJS(`
     const row = [...document.querySelectorAll('#plansOut .repitem')]
       .find(r => r.querySelector('.title').textContent === 'middling');
     const b = row.querySelector('.plangoto');
-    return b.textContent.trim() === 'Close the Figma against code gap on buttons \u2197' &&
-           b.dataset.planGoto === 'Close the Figma against code gap on buttons';
+    return b.textContent.trim() === 'Close the Figma against code gap on buttons \u2197';
   })()
 `))
+/* And it opens that task rather than only being named after it. The key used
+   to be readable off the button as `data-plan-goto` and this check read it
+   there; the button takes onGoto as a prop since 13 Sep 2026, so the only way
+   left to ask what it opens is to press it. Which is the better question —
+   the attribute was never what the board acted on, only where it looked.
+
+   goToPlanTask is stood in for rather than let run: the real one switches to
+   the board and opens the drawer, and every check below this one is about
+   Plans. It is a top-level function declaration in a classic script, so it is
+   a property of window and can be put back. */
+check('and pressing it opens that task', await evalJS(`
+  (() => {
+    const real = window.goToPlanTask;
+    let asked = null;
+    window.goToPlanTask = k => { asked = k; };
+    try {
+      [...document.querySelectorAll('#plansOut .repitem')]
+        .find(r => r.querySelector('.title').textContent === 'middling')
+        .querySelector('.plangoto').click();
+    } finally { window.goToPlanTask = real; }
+    return asked === 'Close the Figma against code gap on buttons';
+  })()
+`))
+/* And the press stops there: the whole card opens the plan, so a link that let
+   its click carry on would open both at once. */
+check('and it does not also open the plan behind it',
+  !(await evalJS(`!!document.querySelector('.mscrim')`)))
 /* The scores are the tag row, where the card sits and the link are the meta
    row below it — the component's own two rows, rather than the stacked block
    the plan card used to build for itself. */
@@ -1077,7 +1156,7 @@ await evalJS(`(() => {
                 { state:'ready', owner:'implementing-agent', resolution:'' });
   doneFilter = 'all';
   renderPlansList();
-  return 1;
+  return painted();
 })()`)
 check('Ready to be produced is ordered the same way', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
