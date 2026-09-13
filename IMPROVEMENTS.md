@@ -18,23 +18,17 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **Eleven places on Plans still set a class on a node React owns, and nothing
-  says which of them is safe.** Two broke during the 13 Sep 2026 port and were
-  fixed by making the class a prop: `renderQueueDoingHead()` hid `#doingOut`
-  and `#runQueueBtn` with `classList.toggle`, and `wireColumnDrop()` added the
-  two plans-only columns' refusal by wrapping the handlers it had just
-  assigned — which only works while every render builds fresh nodes, and React
-  reuses them, so each paint would have wrapped the last paint's. What is left
-  in `kanban/js/13-plans.js` is the drag feedback (`dragging`, `coldrop`,
-  `coldeny`, `over-top`/`over-bottom` at lines 905-987 and 1604) and the column
-  filter's own `hidden` at line 613. Those survive today for a reason worth
-  knowing rather than relying on: React writes `className` only when the prop
-  it renders from has changed, so an imperative class it never recorded is left
-  alone — until the prop does change, at which point the class goes without a
-  word. `26-projects.js`, `12-reports.js` and `15-backups.js` were checked and
-  use `classList` nowhere, so the sweep is clean now; the gap is that no suite
-  asserts it, and the next ported view can reintroduce either pattern without
-  failing anything.
+- ~~**Eleven places on Plans still set a class on a node React owns, and
+  nothing says which of them is safe.**~~ **Done, 13 Sep 2026.**
+  `kanban/ui/test_primitives.mjs` now greps `13-plans.js` for every
+  `classList.add/remove/toggle` call and fails if it carries anything past the
+  six known-safe transient classes (`dragging`, `coldrop`, `coldeny`,
+  `over-top`, `over-bottom`, `hidden`) — so a class that should have been a
+  prop, or a wrapped-handler regression like the two the 13 Sep port already
+  fixed, fails the suite instead of going quiet. The same check runs against
+  `26-projects.js`, `12-reports.js` and `15-backups.js` and fails if any of
+  them pick up a `classList` call at all, since none of the three needs one
+  today.
 
 - ~~**The coloured stripe on a card is thinner than it reads.**~~ **Done,
   13 Sep 2026.** The shared card rule, `.card, .repitem, .chaincard`
