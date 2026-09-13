@@ -55,19 +55,15 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   sibling `reportWindowPhrase()` (`:79`, still used by the empty state and by
   `recentAccomplishmentsReport()`) can stay as they are.
 
-- **Weekly pace only ever draws as a line, with no way to see it as bars.**
-  `weeklyTrendReport()` (`kanban/js/12-reports.js:421`) builds one `<svg
-  class="trendchart">` (`:523`) out of `curve()` (`:480`), which always emits
-  the smoothed multi-series line — the bands, dots and gradients all key off
-  that one path shape, and there's no second renderer or state flag choosing
-  between them. A toggle wants a `trendChartType` var beside `trendHidden`
-  (`:387`, the same in-memory-only pattern already used for which buckets are
-  switched off), a `barChart()` function drawing one `<rect>` per
-  series-per-week stacked or grouped inside the same `W`/`H`/`col` geometry
-  `curve()` already computes, and a small control in the chart's header —
-  `.trendkey` (`:533`) is the nearest precedent for a row of buttons scoped to
-  this chart. Line stays the default. `kanban/test_reports.mjs` wants a case
-  for whichever state renders at rest and one for the switch.
+- ~~**Weekly pace only ever draws as a line, with no way to see it as
+  bars.**~~ **Done, 13 Sep 2026.** A `trendChartType` var beside `trendHidden`,
+  same in-memory-only pattern, and `weeklyTrendReport()` branches on it: bars
+  stack rather than group, scaled against each week's own total rather than
+  any single bucket's peak, since a stack's height is the total. Line stays
+  the default. The toggle is a `.tabs.small` pair in a new `.trendhead` row
+  beside the "Weekly pace" heading, wired through the same delegated `#lists`
+  listener as the bucket key, and `kanban/test_reports.mjs` covers the chart
+  at rest and both directions of the switch.
 
 - ~~**The counted reports carry a caveat about undated finished work that can
   never appear.**~~ **Done, 13 Sep 2026.** `undatedDoneCount()` and the
