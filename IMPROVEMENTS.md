@@ -18,6 +18,32 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The Completed total names its own window a second time, right next to the
+  picker that already says it.** `completedByCategoryReport()`
+  (`kanban/js/12-reports.js:285-289`) renders `'<span class="totalw">' +
+  esc(reportWindowLabel()) + '</span>'` after "N tasks finished across M
+  categories", so the label reads "12 tasks finished across 4 categories the
+  last 30 days" directly under the Show picker that already reads "Past 30
+  days". `reportWindowLabel()` (`:87`) only exists to feed that one span —
+  dropping the `<span class="totalw">…</span>` clause leaves the sentence
+  reading "N tasks finished across M categories", and the function and its
+  sibling `reportWindowPhrase()` (`:79`, still used by the empty state and by
+  `recentAccomplishmentsReport()`) can stay as they are.
+
+- **Weekly pace only ever draws as a line, with no way to see it as bars.**
+  `weeklyTrendReport()` (`kanban/js/12-reports.js:421`) builds one `<svg
+  class="trendchart">` (`:523`) out of `curve()` (`:480`), which always emits
+  the smoothed multi-series line — the bands, dots and gradients all key off
+  that one path shape, and there's no second renderer or state flag choosing
+  between them. A toggle wants a `trendChartType` var beside `trendHidden`
+  (`:387`, the same in-memory-only pattern already used for which buckets are
+  switched off), a `barChart()` function drawing one `<rect>` per
+  series-per-week stacked or grouped inside the same `W`/`H`/`col` geometry
+  `curve()` already computes, and a small control in the chart's header —
+  `.trendkey` (`:533`) is the nearest precedent for a row of buttons scoped to
+  this chart. Line stays the default. `kanban/test_reports.mjs` wants a case
+  for whichever state renders at rest and one for the switch.
+
 - **The counted reports carry a caveat about undated finished work that can
   never appear.** `countedLeadHTML()` (`kanban/js/12-reports.js:336`) reads
   `undatedDoneCount()` (`:188`), which counts tasks that are `done` with no
