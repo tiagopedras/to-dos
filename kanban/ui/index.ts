@@ -18,6 +18,8 @@ export type { ColumnProps, ColumnStyle } from './Column'
 export { Card } from './Card'
 export type { CardProps } from './Card'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
+export { BackupsView } from './BackupsView'
+export type { BackupsViewProps, BackupFile, ArchiveFile } from './BackupsView'
 export type { ProjectsViewProps, ProjectSummary, ProjectSortOption } from './ProjectsView'
 
 /* One root per container, kept so a re-render reuses it. Calling createRoot on

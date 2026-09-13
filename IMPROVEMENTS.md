@@ -795,13 +795,30 @@ they settled is written up in the README rather than left here:
   would have thrown on load. The `define` in `vite.config.ts` is the fix and the
   suite greps the built file so it cannot come back.
 
-  **Where it stopped, and why.** The next three views in the order above —
-  `15-backups.js`, `16-backup-preview.js` and `17-matrix.js` — have no test
-  suite at all, which the entry below now records. Porting a view with no
-  coverage is porting blind: the whole reason Projects could be trusted is that
-  44 checks written against the old markup passed against the new. So the port
-  is paused rather than continued, and the missing suites are the thing to
-  build first.
+  **Backups went second**, once `kanban/test_backups.mjs` existed to judge it
+  by — 36 checks, all passing unchanged across the port. Its four formatters
+  stayed in `kanban/js/` and came down as props, because one of them,
+  `backupWhen`, is Plans' as well, and moving the set would either split it or
+  drag a shared helper into one view.
+
+  **And there the leaf views run out, which the order above gets wrong.** It
+  lists `17-matrix.js` (293 lines) and `14-schedule.js` (348) among the views to
+  port early, on their size. Size is not what decides it: only Projects,
+  Backups and Execution are dispatched as views that own `#lists`. The Matrix is
+  not a view at all — `matrixSection()` is called *inside* `renderView()` in
+  `18-timeline.js`, which builds Overview and the Timeline in the same string,
+  so porting it means porting that composition. Schedule is the same story one
+  file over: `renderSched()` is a card drawn by `renderPlansView()` in
+  `13-plans.js`. Both of those files are in the *last* tranche this entry sets
+  out, so the order as written asks for the last tranche in the middle of the
+  first.
+
+  The two standalone leaf views are done and Execution is being folded away, so
+  there is no third. What comes next is a real choice rather than a continuation
+  — `13-plans.js` and `12-reports.js` as the entry's next tranche, or the
+  `refSection()`/`colHTML()` composition in `18-timeline.js` that Matrix,
+  Overview and the Timeline all hang off — and it wants deciding rather than
+  drifting into.
 
   One piece does not depend on any of the above and is worth doing first. The
   board guards a save with mtime and the conflict modal, both in the tab;
