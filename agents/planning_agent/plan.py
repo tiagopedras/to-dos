@@ -817,7 +817,7 @@ def count_backlog_runs():
 
     A run reaches `state: backlog` the moment `stream.py --sync` mints it off
     an accepted plan, and sits there until he drags it to To do through
-    `pa-do`. That queue can grow quietly for weeks — on 12 Sep 2026 six plans
+    `do`. That queue can grow quietly for weeks — on 12 Sep 2026 six plans
     stood accepted, all six had runs minted, and two were still sitting in
     Backlog untouched — and nothing said so until the Execution tab was
     opened. Reads frontmatter only, the same shallow way `plan_meta()` in

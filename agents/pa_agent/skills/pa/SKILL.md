@@ -302,5 +302,5 @@ template that tried to would be a second copy of them.
 | `pa-focus` | Walks To do and Doing, asking what is honestly in flight. Hands you what goes back to Backlog. |
 | `pa-review-plans` | Goes through the planning agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
 | `pa-mobile` | Any of the above, from a phone, asked as multiple choice and reported from the mobile templates. Hands you the same changes. |
-| `pa-do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
+| `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Nothing reaches you. |

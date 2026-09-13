@@ -127,7 +127,7 @@ holds the detail. Three things about it are load-bearing:
   That folder sits at the root beside `data/` and is gitignored for the same
   reason: the briefs name real people and real Twinkl processes, and the skills
   beside them are Twinkl's own. [BUCKETS.md](BUCKETS.md) is the tracked half.
-- **It only ever runs from a session he is in**, through the `pa-do` skill.
+- **It only ever runs from a session he is in**, through the `do` skill.
   Never on a schedule, never in the background. The whole reason it can act at
   all is that it can stop and ask, which is what the planners cannot do.
 - **It does not write `todo.md`.** That file belongs to the `pa` skill, run in a

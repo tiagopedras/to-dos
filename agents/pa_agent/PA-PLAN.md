@@ -243,7 +243,7 @@ brief, with one agent added that can act and one skill that drives it.
 | Plan status `agreed` | His approval, set on the Plans view. The only thing that queues work for the implementing agent. |
 | Plan status `redo` | A rejection with a reason, written into the plan's own frontmatter. The next nightly run plans the task again and the agent is handed what was wrong with the last one. |
 | `implementing-agent` | One agent, not one per bucket. It never writes `todo.md`: a change to the list is asked for in its report and made by the PA agent. |
-| `pa-do` | The skill that finds agreed plans and hands them over, one at a time, in a session he is sitting in. |
+| `do` | The skill that finds agreed plans and hands them over, one at a time, in a session he is sitting in. |
 
 **Why one implementing agent rather than six.** The six planners are safe to duplicate
 because they are read-only, and their differences are real. An implementing agent
@@ -256,7 +256,7 @@ it.
 **Why it never runs unattended.** The planners run at two in the morning because
 proposing is safe. Acting is not, and the useful thing about a live session is
 that the agent can stop and ask rather than guessing, which is exactly what the
-planners cannot do and why they fold instead. `pa-do` has no cron, no schedule
+planners cannot do and why they fold instead. `do` has no cron, no schedule
 and no background mode, deliberately.
 
 **Why `agreed` is a status and not a flag.** A plan is in one state at a time. A

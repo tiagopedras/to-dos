@@ -27,12 +27,12 @@ in `data/<dataset>/buckets/<stream>/<stream>.md`, which both halves read, so it 
 and cannot drift between the agent that researched the work and the agent that
 does it.
 
-**It only ever runs from a session he is in**, through the `pa-do` skill. Never
+**It only ever runs from a session he is in**, through the `do` skill. Never
 on a schedule, never in the background. The whole reason it is allowed to act is
 that it can stop and ask, which is exactly what the planners cannot do and why
 they fold into a report instead.
 
-The To do column is a list `pa-do` works through when he starts it, not a queue
+The To do column is a list `do` works through when he starts it, not a queue
 anything picks up on a clock. That was the open question when the board was
 built on 12 Sep 2026, and it was deliberately left open: the columns are laid
 out, and giving this half a runner later is a schedule file and a `run.sh` with
@@ -53,7 +53,7 @@ the plan carries both halves: `state: accepted` says he agreed to it, and
 `production:` says how far this half has got.
 
 Accepting a plan on the Plans view leaves it at `production: none`, where nothing
-happens to it. `pa-do` is what picks one up, and it hands the agent the plan
+happens to it. `do` is what picks one up, and it hands the agent the plan
 path, the task's bucket and column, and the bucket's brief. The agent writes what
 it did into the plan itself; the driving session writes the two transitions
 around that, since this agent holds no Bash tool and never could run a writer.
@@ -64,7 +64,7 @@ one: accepting a plan minted a run document into `data/<dataset>/runs/`, which
 landed in a board of its own. That board and this stream were folded into Plans —
 see `CLAUDE.md` — and what is left here is the agent definition and this README.
 The plan is now both the instruction and the record, and the two transitions the
-work passes through are written by the session driving it, through `pa-do`, on
+work passes through are written by the session driving it, through `do`, on
 the plans stream. `core/migrations/migrate-fold-runs-into-plans.py` is what moved
 the documents.
 
@@ -78,7 +78,7 @@ lives in `stream.json` beside this, and the shape it belongs to is
   window rule, and the status table.
 - [../planning_agent/PLAN-BRIEF.md](../planning_agent/PLAN-BRIEF.md) — the shape of the
   plan this agent is handed.
-- [../pa_agent/skills/pa-do/SKILL.md](../pa_agent/skills/pa-do/SKILL.md) — the
+- [skills/do/SKILL.md](skills/do/SKILL.md) — the
   skill that invokes it, and what it does with what comes back.
 - [../../BUCKETS.md](../../BUCKETS.md) — what the briefs are for. The briefs
   themselves are gitignored, since they name real people and real processes.

@@ -811,7 +811,7 @@ function renderPlanProduced(){
   const shown = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced), 'produced');
   plansProps.produced = shown.length
     ? [BoardUI.h('p', { className: 'help', key: 'how' },
-        'Start a session and run ', BoardUI.h('code', null, '/pa-do'), '.')]
+        'Start a session and run ', BoardUI.h('code', null, '/do'), '.')]
         .concat(planCardNodes(shown))
     : emptyNode('Nothing accepted yet. A plan you accept lands here, and from ' +
                 'it is waiting to be produced.');

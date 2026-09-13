@@ -1,6 +1,6 @@
 ---
 name: implementing-agent
-description: Carries out one plan that Tiago has already agreed. It never writes todo.md; changes to the list are requested in its report and made by the PA agent. Invoked by the /pa-do skill from a live session, never on a schedule and never unattended. Reads the bucket's own brief, does the work into the task's project folder, and reports what it did and what it left.
+description: Carries out one plan that Tiago has already agreed. It never writes todo.md; changes to the list are requested in its report and made by the PA agent. Invoked by the /do skill from a live session, never on a schedule and never unattended. Reads the bucket's own brief, does the work into the task's project folder, and reports what it did and what it left.
 tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch, Agent(ds-analyst)
 ---
 
@@ -125,7 +125,7 @@ You do not move the card. You never could — you hold no Bash tool, so you cann
 run the writer — and until 13 September 2026 this file told you to anyway, which
 left every finished run sitting in `review` looking exactly like a session that
 had died mid-work. The session that invoked you writes both transitions instead,
-through `pa-do`: `production: doing` when it hands you the plan, and
+through `do`: `production: doing` when it hands you the plan, and
 `production: review` when your report lands. The board asks and the stream
 writes, which is the rule everywhere else in this repo.
 

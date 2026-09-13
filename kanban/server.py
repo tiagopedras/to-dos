@@ -969,7 +969,7 @@ def plan_meta(path, name, night):
         # allows one state per document and this is a second question about the
         # same one: `state` says where the plan is, `production` says what has
         # happened to the work it describes. Written by the fold migration and
-        # by pa-do; "" on every plan that has not been accepted.
+        # by do; "" on every plan that has not been accepted.
         #
         # This is also the field the eight-column version of the Plans view
         # would draw as columns, if the implementing agent ever becomes

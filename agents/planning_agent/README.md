@@ -151,7 +151,7 @@ different things and neither can be derived from the other.
 
 The acting half is `implementing-agent`, in `agents/implementing_agent/`. There is one
 of it rather than one per bucket, because the per-bucket knowledge lives in the
-briefs both halves read. It runs from a live session through the `pa-do` skill,
+briefs both halves read. It runs from a live session through the `do` skill,
 never on a schedule, and it never writes `todo.md`: a change to the list is asked
 for in its report and made by the `pa` skill. See `agents/implementing_agent/README.md`
 and `../CLAUDE.md`.

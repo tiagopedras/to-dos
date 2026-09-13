@@ -1,5 +1,5 @@
 ---
-name: pa-do
+name: do
 description: Carry out the plans the owner has accepted on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the implementing-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the planning agent, which is the board's own Run now button.
 ---
 

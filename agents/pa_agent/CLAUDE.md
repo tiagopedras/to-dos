@@ -21,7 +21,7 @@ everything else feeds it.
 | `pa-checkout` | Walks Doing, Waiting review and Blocked. Reviews and asks; `pa` writes. |
 | `pa-focus` | Walks To do and Doing, trimming what is not really in flight. Reviews and asks; `pa` writes. |
 | `pa-review-plans` | Triages the planning agent's plans. Writes plan statuses through the board's own routes, hands task notes to `pa`. |
-| `pa-do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so its requested changes come back through `pa`. |
+| `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so its requested changes come back through `pa`. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Touches nothing else. |
 
 **Why one writer.** The board holds the whole document in the browser and writes
