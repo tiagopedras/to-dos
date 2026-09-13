@@ -250,18 +250,21 @@ function usageRow(w, peak){
    about tonight's run; still fetched here, because /usage.json is the only
    route that knows it and one call draws both. */
 function renderStatus(u){
-  const out = $('#statusOut');
-  if (!out) return;
+  /* Handed over rather than assigned: #statusOut is inside the React tree
+     PlansView mounts, so the Status line is a prop like every other body on
+     that view. setPlansStatus is 13-plans.js's, and is absent on every other
+     view — which is the same guard `$('#statusOut')` used to be. */
+  if (typeof setPlansStatus !== 'function') return;
   const w = u.window;
   if (!w || !w.expires) {
-    out.innerHTML = '<div class="udecide">No usage window open right now.</div>';
+    setPlansStatus('<div class="udecide">No usage window open right now.</div>');
     return;
   }
   const end = new Date(w.expires);
   const mins = Math.max(0, Math.round((end - new Date()) / 60000));
-  out.innerHTML = '<div class="udecide open">' +
+  setPlansStatus('<div class="udecide open">' +
     '<strong>' + esc(hm(end)) + '</strong> — window open, ' + mins + ' min left (' +
-    esc(w.source) + ')</div>';
+    esc(w.source) + ')</div>');
 }
 
 async function renderUsage(){

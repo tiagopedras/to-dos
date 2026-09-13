@@ -26,16 +26,25 @@
  */
 import type { CSSProperties, ReactNode } from 'react'
 
+/* A row the card wraps in a div of its own, given either as nodes or as markup
+   the board already built. The second form exists because two of them are the
+   board's own output and stay that way for now — the task's score chips, and a
+   summary run through the board's Markdown — and wrapping either in a span to
+   carry it would put an element in the markup that cardShellHTML does not
+   emit. It goes on the row's own div, which is the element both spellings
+   agree on. */
+export type CardRow = ReactNode | { __html: string }
+
 export interface CardProps {
   title?: ReactNode
-  eyebrow?: ReactNode
+  eyebrow?: CardRow
   position?: ReactNode
   action?: ReactNode
-  tags?: ReactNode
-  meta?: ReactNode
-  summary?: ReactNode
+  tags?: CardRow
+  meta?: CardRow
+  summary?: CardRow
   progress?: ReactNode
-  note?: ReactNode
+  note?: CardRow
   extra?: ReactNode
   /** The colour of the left edge and the eyebrow, as --bc. Undefined draws no
    *  stripe at all, which is not the same as drawing a grey one. */
@@ -43,13 +52,18 @@ export interface CardProps {
   cls?: string
   /** 'article' unless a caller needs the card to be something else. */
   tag?: 'article' | 'div' | 'li'
+  /** Anything else the card's own element carries — `draggable`, the data
+   *  attributes a view wires itself against. cardShellHTML takes the same thing
+   *  as a string of attributes; this takes them as props because React writes
+   *  them and a half-escaped string here would be a hole rather than a shape. */
+  attrs?: Record<string, unknown>
   children?: ReactNode
 }
 
 export function Card(props: CardProps) {
   const {
     title, eyebrow, position, action, tags, meta, summary,
-    progress, note, extra, stripe, cls, tag, children,
+    progress, note, extra, stripe, cls, tag, attrs, children,
   } = props
 
   const Tag = tag || 'article'
@@ -58,19 +72,29 @@ export function Card(props: CardProps) {
      without the cast — it types style as CSSProperties and --bc is not one. */
   const style = stripe ? ({ ['--bc' as string]: stripe } as CSSProperties) : undefined
 
+  /* One spelling of "wrap this row in its div", whichever currency it arrived
+     in. An empty row draws nothing at all, the same as the string builder
+     skipping it. */
+  const row = (rowCls: string, v: CardRow) => {
+    if (!v) return null
+    if (typeof v === 'object' && v !== null && '__html' in v)
+      return <div className={rowCls} dangerouslySetInnerHTML={v as { __html: string }} />
+    return <div className={rowCls}>{v as ReactNode}</div>
+  }
+
   return (
-    <Tag className={className} style={style}>
-      {eyebrow ? <div className="row1">{eyebrow}</div> : null}
+    <Tag className={className} style={style} {...attrs}>
+      {row('row1', eyebrow)}
       <div className="cardhead">
         {position ? <span className="cardpos">{position}</span> : null}
         <div className="title">{title}</div>
         {action ? <span className="cardact">{action}</span> : null}
       </div>
-      {tags ? <div className="meta">{tags}</div> : null}
-      {meta ? <div className="cardmeta">{meta}</div> : null}
-      {summary ? <div className="cardsum">{summary}</div> : null}
+      {row('meta', tags)}
+      {row('cardmeta', meta)}
+      {row('cardsum', summary)}
       {progress}
-      {note ? <div className="notecount">{note}</div> : null}
+      {row('notecount', note)}
       {extra}
       {children}
     </Tag>

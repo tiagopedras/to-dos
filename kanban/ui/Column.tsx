@@ -130,3 +130,12 @@ export function Column(props: ColumnProps) {
     </section>
   )
 }
+
+/* What a column draws when there is nothing in it — `colEmptyHTML()`'s twin in
+   kanban/js/09-columns.js. Two styles and no third: plain grey text on the
+   board, and a dashed box on Plans, where a column of prose with one line of
+   grey text in it read as a column that had failed to load rather than one
+   with nothing in it. */
+export function ColumnEmpty({ boxed, children }: { boxed?: boolean, children?: ReactNode }) {
+  return <div className={boxed ? 'empty boxed' : 'empty'}>{children}</div>
+}

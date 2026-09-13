@@ -212,8 +212,10 @@ that changes, `production` is what the two extra columns get drawn from.
 `kanban/ui/` is the component layer, begun 13 Sep 2026 against the entry of that
 name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
-from. **Nothing is ported yet.** What exists is `Column` and `Card` — the two
-primitives every view is written against — plus `mount()` and `unmount()`.
+from. Under it sit `Column` and `Card`, the two primitives every view is
+written against, plus `mount()`, `mountSync()` and `unmount()`. Four views are
+ported: Projects, Backups and Reports whole, Plans in the two passes described
+below.
 
 The point of doing the primitives first is that a column is one object across
 the whole app, and the section above is what rests on it. So `Column` is not a
@@ -221,10 +223,18 @@ new column: it is the same markup `colHTML()` (`kanban/js/09-columns.js`) emits,
 element for element and class for class, and `Card` is `cardShellHTML()`'s the
 same way. One stylesheet answers for both while the port is half done, which
 only works while they agree. `kanban/ui/test_primitives.mjs` is what holds them
-to it — it renders 32 cases both ways and fails on any difference, with no
+to it — it renders 37 cases both ways and fails on any difference, with no
 browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
 `document`. **Change one of the four and change the other**, the same rule
 `core/todo.js` and `core/todo.py` already live under.
+
+The last three of those cases are a different kind, and they are what to copy
+when the next builder goes. `planItemHTML()` has no twin left to be compared
+against — `PlanCard` replaced it outright — so those cases render the card
+against `cardShellHTML()` given the rows a plan carries, written out longhand.
+It is the shape being pinned rather than a second implementation, which is what
+still catches a row moving out of the card or picking up a wrapper on the way
+through.
 
 The port can be incremental because every view already owns `#lists` wholesale:
 a ported view calls `BoardUI.mount()` where it used to assign to
@@ -254,16 +264,30 @@ Two rules came out of doing it, and both apply to every view that follows:
 `kanban/test_projects.mjs` covers both, on top of the 44 checks that passed
 through the port unchanged — which is the real evidence the markup did not move.
 
-**Plans went next**, 13 Sep 2026, and only its shell: `PlansView` draws the six
-columns and nothing inside them. The bodies still arrive as HTML from the
-sixteen `innerHTML` assignments in `13-plans.js`, because four independent
-fetches fill those columns at different times and each paints as it arrives.
-That works only while the shell is mounted once per visit and never
-re-rendered, which is why it is — a half-ported view that re-renders is the one
-arrangement that would silently drop a column, so the next step here is all
-sixteen at once or none. `mountSync()` came with it, beside `mount()`: React 18
-renders when it gets round to it, and this view reaches into the nodes it just
-mounted. It is the only caller, and it stops being needed when the bodies do.
+**Plans went next**, 13 Sep 2026, in two passes the same day. The first drew
+the six columns and nothing inside them, mounted once and never re-rendered,
+with the bodies still arriving as HTML from sixteen `innerHTML` assignments in
+`13-plans.js`. The second took all sixteen at once, which is the only way that
+half could be taken: a half-ported view that re-renders is the one arrangement
+that would silently drop a column. There is now one `plansProps` object holding
+every body, and one `paintPlans()` that renders it — and nothing, in this file
+or any other, assigns into the tree by id. `renderStatus()` in `14-schedule.js`
+used to, and hands its markup to `setPlansStatus()` instead.
+
+What is a component and what is still a string splits by card kind rather than
+by column. `PlanCard` is `planItemHTML()`'s twin and that builder is gone, so
+the four columns holding nothing but plans — Doing, Waiting for review, Ready
+to be produced, Done — are nodes. Backlog and To do are nodes too but hold
+queue rows built through `Card` directly, and the bodies four independent
+fetches fill at different times are markup, because each paints as it arrives
+rather than the view waiting on the slowest.
+
+`mountSync()` is still load-bearing and still Plans' only caller. The board
+wires opening a plan, the link back to its task and every drag by querying for
+the nodes it has just painted, so a paint is followed by `wirePlansView()` and
+the nodes have to exist by then. What retires it is `PlanCard` taking `onOpen`
+and `onDragStart` as props instead of carrying the data attributes the board
+wires against.
 
 ## After changing `kanban/server.py`
 

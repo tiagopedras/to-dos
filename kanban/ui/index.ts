@@ -7,17 +7,28 @@
  * lets one be ported while the other nine carry on untouched — and what lets
  * this work stop at any stage with a working board.
  *
- * Nothing is ported yet. What is here is the two primitives and the mount
- * helpers, which is the step IMPROVEMENTS.md says pays off on its own.
+ * Projects, Backups and Reports are ported whole. Plans is the one that is
+ * half done on purpose: its six columns and the four that hold nothing but
+ * plans are components, and the bodies four independent fetches fill are still
+ * markup the board builds. PlansView's own header says why, and what would
+ * have to change for the other two columns to follow.
  */
+/* React's own element builder, for the board's classic scripts. They have no
+   JSX and no build step of their own, so a ported view assembles its lists as
+   `BoardUI.h(BoardUI.PlanCard, props)` — which is what JSX compiles to anyway.
+   Keyed lists need `key` in those props, the same as anywhere else. */
+export { createElement as h, Fragment } from 'react'
+
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import type { ReactNode } from 'react'
 
-export { Column } from './Column'
+export { Column, ColumnEmpty } from './Column'
 export type { ColumnProps, ColumnStyle } from './Column'
 export { Card } from './Card'
-export type { CardProps } from './Card'
+export type { CardProps, CardRow } from './Card'
+export { PlanCard } from './PlanCard'
+export type { PlanCardProps } from './PlanCard'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
 export { ReportsView, ReportsEmpty } from './ReportsView'
@@ -45,15 +56,17 @@ export function mount(container: Element, node: ReactNode): void {
  *
  * React 18 renders when it gets round to it, which is right for a view that
  * hands the component everything it needs and then leaves. Plans is not that
- * view: it mounts a shell of six columns and its four fetches then fill the
- * bodies by id, so the nodes have to exist the moment mount() returns or the
- * first fill writes into nothing.
+ * view: it wires opening a plan, the link back to the task and every drag on
+ * the view by querying for the nodes it has just painted, so those nodes have
+ * to exist the moment mount() returns or the wiring hangs on the paint before
+ * this one.
  *
  * flushSync is React telling you this is not how it wants to be used, and it
- * is right — the standing direction is props, and PlansView's own header says
- * what would have to change for Plans to get there. Until then this is the
- * honest version of what the board already does, rather than a setTimeout
- * hoping the render has landed.
+ * is right — the standing direction is handlers as props. What it is waiting
+ * on is the card, not the view: PlanCard keeps the data attributes the board
+ * wires against, and the day it takes onOpen and onDragStart instead is the
+ * day this goes. Until then it is the honest version of what the board already
+ * does, rather than a setTimeout hoping the render has landed.
  *
  * Only for a mount whose caller reaches into the result. Everything else uses
  * mount() and lets React schedule.

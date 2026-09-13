@@ -13,44 +13,59 @@
  * heads. That is the half that was six longhand `colHTML()` calls, and it is
  * the half `test_primitives.mjs` already holds `Column` to.
  *
- * It is not the cards. Every body arrives as an HTML string built by
- * `kanban/js/13-plans.js` and goes in through `dangerouslySetInnerHTML`, the
- * same bargain ReportsView already makes. That is not laziness about the
- * remaining 1,400 lines: the bodies are filled by four independent fetches
- * that land at different times — `/plans.json`, `/queue.json`, the agent's own
- * status, and the usage reconstruction that takes about a second — and each
- * one paints as it arrives rather than the view waiting on the slowest. Making
- * the cards components means porting the drag wiring, the six modals and the
- * two write paths in the same change, and Plans is the one view in the app
- * that writes to disk. So the shell goes first and the bodies follow, which is
- * also what lets the 123 checks in `kanban/test_plans.mjs` judge this port
- * without being rewritten.
+ * Four of the six bodies are cards now as well, and they are the four that
+ * hold nothing but plans: Doing, Waiting for review, Ready to be produced and
+ * Done each take a list of `PlanCard`s. Backlog and To do do not, because
+ * neither holds only plans — Backlog carries held tasks and a fold of the ones
+ * a rule excluded, To do carries tonight's queue rows — and porting a card is
+ * worth doing once per kind rather than once per column.
  *
- * The consequence to keep in mind: a re-render replaces every body node, so
- * anything the board wired onto those nodes is wired again after each paint.
- * `paintPlans()` in `13-plans.js` is the one place that happens, and it is why
- * the wiring lives next to the painting rather than anywhere else.
+ * So two currencies, deliberately, until the queue row is a component too.
+ * What still arrives as an HTML string is what four independent fetches fill
+ * at different times — `/plans.json`, `/queue.json`, the agent's own status,
+ * and the usage reconstruction that takes about a second — each painting as it
+ * arrives rather than the view waiting on the slowest. Those go in through
+ * `dangerouslySetInnerHTML`, the same bargain ReportsView already makes.
+ *
+ * This view re-renders, which the shell-only version of it deliberately did
+ * not. Every body is a prop, and `plansProps` in `13-plans.js` is the one
+ * object they all come out of — the sixteen `innerHTML` assignments that used
+ * to fill these nodes by id went in one change, because half-and-half is the
+ * arrangement that would silently drop a column. Nothing outside that file
+ * writes into this tree either: the Status line is handed over by
+ * `setPlansStatus()` rather than assigned from `14-schedule.js`.
+ *
+ * The consequence to keep in mind: the board still wires its own handlers onto
+ * these nodes, so a paint is followed by `wirePlansView()` every time. That is
+ * why the wiring lives next to the painting rather than anywhere else, and it
+ * is what keeps `mountSync()` load-bearing.
  */
+import type { ReactNode } from 'react'
 import { Column } from './Column'
 
 export interface PlansViewProps {
-  /** Backlog: what the agent is to leave alone. */
-  backlogHTML: string
-  /** To do: the error line, the Status block and tonight's queue, in that order. */
+  /** Backlog: what the agent is to leave alone — held tasks, parked plans, and
+   *  a fold of the ones a rule excluded. */
+  backlog: ReactNode
+  /** To do: the error line, the Status block and tonight's queue, in that
+   *  order. The first two are markup the board built; the queue is cards. */
   queueErrorHTML: string
   statusHTML: string
-  queueHTML: string
+  queue: ReactNode
   /** Doing: an orphaned lock notice, the live run, plans in production, or nothing. */
   orphanHTML: string
   doingHTML: string
-  plansDoingHTML: string
   doingEmptyHTML: string
   /** Waiting for review: the counts above the agent's own cards. */
   doneStatsHTML: string
-  reviewHTML: string
-  /** The last two columns. */
-  producedHTML: string
-  doneHTML: string
+  /** The four columns that hold nothing but plans, as nodes rather than as
+   *  markup — `PlanCard`s, or the column's empty state. These are the half of
+   *  the port that has happened; everything above and below is still a string
+   *  the board built. */
+  doingPlans: ReactNode
+  review: ReactNode
+  produced: ReactNode
+  done: ReactNode
   /** Counts in the heads. An empty string draws no count at all — the two
    *  filtered columns say "All 12" on their own button, and the same number
    *  twice in one head is one too many. */
@@ -61,6 +76,11 @@ export interface PlansViewProps {
   /** The two filter dropdowns, built by colFilterHTML() and wired after paint. */
   reviewFilterHTML: string
   doneFilterHTML: string
+  /** Whether a run is actually going. It decides two things and nothing else:
+   *  the live-run body shows, and Run now does not — run.sh holds a lock and
+   *  would refuse a second batch anyway, but it refuses by logging and exiting
+   *  cleanly, which from a button looks exactly like starting. */
+  runLive?: boolean
   onRunQueue: () => void
   onOpenRefCards: () => void
 }
@@ -77,11 +97,11 @@ const raw = (html: string) => ({ __html: html })
 
 export function PlansView (props: PlansViewProps) {
   const {
-    backlogHTML, queueErrorHTML, statusHTML, queueHTML,
-    orphanHTML, doingHTML, plansDoingHTML, doingEmptyHTML,
-    doneStatsHTML, reviewHTML, producedHTML, doneHTML,
+    backlog, queueErrorHTML, statusHTML, queue,
+    orphanHTML, doingHTML, doingEmptyHTML,
+    doneStatsHTML, doingPlans, review, produced, done,
     backlogCount, queueCount, doingCount, producedCount,
-    reviewFilterHTML, doneFilterHTML, onRunQueue, onOpenRefCards,
+    reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
   } = props
 
   return (
@@ -98,7 +118,7 @@ export function PlansView (props: PlansViewProps) {
             Spend and clocks
           </button>
         }
-        body={<div id="backlogOut" dangerouslySetInnerHTML={raw(backlogHTML)} />}
+        body={<div id="backlogOut">{backlog}</div>}
       />
 
       <Column
@@ -109,7 +129,8 @@ export function PlansView (props: PlansViewProps) {
         count={queueCount ?? ''}
         desc="What tonight’s run picks up, in order."
         action={
-          <button className="btn small" id="runQueueBtn" type="button" onClick={onRunQueue}>
+          <button className={'btn small' + (runLive ? ' hidden' : '')} id="runQueueBtn"
+            type="button" onClick={onRunQueue}>
             Run now
           </button>
         }
@@ -123,7 +144,7 @@ export function PlansView (props: PlansViewProps) {
               dangerouslySetInnerHTML={raw(queueErrorHTML)} />
             <h4 className="fhead">Status</h4>
             <div id="statusOut" dangerouslySetInnerHTML={raw(statusHTML)} />
-            <div id="queueOut" dangerouslySetInnerHTML={raw(queueHTML)} />
+            <div id="queueOut">{queue}</div>
           </>
         }
       />
@@ -139,8 +160,9 @@ export function PlansView (props: PlansViewProps) {
           <>
             <div className={orphanHTML ? '' : 'hidden'} id="qdOrphan"
               dangerouslySetInnerHTML={raw(orphanHTML)} />
-            <div id="doingOut" dangerouslySetInnerHTML={raw(doingHTML)} />
-            <div id="plansDoing" dangerouslySetInnerHTML={raw(plansDoingHTML)} />
+            <div className={runLive ? '' : 'hidden'} id="doingOut"
+              dangerouslySetInnerHTML={raw(doingHTML)} />
+            <div id="plansDoing">{doingPlans}</div>
             <div id="doingEmpty" dangerouslySetInnerHTML={raw(doingEmptyHTML)} />
           </>
         }
@@ -159,7 +181,7 @@ export function PlansView (props: PlansViewProps) {
         body={
           <>
             <div id="doneStatsOut" dangerouslySetInnerHTML={raw(doneStatsHTML)} />
-            <div id="plansOut" dangerouslySetInnerHTML={raw(reviewHTML)} />
+            <div id="plansOut">{review}</div>
           </>
         }
       />
@@ -174,7 +196,7 @@ export function PlansView (props: PlansViewProps) {
         id="producedCol"
         count={producedCount ?? ''}
         desc="Accepted as written, and waiting on the implementing agent."
-        body={<div id="plansProduced" dangerouslySetInnerHTML={raw(producedHTML)} />}
+        body={<div id="plansProduced">{produced}</div>}
       />
 
       <Column
@@ -186,7 +208,7 @@ export function PlansView (props: PlansViewProps) {
           <span className="colfilter-slot" id="doneFilterSlot"
             dangerouslySetInnerHTML={raw(doneFilterHTML)} />
         }
-        body={<div id="plansDone" dangerouslySetInnerHTML={raw(doneHTML)} />}
+        body={<div id="plansDone">{done}</div>}
       />
     </div>
   )

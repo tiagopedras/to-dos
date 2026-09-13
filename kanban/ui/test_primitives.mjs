@@ -44,7 +44,7 @@ const fail = (...m) => { console.log('FAIL', ...m); failures++ }
 const ESC = `const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));`
 const columnsSrc = fs.readFileSync(path.join(REPO, 'kanban/js/09-columns.js'), 'utf8')
 const legacy = vm.runInNewContext(
-  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML });',
+  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML, esc });',
   { document: { addEventListener() {} } },
   { filename: 'kanban/js/09-columns.js' })
 
@@ -54,13 +54,15 @@ const legacy = vm.runInNewContext(
    upwards — from /tmp there is no node_modules to find. */
 const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
 await esbuild.build({
-  entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx')],
+  entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx'),
+    path.join(HERE, 'PlanCard.tsx')],
   outdir, bundle: true, format: 'esm', jsx: 'automatic',
   external: ['react', 'react-dom', 'react/jsx-runtime'],
   logLevel: 'silent',
 })
 const { Column } = await import(url.pathToFileURL(path.join(outdir, 'Column.js')))
 const { Card } = await import(url.pathToFileURL(path.join(outdir, 'Card.js')))
+const { PlanCard } = await import(url.pathToFileURL(path.join(outdir, 'PlanCard.js')))
 
 /* ---- comparing two spellings of the same markup ---------------------------
    Neither side is wrong where they differ, so both are put in one form first:
@@ -176,6 +178,21 @@ check('card — every row at once', legacy.cardShellHTML({
   cls: 'plancard',
 }))
 
+/* The card's own element, which a view wires itself against. The string
+   builder takes them as one pre-spelled attribute string and the component
+   takes props, which is the same deliberate difference as the markup rows. */
+check('card — attributes on the element itself',
+  legacy.cardShellHTML({ title: 'X', attrs: 'draggable="true" data-plan="a/b.md"' }),
+  h(Card, { title: 'X', attrs: { draggable: true, 'data-plan': 'a/b.md' } }))
+
+/* A row given as markup the board already built rather than as nodes. It has
+   to land on the row's own div, or the component puts a wrapper in the markup
+   that cardShellHTML does not emit — which is the whole reason CardRow takes
+   two currencies. */
+check('card — a raw row goes on the row div, with nothing around it',
+  legacy.cardShellHTML({ title: 'X', tags: '<span class="planscore">S</span>' }),
+  h(Card, { title: 'X', tags: { __html: '<span class="planscore">S</span>' } }))
+
 check('card — a different tag',
   legacy.cardShellHTML({ title: 'X', tag: 'li' }),
   h(Card, { title: 'X', tag: 'li' }))
@@ -183,6 +200,80 @@ check('card — a different tag',
 check('card — an action',
   legacy.cardShellHTML({ title: 'X', action: '<button class="cardact-btn">Open</button>' }),
   h(Card, { title: 'X', action: h('button', { className: 'cardact-btn' }, 'Open') }))
+
+/* ---- the plan card --------------------------------------------------------
+   `planItemHTML()` is gone — PlanCard is the only spelling of a plan card now —
+   so there is no string builder left to render this one against. What holds it
+   instead is the thing that builder was made of: the same cardShellHTML, given
+   the rows a plan card carries, written out here. It is the shape that matters
+   and the shape is what this pins, so a row moving out of the card, or picking
+   up a wrapper on the way through, still fails here.
+
+   The escaping is not incidental. planItemHTML() called esc() on every one of
+   these by hand and the component does not, because React escapes what it
+   writes — so this case carries the characters that would show the difference
+   if that ever stopped being true. */
+const PLAN = {
+  url: 'plans/2026-09-13-buttons.md',
+  title: `Alex's "button" audit & <b>the rest</b>`,
+  variant: ' agreed',
+  stripe: 'var(--green)',
+  word: 'accepted',
+  production: 'being made',
+  productionKind: 'doing',
+  needsYou: true,
+  gotoKey: 'close-the-figma-gap',
+  gotoLabel: 'Close the Figma gap',
+  where: ['Design System', 'To do', undefined, '13 Sep 12:04'],
+  scoresHTML: '<span class="planscore"><span class="tag impact-high">🔥</span></span>',
+  summaryHTML: 'What the plan <em>proposes</em>.',
+  feedback: 'Too broad — split it per component.',
+}
+
+check('plan card — every row a plan carries',
+  legacy.cardShellHTML({
+    cls: 'repitem planitem agreed folded',
+    attrs: 'draggable="true" data-plan="' + PLAN.url + '" data-plan-open="' + PLAN.url + '"',
+    stripe: PLAN.stripe,
+    eyebrow: '<span class="bucket">accepted</span><span class="right">' +
+      '<span class="planprod planprod-doing" ' +
+      'title="How far the implementing agent has got with this one">being made</span>' +
+      '<span class="planfold" ' +
+      'title="The agent stopped and asked rather than guessing">needs you</span></span>',
+    title: legacy.esc(PLAN.title),
+    tags: PLAN.scoresHTML,
+    meta: '<span class="planwhere">Design System · To do · 13 Sep 12:04</span>' +
+      '<button class="plangoto" data-plan-goto="close-the-figma-gap" ' +
+      'title="Open this task on the board">Close the Figma gap ↗</button>',
+    summary: PLAN.summaryHTML,
+    extra: '<div class="planredo"><b>Sent back:</b> ' + legacy.esc(PLAN.feedback) + '</div>',
+  }),
+  h(PlanCard, PLAN))
+
+check('plan card — nothing optional, which is most of them',
+  legacy.cardShellHTML({
+    cls: 'repitem planitem',
+    attrs: 'draggable="true" data-plan="p.md" data-plan-open="p.md"',
+    stripe: 'var(--line)',
+    eyebrow: '<span class="bucket">new</span>',
+    title: 'Write the review',
+  }),
+  h(PlanCard, { url: 'p.md', title: 'Write the review', stripe: 'var(--line)', word: 'new' }))
+
+check('plan card — a plan with no task left on the board keeps its own name',
+  legacy.cardShellHTML({
+    cls: 'repitem planitem read',
+    attrs: 'draggable="true" data-plan="p.md" data-plan-open="p.md"',
+    stripe: 'var(--line)',
+    eyebrow: '<span class="bucket">read</span>',
+    title: 'X',
+    meta: '<button class="plangoto" data-plan-goto="a-slug" ' +
+      'title="Open this task on the board">a-slug ↗</button>',
+  }),
+  h(PlanCard, {
+    url: 'p.md', title: 'X', variant: ' read', stripe: 'var(--line)', word: 'read',
+    gotoKey: 'a-slug', where: [],
+  }))
 
 /* ---- the built bundle ----------------------------------------------------- */
 const bundle = path.join(REPO, 'kanban/dist/board-ui.js')

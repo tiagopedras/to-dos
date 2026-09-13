@@ -528,6 +528,88 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Opening an accepted plan offers no way to start, or return to, the
+  session actually carrying it out.** `openPlanModal()`
+  (`kanban/js/13-plans.js:278`) draws the same four buttons — It is finished,
+  Plan it again, Turn it down, Leave it alone (`:291-299`) — whether a plan is
+  fresh out of review or already `state: accepted`, and none of them touches
+  a session. The only way to carry one out today is `/pa-do`
+  (`agents/pa_agent/skills/pa-do/SKILL.md`), typed into a terminal session
+  he is already sitting in, because `implementing-agent` "only ever runs from
+  a session he is in" (`agents/implementing_agent/README.md:30`) and never
+  unattended. The plumbing that exists points the opposite direction from what
+  this asks for: a running session announces itself onto
+  `data/<dataset>/attach-queue.json`
+  (`agents/pa_agent/skills/pa-attach/scripts/attach_session.py`), the board
+  drains that queue on load (`kanban/server.py:1765`) and reads it back
+  through its own "Attach a session…" button
+  (`kanban/js/10-reference-sections.js:954`) — the board learns which session
+  claimed a card, it never causes one to open. The planning agent already
+  files its own session the same way when it writes a plan
+  (`queue_attach()`, `agents/planning_agent/plan.py:613`), which is why a
+  plan's frontmatter already carries a `session:` field (`plan.py:589`) — but
+  that is the planning session that wrote the plan, not an execution one, and
+  nothing records which session picked up an accepted plan. Doing this for
+  real is two pieces of new infrastructure rather than a button: something
+  that can actually open a terminal Claude Code session from a browser click
+  (`ai_canvas/`, the Electron app that already draws one card per live
+  session on a canvas, is the closest existing thing to look at), and a
+  `production_session:`-style field on the plan, written back onto it the
+  same way `attach_session.py` already writes onto the queue, for the modal
+  to read on the way back in.
+
+- **The four options on a plan's modal stop fitting once it has been
+  accepted.** `openPlanModal()` (`kanban/js/13-plans.js:278`) offers the same
+  "It is finished / Plan it again / Turn it down / Leave it alone" set
+  (`:291-299`) to a plan sitting in Ready to be produced as to one just
+  written. "Plan it again" (`replanPlan()`, `:390`) sends an already-accepted,
+  possibly in-progress plan back to be written again tonight, and "Turn it
+  down" / "Leave it alone" read as though the idea itself were still
+  undecided rather than already agreed and under way. Worth revisiting
+  together with the session-launching idea above, since whatever a session
+  tied to the plan needs from the modal will change what belongs in this set.
+
+- **Replanning a task writes a second plan file instead of replacing the
+  first, so the same task can show two live cards on the Plans board at
+  once.** `write_plan()` (`agents/planning_agent/plan.py:524`) always mints a
+  fresh path — `out = os.path.join(paths.night_dir(day), slugify(task.title)
+  + ".md")` at `:606` — keyed by the night, not the task. The nightly batch
+  loop (`:948-1017`) points the ledger's `file`/`night` fields at that new
+  file so `pick.is_stale()` (`agents/planning_agent/pick.py:265`) stops
+  offering the task up again, but it never touches the plan file the ledger
+  used to point at: that file's own `state:` frontmatter is left exactly as
+  it was, and `/plans.json` (`kanban/server.py:1705`) lists every file under
+  `data/<dataset>/plans/`, not just the one the ledger currently points at.
+  Two failure paths land the same way. A task replanned because its
+  fingerprint changed while an earlier plan still sat unread in `review`
+  leaves both files at `state: review`, drawing two cards in Waiting for
+  review for one task. A task sent back with "Plan it again"
+  (`replanPlan()`, `kanban/js/13-plans.js:390`, which rewrites that plan's own
+  frontmatter to `state: ready / owner: planning-agent`) gets a fresh
+  `review` file the next night, but the `ready` file is never resolved —
+  if the new plan is later accepted and finished, the old `ready` file is
+  still sitting in To do, pointing at a task that is already Done.
+  `agents/planning_agent/README.md:138` already documents the intended
+  shape — a later plan should leave the earlier one `done / resolution:
+  superseded` — but no code path writes that; the only thing that ever sets
+  `resolution: superseded` today is a manual board action, not the nightly
+  run.
+
+  Genuinely one file per task rather than one per night is the fix Tiago
+  asked for, and it is bigger than the write path alone: `prune()`
+  (`plan.py:777`) walks `data/<dataset>/plans/<night>/` folders and deletes
+  whole nights past `KEEP_DAYS` unless a file's status matches `KEEP_STATUS`,
+  so a plan no longer filed by night needs its own place to live and its own
+  rule for how long a finished one is kept. `history()` (`plan.py:259`) and
+  `rejection()` (`:289`) both read the *previous* file to build the new one's
+  History section and carry forward a rejection's reason — if there is only
+  ever one file per task, that becomes an in-place rewrite that keeps its own
+  History section, rather than a chain of files each holding one revision.
+  The short-term version — write_plan() sets `state: done, resolution:
+  superseded` on the ledger's previous file before minting the new one — closes
+  the duplicate-card symptom without the storage change, if the two want
+  splitting into separate pieces of work.
+
 - **Every column on the Plans view is ordered one way — the priority of the
   task the plan is about — and there is no control to ask for another.**
   `byTaskPriority()` (`kanban/js/13-plans.js:541`) runs unconditionally inside
@@ -941,7 +1023,7 @@ they settled is written up in the README rather than left here:
   out of date — and `To-Do Board.app` execs `run.command`, so one place knows
   about it. `Column` and `Card` came first and are written to be the markup
   `colHTML()` and `cardShellHTML()` already emit; `kanban/ui/test_primitives.mjs`
-  renders 32 cases both ways and fails on any difference, with no browser and no
+  renders 37 cases both ways and fails on any difference, with no browser and no
   server.
 
   Projects is the first view off the string builders, and its 44 existing checks
@@ -1022,8 +1104,47 @@ they settled is written up in the README rather than left here:
   The evidence is `kanban/test_plans.mjs` passing all 123 checks unchanged,
   including the ten it makes about what the view is allowed to write.
 
-  Still the next real choice, unchanged by any of this: the rest of Plans'
-  bodies, `12-reports.js`, or the `18-timeline.js` composition.
+  **And then all sixteen, the same day.** The paragraph above said the next
+  step was all of them at once or none, and it was: `plansProps` is one object
+  holding every body on the view, `paintPlans()` is the one place that renders
+  it, and nothing assigns into the tree by id any more — including
+  `renderStatus()` in `14-schedule.js`, which used to reach across from another
+  file and hands its markup to `setPlansStatus()` now.
+
+  What split the work was card kind rather than column. `PlanCard` is
+  `planItemHTML()`'s twin and that builder is deleted, so the four columns
+  holding nothing but plans are components; Backlog and To do hold queue rows,
+  which go through `Card` directly. Two small things came with it and both are
+  general. `Card` grew an `attrs` prop, because a card the board wires against
+  carries `draggable` and its data attributes, and a pre-spelled attribute
+  string would be a hole rather than a shape. And its rows take either nodes or
+  `{__html}`, on the row's own div, because two of them are the board's own
+  output — the task's score chips and a summary through `mdInline()` — and
+  wrapping either in a span to carry it would put an element in the markup
+  `cardShellHTML()` does not emit.
+
+  One bug this found rather than introduced: the two plans-only columns refused
+  a task by wrapping the drop handlers `wireColumnDrop()` had just assigned.
+  That worked while every render built fresh nodes. React reuses them, so the
+  wrapper would have wrapped the last paint's wrapper and the nesting would
+  never have stopped — `wireColumnDrop()` takes the refusal as an argument now
+  and assigns once.
+
+  `planItemHTML()` going means `test_primitives.mjs` has nothing left to
+  compare `PlanCard` against, so its three new cases render the card against
+  `cardShellHTML()` given the rows a plan carries, written out longhand. That
+  is the pattern for every builder that gets replaced outright rather than
+  paired: pin the shape, not a second implementation. 37 cases now, and all 123
+  in `test_plans.mjs` still pass.
+
+  What is left on this view is the wiring, not the markup. The board still
+  finds its own nodes by `[data-plan-open]`, `[data-plan-goto]` and
+  `[draggable]` after every paint, which is what keeps `mountSync()` alive.
+  `PlanCard` taking `onOpen` and `onDragStart` as props is the change that
+  retires both.
+
+  Still the next real choice, unchanged by any of this: `12-reports.js`, or the
+  `18-timeline.js` composition.
 
   **One piece did not depend on any of the above, and it is done, 13 Sep
   2026** — though most of it turned out to be done already, which this entry

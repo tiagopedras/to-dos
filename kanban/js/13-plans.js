@@ -199,78 +199,6 @@ function planGeneratedLabel(p){
   return iso ? backupWhen(iso) : (p.night || '');
 }
 
-/* The two rows under the title. The task's name is the long thing here — long
-   enough to take a line on its own at this column width, and long enough that
-   letting it wrap in among everything else pushed the row to three ragged
-   lines. So it gets its own line, and everything else gets one: the scores and
-   then where the card sits, on a single line above it.
-
-   It used to be one run of text with the scores bolted on the front and the
-   link on the end, which put the two things worth scanning — a 🔥/S, and the
-   name of the card — at opposite ends of a line whose middle was a bucket he
-   had already filtered to.
-
-   The link carries the task's own title rather than the words "open the card",
-   which is what makes it worth reading rather than only worth clicking. It is
-   the task's title and not the plan's: the two are written the same today, so
-   most rows say it twice, but a task renamed since the night it was planned is
-   exactly the case where the row has to say which card it actually opens. */
-function planItemHTML(p){
-  /* One canonical field across every stream: an unattended agent must not act
-     on this. It was `outcome: folded` here and `needs_you` in the improvements
-     backlog, which were two names for one fact. */
-  const folded = !!p.needs_you;
-  const cls = 'repitem planitem' + planClass(p) + (folded ? ' folded' : '');
-  // The plan's own task, if the underlying card can still be found by slug or
-  // title — see findTaskByKey in 02-state.js. Not every plan resolves: the
-  // task might since have been renamed or deleted, so the link falls back to
-  // the name the plan itself stored, and goToPlanTask says so on the click.
-  const key = planTaskKey(p);
-  const task = planTask(p);
-  const goto = key
-    ? '<button class="plangoto" data-plan-goto="' + esc(key) +
-      '" title="Open this task on the board">' + esc(task ? task.title : key) + ' \u2197</button>'
-    : '';
-  const where = [p.bucket, p.column, planGeneratedLabel(p)].filter(Boolean).map(esc).join(' \u00b7 ');
-  const stripe = planStripe(p);
-  // Only on a card whose plan he has accepted; "" everywhere else.
-  const prod = productionWord(p);
-  /* The state the plan is in, as the card's eyebrow. It sat at the right-hand
-     end of the title row until 12 Sep 2026, which put the one word saying what
-     to do about the card furthest from where reading starts — and left the
-     eyebrow slot, where a task card says which bucket it is in, empty on every
-     plan. The eyebrow takes --bc, so the word and the stripe are the same
-     colour and say the same thing once. */
-  return cardShellHTML({
-    cls: cls + (stripe ? '' : ' nostripe'),
-    attrs: 'draggable="true" data-plan="' + esc(p.url) + '" data-plan-open="' + esc(p.url) + '"',
-    stripe: stripe,
-    eyebrow: '<span class="bucket">' + esc(planWord(p)) + '</span>' +
-      ((folded || prod) ? '<span class="right">' +
-        (prod ? '<span class="planprod planprod-' + esc(p.production || 'none') + '" ' +
-          'title="How far the implementing agent has got with this one">' + esc(prod) + '</span>' : '') +
-        (folded ? '<span class="planfold" ' +
-          'title="The agent stopped and asked rather than guessing">needs you</span>' : '') +
-        '</span>' : ''),
-    title: esc(p.title),
-    /* The task's own impact and effort. The Figma instances carry no tag row on
-       a plan, which is content rather than a rule — confirmed 12 Sep 2026, so
-       do not take it out to match them. The scores are read live off the task
-       every render rather than copied into the plan, which makes them the one
-       thing on the row that cannot go stale, and they are what the column is
-       ordered by. */
-    tags: planScoreHTML(task),
-    meta: (where ? '<span class="planwhere">' + where + '</span>' : '') + goto,
-    summary: p.summary ? mdInline(p.summary) : '',
-    /* On a rejected plan the reason is worth more than the summary: it is what
-       he told the agent, and it is what tonight's run will be working from.
-       Shown wherever it exists rather than only while the plan is still out
-       with the agent: once a replacement has landed the old plan is finished,
-       and the reason is the thing worth keeping about it. */
-    extra: p.feedback
-      ? '<div class="planredo"><b>Sent back:</b> ' + esc(p.feedback) + '</div>' : ''
-  });
-}
 
 /* Opening one marks it read, on the grounds that having it open is what being
    read means. Actioned stays a deliberate press, because that is a claim about
@@ -670,6 +598,7 @@ function colFilterHTML(id, shown, filters, current){
    container, so the two chip rows never see each other's clicks despite
    sharing the attribute name. */
 function wirePlanColumn(out, setFilter){
+  if (!out) return;
   /* The filter lives in the column's head now, which is a sibling of the body
      each renderer writes into rather than part of it — so this reaches up to
      the column and back down, and every other control stays scoped to `out`.
@@ -698,8 +627,10 @@ function wirePlanColumn(out, setFilter){
   wirePlanDrags(out);
 }
 
-/* A move can land a card in any of the six, so all six are redrawn together
-   rather than each render guessing which two were touched. */
+/* A move can land a card in any of the six, so all six are worked out together
+   rather than each render guessing which two were touched. None of them paints
+   on its own any more — each writes into plansProps and the paint happens once
+   at the end, which is what stops six renders and six re-wirings per move. */
 function renderPlansList(){
   renderPlanReview();
   renderPlanProduced();
@@ -707,7 +638,53 @@ function renderPlansList(){
   renderPlanDoing();
   renderQueueList();
   renderBacklogList();
+  paintPlans();
 }
+
+/* One plan, as the component that draws it. Everything the card shows is
+   decided here rather than inside PlanCard — which class it takes, which colour
+   its stripe is, which word its eyebrow carries, whether the task it is about
+   can still be found on the board — for the same reason Projects hands
+   ProjectsView its sort and its dates. The component stays pure, and a plan
+   goes on being read in one place.
+
+   Keyed by the plan's own file, which is its identity everywhere on this view,
+   so React moves a card between columns rather than rebuilding it. */
+function planCardNode(p){
+  const task = planTask(p);
+  const key = planTaskKey(p);
+  return BoardUI.h(BoardUI.PlanCard, {
+    key: p.url,
+    url: p.url,
+    title: p.title,
+    variant: planClass(p),
+    stripe: planStripe(p),
+    word: planWord(p),
+    production: productionWord(p),
+    productionKind: p.production || 'none',
+    /* One canonical field across every stream: an unattended agent must not act
+       on this. It was `outcome: folded` here and `needs_you` in the improvements
+       backlog, which were two names for one fact. */
+    needsYou: !!p.needs_you,
+    /* Not every plan resolves: the task might since have been renamed or
+       deleted, so the link falls back to the name the plan itself stored, and
+       goToPlanTask says so on the click. */
+    gotoKey: key,
+    gotoLabel: task ? task.title : key,
+    where: [p.bucket, p.column, planGeneratedLabel(p)],
+    /* The task's own impact and effort, read live off the task every render
+       rather than copied into the plan — the one thing on the row that cannot
+       go stale, and what the column is ordered by. */
+    scoresHTML: planScoreHTML(task),
+    summaryHTML: p.summary ? mdInline(p.summary) : '',
+    /* On a rejected plan the reason is worth more than the summary: it is what
+       he told the agent, and it is what tonight's run will be working from. */
+    feedback: p.feedback || ''
+  });
+}
+
+const planCardNodes = list => list.map(planCardNode);
+const emptyNode = msg => BoardUI.h(BoardUI.ColumnEmpty, { boxed: true }, msg);
 
 /* Waiting for review. Flat, because every row in it asks the same thing, and
    the chips are the only split it needs — ordered by the priority of the task
@@ -716,20 +693,16 @@ function renderPlansList(){
    The one column with no drop zone. A plan arrives here because the agent put
    it here, and the three ways out are the three other columns. */
 function renderPlanReview(){
-  const out = $('#plansOut');
-  if (!out) return;
   const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.review));
   const active = REVIEW_FILTERS.find(f => f.key === reviewFilter);
   if (active && !all.some(active.match)) reviewFilter = 'all';
   const shown = reviewFilter === 'all'
     ? all
     : all.filter(REVIEW_FILTERS.find(f => f.key === reviewFilter).match);
-  const slot = $('#reviewFilterSlot');
-  if (slot) slot.innerHTML = colFilterHTML('review', all, REVIEW_FILTERS, reviewFilter);
-  out.innerHTML = shown.length
-    ? shown.map(planItemHTML).join('')
-    : colEmptyHTML('Nothing waiting to be read. Everything written has been ruled on.', 'boxed');
-  wirePlanColumn(out, k => { reviewFilter = k; });
+  plansProps.reviewFilterHTML = colFilterHTML('review', all, REVIEW_FILTERS, reviewFilter);
+  plansProps.review = shown.length
+    ? planCardNodes(shown)
+    : emptyNode('Nothing waiting to be read. Everything written has been ruled on.');
 }
 
 /* Doing. The written half of the column: a plan the runner has picked up and
@@ -741,22 +714,18 @@ function renderPlanReview(){
 
    No filter and no drop zone: which one is running is not his to choose. */
 function renderPlanDoing(){
-  const out = $('#plansDoing');
-  if (!out) return;
   const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.doing));
-  out.innerHTML = shown.length ? shown.map(planItemHTML).join('') : '';
-  setColCount('#doingCol', shown.length);
+  plansProps.doingPlans = shown.length ? planCardNodes(shown) : null;
+  plansProps.doingCount = shown.length;
   /* A card arriving here answers the column, so the "nothing running" word
      goes; a run that is live has already put its own card above, and that
      case is renderQueueDoingHead's. */
-  const empty = $('#doingEmpty');
-  if (empty && shown.length) empty.innerHTML = '';
-  wirePlanColumn(out, () => {});
+  if (shown.length) plansProps.doingEmptyHTML = '';
 }
 
 /* Ready to be produced. He has accepted the plan as written, which is where
-   this board's half ends: an accepted plan is what feeds the execution board's
-   Backlog, and the planning agent stops re-planning the task from here.
+   this board's half ends: an accepted plan is what feeds the implementing
+   agent, and the planning agent stops re-planning the task from here.
 
    Flat, and no fold. It held three groups behind one `<details>` while it was
    still called Done, because it was holding two different questions — work
@@ -768,36 +737,17 @@ function renderPlanDoing(){
 
    The one column that takes plans and nothing else: there is nothing to accept
    about a task nobody has planned, so a task dropped here is refused with a
-   word rather than silently ignored. */
+   word rather than silently ignored — see the `deny` argument in
+   wirePlansView(). */
 function renderPlanProduced(){
-  const out = $('#plansProduced');
-  if (!out) return;
   const shown = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced));
-  out.innerHTML = shown.length
-    ? '<p class="help">Start a session and run <code>/pa-do</code>.</p>' +
-      shown.map(planItemHTML).join('')
-    : colEmptyHTML('Nothing accepted yet. A plan you accept lands here, and from ' +
-                   'it is waiting to be produced.', 'boxed');
-  setColCount('#producedCol', shown.length);
-  wirePlanColumn(out, () => {});
-  wireColumnDrop(out, d => {
-    const p = draggedPlan(d);
-    if (p) acceptPlan(p);
-  }, d => d.kind === 'plan');
-  out.ondragover = (orig => e => {
-    if (drag && drag.kind === 'task') { e.preventDefault(); out.classList.add('coldeny'); return; }
-    orig(e);
-  })(out.ondragover);
-  out.ondrop = (orig => e => {
-    out.classList.remove('coldeny');
-    if (drag && drag.kind === 'task') {
-      e.preventDefault();
-      drag = null;
-      showToast('Nothing has been planned for that yet, so there is nothing to accept.', 'bad');
-      return;
-    }
-    orig(e);
-  })(out.ondrop);
+  plansProps.produced = shown.length
+    ? [BoardUI.h('p', { className: 'help', key: 'how' },
+        'Start a session and run ', BoardUI.h('code', null, '/pa-do'), '.')]
+        .concat(planCardNodes(shown))
+    : emptyNode('Nothing accepted yet. A plan you accept lands here, and from ' +
+                'it is waiting to be produced.');
+  plansProps.producedCount = shown.length;
 }
 
 /* Done. The work a plan describes has finished, which is the last thing that
@@ -809,38 +759,14 @@ function renderPlanProduced(){
    dragged across rather than only closed from inside the modal. Plans only, for
    the same reason the column before it is plans only. */
 function renderPlanDone(){
-  const out = $('#plansDone');
-  if (!out) return;
   const all = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.done));
   const active = DONE_FILTERS.find(f => f.key === doneFilter);
   if (active && !all.some(active.match)) doneFilter = 'all';
   const shown = doneFilter === 'all'
     ? all
     : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
-  const slot = $('#doneFilterSlot');
-  if (slot) slot.innerHTML = colFilterHTML('done', all, DONE_FILTERS, doneFilter);
-  out.innerHTML = shown.length
-    ? shown.map(planItemHTML).join('')
-    : colEmptyHTML('Nothing finished yet.', 'boxed');
-  wirePlanColumn(out, k => { doneFilter = k; });
-  wireColumnDrop(out, d => {
-    const p = draggedPlan(d);
-    if (p) finishPlan(p);
-  }, d => d.kind === 'plan');
-  out.ondragover = (orig => e => {
-    if (drag && drag.kind === 'task') { e.preventDefault(); out.classList.add('coldeny'); return; }
-    orig(e);
-  })(out.ondragover);
-  out.ondrop = (orig => e => {
-    out.classList.remove('coldeny');
-    if (drag && drag.kind === 'task') {
-      e.preventDefault();
-      drag = null;
-      showToast('Nothing has been planned for that yet, so there is nothing to finish.', 'bad');
-      return;
-    }
-    orig(e);
-  })(out.ondrop);
+  plansProps.doneFilterHTML = colFilterHTML('done', all, DONE_FILTERS, doneFilter);
+  plansProps.done = shown.length ? planCardNodes(shown) : emptyNode('Nothing finished yet.');
 }
 
 /* -------------------------------------------------------------------------
@@ -883,54 +809,58 @@ let drag = null;         // { kind:'task'|'plan', title, from } | { kind:'plan',
 /* The same "open the card ↗" link a plan's own meta line carries — see
    goToPlanTask. A queue or Backlog row is the board's own task, not a plan
    written about it, so it needs the same way back rather than a copy of it. */
-function gotoButtonHTML(r){
+function gotoButtonNode(r, label){
   const key = r.slug || r.title || '';
-  return key ? '<button class="plangoto" data-plan-goto="' + esc(key) +
-    '" title="Open this task on the board">open the card ↗</button>' : '';
+  return key
+    ? BoardUI.h('button', { className: 'plangoto', 'data-plan-goto': key,
+        title: 'Open this task on the board', key: 'goto' }, label || 'open the card ↗')
+    : null;
 }
 
-function queueRowHTML(r){
-  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' \u00b7 ');
-  const goto = gotoButtonHTML(r);
-  return cardShellHTML({
+/* Bucket, column, agent and the way back to the card, on one line. The
+   separator is written here rather than folded into the strings so an absent
+   field leaves no stray dot behind it. */
+function rowMetaNode(r){
+  const where = [r.bucket, r.column, r.agent].filter(Boolean).join(' · ');
+  const goto = gotoButtonNode(r);
+  if (!where) return goto;
+  return BoardUI.h(BoardUI.Fragment, null, where, goto ? ' · ' : '', goto);
+}
+
+function queueRowNode(r){
+  return BoardUI.h(BoardUI.Card, {
+    key: 'q:' + r.title,
     cls: 'qitem nostripe',
-    attrs: 'draggable="true" data-qtitle="' + esc(r.title) + '"',
+    attrs: { draggable: true, 'data-qtitle': r.title },
     position: r.position,
-    title: esc(r.title),
-    action: '<button class="btn outline small qhold" data-qhold="' + esc(r.title) + '" ' +
-      'title="Hold it back from tonight">Hold</button>',
-    meta: meta + (goto ? (meta ? ' \u00b7 ' : '') + goto : ''),
-    extra: '<div class="qwhy">' + esc(r.why || '') +
-      (r.last ? ' \u00b7 last planned ' + esc(r.last) : '') + '</div>'
+    title: r.title,
+    action: BoardUI.h('button', { className: 'btn outline small qhold',
+      'data-qhold': r.title, title: 'Hold it back from tonight' }, 'Hold'),
+    meta: rowMetaNode(r),
+    extra: BoardUI.h('div', { className: 'qwhy' },
+      (r.why || '') + (r.last ? ' · last planned ' + r.last : ''))
   });
 }
 
 function renderQueueList(){
-  const out = $('#queueOut');
-  if (!out) return;
   const shown = plansShown(queueRows);
   /* Plans he has sent back sit in this column too, under the queue. The task
      itself is already in the list above — is_stale() puts it straight back —
      so this is the written half rather than a second copy of the work: what
      was wrong with the last attempt, which is what tonight is working from. */
   const back = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.todo));
-  out.innerHTML = (shown.length
-    ? shown.map(queueRowHTML).join('')
-    : '<div class="empty">Nothing to plan tonight. Everything eligible has a ' +
-      'plan already, and none of them have changed since.</div>') +
-    (back.length
-      ? '<h4 class="fhead">Going back for another night</h4>' +
-        back.map(planItemHTML).join('')
-      : '');
+  const rows = shown.length
+    ? shown.map(queueRowNode)
+    : [BoardUI.h('div', { className: 'empty', key: 'none' },
+        'Nothing to plan tonight. Everything eligible has a plan already, and ' +
+        'none of them have changed since.')];
+  plansProps.queue = back.length
+    ? rows.concat([BoardUI.h('h4', { className: 'fhead', key: 'backhead' },
+        'Going back for another night')], planCardNodes(back))
+    : rows;
   // Tonight's queue plus the plans going back for another night — both are
   // things this column is holding for tonight.
-  setColCount('#queueDoingCard', shown.length + back.length);
-  wireQueue();
-  out.querySelectorAll('[data-plan-open]').forEach(btn => {
-    const p = planList.find(x => x.url === btn.dataset.planOpen);
-    btn.onclick = () => openPlanModal(p);
-  });
-  wireTodoColumn();
+  plansProps.queueCount = shown.length + back.length;
 }
 
 /* -------------------------------------------------------------------------
@@ -956,17 +886,41 @@ function renderQueueList(){
    ------------------------------------------------------------------------- */
 
 /* Every column but Waiting for review takes drops. Wired once per render, on
-   the container rather than on its rows, so an empty column is still a target. */
-function wireColumnDrop(el, onDrop, canTake){
+   the container rather than on its rows, so an empty column is still a target.
+
+   `deny` is what a column says to a card it will not take. The two plans-only
+   columns refuse a task with a word rather than ignoring it, and that used to
+   be written by wrapping the two handlers this function had just assigned.
+   That worked while every render built fresh nodes; React reuses them, so a
+   wrapper would wrap last paint's wrapper and the nesting would never stop.
+   One assignment, both answers in it. */
+function wireColumnDrop(el, onDrop, canTake, deny){
   if (!el) return;
+  const refused = () => canTake && !canTake(drag);
   el.ondragover = e => {
-    if (!drag || (canTake && !canTake(drag))) return;
+    if (!drag) return;
+    if (refused()) {
+      if (!deny) return;
+      e.preventDefault();
+      el.classList.add('coldeny');
+      return;
+    }
     e.preventDefault();
     el.classList.add('coldrop');
   };
-  el.ondragleave = e => { if (e.target === el) el.classList.remove('coldrop'); };
+  el.ondragleave = e => {
+    if (e.target === el) el.classList.remove('coldrop', 'coldeny');
+  };
   el.ondrop = e => {
-    if (!drag || (canTake && !canTake(drag))) return;
+    el.classList.remove('coldeny');
+    if (!drag) return;
+    if (refused()) {
+      if (!deny) return;
+      e.preventDefault();
+      drag = null;
+      showToast(deny, 'bad');
+      return;
+    }
     e.preventDefault();
     el.classList.remove('coldrop');
     const d = drag;
@@ -998,6 +952,13 @@ function wireQueue(){
   });
   out.querySelectorAll('[data-plan-goto]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
+  });
+  /* The plans going back for another night sit under the queue in this column,
+     so opening one is wired here rather than in wirePlanColumn — which is the
+     four columns that hold nothing else. */
+  out.querySelectorAll('[data-plan-open]').forEach(btn => {
+    const p = planList.find(x => x.url === btn.dataset.planOpen);
+    btn.onclick = () => openPlanModal(p);
   });
 
   /* The same reorder gesture the sub-steps in the drawer use: drop above or
@@ -1075,6 +1036,7 @@ function dropOnQueue(toIndex){
   queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
   renderBacklogList();
+  paintPlans();
   saveQueueOrder(true);
 }
 
@@ -1097,6 +1059,7 @@ function holdTask(title){
   queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
   renderBacklogList();
+  paintPlans();
   saveQueueOrder(false);
 }
 
@@ -1111,6 +1074,7 @@ function releaseHeld(title){
   queueRows.forEach((r, i) => { r.position = i + 1; });
   renderQueueList();
   renderBacklogList();
+  paintPlans();
   saveQueueOrder(false);
 }
 
@@ -1127,83 +1091,53 @@ function releaseHeld(title){
    files were deliberately never given a say over what the queue contains.
    ------------------------------------------------------------------------- */
 
-function heldRowHTML(r){
-  const meta = [r.bucket, r.column, r.agent].filter(Boolean).map(esc).join(' \u00b7 ');
-  const goto = gotoButtonHTML(r);
-  return cardShellHTML({
+function heldRowNode(r){
+  return BoardUI.h(BoardUI.Card, {
+    key: 'h:' + r.title,
     cls: 'qitem held nostripe',
-    attrs: 'draggable="true" data-qtitle="' + esc(r.title) + '"',
-    position: '\u2014',
-    title: esc(r.title),
-    action: '<button class="btn outline small qhold" data-qrelease="' + esc(r.title) + '" ' +
-      'title="Put it back in the queue">Release</button>',
-    meta: meta + (goto ? (meta ? ' \u00b7 ' : '') + goto : ''),
-    extra: '<div class="qwhy">' + esc(r.why || '') + '</div>'
+    attrs: { draggable: true, 'data-qtitle': r.title },
+    position: '—',
+    title: r.title,
+    action: BoardUI.h('button', { className: 'btn outline small qhold',
+      'data-qrelease': r.title, title: 'Put it back in the queue' }, 'Release'),
+    meta: rowMetaNode(r),
+    extra: BoardUI.h('div', { className: 'qwhy' }, r.why || '')
   });
 }
 
 function renderBacklogList(){
-  const out = $('#backlogOut');
-  if (!out) return;
   const held = plansShown(queueHeld);
   const skipped = plansShown(queueSkipped);
   const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
-  out.innerHTML =
-    (held.length
-      ? '<p class="help listlead">Drag into To do to plan it tonight.</p>' +
-        held.map(heldRowHTML).join('')
-      : '') +
-    /* A parked plan is the written half of the same instruction: the task is
-       held, and this is what the agent had already worked out about it. Kept
-       openable rather than filed away, since taking it out of Backlog later is
-       a decision better made having read it. */
-    (parked.length
-      ? '<h4 class="fhead">Plans parked here</h4>' + parked.map(planItemHTML).join('')
-      : '') +
-    (skipped.length
-      ? '<details class="ufold"><summary>Not eligible (' + skipped.length + ')</summary>' +
-        skipped.map(r =>
-          '<div class="qskip"><span>' + esc(r.title) + '</span>' + gotoButtonHTML(r) +
-          '<em>' + esc(r.why) + '</em></div>'
-        ).join('') + '</details>'
-      : '') +
-    (!held.length && !parked.length && !skipped.length
-      ? '<div class="empty">Nothing held back, and nothing excluded right now.</div>'
-      : '');
+  let body = [];
+  if (held.length) {
+    body.push(BoardUI.h('p', { className: 'help listlead', key: 'lead' },
+      'Drag into To do to plan it tonight.'));
+    body = body.concat(held.map(heldRowNode));
+  }
+  /* A parked plan is the written half of the same instruction: the task is
+     held, and this is what the agent had already worked out about it. Kept
+     openable rather than filed away, since taking it out of Backlog later is
+     a decision better made having read it. */
+  if (parked.length) {
+    body.push(BoardUI.h('h4', { className: 'fhead', key: 'parkedhead' }, 'Plans parked here'));
+    body = body.concat(planCardNodes(parked));
+  }
+  if (skipped.length) {
+    body.push(BoardUI.h('details', { className: 'ufold', key: 'skipped' },
+      BoardUI.h('summary', null, 'Not eligible (' + skipped.length + ')'),
+      skipped.map(r => BoardUI.h('div', { className: 'qskip', key: 's:' + r.title },
+        BoardUI.h('span', null, r.title),
+        gotoButtonNode(r),
+        BoardUI.h('em', null, r.why)))));
+  }
+  if (!body.length) {
+    body = [BoardUI.h('div', { className: 'empty', key: 'none' },
+      'Nothing held back, and nothing excluded right now.')];
+  }
+  plansProps.backlog = body;
   // Everything the column is holding, in all three of its groups.
-  setColCount('#backlogCol', held.length + parked.length + skipped.length);
-  const wrap = out;
-  wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
-  });
-  wrap.querySelectorAll('[data-plan-goto]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
-  });
-  wrap.querySelectorAll('[data-plan-open]').forEach(btn => {
-    const p = planList.find(x => x.url === btn.dataset.planOpen);
-    btn.onclick = () => openPlanModal(p);
-  });
-  wirePlanDrags(wrap);
-  wrap.querySelectorAll('.qitem.held').forEach(row => {
-    row.ondragstart = e => {
-      drag = { kind:'task', title: row.dataset.qtitle, from: 'held' };
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
-      row.classList.add('dragging');
-    };
-    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
-  });
-
-  // Dropping a card from the queue anywhere on this column holds it back —
-  // the drag equivalent of pressing Hold. There is nothing to position it
-  // against, since a held card has no rank, so the whole column is the target
-  // rather than any one row within it. A plan dropped here is parked, and its
-  // task held with it.
-  wireColumnDrop(wrap, d => {
-    if (d.kind === 'task') { if (d.from === 'queue') holdTask(d.title); return; }
-    const p = draggedPlan(d);
-    if (p) parkPlan(p);
-  }, d => d.kind === 'plan' || d.from === 'queue');
+  plansProps.backlogCount = held.length + parked.length + skipped.length;
 }
 
 /* `ranked` says whether this save is him ordering the queue, and only a drag
@@ -1241,22 +1175,28 @@ async function saveQueueOrder(ranked){
 }
 
 async function renderQueue(){
-  const out = $('#queueOut');
-  const back = $('#backlogOut');
-  if (!out) return;
+  if (!$('#queueOut')) return;
+  const say = (queueNode, backNode) => {
+    plansProps.queue = queueNode;
+    plansProps.backlog = backNode;
+    paintPlans();
+  };
+  const errNode = msg => BoardUI.h('div', { className: 'err' }, msg);
   try {
     const res = await fetch('/queue.json?t=' + Date.now(), { cache:'no-store' });
     if (res.status === 404) {
-      out.innerHTML = '<div class="empty">No planning agent in this checkout, so there is ' +
-        'nothing queued and nothing to order.</div>';
-      if (back) back.innerHTML = '<div class="empty">Same here — nothing to hold back.</div>';
+      say(BoardUI.h('div', { className: 'empty' },
+            'No planning agent in this checkout, so there is nothing queued and ' +
+            'nothing to order.'),
+          BoardUI.h('div', { className: 'empty' }, 'Same here \u2014 nothing to hold back.'));
       return;
     }
     if (!res.ok) {
-      const msg = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
-        'It is running, but it is an older copy that does not know about the queue yet.</div>';
-      out.innerHTML = msg;
-      if (back) back.innerHTML = msg;
+      const stale = BoardUI.h('div', { className: 'err' },
+        BoardUI.h('strong', null, 'The board helper needs restarting.'),
+        BoardUI.h('br'),
+        'It is running, but it is an older copy that does not know about the queue yet.');
+      say(stale, stale);
       return;
     }
     const q = await res.json();
@@ -1267,12 +1207,10 @@ async function renderQueue(){
     queueHoldTitles = q.hold || [];
     renderQueueList();
     renderBacklogList();
-    wireTodoColumn();
+    paintPlans();
   } catch (err) {
-    const msg = '<div class="err">Could not read the queue. ' +
-      esc(String(err.message || err)) + '</div>';
-    out.innerHTML = msg;
-    if (back) back.innerHTML = msg;
+    const msg = 'Could not read the queue. ' + String(err.message || err);
+    say(errNode(msg), errNode(msg));
   }
 }
 
@@ -1319,62 +1257,43 @@ function renderQueueDoingHead(live, orphan){
      because the queue and the run in flight shared one card. They are two
      columns since 12 Sep 2026, so both keep their own name and their own
      sentence, and this is left with the two things that actually depend on
-     whether a run is live: the button, and which of the two bodies is drawn. */
-  const btn = $('#runQueueBtn');
-  // Only when nothing is going. run.sh holds a lock and would refuse a
-  // second batch anyway, but it refuses by logging and exiting cleanly,
-  // which from a button looks exactly like starting — so the button is not
-  // offered rather than offered and quietly ignored.
-  if (btn) btn.classList.toggle('hidden', live);
-  /* The queue stays drawn while a run is going. It was hidden behind the live
-     card when the two shared a column and only one could show; in its own
-     column it is still the answer to "what happens after this one", which is
-     a question a live run makes more interesting rather than less. */
-  const doingOut = $('#doingOut');
-  if (doingOut) doingOut.classList.toggle('hidden', !live);
+     whether a run is live: the button, and which of the two bodies is drawn.
+     Both are one prop now rather than two classList toggles \u2014 a toggle
+     against a node React owns is undone by the next paint without saying so. */
+  plansProps.runLive = !!live;
   /* Nothing running is the normal state of this column, and an empty column
      with no word in it reads as one that failed to load. Said here rather than
      in renderPlanDoing(), which knows what is in the plan folder but not
-     whether the runner is going — and "nothing is running" is the answer that
-     needs both. */
-  const doingEmpty = $('#doingEmpty');
-  if (doingEmpty) {
-    const parked = $('#plansDoing');
-    doingEmpty.innerHTML = (live || (parked && parked.children.length))
-      ? ''
-      : colEmptyHTML('Nothing running. The planning agent starts at its scheduled ' +
-                     'hour, or from Run now.', 'boxed');
-  }
-  const orphanOut = $('#qdOrphan');
-  if (!orphanOut) return;
-  if (!live && orphan) {
-    orphanOut.classList.remove('hidden');
-    orphanOut.innerHTML = '<div class="err">The last run stopped part way through <strong>' +
+     whether the runner is going \u2014 and "nothing is running" is the answer
+     that needs both. Read off the props rather than off the DOM, since the
+     plans half of the column is a list this file built. */
+  const parked = plansProps.doingPlans;
+  plansProps.doingEmptyHTML = (live || (parked && parked.length))
+    ? ''
+    : colEmptyHTML('Nothing running. The planning agent starts at its scheduled ' +
+                   'hour, or from Run now.', 'boxed');
+  plansProps.orphanHTML = (!live && orphan)
+    ? '<div class="err">The last run stopped part way through <strong>' +
       esc(orphan.title) + '</strong> and never finished. Its lock is gone, so nothing is ' +
-      'running now.</div>';
-  } else {
-    orphanOut.classList.add('hidden');
-    orphanOut.innerHTML = '';
-  }
+      'running now.</div>'
+    : '';
 }
 
 /* Only ever drawn while #doingOut is actually showing — see
    renderQueueDoingHead — so there is no idle or orphan case to handle here;
    those are the queue's job now. */
 function renderDoing(n){
-  const out = $('#doingOut');
-  if (!out) return;
   const when = s => s ? esc(s.slice(11, 16)) : '';
   if (n.live && n.current) {
-    out.innerHTML = '<div class="fnow"><i class="fspin"></i>' +
+    plansProps.doingHTML = '<div class="fnow"><i class="fspin"></i>' +
       '<div><strong>' + esc(n.current.title) + '</strong>' +
-      '<div class="repmeta">' + esc(n.current.agent) + ' · started ' +
+      '<div class="repmeta">' + esc(n.current.agent) + ' \u00b7 started ' +
       when(n.current.since) + '</div></div></div>';
   } else if (n.live) {
-    out.innerHTML = '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
-      '<div class="repmeta">between tasks — nothing in flight this second</div></div></div>';
+    plansProps.doingHTML = '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
+      '<div class="repmeta">between tasks \u2014 nothing in flight this second</div></div></div>';
   } else {
-    out.innerHTML = '';
+    plansProps.doingHTML = '';
   }
 }
 
@@ -1383,8 +1302,6 @@ function renderDoing(n){
    is a record of the run, the same kind of fact "Latest run costs" is, not a
    description of what's happening or about to. */
 function renderDoneStats(n){
-  const out = $('#doneStatsOut');
-  if (!out) return;
   let html = '';
   if (n.started) {
     html += '<dl class="schedmeta"><dt>Run started</dt><dd>' +
@@ -1399,7 +1316,7 @@ function renderDoneStats(n){
     html += '<p class="help">The log has nothing since the last run started. ' +
       'A wake that found no window logs its reason and stops without starting one.</p>';
   }
-  out.innerHTML = html;
+  plansProps.doneStatsHTML = html;
 }
 
 /* What the last run actually cost — sits in Token Session rather than here,
@@ -1485,18 +1402,17 @@ async function renderNightAgent(){
     const n = await getJSON('/planning-agent.json');
     lastNightAgent = n;
     live = !!n.live;
-    const errBox = $('#nightAgentErr');
-    if (errBox) errBox.classList.add('hidden');
+    plansProps.queueErrorHTML = '';
     renderQueueDoingHead(live, n.orphan);
     renderDoing(n);
     renderDoneStats(n);
+    paintPlans();
+    /* Outside the paint: the run-results fold lives in a modal this view does
+       not own, and it is still drawn by id. */
     renderRunResults(n);
   } catch (err) {
-    const errBox = $('#nightAgentErr');
-    if (errBox) {
-      errBox.classList.remove('hidden');
-      errBox.textContent = 'Could not read the run log. ' + String(err.message || err);
-    }
+    plansProps.queueErrorHTML = esc('Could not read the run log. ' + String(err.message || err));
+    paintPlans();
   }
   flightTimer = setTimeout(() => {
     if (state.view === 'plans' && $('#queueDoingCard')) renderNightAgent();
@@ -1576,69 +1492,167 @@ function plansMountPoint(){
   return host;
 }
 
-/* Mounted once per visit to the view, and deliberately never re-rendered.
-   Everything below still fills the six bodies by assigning to the ids inside
-   them \u2014 $('#plansOut').innerHTML and its fifteen siblings \u2014 because four
-   independent fetches land at different times and each paints as it arrives
-   rather than the view waiting on the slowest. That is safe precisely while
-   this is the only render: React has no reason to put a stale body back if it
-   is never asked to render again.
+/* Every body on this view, in one object, and one function that paints it.
+   Nothing here assigns to an id inside the mounted tree any more: the sixteen
+   places that used to went at once, because half-and-half is the arrangement
+   that silently drops a column. A renderer works out its own slice, writes it
+   in here, and the paint happens once at the end of whatever asked for it.
 
-   So the bargain here is narrower than the one ReportsView makes, and it is
-   written down rather than assumed. The moment anything wants to re-render
-   this view, those assignments become props and this comment goes with them
-   \u2014 half and half is the one arrangement that would silently drop a column. */
-function mountPlansShell(){
+   Four of the columns hold nodes, and they are the four that hold nothing but
+   plans; the rest hold markup this file built, which is what the bodies filled
+   by the agent's own status and the usage reconstruction still are. Those land
+   at different times and each paints as it arrives rather than the view waiting
+   on the slowest, and that goes on working now because a paint redraws all of
+   it from one object rather than each fetch writing into its own corner. */
+const PLANS_BLANK = {
+  backlog: 'Loading…',
+  queueErrorHTML: '',
+  statusHTML: 'Loading…',
+  queue: 'Loading…',
+  orphanHTML: '',
+  doingHTML: '',
+  doingEmptyHTML: '',
+  doneStatsHTML: '',
+  doingPlans: null,
+  review: 'Loading…',
+  produced: 'Loading…',
+  done: 'Loading…',
+  backlogCount: '',
+  queueCount: '',
+  doingCount: '',
+  producedCount: '',
+  reviewFilterHTML: '',
+  doneFilterHTML: '',
+  runLive: false
+};
+let plansProps = Object.assign({}, PLANS_BLANK);
+
+/* mountSync rather than mount, and it is still load-bearing: the wiring below
+   queries for nodes this call has just made. React 18 renders when it gets
+   round to it, so without the flush every handler would be hung on the paint
+   before this one. It goes when the cards take their handlers as props, which
+   is a change to make once rather than per column. */
+function paintPlans(){
   const host = plansMountPoint();
   if (!host) return false;
-  BoardUI.mountSync(host, BoardUI.PlansView({
-    backlogHTML: 'Loading\u2026',
-    queueErrorHTML: '',
-    statusHTML: 'Loading\u2026',
-    queueHTML: 'Loading\u2026',
-    orphanHTML: '',
-    doingHTML: '',
-    plansDoingHTML: '',
-    doingEmptyHTML: '',
-    doneStatsHTML: '',
-    reviewHTML: 'Loading\u2026',
-    producedHTML: 'Loading\u2026',
-    doneHTML: 'Loading\u2026',
-    reviewFilterHTML: '',
-    doneFilterHTML: '',
+  BoardUI.mountSync(host, BoardUI.PlansView(Object.assign({}, plansProps, {
     onRunQueue: () => confirmNightAgentRun(),
     onOpenRefCards: () => openRefCards()
-  }));
+  })));
+  wirePlansView();
   return true;
 }
 
+/* Everything the view wires onto its own nodes, in one place, run after every
+   paint. It has to be after every paint rather than once: React keeps the
+   nodes it can but a handler set with `onclick` is not something it knows
+   about, so a body that has just been rebuilt has nothing on it. Assigning
+   rather than adding is what keeps that safe to repeat — there is no
+   listener here that could be stacked twice. */
+function wirePlansView(){
+  wirePlanColumn($('#plansOut'), k => { reviewFilter = k; });
+  wirePlanColumn($('#plansDoing'), () => {});
+  wirePlanColumn($('#plansProduced'), () => {});
+  wirePlanColumn($('#plansDone'), k => { doneFilter = k; });
+
+  /* Ready to be produced takes plans and nothing else: there is nothing to
+     accept about a task nobody has planned. */
+  wireColumnDrop($('#plansProduced'), d => {
+    const p = draggedPlan(d);
+    if (p) acceptPlan(p);
+  }, d => d.kind === 'plan',
+     'Nothing has been planned for that yet, so there is nothing to accept.');
+
+  /* Done takes them from the column before it, so a plan whose work has landed
+     can be dragged across rather than only closed from inside the modal. */
+  wireColumnDrop($('#plansDone'), d => {
+    const p = draggedPlan(d);
+    if (p) finishPlan(p);
+  }, d => d.kind === 'plan',
+     'Nothing has been planned for that yet, so there is nothing to finish.');
+
+  wireQueue();
+  wireTodoColumn();
+  wireBacklogColumn();
+}
+
+/* Backlog: the Release buttons, the drag off a held card, and the column's own
+   drop. Dropping a card from the queue anywhere on this column holds it back —
+   the drag equivalent of pressing Hold. There is nothing to position it
+   against, since a held card has no rank, so the whole column is the target
+   rather than any one row within it. A plan dropped here is parked, and its
+   task held with it. */
+function wireBacklogColumn(){
+  const wrap = $('#backlogOut');
+  if (!wrap) return;
+  wrap.querySelectorAll('[data-qrelease]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); releaseHeld(btn.dataset.qrelease); };
+  });
+  wrap.querySelectorAll('[data-plan-goto]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); goToPlanTask(btn.dataset.planGoto); };
+  });
+  wrap.querySelectorAll('[data-plan-open]').forEach(btn => {
+    const p = planList.find(x => x.url === btn.dataset.planOpen);
+    btn.onclick = () => openPlanModal(p);
+  });
+  wirePlanDrags(wrap);
+  wrap.querySelectorAll('.qitem.held').forEach(row => {
+    row.ondragstart = e => {
+      drag = { kind:'task', title: row.dataset.qtitle, from: 'held' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', row.dataset.qtitle);
+      row.classList.add('dragging');
+    };
+    row.ondragend = () => { drag = null; row.classList.remove('dragging'); };
+  });
+  wireColumnDrop(wrap, d => {
+    if (d.kind === 'task') { if (d.from === 'queue') holdTask(d.title); return; }
+    const p = draggedPlan(d);
+    if (p) parkPlan(p);
+  }, d => d.kind === 'plan' || d.from === 'queue');
+}
+
+/* The Status line on the To do card is drawn by renderStatus() in
+   14-schedule.js, which reads /usage.json — the only route that knows it, and
+   one call draws both that and the chart. It used to write into #statusOut
+   directly; it hands the markup over instead, since that node belongs to
+   React now. */
+function setPlansStatus(html){
+  plansProps.statusHTML = html;
+  paintPlans();
+}
+
 async function renderPlansView(){
-  if (!mountPlansShell()) return;
-  const out = $('#plansOut');
+  plansProps = Object.assign({}, PLANS_BLANK);
+  if (!paintPlans()) return;
+  const say = node => { plansProps.review = node; paintPlans(); };
   try {
     const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) {
-      out.innerHTML = '<div class="err"><strong>The board helper needs restarting.</strong><br>' +
-        'It is running, but it is an older copy that does not know about plans yet.</div>';
+      say(BoardUI.h('div', { className: 'err' },
+        BoardUI.h('strong', null, 'The board helper needs restarting.'),
+        BoardUI.h('br'),
+        'It is running, but it is an older copy that does not know about plans yet.'));
       return;
     }
     planList = (await res.json()).plans || [];
     if (!planList.length) {
-      out.innerHTML = '<div class="empty">Nothing yet. The planning agent writes into ' +
-        '<code>data/plans/</code>; the queue on the left is what it would pick up tonight.</div>';
+      plansProps.review = BoardUI.h('div', { className: 'empty' },
+        'Nothing yet. The planning agent writes into ',
+        BoardUI.h('code', null, 'data/plans/'),
+        '; the queue on the left is what it would pick up tonight.');
       /* Neither of the two columns past review has any reason to explain where
-         plans come from — the column beside them just did — so each only says
-         it is empty rather than sitting on "Loading…" forever. */
-      const prod = $('#plansProduced');
-      if (prod) prod.innerHTML = colEmptyHTML('Nothing accepted yet.', 'boxed');
-      const fin = $('#plansDone');
-      if (fin) fin.innerHTML = colEmptyHTML('Nothing finished yet.', 'boxed');
+         plans come from — the column beside them just did — so each
+         only says it is empty rather than sitting on "Loading…" forever. */
+      plansProps.produced = emptyNode('Nothing accepted yet.');
+      plansProps.done = emptyNode('Nothing finished yet.');
+      paintPlans();
     } else {
       renderPlansList();
     }
   } catch (err) {
-    out.innerHTML = '<div class="err">Could not read the plan list. ' +
-      esc(String(err.message || err)) + '</div>';
+    say(BoardUI.h('div', { className: 'err' },
+      'Could not read the plan list. ' + String(err.message || err)));
   }
   // The rest after the plans have painted: reconstructing a month of windows
   // is about a second, and nothing else should wait on it. renderUsage() runs
