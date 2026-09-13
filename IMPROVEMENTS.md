@@ -815,8 +815,31 @@ they settled is written up in the README rather than left here:
   directly on it, and it is a weekly-allowance-sized spend rather than an
   evening's.
 
-- **Three views are drawn by nothing that tests them, and the component port
-  wants to go through all three next.** `kanban/test_*.mjs` covers Plans,
+- ~~**Three views are drawn by nothing that tests them, and the component port
+  wants to go through all three next.**~~ **Done, 13 Sep 2026.**
+  `kanban/test_backups.mjs` covers Backups and the preview it opens — 36 checks
+  — and `kanban/test_matrix.mjs` covers the Matrix, 36 more. Both are in
+  CLAUDE.md's list.
+
+  Two things came out of writing them. The first draft of the preview suite
+  **passed with the lock guard removed from `saveFile()`**, which is the one
+  guard the whole read-only mode rests on: `saveFile()` returns early on
+  `!state.dirty` as well as on `state.locked`, so calling it against a clean
+  document proves nothing. Both write checks now dirty the document first, and
+  `autosaveTick()`'s rate gate is wound back too. Checked by mutation
+  afterwards: dropping the guard from `saveFile()` fails three checks and from
+  `setDone()` another — but dropping it from `autosaveTick()` fails nothing,
+  because that function calls `saveFile()` and the guard there still holds. It
+  is defence in depth rather than the thing doing the work, which is worth
+  knowing before anyone tidies it away.
+
+  The second is smaller and catches every fixture-based suite: the board mints a
+  stable `id:` for any task without one at load time and marks the document
+  dirty so the ids get written back. On a fixture that means the tab tries to
+  save a file the suite invented. Every task in both new suites carries an
+  explicit `id:`, which leaves nothing to mint.
+
+  What the entry originally argued: `kanban/test_*.mjs` covers Plans,
   Execution, Schedule, Chats, Projects and Notes. It does not cover
   `kanban/js/15-backups.js` (129 lines), `16-backup-preview.js` (107) or
   `17-matrix.js` (293), and those are exactly the next three in the order the
