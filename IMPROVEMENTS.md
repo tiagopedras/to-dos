@@ -1697,8 +1697,9 @@ they settled is written up in the README rather than left here:
   `harvest()` spawns an actual Claude Code session in a pty, which is not
   something a test suite should do unattended either.
 
-- **The board can start a conversation about a task but not about the list, so
-  every PA sitting means leaving it for a terminal.** `newChat()`
+- ~~**The board can start a conversation about a task but not about the
+  list, so every PA sitting means leaving it for a terminal.**~~ **Done,
+  14 Sep 2026 — by a different route than the one decided below.** `newChat()`
   (`kanban/js/10-reference-sections.js:1048`) mints an owner key on a task and
   hands it to `chat.openNew()`, and `Runner.run()`
   (`PACKAGES/ai_chat_engine/engine.py:472`) shells `claude -p <prompt>` in the
@@ -1715,6 +1716,46 @@ they settled is written up in the README rather than left here:
   re-prioritisation, the open-ended kind of turn a panel actually suits.
   `pa-checkin`, `pa-checkout`, `pa-focus` and the rest stay terminal-only
   sittings.
+
+  **Reopened and rebuilt, 14 Sep 2026: a real Claude window rather than the
+  embedded `claude -p` chat.** He asked for a real window once this reached
+  the top of the list, on the reasoning that a sitting about the whole file
+  is better served by something he can keep typing into than one round trip
+  at a time through the modal every task's own New chat opens. So the panel
+  this entry originally called for was never built — `open_terminal_session()`
+  (`kanban/server.py`) opens a genuine `Terminal.app` window instead, via
+  AppleScript's `do script`, running an interactive `claude "/pa"` in the
+  repo's own root (always trusted, so no "Is this a project you trust?"
+  prompt gets in the way). The lock half of the decision above still holds
+  exactly as reasoned — a real session's writes to `todo.md` would otherwise
+  race this tab's autosave the same way an embedded chat's would — so
+  `openListChat()` (`kanban/js/16-backup-preview.js`) sets `state.locked`
+  and reuses Backup Preview's own bar rather than inventing a second one:
+  `updateLockUI()` gained a `state.lockKind` (`''`/`'backup'` and `'demo'`
+  read as before, `'chat'` new) so the same `#lockBar`/`#exitLock` draws
+  "Conversation open" and "Done — reload the list" instead. The whole
+  arrangement is reachable from **Data ▾ → Talk about the list**, refuses
+  outright on unsaved edits first (same reason `loadBackupPreview()` does —
+  the exit path always re-reads `todo.md` fresh, which would otherwise
+  discard them), and the resulting session writes an ordinary transcript
+  under `~/.claude/projects/`, so it is findable afterwards through the same
+  "Attach a session…" path any other one is.
+
+  **One thing this could not verify from inside an agent's own sandboxed
+  tool calls: whether `do script` actually reaches Terminal.app on this
+  machine.** Driving Terminal by AppleScript needs a one-time interactive
+  Automation permission grant, and every attempt made while building this —
+  both through the new route and a bare `do script "echo …"` run directly —
+  timed out with `AppleEvent timed out (-1712)` rather than opening anything
+  useful, which reads as exactly that permission never having been granted to
+  whatever process chain a sandboxed tool call runs under. The code itself
+  is unchanged by that; `kanban/test_backups.mjs` covers the lock half in
+  full (the fetch a real click would make is stubbed there, same as every
+  other write in that suite) precisely because the Terminal half cannot be
+  driven headlessly. **Untested by hand: press the button from the actual
+  board.** The first click may show the macOS "Terminal wants to control
+  Terminal" (or similar) permission dialog — allow it once and it should not
+  ask again.
 
 - ~~**The companion is a menu, and a menu is why the plans half had to come
   back out of it.**~~ **Done, 10 Sep 2026.** Rebuilt as an Electron app —

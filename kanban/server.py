@@ -27,6 +27,7 @@ import json
 import mimetypes
 import os
 import re
+import shlex
 import subprocess
 import shutil
 import sys
@@ -1164,6 +1165,38 @@ _DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
 _FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
 
 
+def _applescript_string(s):
+    """A Python string as an AppleScript string literal — escape backslash
+    first, or a `"` escaped afterwards would itself be re-escaped."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def open_terminal_session(prompt, cwd=None):
+    """A real Terminal.app window, running an interactive `claude` session
+    seeded with `prompt` as its first turn — not the embedded `claude -p`
+    chat every task's own "New chat" opens (`PACKAGES/ai_chat_engine`'s
+    `Runner.run()`), because this one is a conversation about the whole list
+    rather than one card, and he asked for a real window for it.
+
+    `cwd` must be a directory Claude Code already trusts, or the "Is this a
+    project you trust?" prompt appears in the new window instead of a
+    session — defaults to this repo's own root, which is always trusted
+    since the board itself runs from there. The resulting session writes an
+    ordinary transcript under `~/.claude/projects/`, so it is findable later
+    through the same "Attach a session…" path any other one is.
+    """
+    shell_cmd = "cd %s && claude %s" % (shlex.quote(cwd or ROOT), shlex.quote(prompt))
+    script = ('tell application "Terminal"\nactivate\ndo script %s\nend tell'
+              % _applescript_string(shell_cmd))
+    try:
+        subprocess.Popen(["osascript", "-e", script],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                          stdin=subprocess.DEVNULL)
+    except OSError as exc:
+        return None, {"error": "could not open a terminal: %s" % exc}
+    return {"ok": True}, None
+
+
 def start_planning_agent_run():
     """Kick off a batch now, from the board's button.
 
@@ -2046,6 +2079,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "resolution": v.get("resolution", ""), "reason": payload.get("note") or "",
             })
             return self._json(code, out)
+        if path == "/session/open-terminal":
+            # A real window rather than a spend, so no confirm sheet the way
+            # /planning_agent/run gets one — worst case is an extra Terminal
+            # window, not money or a write.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            prompt = payload.get("prompt") or "/pa"
+            got, err = open_terminal_session(prompt, cwd=payload.get("cwd"))
+            return self._json(500 if err else 200, err or got)
         if path == "/planning_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.

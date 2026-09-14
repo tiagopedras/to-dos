@@ -44,20 +44,53 @@ async function loadBackupPreview(url, label){
 async function exitBackupPreview(){
   state.locked = false;
   state.lockedLabel = '';
+  state.lockKind = '';
   state.demo = false;
   updateLockUI();
   await loadFile();
+}
+
+/* A conversation about the whole list rather than one card. Decided
+   13 Sep 2026 as an embedded chat, reopened 14 Sep 2026 for a real
+   Terminal.app window running an interactive `claude` session seeded with
+   /pa, instead of the `claude -p` one-shot every task's own New chat opens
+   (`PACKAGES/ai_chat_engine`'s Runner.run()) — a sitting about the whole
+   file is better served by a session he can keep typing into.
+
+   Locks the tab for the length of it, the same guard Backup Preview and
+   demo data already use: pa's own writes to todo.md would otherwise race
+   this tab's autosave, and a lock is the one guard that cannot lose either
+   side of that race. Refuses on unsaved edits first, for the same reason
+   loadBackupPreview() does — exitBackupPreview() always re-reads todo.md
+   fresh from disk, which would otherwise discard them. */
+async function openListChat(){
+  if (state.dirty) {
+    alert('You have unsaved changes on today\'s list.\n\n' +
+          'Save or discard them first, then Talk about the list again.');
+    return;
+  }
+  try {
+    await postJSON('/session/open-terminal', { prompt: '/pa' });
+  } catch (err) {
+    alert('Could not open a Claude window.\n\n' + (err.message || err));
+    return;
+  }
+  state.locked = true;
+  state.lockKind = 'chat';
+  state.lockedLabel = 'A conversation about the whole list is open in a new Claude window';
+  updateLockUI();
 }
 
 function updateLockUI(){
   document.body.classList.toggle('locked', state.locked);
   $('#lockFrame').classList.toggle('hidden', !state.locked);
   $('#lockBar').classList.toggle('hidden', !state.locked);
-  $('#lockBarKind').textContent = state.demo ? 'Example data' : 'Backup Preview';
-  $('#exitLock').textContent = state.demo ? 'Try todo.md again' : 'Return to today\'s list';
-  $('#lockBarLabel').textContent = state.locked
-    ? 'Viewing ' + state.lockedLabel + ' — nothing here can be edited or saved.'
-    : '';
+  const chat = state.lockKind === 'chat';
+  $('#lockBarKind').textContent = chat ? 'Conversation open' : (state.demo ? 'Example data' : 'Backup Preview');
+  $('#exitLock').textContent = chat ? 'Done — reload the list' : (state.demo ? 'Try todo.md again' : 'Return to today\'s list');
+  $('#lockBarLabel').textContent = !state.locked ? '' : chat
+    ? state.lockedLabel + '. Nothing here saves until you reload.'
+    : 'Viewing ' + state.lockedLabel + ' — nothing here can be edited or saved.';
   $('#dataMenu').classList.toggle('hidden', state.locked);
   if (state.locked) $('#datasetMenu').classList.add('hidden');
   else if (state.datasets) $('#datasetMenu').classList.remove('hidden');
