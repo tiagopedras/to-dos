@@ -643,6 +643,54 @@ def test_report():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_harvest_usage():
+    """harvest_usage()'s own plumbing — logging what came back, and staying
+    quiet-but-safe when it didn't. The real PACKAGES/usage_harvester.harvest()
+    is not called here: it spawns a real Claude Code session in a pty, which
+    is exactly the "spends real money" case run_agent() and run_report_agent()
+    are already left untested for. A fake `harvest` module stands in instead,
+    injected into sys.modules the way a real `import harvest` would find it,
+    so harvest_usage()'s own sys.path.insert never has to resolve to anything
+    that exists on this machine.
+    """
+    import types
+
+    tmp = tempfile.mkdtemp(prefix="harvest-usage-test-")
+    real_data_dir = plan.paths.data_dir
+    real_module = sys.modules.get("harvest")
+    plan.paths.data_dir = lambda: tmp
+    try:
+        fake = types.ModuleType("harvest")
+        fake.harvest = lambda timeout, model, cwd: {"rate_limits": {
+            "five_hour": {"used_percentage": 32.0}, "seven_day": {"used_percentage": 18.4}}}
+        fake.summarise = lambda record: {"five_hour": 32.0, "seven_day": 18.4}
+        sys.modules["harvest"] = fake
+        plan.harvest_usage()
+        logged = open(paths.log_path(), encoding="utf-8").read()
+        check("a real reading logs both windows",
+              "usage harvest: 5h 32.0% / 7d 18.4%" in logged, True)
+
+        fake.harvest = lambda timeout, model, cwd: None
+        plan.harvest_usage()
+        logged = open(paths.log_path(), encoding="utf-8").read()
+        check("a harvest that never fired says so rather than raising",
+              "usage harvest: the statusline never fired" in logged, True)
+
+        fake.summarise = lambda record: {"five_hour": None, "seven_day": None}
+        fake.harvest = lambda timeout, model, cwd: {"rate_limits": {}}
+        plan.harvest_usage()
+        logged = open(paths.log_path(), encoding="utf-8").read()
+        check("a stale or missing window reads n/a rather than crashing",
+              "usage harvest: 5h n/a / 7d n/a" in logged, True)
+    finally:
+        plan.paths.data_dir = real_data_dir
+        if real_module is not None:
+            sys.modules["harvest"] = real_module
+        else:
+            sys.modules.pop("harvest", None)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 # --- the bucket mapping ------------------------------------------------------
 
 def test_agents():
@@ -1459,6 +1507,7 @@ def main():
     test_prune()
     test_briefing()
     test_report()
+    test_harvest_usage()
     test_agents()
     test_server()
     test_queue_routes()

@@ -528,6 +528,42 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The plan modal reads a plan as one long document, when it should split
+  into a history column, a summary, and two tabs.** Specs are in Figma
+  (file `Cgocs5SMDGPSF5MzNan4Hu`, frames `61:9227` for the Findings tab and
+  `61:9333` for Proposed plan). `openPlanModal()`
+  (`kanban/js/13-plans.js:218`) hands the whole body to `openDocModal()`
+  (`kanban/js/12-reports.js:575`), which drops it into `showModal()`'s wide
+  sheet (`kanban/js/23-conflict-modal.js:19`, `.sheet.wide` at
+  `kanban/board.css:2553`) as one `.repdoc`. The new sheet is 912px wide
+  rather than 760, with the head and the three footer buttons unchanged.
+
+  The body becomes two columns. On the left, a 198px History column on the
+  `bg` token with a `lineSoft` right border, 14px padding, a HISTORY label
+  with a count, and a timeline newest first: every revision and every send-back,
+  each with its date and a one-line note, the send-back quoting his reason.
+  History lines carry a date only, so the current revision alone shows a time,
+  from `generated:`. The dot says what each one is: `accent` for the current
+  revision, `red` for sent back, `inkFaint` for an older revision. The
+  timeline is read-only, decided 14 Sep 2026: a replan overwrites the same
+  file, so there is no older revision to open. On the right, 16px by 20px
+  padding and a 14px gap: the Summary in its own `chip` box (radius 10,
+  padding 12/14, a SUMMARY label, 14px text in `ink`), then a two-tab
+  segmented control, Findings and Proposed plan, each with a count. The modal
+  opens on Proposed plan, which shows the numbered steps and Needs you; Needs
+  you stays in that tab rather than moving up beside the Summary. Findings
+  shows the findings list. `Context` stays hidden through `PLAN_UNSHOWN`
+  (`13-plans.js:381`), and `History` moves out of the body into the left
+  column.
+
+  It is Big because the modal needs the plan's sections as separate pieces
+  rather than one `mdBlocks()` string, so `loadPlanBody()` has to split by
+  heading, and because the timeline needs data that is not served yet.
+  `plan_meta()` (`kanban/server.py:926`) returns `revisions` as a date and a
+  number only, and `feedback` holds just the latest send-back reason, so each
+  earlier send-back and its reason has to be parsed from the History section
+  before the column can draw them.
+
 - **The bucket editor renames, colours, reorders and deletes buckets, and
   touches none of what actually makes an agent theirs — the brief.**
   `openBucketEditor()` (`kanban/js/08-buckets.js:160`) wires up
@@ -1579,8 +1615,9 @@ they settled is written up in the README rather than left here:
   reading disk, lock the tab before loading a fixture, tear every non-GET out
   of `fetch` afterwards, and assert the blocked list is empty at the end.
 
-- **Every agent here is rationed by an allowance none of them can read, and the
-  only way to read it headlessly is a throwaway terminal.** `core/windows.py`
+- ~~**Every agent here is rationed by an allowance none of them can read, and
+  the only way to read it headlessly is a throwaway terminal.**~~ **Done,
+  14 Sep 2026.** `core/windows.py`
   reconstructs the five-hour windows from `~/.claude/projects/*/*.jsonl`, and
   `record_limit()` (`agents/planning_agent/plan.py:325`) says in its own docstring
   that `limit_tok` is "the one measurement of the session allowance this machine
@@ -1627,6 +1664,38 @@ they settled is written up in the README rather than left here:
   harvesting it. The API call is what forces the sampling shape — it makes the
   harvest a once-per-batch reading rather than a per-task one, so it cannot
   catch a window filling up mid-night.
+
+  Built as decided. `harvest.py` moved into a new repo,
+  [tiagopedras/usage-harvester](https://github.com/tiagopedras/usage-harvester)
+  (`PACKAGES/usage_harvester/`, private, personal account) — the pty
+  mechanics untouched from the `~/.claude/usage/` reference, with the probe
+  and output files moved under a fresh `tempfile.mkdtemp()` per call so two
+  callers harvesting at once (this machine's several scheduled agents) never
+  race each other's capture. It earns its place in `PACKAGES/` on a bet
+  rather than the rule being satisfied yet — see the new paragraph in
+  `PACKAGES/README.md` — since only `agents/planning_agent/plan.py` reads it
+  today; `improve_agent` picking it up later is what would actually satisfy
+  "something two apps depend on."
+
+  `plan.py`'s new `harvest_usage()` is the caller: a `sys.path.insert` the
+  same shape `stream.py` already uses for `work_streams`, an `import harvest`
+  wrapped in `try`/`except ImportError` so a machine with the package not
+  checked out costs one log line rather than a failed night, and one call to
+  `log()` either way — "usage harvest: 5h 32.0% / 7d 18.4%", or "the
+  statusline never fired", or "n/a" for a window `summarise()` couldn't read.
+  Wired into `run()` once per real batch, `if not args.task`, on the same
+  reasoning `brief.py`/`report.py` skip a manual single-task run: there is no
+  batch there for the reading to be logged alongside. It fires even on a
+  quiet night that plans nothing — the series this is for is across every
+  wake, not just the busy ones.
+
+  `test_harvest_usage()` in `test_planning_agent.py` covers the plumbing —
+  both windows logged, a harvest that never fired, a stale-or-missing window
+  reading `n/a` — by injecting a fake `harvest` module into `sys.modules`
+  rather than calling the real one, the same "spends real money, untested
+  here" line `run_agent()` and `run_report_agent()` already draw: the real
+  `harvest()` spawns an actual Claude Code session in a pty, which is not
+  something a test suite should do unattended either.
 
 - **The board can start a conversation about a task but not about the list, so
   every PA sitting means leaving it for a terminal.** `newChat()`

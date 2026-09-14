@@ -559,6 +559,43 @@ def _parse_reset(text):
     return when if when > now else when + dt.timedelta(days=1)
 
 
+def harvest_usage():
+    """One real reading of the account's usage allowance, logged as a line
+    rather than kept as a figure to act on — see the "Every agent here is
+    rationed..." entry in IMPROVEMENTS.md. `core/windows.py`'s own estimate,
+    reconstructed from this machine's own transcripts, stays the actual gate
+    on whether there is room for another task; this is advisory only, a
+    second, independent source sampled once a batch so it can be watched as a
+    trend across nights rather than trusted on the strength of one reading.
+
+    Never raises and never gates. A harvester that failed to spawn, or a
+    machine with no PACKAGES/usage_harvester checked out at all, costs one log
+    line and nothing else — this is new and unproven, and a night should not
+    fail to start because a pty session failed to open.
+    """
+    sys.path.insert(0, os.path.normpath(
+        os.path.join(HERE, "..", "..", "..", "PACKAGES", "usage_harvester")))
+    try:
+        import harvest as usage_harvester  # noqa: E402
+    except ImportError:
+        log("usage harvest: PACKAGES/usage_harvester not found")
+        return
+    try:
+        record = usage_harvester.harvest(timeout=60, model="haiku", cwd=ROOT)
+    except OSError as exc:
+        log("usage harvest failed: %s" % exc)
+        return
+    if not record:
+        log("usage harvest: the statusline never fired")
+        return
+    got = usage_harvester.summarise(record)
+
+    def fmt(key):
+        pct = got.get(key)
+        return "n/a" if pct is None else "%.1f%%" % pct
+    log("usage harvest: 5h %s / 7d %s" % (fmt("five_hour"), fmt("seven_day")))
+
+
 FRONT_RE = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
 
@@ -989,6 +1026,14 @@ def run(argv=None):
         for title, why in skipped:
             print("  skip  %-58s %s" % (title[:58], why))
         return 0
+
+    # Once per real batch, not per task, and not for a --task run by hand —
+    # brief.py and report.py skip that case for the same reason: there is no
+    # batch here for a single manual plan to be logged alongside. A quiet
+    # night still samples: the trend this is for is a series across every
+    # wake, not just the ones that wrote something.
+    if not args.task:
+        harvest_usage()
 
     if not plan:
         log("nothing to plan (%d unchanged)" % len(skipped))
