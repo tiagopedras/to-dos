@@ -37,28 +37,32 @@ Then run the checker:
 python3 ~/Code/to-dos/agents/pa_agent/skills/pa/scripts/check_todo.py ~/Code/to-dos/data/<dataset>/todo.md
 ```
 
-Work out everything the brief needs before rendering anything:
-
-- The headline, its bucket, how many days it has been set, its first unticked sub-step, and whether it is solved
-- Anything overdue, with how many days
-- Anything due today, tomorrow and inside the working week
-- Anything that has slipped since `Last updated`, inferred from that date against today
-- Anything in Context whose date has passed or is close, since a leave date nobody is counting is how a plan ends up depending on somebody who is not there
-- Any recurring meeting today or tomorrow, and whether its agenda is written
-- What the checker flagged
-- How many tasks have no impact or no effort score
-
 **Do not ask whether the board is open.** Start straight away. The risk that question is aimed at is closed off by the Reload line `pa` gives him at the end.
 
 ## Move 3: the brief
 
-**Render it from a template.** `templates/` holds one file per shape of brief. Read the whole folder at the start of the session, because he adds and edits these and the folder is the current set, not the list in this file.
+**Render it, don't write it out.** `templates/` holds one file per shape of brief. Read the whole folder at the start of the session, because he adds and edits these and the folder is the current set, not the list in this file.
 
 Pick by what he asked for, using the `use:` line in each template's frontmatter. When two fit, pick the shorter one. When nothing fits, say so in one line and ask which he wants rather than inventing a shape, and note that a template for it is worth writing.
 
-**Render it exactly.** The template owns the order, the headings and the wording. Fill the placeholders and change nothing else. The `lines:` number in the frontmatter is a hard ceiling: if what you have to say does not fit, cut the least important line rather than running over, and end with `+3 more` so he knows there was more.
+The headline, overdue, due today/tomorrow/this week, doing, waiting, blocked, week, delegate, meetings and every count are worked out by `core/aggregate.py` now, not read off the file by eye — and the placeholder rules, the empty-line rule and the `lines:` ceiling are `core/render.py`'s job, not something to reason through by hand:
 
-The syntax, the blocks and every field available are in `~/Code/to-dos/agents/pa_agent/skills/pa/references/templates.md`. Read it before rendering for the first time in a session. Two rules matter enough to repeat: a placeholder with nothing to fill it drops its whole line rather than printing an empty one, and a template asking for a field that does not exist is a failure to report plainly, not something to quietly approximate.
+```bash
+python3 -c "
+import sys
+sys.path.insert(0, 'core')
+import todo, aggregate, render
+tasks = todo.parse_doc(open('data/<dataset>/todo.md', encoding='utf-8').read())
+ctx = aggregate.today_view(tasks)
+print(render.render('agents/pa_agent/skills/pa-checkin/templates/<name>.md', ctx))
+"
+```
+
+run from `~/Code/to-dos`, with `<dataset>` and `<name>` filled in. What comes back is the brief, verbatim — send it as it stands rather than editing it, the same way `pa`'s own writing rules never apply to something rendered.
+
+Three fields still come back empty on every template — `checker_flags`, `slipped` and `context_dates` — because nothing computes them yet. Treat that the way a template treats any other empty field: the line or section drops, and nothing here should try to fill the gap by re-reading the file for them. What the checker flagged and what has slipped since `Last updated` are still worth knowing, so read them yourself from the checker's own output above and from Context's dates, and say them separately if they matter — just not as though the template rendered them.
+
+The syntax and every field available are in `~/Code/to-dos/agents/pa_agent/skills/pa/references/templates.md`, worth reading before the first render of a session if it has been a while.
 
 Send the brief on its own. No preamble in front of it and no summary after it, since the brief already is the summary.
 

@@ -46,31 +46,44 @@ lines: 12
 
 ## Placeholders
 
+Real Mustache, rendered by `core/render.py` (the `chevron` engine) — not
+prose describing a shape the skill has to imitate. `python3 core/render.py
+<template> <context.json>` renders one by hand if you want to see it work.
+
 A single value in double braces, `{{headline}}`, is replaced by that value.
 
 **A placeholder with nothing to fill it drops its whole line**, rather than
 printing an empty one or the word "none". So a line that only makes sense
-sometimes can just sit in the template.
+sometimes can just sit in the template. This is `core/render.py`'s own rule
+on top of Mustache, not something Mustache does by itself — plain Mustache
+would print an empty string and leave the rest of the line standing.
 
 A list is a block:
 
 ```
-{{#each overdue}}
+{{#overdue}}
 - {{title}} · {{days}}d over
-{{/each}}
+{{/overdue}}
 ```
 
 Everything between the two markers repeats once per item, and the fields inside
 belong to the item. A block with nothing in it renders nothing at all,
-including any heading you put inside it.
+including any heading you put inside it — the same rule as above, carried out
+by `core/render.py` before the block is even rendered, since by the time
+Mustache has rendered an empty block to nothing there is no marker left to
+find the heading above it by.
 
-For the empty case, `{{#none}}` renders only when the list is empty:
+For the empty case, a caret section renders only when the list is empty:
 
 ```
-{{#none overdue}}
+{{^overdue}}
 Nothing overdue.
-{{/none}}
+{{/overdue}}
 ```
+
+Note the closing tag repeats the field's own name (`{{/overdue}}`), not a
+generic `{{/each}}` or `{{/none}}` — that is Mustache's actual syntax, and
+what tells `core/render.py` which section is closing.
 
 Those three are the whole syntax. There is no condition, no maths and no
 formatting. If a template needs any of that, the skill is doing it wrong.
@@ -110,7 +123,7 @@ never negative) and `who` (from `[to:: ]`, or a `Waiting on:` note).
 | `week` | Anything tagged `week`, tasks and sub-steps both |
 | `done_today` | Ticked with today's `done:` date |
 | `quick_wins` | S effort, unblocked, `start:` arrived, or carrying a message |
-| `delegate` | `[ai:: full]`, in `rank:` order |
+| `delegate` | `[ai:: full]`, ranked by impact against effort — `rank:` is the planning agent's own queue order now, not this list's |
 
 **Meetings**, each carrying the fields above plus `agenda_state`, which is
 `written` or `not written`.
@@ -138,6 +151,11 @@ in `slipped` and `context_dates` carries the fields below rather than a task's.
 | `slipped` | Dated tasks whose date passed between `Last updated` and today, each carrying `title` and `days` |
 | `context_dates` | Dates in `## Context` that have passed or are close, each carrying `what`, `when` and `days` |
 
+**These three are not built.** `core/aggregate.py`'s `today_view()` returns
+each as an empty list rather than guessing at one — no desk template asks
+for them yet, so nothing has needed the aggregation behind them. Building it
+is a separate piece of work from rendering what already exists.
+
 **The change reply**, for `change-report` and anything else `pa` renders after
 editing the file. These three are the only fields it has, and they are filled
 from the session rather than read off the list.
@@ -154,6 +172,34 @@ are counted here and given one at a time when he asks.
 **Counts**, for a line that is a number rather than a list. `overdue_count`,
 `doing_count`, `waiting_count`, `blocked_count`, `week_count`,
 `unscored_count`, `delegate_count`.
+
+## How a report actually gets rendered
+
+Three modules in `core/`, none of which knows about any particular skill or
+template:
+
+- `todo.parse_doc(text)` — the list, as `Task` objects. Already familiar.
+- `aggregate.today_view(tasks, today)` — every field above except the named
+  meeting and the change reply, as one dict. `aggregate.meeting_view(tasks,
+  title, today)` is the named-meeting half, for `meeting-prep`.
+- `render.render(template_path, context)` — the finished text. Pass
+  `today_view()`'s dict straight through for a report about today; for
+  `change-report`, build the three change-reply fields yourself and pass
+  that dict instead, since nothing here reads a session.
+
+```python
+import sys
+sys.path.insert(0, "core")
+import todo, aggregate, render
+
+tasks = todo.parse_doc(open("data/twinkl/todo.md", encoding="utf-8").read())
+ctx = aggregate.today_view(tasks)
+print(render.render("agents/pa_agent/skills/pa-mobile/templates/morning-brief.md", ctx))
+```
+
+Picking the template — matching what he asked against each file's own `use:`
+line, `pa-mobile`'s twin winning when the surface is a phone — is still the
+skill's own job. Nothing here reads a session or knows what he asked for.
 
 ## Writing one
 

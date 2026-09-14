@@ -8,19 +8,19 @@ Week of {{week_start}}
 **{{headline}}**
 
 This week ({{week_count}})
-{{#each week}}
+{{#week}}
 - {{title}} · {{impact}}/{{effort}}
-{{/each}}
-{{#none week}}
+{{/week}}
+{{^week}}
 - Nothing tagged yet.
-{{/none}}
+{{/week}}
 
 Dated
-{{#each due_this_week}}
+{{#due_this_week}}
 - {{due_short}} · {{title}}
-{{/each}}
+{{/due_this_week}}
 
 Meetings
-{{#each meetings_this_week}}
+{{#meetings_this_week}}
 - {{due_short}} · {{title}}, agenda {{agenda_state}}
-{{/each}}
+{{/meetings_this_week}}

@@ -3,14 +3,14 @@ name: change-report
 use: the default. He asked for a change to the list and it has been made.
 lines: 10
 ---
-{{#each changes}}
+{{#changes}}
 - {{summary}}
-{{/each}}
+{{/changes}}
 
 **Needs you**
-{{#each needs_you}}
+{{#needs_you}}
 - {{summary}}
-{{/each}}
+{{/needs_you}}
 
 {{pending_count}} topics pending.
 

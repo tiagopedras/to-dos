@@ -3,13 +3,13 @@ name: change-report
 use: he asked for a change on his phone and it has been made.
 lines: 6
 ---
-{{#each changes}}
+{{#changes}}
 - {{summary}}
-{{/each}}
+{{/changes}}
 
 **Needs you**
-{{#each needs_you}}
+{{#needs_you}}
 - {{summary}}
-{{/each}}
+{{/needs_you}}
 
 {{pending_count}} topics pending.

@@ -39,9 +39,31 @@ Your job is deciding what goes in each field:
 2. **`needs_you`** — only a failure, or a decision that is his to make. Three at most. Leave it empty when there is neither, which is most sessions, and the heading goes with it.
 3. **`pending_count`** — the number, or empty when it is zero, which drops the line.
 
+That deciding is yours; the rendering is not. Once the three fields are
+settled, hand them to `core/render.py` rather than typing the reply out by
+hand against the template's shape:
+
+```bash
+python3 -c "
+import sys
+sys.path.insert(0, 'core')
+import render
+ctx = {
+    'changes': [{'summary': '...'}],
+    'needs_you': [],
+    'pending_count': '',
+}
+print(render.render('agents/pa_agent/skills/pa/templates/change-report.md', ctx))
+"
+```
+
+run from `~/Code/to-dos`, with `ctx` built from what you actually decided.
+What comes back is the reply, verbatim — send it as it stands.
+
 Nothing else reaches him. No preamble, no restating what he just told you, no
-mention of the checker, the file or the board, and nothing outside the template.
-When something will not fit any of the three fields, it is a pending topic.
+mention of the checker, the file or the board, and nothing outside the
+rendered reply. When something will not fit any of the three fields, it is a
+pending topic.
 
 **Every task title in the reply is a link to its card.** The format and the rules are in `PA.md`, under every task named in a report is a link.
 
@@ -245,6 +267,16 @@ Always end by telling him to press **Reload** on the board, without asking wheth
 Some of what the PA produces is a report he reads rather than a change to the file: the morning brief, the week ahead, the state of what is stuck. Those are rendered from a template file rather than written freehand, so the same report comes out in the same shape every time and he can scan it instead of reading it.
 
 The templates belong to the skill that produces the report, in its own `templates/` folder, and they are his to edit. `references/templates.md` here holds the syntax and the full list of fields available to fill them, in one copy, so every skill renders the same way. Read it before rendering for the first time in a session.
+
+**Render, do not type.** `core/render.py`'s `render(template_path, context)` is
+what actually carries out the syntax `references/templates.md` documents —
+the placeholder rules, the empty-line rule, the `lines:` ceiling. For a
+report about today, `core/aggregate.py`'s `today_view()` or `meeting_view()`
+builds the context; `references/templates.md`'s own "How a report actually
+gets rendered" section has the worked example. Reasoning the fields out by
+hand and writing the report freehand to match the template's shape is the
+failure this exists to remove — see IMPROVEMENTS.md, "Every report the PA
+sends is rendered by hand."
 
 The reply after a change is templated too, `templates/change-report.md`. Writing
 the change **into the file** never is: the conventions decide that, and a

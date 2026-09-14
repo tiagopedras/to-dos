@@ -137,6 +137,16 @@ if [ "$DRY" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
   "$PY" "$HERE/brief.py" || logline "brief.py failed with exit $?"
 fi
 
+# --- 2.6. written reports, weekly by their own reckoning ---------------------
+# Called every scheduled wake, the same as brief.py above — what actually
+# keeps this to about once a week per definition is report.py's own due(),
+# which compares window_days against when it last rendered rather than
+# trusting a day-of-week guard here to mean the same thing for a 7-day
+# definition and a 30-day one. Most wakes find nothing due and spend nothing.
+if [ "$DRY" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
+  "$PY" "$HERE/report.py" || logline "report.py failed with exit $?"
+fi
+
 # --- 3. the schedule's own budget and max_plans ------------------------------
 # The dashboard writes these into the schedule file; nothing before today read
 # them back out for a real run to use, so `budget` sat there as a number the

@@ -570,6 +570,52 @@ def messages(task, live_only=True):
     return out
 
 
+# A block-shaped note rather than a line, the same as MSG_NOTE and PROMPT_NOTE
+# above are lines: what he pastes into the shared meeting notes is a bullet
+# list, so the note is a heading with the content indented beneath it. Ported
+# from AGENDA_NOTE / PREV_AGENDA_NOTE in check_todo.py, which reads it off raw
+# file lines for its own line-numbered findings; this reads it off task.body,
+# which is the shape core/render.py's aggregation actually has in hand.
+AGENDA_RE = re.compile(r"^(\s*)-\s+Agenda\s*:\s*$", re.I)
+PREV_AGENDA_RE = re.compile(r"^(\s*)-\s+Previous agenda(?:\s*\([^)]*\))?\s*:\s*$", re.I)
+
+
+def agenda_topics(task, previous=False):
+    """This task's Agenda (or Previous agenda) block, as a list of
+    {topic, context}. [] when there is no such block.
+
+    Topics are every line one level deeper than the heading; a topic's own
+    context is everything deeper again, joined with a space rather than kept
+    as separate lines — a rendered agenda reads it as one line per topic.
+    """
+    heading_re = PREV_AGENDA_RE if previous else AGENDA_RE
+    body = task.body
+    start = head_indent = None
+    for i, line in enumerate(body):
+        m = heading_re.match(line)
+        if m:
+            start, head_indent = i, len(m.group(1))
+            break
+    if start is None:
+        return []
+    topics = []
+    i = start + 1
+    while i < len(body) and body[i].strip():
+        indent = len(body[i]) - len(body[i].lstrip(" "))
+        if indent <= head_indent:
+            break
+        topic_indent = indent
+        topic = body[i].strip().lstrip("-").strip()
+        i += 1
+        context = []
+        while i < len(body) and body[i].strip() and \
+                len(body[i]) - len(body[i].lstrip(" ")) > topic_indent:
+            context.append(body[i].strip().lstrip("-").strip())
+            i += 1
+        topics.append({"topic": topic, "context": " ".join(context)})
+    return topics
+
+
 def slug_states(tasks):
     """Every `#slug` in the file against whether the line carrying it is ticked.
     Steps are included as well as whole tasks, because several of the blockers

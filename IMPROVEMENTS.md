@@ -528,6 +528,26 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Switching from Board to Plans is a flat tab click, and he has a Figma
+  prototype exploring it as one continuous vertical transition between two
+  stacked surfaces instead, reached by a flip control rather than the tab
+  strip.** `viewDefs()` (`kanban/js/11-chat-cards.js:398-412`) lists `board`
+  and `plans` as two ungrouped entries in `#viewToggle`, and the click handler
+  `renderViewTabs()` wires up (`kanban/js/18-timeline.js:741-743`) just sets
+  `state.view` and calls `renderView()` — an instant swap, no transition of any
+  kind. His prototype
+  (https://www.figma.com/proto/Cgocs5SMDGPSF5MzNan4Hu/Untitled?node-id=13-19555)
+  treats Board and Plans as one tall canvas, one above the other, with a flip
+  control — tried both bottom-left and bottom-right, as a FAB — panning
+  between them rather than switching a tab. Building it for real means
+  deciding what the flip control replaces (the whole `#viewToggle` strip, or
+  just the Board/Plans pair inside it, leaving Matrix/Timeline/Reports/
+  Projects/Overview on the tabs as they are), what `renderView()`'s
+  all-or-nothing repaint becomes once two views can be visible mid-transition,
+  and whether `state.view` still names one current view or something closer to
+  a scroll position. The prototype shows the motion, not where that seam with
+  the rest of the tab strip sits.
+
 - **A meeting's `repeat:` tag already carries the time it starts, and nothing
   fires anything at that time.** `read_repeat()` at `core/todo.py:297` parses
   the `hh:mm` out of a tag like `repeat:wed-9:15` (`REPEAT_VAL` at
@@ -541,32 +561,34 @@ they settled is written up in the README rather than left here:
   companion happens to poll needs the Electron side to hold its own per-task
   timers, not just the once-a-day digest.
 
-  Two decisions come first. Whether the agenda text is a card's body as
-  written today, or a new field a meeting card carries separately — `todo.py`
-  has no `agenda:` tag now, so the body is what there is to show. And which
-  meetings this fires for: every `repeat:` tag with a time gets a firing, or
-  only ones a task is marked to want one, since a 9:15 standing meeting he
-  never wants interrupted by a banner is the same shape of tag as one he does.
+  It fires for every `repeat:` tag that carries a time, but only when the
+  task's body holds something past its tag lines — that is the agenda, and
+  its absence is the signal to leave the meeting to the calendar notification
+  he already gets. The popup itself stays light: the meeting's title and that
+  an agenda is ready, not the agenda text read out in a banner. Clicking it
+  opens the companion to the card, where the body renders in full.
 
-- **Plans' drag confirmations are inconsistent by kind, and half of what was
-  asked for is already built.** Dropping a task from the queue onto Backlog
-  goes straight through `holdTask()` (`kanban/js/13-plans.js:1123`) with no
-  modal, but dropping a plan on the same column calls `parkPlan()` (`:365`),
-  which opens a confirm sheet — so "no confirmation on Backlog" is only true
-  for one of the two things that can land there today. Doing already takes no
-  drop at all: `renderPlanDoing()`'s own comment (`:789-796`) says "which one
-  is running is not his to choose", and neither a `doingDrop` nor a
-  `reviewDrop` is wired in `paintPlans()` (`:1600-1671`) or declared in
-  `kanban/ui/PlansView.tsx:114-117`.
+- **Plans' drag confirmations are inconsistent by kind.** Dropping a task
+  from the queue onto Backlog goes straight through `holdTask()`
+  (`kanban/js/13-plans.js:1123`) with no modal, but dropping a plan on the
+  same column calls `parkPlan()` (`:365`), which opens a confirm sheet.
+  `parkPlan()` loses that sheet, so both kinds land the same direct way —
+  dragging onto Backlog is already the deliberate act, and either kind is one
+  drag back out if it lands wrong. Doing already takes no drop at all:
+  `renderPlanDoing()`'s own comment (`:789-796`) says "which one is running
+  is not his to choose", and neither a `doingDrop` nor a `reviewDrop` is
+  wired in `paintPlans()` (`:1600-1671`) or declared in
+  `kanban/ui/PlansView.tsx:114-117` — unchanged, and correct.
 
-  Ready to be produced is the one column that conflicts with what was asked.
-  `producedDrop` (`:1659`) does take a drop today, and dropping onto it is his
-  own call, not the agent's: `acceptPlan()` (`:266`) is the accept the column
-  is named for, and its own comment reads "He accepts the plan as written...
-  the implementing agent owns it from here" — after the drop, not instead of
-  it. Refusing that drop with an "up to the agent" message would say the
-  opposite of what the column exists to do, so which of the two readings is
-  right needs settling before `producedDrop`'s handler changes.
+  `producedDrop` (`:1659`) stays exactly as it is, with no confirm sheet of
+  its own: dropping onto Ready to be produced is his own accept, not the
+  agent's, and `acceptPlan()` (`:266`) already says as much — a popup there
+  would only be confirming something he had just done on purpose.
+
+  Separately, and out of scope for this entry: Backlog and To do currently
+  hold queue rows (held or not-eligible tasks) alongside plan cards, and he
+  wants Plans to carry nothing but plan cards. That is a bigger question than
+  drag confirmations and needs its own entry before it is built.
 
 - **The Plans view's dashed borders are five different signals, not one
   decoration to strip.** `.col.agentcol` (`kanban/board.css:852`) dashes the
@@ -578,9 +600,17 @@ they settled is written up in the README rather than left here:
   `CLAUDE.md`, under "The two boards, and why they are one shape", records that
   the 12 Sep 2026 unify pass deliberately settled the dash to mean one thing
   app-wide — an agent owns this column — and every card-level use listed above
-  is the same shape reused for "present, not in play." Removing all of them
-  drops that signal rather than tidying an edge, so what (if anything) replaces
-  each one is a decision to make first, not a single CSS deletion.
+  is the same shape reused for "present, not in play."
+
+  The dash comes off all four card-level uses, keeping the opacity and any
+  background colour they already carry. What replaces it is the card's own
+  label rather than a border: each of the four states needs its own word
+  naming what it is, not just which column it sits in — a plan sent back to
+  the queue is not simply waiting its turn, it is on a second pass, and the
+  label has to say so rather than leaving the column and the dimming to imply
+  it. `planWord()` already gives `redo`, `completed`, `superseded` and
+  `declined` their own word for exactly this; `.qitem.held` wants the same
+  treatment if it does not have it already.
 
 - ~~**A plan on its second or third revision looks exactly like a plan on its
   first, so there is no way to see whether sending one back achieved
@@ -595,7 +625,7 @@ they settled is written up in the README rather than left here:
   out of scope, since that needs both revisions findable as separate
   documents, which waits on the one-file-per-task rework below.
 
-- **`implementing-agent` should run unattended on accepted plans, fenced the
+- **`implementing-agent` runs unattended on accepted plans, fenced the
   way `improve_agent` already is.** Reverses the decision recorded in the
   struck entry at the foot of this section, which settled on session-only
   runs on 13 Sep 2026. Of 41 plans written, only 5 are accepted and 2
@@ -1580,7 +1610,59 @@ they settled is written up in the README rather than left here:
   straight off disk in TypeScript. See the README's "The desktop companion"
   section for how it's actually built.
 
-- **A report he defines once cannot be written down anywhere, so every written
+- ~~**A report he defines once cannot be written down anywhere, so every
+  written report is typed fresh from a prompt and comes out a slightly
+  different shape each time.**~~ **Done, 14 Sep 2026, together with the
+  `core/render.py` entry below** — one piece of work, as both entries
+  already said it had to be.
+
+  `core/aggregate.period_view(tasks, archive_path, start, end, buckets=None)`
+  is the aggregation pointed at a past window rather than at today —
+  `core/archive.py` reads `done-archive.md` for the first time in Python,
+  ported from `parseArchiveEntries()` in `kanban/js/12-reports.js` rather
+  than duplicating it, off the same `### Bucket · Tier` heading and
+  `todo.TASK_RE`/`todo.parse_task()` the live document already reads with.
+  Live done tasks and archived ones are joined the same way
+  `completedRecently()` already does it, and `buckets` narrows both the row
+  list and the per-bucket counts together, so a report scoped to one bucket
+  never reports a count for another.
+
+  `agents/planning_agent/report.py` is the pass — a definition per report
+  kind in `data/<dataset>/reports/_defs/`, `agents/planning_agent/REPORT-DEFS.md`
+  holding the tracked half the same way `BUCKETS.md` does for bucket briefs.
+  `report_listing()` needed no change at all: it already reads only `.md`
+  files directly in `reports/`, never recursing into a subfolder, so `_defs/`
+  was already invisible to it before this entry existed.
+
+  **Not templated, on purpose — the entry below is `core/render.py`'s and
+  this one is not the same job.** README.md's own "Rules for writing a
+  report" rules out what a template would naturally produce: never list
+  individual to-dos, outcomes rather than activity, say what a change means
+  rather than what happened. That is judgement, and Mustache is not a
+  language for one. So `report.py` hands a definition's own question — the
+  prose under its frontmatter — to a real model call, alongside
+  `period_view()`'s answer as the only ground truth it is allowed and
+  README's five rules inlined rather than assumed read, and the model
+  writes the report. `period_view()` is what stops it inventing what
+  happened; it was never going to be what decides what any of it means.
+
+  Fires from the same lock `plan.py`'s batch and `brief.py`'s briefing pass
+  already share, every scheduled wake — not gated to one night by a
+  day-of-week check, because `due()` already answers the question that
+  matters: a definition is due once a full `window_days` has passed since it
+  last rendered, so a 30-day report renders roughly monthly and a 7-day one
+  weekly, whatever night the lock happens to be free. Most wakes find
+  nothing due and spend nothing.
+
+  Checked for real against the live list: `design-system-monthly`, the one
+  worked example, rendered correctly on a window with nothing to report —
+  "Nothing in this bucket closed out between 15 August and 14 September,"
+  not a fabricated list — for $0.28, and `report_listing()` picked it up
+  without listing `_defs/` alongside it.
+
+  The original entry follows.
+
+  **A report he defines once cannot be written down anywhere, so every written
   report is typed fresh from a prompt and comes out a slightly different shape
   each time.** The Reports view's second column reads `data/<dataset>/reports/`
   through `report_listing()` (`kanban/server.py:1305`) and `report_meta()`
@@ -2086,7 +2168,82 @@ they settled is written up in the README rather than left here:
   use — an append-only file per dataset, drained by something with a reason to
   read it — rather than inventing a new pattern.
 
-- **Every report the PA sends is rendered by hand, so the templates are
+- ~~**Every report the PA sends is rendered by hand, so the templates are
+  instructions rather than code.**~~ **Done, 14 Sep 2026, together with the
+  entry below** — built as one piece of work, since both needed the same
+  gap closed: a Python reader for `done-archive.md`, which nothing had.
+
+  `core/aggregate.py` is the one copy of the arithmetic that used to be two
+  half-written ones: `today_view(tasks, today)` returns every field
+  `references/templates.md` documents except the three marked below,
+  `meeting_view(tasks, title, today)` is the named-meeting half for
+  `meeting-prep`. `core/render.py` is the engine, `chevron` (now a real
+  dependency — the first third-party one in this repo's Python, installed
+  globally the way Jinja2 already was) plus two rules plain Mustache does
+  not carry out on its own, both load-bearing for `references/templates.md`'s
+  own promises: a heading whose block is empty is stripped from the
+  *template source* before chevron ever sees it, since an empty
+  `{{#x}}...{{/x}}` renders to nothing chevron will hand back, leaving no
+  marker in the output to find the heading above by; and a placeholder with
+  nothing to fill it drops its whole line, done by substituting a sentinel
+  for every empty string in the context (recursively, so a row's own field
+  gets it too) and dropping any rendered line still carrying one afterwards.
+  Chevron's own HTML-escaping is undone on the way out, since these are
+  plain-text reports, never HTML, and a title with a real `&` in it should
+  read as one.
+
+  All six templates — five in `pa-mobile/templates/`, one more each in
+  `pa/templates/` and `pa-checkin/templates/`, eight files total — moved
+  from the Handlebars-shaped `{{#each x}}`/`{{#none x}}` prose
+  `references/templates.md` used to describe to real Mustache,
+  `{{#x}}`/`{{^x}}`, closed by the field's own name rather than a generic
+  tag. That doc now says so, with a worked "How a report actually gets
+  rendered" example, and the stale `delegate`, "in rank: order" line is
+  fixed — that list has sorted by impact against effort since 13 Sep 2026,
+  not by the tag the planning agent's queue still reads.
+
+  `todo.agenda_topics(task, previous=False)` is new in `core/todo.py`
+  itself, on the reasoning the file's other note-block readers already
+  follow: an Agenda block is part of the grammar, ported from
+  `check_todo.py`'s own line-numbered `agenda_under()` rather than shared
+  with it, since that one needs raw file lines for its findings and this
+  needs `task.body`, which is a different shape to read the same block off.
+
+  `checker_flags`, `slipped` and `context_dates` — templates.md's own
+  "what the read turned up" fields, desk-only — are not built. `today_view()`
+  returns each as `[]` rather than guessing, and the desk templates that ask
+  for them (`pa-checkin`'s own `morning-brief`/`week-ahead`) render correctly
+  with those sections simply absent, the same as any other empty field.
+  Building the aggregation behind them is real, separate work — a `slipped`
+  reader needs `Last updated` read back and compared to today, a
+  `context_dates` one needs dates parsed out of free prose in `## Context` —
+  and nothing here fakes either.
+
+  `pa`, `pa-checkin` and `pa-mobile`'s `SKILL.md`s all point at
+  `core/render.py` now rather than describing rendering as something to
+  reason through by hand — Move 2/3 in `pa-checkin`, "How to report back"
+  and "Reports rendered from a template" in `pa`, "Reporting from a
+  template" and step 2 of the session shape in `pa-mobile`. What each skill
+  still decides — which template fits what he asked, and for
+  `change-report`, what the three change-reply fields actually say — is
+  unchanged; only the mechanical trip from context to finished text moved
+  out of the model's own reasoning and into code.
+
+  `core/test_reports.py` covers the aggregation and the render engine —
+  today's fields, the named-meeting view, the archive reader, the two rules
+  Mustache does not have — against a small fixture with no JavaScript
+  counterpart to keep in step, since neither module has one.
+  `test_report()` in `test_planning_agent.py` covers the piece below. All
+  suites pass, `core/test_todo.py`/`.mjs` included, since `agenda_topics()`
+  landed in shared ground. Checked for real: `render.render()` against the
+  live list's own `morning-brief.md`, `week-ahead.md` and `meeting-prep.md`
+  produces plausible, correctly-truncated output; `pa`'s own change-report
+  render drops the `Needs you` heading and the pending-count line exactly as
+  documented, with nothing left standing where they were.
+
+  The original entry follows.
+
+  **Every report the PA sends is rendered by hand, so the templates are
   instructions rather than code.**
   `agents/pa_agent/skills/pa-mobile/templates/` holds five report shapes and
   `agents/pa_agent/skills/pa/references/templates.md` documents around thirty

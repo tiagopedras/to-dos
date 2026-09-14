@@ -12,49 +12,49 @@ Next step: {{headline_next_step}}
 
 ## Late
 
-{{#each overdue}}
+{{#overdue}}
 - **{{title}}** · {{days}}d over · {{bucket}}
-{{/each}}
-{{#none overdue}}
+{{/overdue}}
+{{^overdue}}
 Nothing overdue.
-{{/none}}
+{{/overdue}}
 
 ## Today
 
-{{#each due_today}}
+{{#due_today}}
 - **{{title}}** · {{bucket}}
-{{/each}}
-{{#none due_today}}
+{{/due_today}}
+{{^due_today}}
 Nothing dated today.
-{{/none}}
+{{/due_today}}
 
-{{#each meetings_next_two_days}}
+{{#meetings_next_two_days}}
 - {{due_short}} · **{{title}}** · agenda {{agenda_state}}
-{{/each}}
+{{/meetings_next_two_days}}
 
 ## The rest of the week
 
-{{#each due_this_week}}
+{{#due_this_week}}
 - {{due_short}} · **{{title}}** · {{impact}}/{{effort}}
-{{/each}}
-{{#none due_this_week}}
+{{/due_this_week}}
+{{^due_this_week}}
 Nothing else dated before Sunday.
-{{/none}}
+{{/due_this_week}}
 
 ## Moving
 
 In flight {{doing_count}} · waiting on someone {{waiting_count}} · blocked {{blocked_count}} · tagged this week {{week_count}}
 
-{{#each slipped}}
+{{#slipped}}
 - Slipped · **{{title}}**, {{days}}d
-{{/each}}
+{{/slipped}}
 
-{{#each context_dates}}
+{{#context_dates}}
 - {{what}} · {{when}}
-{{/each}}
+{{/context_dates}}
 
-{{#each checker_flags}}
+{{#checker_flags}}
 - {{flag}}
-{{/each}}
+{{/checker_flags}}
 
 {{unscored_count}} unscored.

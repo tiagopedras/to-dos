@@ -81,19 +81,32 @@ same name: those are written for a screen he does not have, and rendering one is
 how a two-line answer becomes three screens. Put "a phone template for this" on
 the list of things to write later.
 
-**Render it exactly.** The template owns the order, the headings and the
-wording. Fill the placeholders and change nothing else. The `lines:` number in
-the frontmatter is a hard ceiling on the rendered output: if what you have to
-say does not fit, cut the least important line rather than running over, and say
-`+3 more` at the end so he knows there was more.
+**Render it, do not type it.** `core/render.py`'s `render(template_path,
+context)` carries out the placeholder rules, the empty-line rule and the
+`lines:` ceiling — the template owns the order, the headings and the
+wording, and this is what actually applies them rather than something to
+reason through by hand:
+
+```bash
+python3 -c "
+import sys
+sys.path.insert(0, 'core')
+import todo, aggregate, render
+tasks = todo.parse_doc(open('data/<dataset>/todo.md', encoding='utf-8').read())
+ctx = aggregate.today_view(tasks)
+print(render.render('agents/pa_agent/skills/pa-mobile/templates/<name>.md', ctx))
+"
+```
+
+run from `~/Code/to-dos`, with `<dataset>` and `<name>` filled in — `meeting-prep`
+uses `aggregate.meeting_view(tasks, title, today)` instead, and `change-report`
+builds its own `changes`/`needs_you`/`pending_count` and skips `aggregate`
+entirely, the same as the desk copy of it in `pa/SKILL.md`.
 
 **Placeholders and blocks** are described in
 `~/Code/to-dos/agents/pa_agent/skills/pa/references/templates.md`, which also
 lists every field available to fill them. Read it before rendering the first
-time in a session. Two rules matter enough to repeat here: a single placeholder
-with nothing to fill it drops its whole line rather than printing an empty one,
-and a template asking for a field that does not exist is a failure to report to
-him plainly, not something to quietly approximate.
+time in a session.
 
 ## The session shape
 
@@ -117,8 +130,9 @@ is the one move of `pa-checkin` this skill skips rather than shortens.
 
 ### 2. Render
 
-Pick the template, fill it, send it. That is the whole reply. No preamble in
-front of it and no summary after it, since the template already is the summary.
+Pick the template, render it (see "Reporting from a template" above), send it.
+That is the whole reply. No preamble in front of it and no summary after it,
+since the rendered report already is the summary.
 
 ### 3. Offer the moves
 

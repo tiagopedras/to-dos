@@ -9,42 +9,42 @@ lines: 30
 
 ## Tagged this week ({{week_count}})
 
-{{#each week}}
+{{#week}}
 - **{{title}}** · {{bucket}} · {{impact}}/{{effort}} · {{state}}
-{{/each}}
-{{#none week}}
+{{/week}}
+{{^week}}
 Nothing tagged yet. Worth picking before Tuesday.
-{{/none}}
+{{/week}}
 
 ## Dated
 
-{{#each overdue}}
+{{#overdue}}
 - **{{title}}** · {{days}}d over
-{{/each}}
-{{#each due_this_week}}
+{{/overdue}}
+{{#due_this_week}}
 - {{due_short}} · **{{title}}**
-{{/each}}
-{{#none due_this_week}}
+{{/due_this_week}}
+{{^due_this_week}}
 Nothing dated before Sunday.
-{{/none}}
+{{/due_this_week}}
 
 ## Meetings
 
-{{#each meetings_this_week}}
+{{#meetings_this_week}}
 - {{due_short}} · **{{title}}** · agenda {{agenda_state}}
-{{/each}}
-{{#none meetings_this_week}}
+{{/meetings_this_week}}
+{{^meetings_this_week}}
 No standing meetings this week.
-{{/none}}
+{{/meetings_this_week}}
 
 ## Worth clearing
 
-{{#each quick_wins}}
+{{#quick_wins}}
 - **{{title}}** · {{bucket}}
-{{/each}}
+{{/quick_wins}}
 
-{{#each delegate}}
+{{#delegate}}
 - Claude could take **{{title}}**
-{{/each}}
+{{/delegate}}
 
 Waiting on someone {{waiting_count}} · blocked {{blocked_count}} · unscored {{unscored_count}}

@@ -6,20 +6,20 @@ lines: 12
 {{date_short}}
 
 Ticked
-{{#each done_today}}
+{{#done_today}}
 - {{title}}
-{{/each}}
-{{#none done_today}}
+{{/done_today}}
+{{^done_today}}
 - Nothing today.
-{{/none}}
+{{/done_today}}
 
 Still in Doing
-{{#each doing}}
+{{#doing}}
 - {{title}}
-{{/each}}
+{{/doing}}
 
-{{#each due_tomorrow}}
+{{#due_tomorrow}}
 Due tomorrow · {{title}}
-{{/each}}
+{{/due_tomorrow}}
 
 Tomorrow opens with {{headline}}.

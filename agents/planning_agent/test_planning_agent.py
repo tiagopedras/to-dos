@@ -27,6 +27,7 @@ import brief  # noqa: E402
 import paths  # noqa: E402
 import pick  # noqa: E402
 import plan  # noqa: E402
+import report  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
 
@@ -566,6 +567,79 @@ def test_briefing():
               plan.task_briefing(never_briefed), "")
     finally:
         brief.paths.briefings_path = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_report():
+    """report.py's deterministic pieces — see IMPROVEMENTS.md, "A report he
+    defines once cannot be written down anywhere." run_report_agent() itself
+    is untested here for the same reason brief.py's own model call is not:
+    it spends real money, and agents/planning_agent/report.py's own
+    end-to-end run against the real list is the check that matters, done by
+    hand rather than in a suite anyone might run unattended.
+    """
+    import shutil
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="report-test-")
+    try:
+        defpath = os.path.join(tmp, "a-def.md")
+        with open(defpath, "w", encoding="utf-8") as fh:
+            fh.write("---\ntitle: A Test Report\nwindow_days: 7\n"
+                     "buckets: Design System, People\n---\n\nWhat moved.\n")
+        parsed = report.read_def(defpath)
+        check("title, window and body all read off the frontmatter",
+              (parsed["title"], parsed["window_days"], parsed["body"]),
+              ("A Test Report", 7, "What moved."))
+        check("a comma list of buckets splits and trims",
+              parsed["buckets"], ["Design System", "People"])
+
+        no_buckets = os.path.join(tmp, "b-def.md")
+        with open(no_buckets, "w", encoding="utf-8") as fh:
+            fh.write("---\ntitle: Everything\nwindow_days: 30\n---\n\nBody.\n")
+        check("no buckets: line means every bucket, not zero of them",
+              report.read_def(no_buckets)["buckets"], None)
+
+        not_a_def = os.path.join(tmp, "c-def.md")
+        with open(not_a_def, "w", encoding="utf-8") as fh:
+            fh.write("---\ntitle: Missing the one field that matters\n---\n\nBody.\n")
+        check("a file with no window_days is not a definition at all",
+              report.read_def(not_a_def), None)
+
+        today = dt.date(2026, 9, 14)
+        check("never rendered is always due", report.due(parsed, {}, today), True)
+        state = {parsed["name"]: {"last_rendered": "2026-09-10"}}
+        check("4 days into a 7-day window is not due yet",
+              report.due(parsed, state, today), False)
+        state = {parsed["name"]: {"last_rendered": "2026-09-06"}}
+        check("a full window having passed is due again",
+              report.due(parsed, state, today), True)
+
+        period = {"window_start": "Mon 1 Sep 2026", "window_end": "Mon 14 Sep 2026"}
+        agent_reply = ("---\ntopic: What moved\nsummary: The thing that mattered.\n---\n\n"
+                       "# A Test Report\n\nThe body the model wrote.\n")
+        real_data_dir = report.paths.data_dir
+        write_tmp = tempfile.mkdtemp(prefix="report-write-test-")
+        report.paths.data_dir = lambda: write_tmp
+        try:
+            out = report.write_report(parsed, period, today, agent_reply)
+            written = open(out, encoding="utf-8").read()
+            check("the board's own fields are set from what report.py already knew",
+                  ("title: A Test Report" in written and "date: 2026-09-14" in written
+                   and "covers: Mon 1 Sep 2026 to Mon 14 Sep 2026" in written), True)
+            check("the model's topic and summary survive",
+                  ("topic: What moved" in written and
+                   "summary: The thing that mattered." in written), True)
+            check("and so does its body", "The body the model wrote." in written, True)
+
+            no_front = report.write_report(parsed, period, today, "Just a body, no frontmatter.\n")
+            check("a reply with no frontmatter at all still writes something sane",
+                  "summary: The agent wrote no summary line." in
+                  open(no_front, encoding="utf-8").read(), True)
+        finally:
+            report.paths.data_dir = real_data_dir
+            shutil.rmtree(write_tmp, ignore_errors=True)
+    finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -1384,6 +1458,7 @@ def main():
     test_one_file_per_task()
     test_prune()
     test_briefing()
+    test_report()
     test_agents()
     test_server()
     test_queue_routes()

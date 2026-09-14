@@ -6,14 +6,14 @@ lines: 16
 {{meeting_date_long}}
 
 Agenda
-{{#each agenda}}
+{{#agenda}}
 - {{topic}}
   - {{context}}
-{{/each}}
-{{#none agenda}}
+{{/agenda}}
+{{^agenda}}
 - Not written yet.
-{{/none}}
+{{/agenda}}
 
-{{#each previous_agenda}}
+{{#previous_agenda}}
 Last time · {{topic}}
-{{/each}}
+{{/previous_agenda}}

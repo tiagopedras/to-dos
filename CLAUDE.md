@@ -497,6 +497,7 @@ which ones it reached:
 ```
 python3 core/test_todo.py          # the fixtures, and the working calendars
 node core/test_todo.mjs            # the same fixtures, the other language
+python3 core/test_reports.py       # aggregate.py, render.py, archive.py — no JS counterpart
 node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py

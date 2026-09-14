@@ -8,18 +8,18 @@ lines: 12
 **{{headline}}** · day {{headline_age}}
 Next: {{headline_next_step}}
 
-{{#each overdue}}
+{{#overdue}}
 Late · {{title}}, {{days}}d
-{{/each}}
-{{#none overdue}}
+{{/overdue}}
+{{^overdue}}
 Nothing overdue.
-{{/none}}
+{{/overdue}}
 
 Due this week
-{{#each due_this_week}}
+{{#due_this_week}}
 - {{due_short}} · {{title}}
-{{/each}}
+{{/due_this_week}}
 
-{{#each meetings_next_two_days}}
+{{#meetings_next_two_days}}
 {{due_short}} · {{title}}, agenda {{agenda_state}}
-{{/each}}
+{{/meetings_next_two_days}}
