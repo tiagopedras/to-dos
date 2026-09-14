@@ -176,21 +176,21 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
   !document.querySelectorAll('#schedOut .schedjob')[1].querySelector('.schedmeta').textContent.includes('T0')
 `))
 
-// What is left of the current window leads the Queue/Doing card (#statusOut,
-// under its own "Status" heading), not the usage chart it used to sit on top
-// of — see renderStatus() in 14-schedule.js. It used to be a ride/open/stop
-// decision; the rule behind that went on 9 Sep 2026 and the line now reports
-// capacity rather than permission. It is on the view rather than in the modal,
-// which is why renderUsage() fetches whether its own chart is in the page or
-// not — the same call draws both.
-check('the window left leads the Queue/Doing card, under a Status heading', await evalJS(`
-  document.querySelector('#queueDoingCard .fhead').textContent === 'Status' &&
-  /^\\d\\d:\\d\\d$/.test(document.querySelector('#statusOut .udecide strong').textContent) &&
+// What is left of the current window leads the Queue/Doing card, in its own
+// column description, not the usage chart it used to sit on top of — see
+// renderStatus() in 14-schedule.js. It used to be a ride/open/stop decision;
+// the rule behind that went on 9 Sep 2026 and the line now reports capacity
+// rather than permission. It is on the view rather than in the modal, which
+// is why renderUsage() fetches whether its own chart is in the page or not —
+// the same call draws both.
+check('the window left leads the Queue/Doing card, in its own description', await evalJS(`
+  /^Session open — closes \\d\\d:\\d\\d, \\d+ min left\\.$/.test(
+    document.querySelector('#queueDoingCard .colhead-desc').textContent) &&
   (m => m && +m[1] >= 85 && +m[1] <= 90)(
-    document.querySelector('#statusOut .udecide').textContent.match(/(\\d+) min left/))
+    document.querySelector('#queueDoingCard .colhead-desc').textContent.match(/(\\d+) min left/))
 `))
 check('and nothing on it reads as a verdict any more', await evalJS(`
-  !/RIDE|OPEN|STOP/.test(document.querySelector('#statusOut').textContent)
+  !/RIDE|OPEN|STOP/.test(document.querySelector('#queueDoingCard .colhead-desc').textContent)
 `))
 // The usage card itself carries no explanatory prose: the Status line
 // (elsewhere now) says what there is to spend and
@@ -355,7 +355,8 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('no windows draws no chart rather than a broken one', await evalJS(`
-  !document.querySelector('#usageOut .uchart') && !!document.querySelector('#statusOut .udecide')
+  !document.querySelector('#usageOut .uchart') &&
+  /min left/.test(document.querySelector('#queueDoingCard .colhead-desc').textContent)
 `))
 await evalJS(`renderUsage()`)
 await new Promise(r => setTimeout(r, 300))

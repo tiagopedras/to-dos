@@ -12,7 +12,7 @@
    jobs into their own card and renderUsage() draws the token chart, both inside
    the modal openRefCards() opens. Nothing here holds a view id or a route any
    more, just the render functions Plans calls — renderUsage() also feeds the
-   Status line on the Queue/Doing card, which is on the view itself whether the
+   To do column's own description, which is on the view itself whether the
    modal is open or not, see renderStatus() below.
 
    A list rather than a calendar, deliberately. Twelve wakes a night render as
@@ -245,26 +245,23 @@ function usageRow(w, peak){
    ride, open or stop — because a window that outlived 07:00 stopped the night
    agent dead. That rule went on 9 Sep 2026, so what is left is a measurement:
    the run is gated by its schedule now, and this says whether there is capacity
-   sitting there. Drawn into #statusOut on the Queue/Doing card in 13-plans.js
-   rather than into this chart's own #usageOut, since it answers a question
-   about tonight's run; still fetched here, because /usage.json is the only
-   route that knows it and one call draws both. */
+   sitting there. Drawn into the To do column's own description in
+   13-plans.js rather than into this chart's own #usageOut, since it answers a
+   question about tonight's run; still fetched here, because /usage.json is
+   the only route that knows it and one call draws both. */
 function renderStatus(u){
-  /* Handed over rather than assigned: #statusOut is inside the React tree
-     PlansView mounts, so the Status line is a prop like every other body on
-     that view. setPlansStatus is 13-plans.js's, and is absent on every other
-     view — which is the same guard `$('#statusOut')` used to be. */
+  /* Handed over rather than assigned: the description is a prop on the React
+     tree PlansView mounts, like every other body on that view. setPlansStatus
+     is 13-plans.js's, and is absent on every other view. */
   if (typeof setPlansStatus !== 'function') return;
   const w = u.window;
   if (!w || !w.expires) {
-    setPlansStatus('<div class="udecide">No usage window open right now.</div>');
+    setPlansStatus('No session open right now.');
     return;
   }
   const end = new Date(w.expires);
   const mins = Math.max(0, Math.round((end - new Date()) / 60000));
-  setPlansStatus('<div class="udecide open">' +
-    '<strong>' + esc(hm(end)) + '</strong> — window open, ' + mins + ' min left (' +
-    esc(w.source) + ')</div>');
+  setPlansStatus('Session open — closes ' + hm(end) + ', ' + mins + ' min left.');
 }
 
 async function renderUsage(){

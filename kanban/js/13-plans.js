@@ -824,9 +824,7 @@ function renderPlanDoing(){
 function renderPlanProduced(){
   const shown = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.produced), 'produced');
   plansProps.produced = shown.length
-    ? [BoardUI.h('p', { className: 'help', key: 'how' },
-        'Start a session and run ', BoardUI.h('code', null, '/do'), '.')]
-        .concat(planCardNodes(shown))
+    ? planCardNodes(shown)
     : emptyNode('Nothing accepted yet. A plan you accept lands here, and from ' +
                 'it is waiting to be produced.');
   plansProps.producedCount = shown.length;
@@ -987,15 +985,10 @@ function renderQueueList(){
      so this is the written half rather than a second copy of the work: what
      was wrong with the last attempt, which is what tonight is working from. */
   const back = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.todo));
-  const rows = shown.length
-    ? shown.map(queueRowNode)
-    : [BoardUI.h('div', { className: 'empty', key: 'none' },
-        'Nothing to plan tonight. Everything eligible has a plan already, and ' +
-        'none of them have changed since.')];
-  plansProps.queue = back.length
-    ? rows.concat([BoardUI.h('h4', { className: 'fhead', key: 'backhead' },
-        'Going back for another night')], planCardNodes(back))
-    : rows;
+  /* A plan sent back for another night carries its own "planning again"
+     label already (see planWord()), so it reads fine sitting straight under
+     tonight's queue rather than behind a heading saying the same thing. */
+  plansProps.queue = shown.map(queueRowNode).concat(planCardNodes(back));
   // Tonight's queue plus the plans going back for another night — both are
   // things this column is holding for tonight.
   plansProps.queueCount = shown.length + back.length;
@@ -1186,19 +1179,14 @@ function renderBacklogList(){
   const skipped = plansShown(queueSkipped);
   const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
   let body = [];
-  if (held.length) {
-    body.push(BoardUI.h('p', { className: 'help listlead', key: 'lead' },
-      'Drag into To do to plan it tonight.'));
-    body = body.concat(held.map(heldRowNode));
-  }
+  body = body.concat(held.map(heldRowNode));
   /* A parked plan is the written half of the same instruction: the task is
      held, and this is what the agent had already worked out about it. Kept
      openable rather than filed away, since taking it out of Backlog later is
-     a decision better made having read it. */
-  if (parked.length) {
-    body.push(BoardUI.h('h4', { className: 'fhead', key: 'parkedhead' }, 'Plans parked here'));
-    body = body.concat(planCardNodes(parked));
-  }
+     a decision better made having read it. Drawn alongside the held tasks
+     rather than under a heading of their own — every card in this column is
+     the same instruction, leave it alone. */
+  body = body.concat(planCardNodes(parked));
   if (skipped.length) {
     body.push(BoardUI.h('details', { className: 'ufold', key: 'skipped' },
       BoardUI.h('summary', null, 'Not eligible (' + skipped.length + ')'),
@@ -1377,22 +1365,18 @@ function renderDoing(n){
    made it stop early. Sits in Done rather than in the Queue/Doing card: this
    is a record of the run, the same kind of fact "Latest run costs" is, not a
    description of what's happening or about to. */
+/* One clear line replacing the Run started / Planned / Left block, in the
+   column's own description — the same move made for the To do column below.
+   A plain string rather than markup, since it goes straight into Column's
+   `desc`. */
 function renderDoneStats(n){
-  let html = '';
-  if (n.started) {
-    html += '<dl class="schedmeta"><dt>Run started</dt><dd>' +
-      esc(n.started.slice(0, 16)) + '</dd>' +
-      '<dt>Planned</dt><dd>' + n.done.length +
-      (n.toPlan ? ' of ' + n.toPlan : '') + '</dd>' +
-      (n.left ? '<dt>Left</dt><dd>' + n.left + '</dd>' : '') +
-      '</dl>';
-  }
-  if (n.stopped) html += '<p class="fstop">' + esc(n.stopped) + '</p>';
-  if (!n.started) {
-    html += '<p class="help">The log has nothing since the last run started. ' +
-      'A wake that found no window logs its reason and stops without starting one.</p>';
-  }
-  plansProps.doneStatsHTML = html;
+  let text = n.started
+    ? 'Run started ' + n.started.slice(0, 16) + ' — planned ' + n.done.length +
+      (n.toPlan ? ' of ' + n.toPlan : '') + (n.left ? ', ' + n.left + ' left' : '') + '.'
+    : 'The log has nothing since the last run started. A wake that found no ' +
+      'window logs its reason and stops without starting one.';
+  if (n.stopped) text += ' ' + n.stopped;
+  plansProps.reviewDesc = text;
 }
 
 /* What the last run actually cost — sits in Token Session rather than here,
@@ -1597,12 +1581,12 @@ function plansMountPoint(){
 const PLANS_BLANK = {
   backlog: 'Loading…',
   queueErrorHTML: '',
-  statusHTML: 'Loading…',
+  queueDesc: 'Loading…',
   queue: 'Loading…',
   orphanHTML: '',
   doingHTML: '',
   doingEmptyHTML: '',
-  doneStatsHTML: '',
+  reviewDesc: 'Loading…',
   doingPlans: null,
   review: 'Loading…',
   produced: 'Loading…',
@@ -1674,13 +1658,13 @@ function paintPlans(){
   return true;
 }
 
-/* The Status line on the To do card is drawn by renderStatus() in
+/* The To do column's own description, drawn by renderStatus() in
    14-schedule.js, which reads /usage.json — the only route that knows it, and
-   one call draws both that and the chart. It used to write into #statusOut
-   directly; it hands the markup over instead, since that node belongs to
-   React now. */
-function setPlansStatus(html){
-  plansProps.statusHTML = html;
+   one call draws both that and the chart. It used to be a separate "Status"
+   block inside the column body; it lives in the head now, the same place
+   every other column's description does. */
+function setPlansStatus(text){
+  plansProps.queueDesc = text;
   paintPlans();
 }
 

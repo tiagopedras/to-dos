@@ -534,11 +534,11 @@ check('the task in flight is named', await evalJS(`
 check('with the agent working on it', await evalJS(`
   document.querySelector('#doingOut .fnow .repmeta').textContent.includes('planning-design-system')
 `))
-// Run started / Planned / Left sit in Done now — a record of the batch, the
-// same kind of fact "Latest run costs" is, not a description of what's
-// happening this second.
-check('progress through the batch is shown in Done', await evalJS(`
-  document.querySelector('#doneStatsOut .schedmeta').textContent.includes('1 of 4')
+// Run started / Planned / Left sit in Waiting for review's own column
+// description now, a record of the batch rather than a body block.
+check('progress through the batch is shown in the column description', await evalJS(`
+  document.querySelector('#plansOut').closest('.col').querySelector('.colhead-desc')
+    .textContent.includes('1 of 4')
 `))
 // The results of the run itself sit in Token Session, not here — this card
 // is only what's happening right now. Token Session is behind the button, so
@@ -1088,10 +1088,10 @@ check('the highest priority task is at the top, not the newest night', await eva
    folder. Toggled on, then off again, so every check after this one still
    reads the priority order it was written against. */
 check('the column offers a sort toggle, off by default', await evalJS(`
-  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn:not(.on)')?.textContent === 'by priority'
+  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn:not(.on)')?.textContent === 'by priority'
 `))
 await evalJS(`(() => {
-  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn').click();
+  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn').click();
   return painted();
 })()`)
 check('clicking it sorts by when the plan was written, newest first', await evalJS(`
@@ -1100,10 +1100,10 @@ check('clicking it sorts by when the plan was written, newest first', await eval
   'gone,middling,slow-burn,unscored,cheap-and-big'
 `), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
 check('and the button now reads the other way round', await evalJS(`
-  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn.on')?.textContent === 'by night'
+  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn.on')?.textContent === 'by night'
 `))
 await evalJS(`(() => {
-  document.querySelector('#doneStatsOut').closest('.col').querySelector('.sortbtn').click();
+  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn').click();
   return painted();
 })()`)
 check('and clicking it again puts priority order back', await evalJS(`

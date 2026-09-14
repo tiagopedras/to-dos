@@ -32,7 +32,7 @@
  * object they all come out of — the sixteen `innerHTML` assignments that used
  * to fill these nodes by id went in one change, because half-and-half is the
  * arrangement that would silently drop a column. Nothing outside that file
- * writes into this tree either: the Status line is handed over by
+ * writes into this tree either: To do's own description is handed over by
  * `setPlansStatus()` rather than assigned from `14-schedule.js`.
  *
  * Nothing is wired after a paint, as of 13 Sep 2026, and that is what retired
@@ -62,17 +62,23 @@ export interface PlansViewProps {
   /** Backlog: what the agent is to leave alone — held tasks, parked plans, and
    *  a fold of the ones a rule excluded. */
   backlog: ReactNode
-  /** To do: the error line, the Status block and tonight's queue, in that
-   *  order. The first two are markup the board built; the queue is cards. */
+  /** To do: the error line and tonight's queue. The error is markup the
+   *  board built; the queue is cards. */
   queueErrorHTML: string
-  statusHTML: string
+  /** To do's own description — when the current usage window closes, and how
+   *  long is left in it — replacing the static sentence every other column
+   *  keeps, since this is the one column where that answer changes by the
+   *  minute. */
+  queueDesc: ReactNode
   queue: ReactNode
   /** Doing: an orphaned lock notice, the live run, plans in production, or nothing. */
   orphanHTML: string
   doingHTML: string
   doingEmptyHTML: string
-  /** Waiting for review: the counts above the agent's own cards. */
-  doneStatsHTML: string
+  /** Waiting for review's own description — the same move as queueDesc:
+   *  when the last run started and how far it got, in place of the static
+   *  sentence. */
+  reviewDesc: ReactNode
   /** The four columns that hold nothing but plans, as nodes rather than as
    *  markup — `PlanCard`s, or the column's empty state. These are the half of
    *  the port that has happened; everything above and below is still a string
@@ -129,9 +135,9 @@ const raw = (html: string) => ({ __html: html })
 
 export function PlansView (props: PlansViewProps) {
   const {
-    backlog, queueErrorHTML, statusHTML, queue,
+    backlog, queueErrorHTML, queueDesc, queue,
     orphanHTML, doingHTML, doingEmptyHTML,
-    doneStatsHTML, doingPlans, review, produced, done,
+    reviewDesc, doingPlans, review, produced, done,
     backlogCount, queueCount, doingCount, producedCount,
     reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
     backlogDrop, queueDrop, producedDrop, doneDrop,
@@ -161,7 +167,7 @@ export function PlansView (props: PlansViewProps) {
         cls="reportsview queueview"
         id="queueDoingCard"
         count={queueCount ?? ''}
-        desc="What tonight’s run picks up, in order."
+        desc={queueDesc}
         action={
           <button className={'btn small' + (runLive ? ' hidden' : '')} id="runQueueBtn"
             type="button" onClick={onRunQueue}>
@@ -176,8 +182,6 @@ export function PlansView (props: PlansViewProps) {
                 getting on. */}
             <div className={'err' + (queueErrorHTML ? '' : ' hidden')} id="nightAgentErr"
               dangerouslySetInnerHTML={raw(queueErrorHTML)} />
-            <h4 className="fhead">Status</h4>
-            <div id="statusOut" dangerouslySetInnerHTML={raw(statusHTML)} />
             <div id="queueOut" {...queueDrop}>{queue}</div>
           </>
         }
@@ -208,18 +212,13 @@ export function PlansView (props: PlansViewProps) {
         title="Waiting for review"
         cls="reportsview processed"
         style="agent"
-        desc="The agent’s own column — what it has worked out, waiting on you. Drag out of it, not into it."
+        desc={reviewDesc}
         sort={reviewSort}
         filters={
           <span className="colfilter-slot" id="reviewFilterSlot"
             dangerouslySetInnerHTML={raw(reviewFilterHTML)} />
         }
-        body={
-          <>
-            <div id="doneStatsOut" dangerouslySetInnerHTML={raw(doneStatsHTML)} />
-            <div id="plansOut">{review}</div>
-          </>
-        }
+        body={<div id="plansOut">{review}</div>}
       />
 
       {/* No filter on this one: every card in it is the same thing, a plan he

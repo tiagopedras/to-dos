@@ -1394,9 +1394,6 @@
   }
   .frow.failed .fname{color:var(--red)}
   .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
-  /* The Status heading and its line, and the dead-run banner beneath them —
-     all sit above whichever of Queue or Doing is currently showing. */
-  #statusOut{margin:0 0 10px}
   #qdOrphan .err{margin-top:0}
 
   /* ---------- schedule ----------
@@ -1438,17 +1435,6 @@
     margin:7px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
     font-size:11px; line-height:1.55; overflow-x:auto; color:var(--ink-soft);
   }
-  /* The status line: how much of the current usage window is left — drawn into
-     #statusOut on the Queue/Doing card, under its own "Status" heading, not
-     into this chart's own #usageOut (see renderStatus() in 14-schedule.js).
-     `.ride` is kept alongside `.open` because it costs nothing and the class
-     was written by hand into a card that predates this. */
-  .udecide{
-    padding:10px 12px; border-radius:9px; font-size:13px; line-height:1.5;
-    background:var(--chip); color:var(--ink-soft); margin:0 0 10px;
-  }
-  .udecide strong{color:var(--ink); letter-spacing:.02em}
-  .udecide.ride, .udecide.open{background:var(--green-bg)}
   /* The chart. Two series on two scales, so each axis is drawn in the colour of
      the line it belongs to — that is the only thing saying which reads against
      which, and a legend alone would not carry it. */
