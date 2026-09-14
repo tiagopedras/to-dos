@@ -359,16 +359,13 @@ function replanPlan(p){
    leave this task be. So it does two things rather than one: the plan is parked,
    and the task itself joins the hold list, which is the only thing agents/planning_agent/pick.py
    actually reads. Parking the plan and leaving the task queued would have
-   tonight write a fresh plan for a task he just took off the agent. */
+   tonight write a fresh plan for a task he just took off the agent.
+
+   No confirm sheet, decided 13 Sep 2026: dragging onto Backlog is already the
+   deliberate act, the same reasoning holdTask() below already goes on with no
+   modal of its own, and either kind is one drag back out if it lands wrong. */
 function parkPlan(p){
-  showModal('Leave this one alone?', esc(p.title),
-    '<div class="repdoc">' +
-      '<p>The plan is parked in <strong>Backlog</strong> and the task is held back ' +
-      'from the queue, so the planning agent does not touch it until you move it ' +
-      'back to To do.</p>' +
-    '</div>',
-    [{ label:'Yes, leave it alone', primary:true, run: () => movePlan(p, 'backlog', 'me', { hold: true }) },
-     { label:'Cancel' }]);
+  movePlan(p, 'backlog', 'me', { hold: true });
 }
 
 /* The two sections of a plan that are not for him. `Context` is the night's

@@ -823,16 +823,13 @@ check('an emptied Waiting for review says so rather than going blank', await eva
 // Backlog. Not a verdict on the plan at all, so it does two things: parks the
 // plan, and holds the task itself back — the hold list being the only thing the
 // picker actually reads. Reached through parkPlan() directly, because the modal
-// stopped offering it on 13 Sep 2026 when the four buttons became three: the
-// only way in now is dragging a card onto the Backlog column, whose drop
-// handler calls exactly this.
+// stopped offering it on 13 Sep 2026 when the four buttons became three, and
+// dragging onto Backlog stopped confirming at all on 14 Sep 2026 — the only
+// way in now is dragging a card onto the Backlog column, whose drop handler
+// calls exactly this, straight through with no sheet in the way.
 await evalJS(`parkPlan(planList.find(x => x.name === 'hr-agent.md'))`)
-await new Promise(r => setTimeout(r, 200))
-check('parking says the task is held too', await evalJS(`
-  document.querySelector('.mscrim .repdoc').textContent.includes('held back from the queue')
-`))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, leave it alone').click()`)
-await new Promise(r => setTimeout(r, 500))
+await new Promise(r => setTimeout(r, 300))
+check('parking a plan asks nothing first', await evalJS(`!document.querySelector('.mscrim')`))
 const parked = await evalJS(`window.__blocked.join(' | ')`)
 check('parking a plan writes backlog', parked.includes('"to":"backlog"'))
 check('and holds its task in the same gesture', await evalJS(`
@@ -933,13 +930,28 @@ check('the reason box is the same one', await evalJS(`!!document.querySelector('
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
 await new Promise(r => setTimeout(r, 200))
 
-check('dropping it on Backlog asks to park it', await evalJS(dropOn('#backlogOut')))
+// Backlog takes no confirm, decided 14 Sep 2026: dragging onto it is already
+// the deliberate act, the same as a held task's queue-to-Backlog drag.
+check('dropping it on Backlog parks it with no confirm', await evalJS(dropOn('#backlogOut')))
 await new Promise(r => setTimeout(r, 300))
-check('and says the task is held with it', await evalJS(`
-  document.querySelector('.mscrim .repdoc').textContent.includes('held back from the queue')
-`))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
-await new Promise(r => setTimeout(r, 200))
+check('nothing asked first', await evalJS(`!document.querySelector('.mscrim')`))
+const parkedByDrag = await evalJS(`window.__blocked.join(' | ')`)
+check('and it wrote backlog straight away', parkedByDrag.includes('"to":"backlog"'))
+
+// Unlike the other two drops, this one actually applied — there was no Cancel
+// to undo it with — so the fixture needs re-seeding before the checks below
+// that expect the dragged row still sitting in Waiting for review.
+await evalJS(`(() => {
+  planList = [
+    { name:'drag-me.md', night:'2026-09-05', url:'/x/drag-me.md', state:'review', owner:'me', seen:true,
+      title:'A plan to drag', task:'A plan to drag', slug:'a-plan-to-drag',
+      bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
+      date:'2026-09-05', summary:'Something to move about.' }
+  ];
+  reviewFilter = 'all'; doneFilter = 'all';
+  renderPlansList();
+  return painted();
+})()`)
 
 // The one column that refuses. A drag over it is never accepted, so nothing
 // can be put into the agent's own column by hand.
