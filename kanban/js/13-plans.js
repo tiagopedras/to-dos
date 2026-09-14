@@ -117,6 +117,27 @@ function productionWord(p){
   return '';
 }
 
+/* Opening an accepted plan used to offer no way to start, or return to, the
+   session actually carrying it out — the other half of that entry in
+   IMPROVEMENTS.md, alongside openListChat() above. A real Terminal window,
+   the same as that one, seeded with `/do` naming this plan's own task;
+   `--session-id` is what makes a second click on the same card resume
+   rather than start over, since the server writes the id it used back onto
+   the plan the moment the window opens. Nothing here touches `state` or
+   `production` — those stay do's own to set. */
+async function startPlanSession(p){
+  try {
+    const res = await postJSON('/plans/start-session', { name: p.name });
+    if (res && res.ok === false) throw new Error(res.error || 'the server refused it');
+    p.production_session = res.session || p.production_session;
+    renderPlansList();
+    showToast(res.resumed ? 'Reopened the session carrying this out.'
+                           : 'Opened a Claude window to carry this out.', 'good');
+  } catch (err) {
+    showToast('Could not open a session: ' + (err.message || err), 'bad');
+  }
+}
+
 /* The plan card's left stripe. Every card in the app carries one; a task card's
    is its bucket's colour, and a plan's is this. Not the bucket, because a plan
    is one proposal about one task rather than a thing belonging to a bucket, and
@@ -438,6 +459,44 @@ async function setTaskHeld(title, on){
    moment two bucket tabs were on at once. A row with no bucket on it (should
    not happen in practice) is shown regardless, rather than disappearing
    because of a field that was never set. */
+/* The Plans tab's badge: how many plans are sitting in Waiting for review,
+   across every bucket whatever the filter says, since the tab is asking him
+   to go and look rather than describing the view he has filtered.
+
+   Plans loads its list only when it is opened, so the count has a fetch of its
+   own for every other view — on each view change and whenever the tab comes
+   back into focus, which is when a night's plans are first worth flagging.
+   On Plans itself the list it has just drawn is the answer. It updates the
+   tab in place rather than redrawing the strip, which would shut the view
+   menu if it happened to be open. */
+let plansAwaiting = 0;
+
+function plansAwaitingBadgeHTML(){
+  return numberBadgeHTML({ n: plansAwaiting, label: 'plans waiting for review' });
+}
+
+function setPlansBadge(n){
+  if (n === plansAwaiting) return;
+  plansAwaiting = n;
+  const tab = document.querySelector('#viewToggle [data-view="plans"]');
+  if (!tab) return;
+  tab.querySelectorAll('.nbadge').forEach(b => b.remove());
+  tab.insertAdjacentHTML('beforeend', plansAwaitingBadgeHTML());
+}
+
+async function refreshPlansBadge(){
+  try {
+    const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) return;
+    const list = (await res.json()).plans || [];
+    setPlansBadge(list.filter(p => planColumn(p) === PLAN_COL.review).length);
+  } catch (_) { /* the board helper is down; the badge keeps what it had */ }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.view !== 'plans') refreshPlansBadge();
+});
+
 function plansShown(list, field){
   field = field || 'bucket';
   if (!state.doc || allMode() || state.aiFilter || state.urgentFilter) return list;
@@ -696,6 +755,7 @@ document.addEventListener('click', e => {
    on its own any more — each writes into plansProps and the paint happens once
    at the end, which is what stops six renders and six re-wirings per move. */
 function renderPlansList(){
+  setPlansBadge(planList.filter(p => planColumn(p) === PLAN_COL.review).length);
   renderPlanReview();
   renderPlanProduced();
   renderPlanDone();
@@ -735,6 +795,16 @@ function planCardNode(p){
        on this. It was `outcome: folded` here and `needs_you` in the improvements
        backlog, which were two names for one fact. */
     needsYou: !!p.needs_you,
+    /* Start, or return to, the session actually carrying this out — only
+       while there is one worth having: not before he has accepted it, and
+       not once do has already marked it produced, since the session's job
+       is finished by then and the transcript is history rather than
+       something to reopen. */
+    action: (planColumn(p) === PLAN_COL.produced && p.production !== 'done')
+      ? BoardUI.h('button', { className: 'btn outline small startsession',
+          onClick: e => { e.stopPropagation(); startPlanSession(p); } },
+          p.production_session ? 'Return to session' : 'Start session')
+      : null,
     /* Not every plan resolves: the task might since have been renamed or
        deleted, so the link falls back to the name the plan itself stored, and
        goToPlanTask says so on the click. */
@@ -1679,6 +1749,7 @@ async function renderPlansView(){
     }
     planList = (await res.json()).plans || [];
     if (!planList.length) {
+      setPlansBadge(0);
       plansProps.review = BoardUI.h('div', { className: 'empty' },
         'Nothing yet. The planning agent writes into ',
         BoardUI.h('code', null, 'data/plans/'),

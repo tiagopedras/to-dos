@@ -33,6 +33,7 @@ import shutil
 import sys
 import threading
 import time
+import uuid
 import webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1002,6 +1003,11 @@ def plan_meta(path, name):
         # autonomous enough to be worth watching — see IMPROVEMENTS.md.
         "production": fields.get("production", ""),
         "production_summary": fields.get("production_summary", ""),
+        # Which Claude Code session --session-id opened for this plan, if any
+        # — see start_plan_session() below. Read back so the button that
+        # opened it can offer to return to the same one next time, rather
+        # than starting a second session over the first.
+        "production_session": fields.get("production_session", ""),
         "feedback": fields.get("feedback", fields.get("redo_note", "")),
         "revisions": revisions,
         "created": fields.get("created", fields.get("generated", "")),
@@ -1171,21 +1177,16 @@ def _applescript_string(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def open_terminal_session(prompt, cwd=None):
-    """A real Terminal.app window, running an interactive `claude` session
-    seeded with `prompt` as its first turn — not the embedded `claude -p`
-    chat every task's own "New chat" opens (`PACKAGES/ai_chat_engine`'s
-    `Runner.run()`), because this one is a conversation about the whole list
-    rather than one card, and he asked for a real window for it.
-
-    `cwd` must be a directory Claude Code already trusts, or the "Is this a
-    project you trust?" prompt appears in the new window instead of a
-    session — defaults to this repo's own root, which is always trusted
-    since the board itself runs from there. The resulting session writes an
-    ordinary transcript under `~/.claude/projects/`, so it is findable later
-    through the same "Attach a session…" path any other one is.
+def _open_terminal(argv, cwd=None):
+    """A real Terminal.app window, running `argv`, via AppleScript's `do
+    script`. `cwd` must be a directory Claude Code already trusts, or the
+    "Is this a project you trust?" prompt appears in the new window instead
+    of a session — defaults to this repo's own root, which is always
+    trusted since the board itself runs from there. See
+    open_terminal_session() and start_plan_session() for the two callers.
     """
-    shell_cmd = "cd %s && claude %s" % (shlex.quote(cwd or ROOT), shlex.quote(prompt))
+    shell_cmd = "cd %s && %s" % (shlex.quote(cwd or ROOT),
+                                  " ".join(shlex.quote(a) for a in argv))
     script = ('tell application "Terminal"\nactivate\ndo script %s\nend tell'
               % _applescript_string(shell_cmd))
     try:
@@ -1195,6 +1196,99 @@ def open_terminal_session(prompt, cwd=None):
     except OSError as exc:
         return None, {"error": "could not open a terminal: %s" % exc}
     return {"ok": True}, None
+
+
+def open_terminal_session(prompt, cwd=None):
+    """A real Terminal.app window, running an interactive `claude` session
+    seeded with `prompt` as its first turn — not the embedded `claude -p`
+    chat every task's own "New chat" opens (`PACKAGES/ai_chat_engine`'s
+    `Runner.run()`), because this one is a conversation about the whole list
+    rather than one card, and he asked for a real window for it.
+
+    The resulting session writes an ordinary transcript under
+    `~/.claude/projects/`, so it is findable later through the same
+    "Attach a session…" path any other one is.
+    """
+    return _open_terminal(["claude", prompt], cwd)
+
+
+def _plan_file_path(name):
+    """A plan's file under plans_dir(), or None for a bad or missing name —
+    the one check standing between this and translate_path()'s own guard
+    against `..` reaching outside the folder it serves."""
+    if not name or "/" in name or "\\" in name or ".." in name:
+        return None
+    path = os.path.join(plans_dir(), name)
+    return path if os.path.isfile(path) else None
+
+
+def _set_plan_field(path, key, value):
+    """Replace one frontmatter line on a plan file, or add it — the same
+    shape `_set()` in agents/planning_agent/stream.py already uses for the
+    fields that stream owns. `production_session` is not one of those: it
+    is metadata for this route alone (nothing in the plans stream's
+    contract knows about it), which is why this writes the file directly
+    rather than going through `stream_apply()`, the same way the
+    implementing agent already writes `production_summary` directly rather
+    than through the stream.
+    """
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    pat = re.compile(r"^%s:.*$\n?" % re.escape(key), re.M)
+    line = "%s: %s\n" % (key, value)
+    text = pat.sub(line, text, count=1) if pat.search(text) else text.replace("---\n", "---\n" + line, 1)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
+
+
+def start_plan_session(name):
+    """Start, or return to, the implementing agent's session for one
+    accepted plan — the second piece "Opening an accepted plan..." in
+    IMPROVEMENTS.md asked for, alongside open_terminal_session() above.
+
+    claude's own `--session-id` is what makes "return to it" possible at
+    all: the id is known and written onto the plan the moment a fresh
+    window opens, rather than waiting for the session to announce itself
+    the way a manually-attached one does (see attach_session.py) — that is
+    the only reliable way to hand the same id back on the way in that was
+    given on the way out. A plan that already carries one resumes it with
+    `--resume` instead of sending a fresh prompt, the same as reopening any
+    other session.
+
+    Writes nothing about `state` or `production` — those stay the do
+    skill's own to set, through `stream.py --apply`, exactly as documented.
+    This is tracking metadata about a session, not a step in that contract.
+    """
+    path = _plan_file_path(name)
+    if not path:
+        return None, {"error": "no such plan"}
+    meta = plan_meta(path, name)
+    if not meta:
+        return None, {"error": "could not read that plan"}
+    session = meta.get("production_session") or ""
+    resumed = bool(session)
+    if resumed:
+        argv = ["claude", "--resume", session]
+    else:
+        session = str(uuid.uuid4())
+        task = meta.get("task") or meta.get("title") or ""
+        argv = ["claude", "--session-id", session,
+                "/do the plan for \"%s\"" % task]
+    got, err = _open_terminal(argv, ROOT)
+    if err:
+        return None, err
+    if not resumed:
+        try:
+            _set_plan_field(path, "production_session", session)
+        except OSError as exc:
+            # The window already opened; losing the write-back only means
+            # the next click starts a second session rather than returning
+            # to this one, not that anything failed outright.
+            return {"ok": True, "resumed": False, "session": session,
+                     "warning": "opened, but could not record the session: %s" % exc}, None
+    return {"ok": True, "resumed": resumed, "session": session}, None
 
 
 def start_planning_agent_run():
@@ -2093,6 +2187,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             prompt = payload.get("prompt") or "/pa"
             got, err = open_terminal_session(prompt, cwd=payload.get("cwd"))
             return self._json(500 if err else 200, err or got)
+        if path == "/plans/start-session":
+            # No confirm sheet, same reasoning as /session/open-terminal:
+            # worst case is an extra window, not a spend — the money is
+            # only spent once he actually talks to the session it opens.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            got, err = start_plan_session(payload.get("name") or "")
+            return self._json(404 if err and err.get("error") == "no such plan"
+                               else (500 if err else 200), err or got)
         if path == "/planning_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.

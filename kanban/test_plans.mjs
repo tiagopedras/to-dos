@@ -119,6 +119,7 @@ await evalJS(`(() => {
       bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
     { name:'prod-doing.md', night:'2026-09-05', url:'/x/prod-doing.md', state:'accepted',
       owner:'implementing-agent', seen:true, production:'doing',
+      production_session:'abc-123-def',
       title:'Being made right now', task:'Being made right now',
       bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
     /* Turned down outright — the fourth move, added 13 Sep 2026. It draws in
@@ -710,6 +711,41 @@ check('and one that has reported back is the one waiting on him',
   await prodChip('Reported back') === 'reported back/planprod planprod-review',
   await prodChip('Reported back'))
 
+/* Starting, or returning to, the session actually carrying a plan out — the
+   other half of "Opening an accepted plan..." in IMPROVEMENTS.md, built
+   14 Sep 2026. --session-id is what lets a second click resume rather than
+   start over: the server writes the id it used back onto the plan, and the
+   card's own button reads that back to know which word to use. */
+const sessionBtn = title => evalJS(`(() => {
+  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+    c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
+  const btn = card && card.querySelector('.startsession');
+  return btn ? btn.textContent : 'missing';
+})()`)
+check('a plan nothing has started offers to start one',
+  await sessionBtn('Accepted, not started') === 'Start session')
+check('one already under way offers to return to it instead',
+  await sessionBtn('Being made right now') === 'Return to session')
+check('a plan he has not accepted has no session button at all', await evalJS(`
+  [...document.querySelectorAll('#plansOut .card')].every(c => !c.querySelector('.startsession'))
+`))
+check('and neither does one already produced', await evalJS(`
+  !document.querySelector('#plansDone .card .startsession')
+`))
+
+await evalJS(`(() => {
+  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+    c.querySelector('.title')?.textContent === 'Accepted, not started');
+  card.querySelector('.startsession').click();
+})()`)
+await new Promise(r => setTimeout(r, 300))
+// Straight through with no confirm sheet of its own — the click posts
+// directly, same as /session/open-terminal: worst case is an extra window,
+// not a spend, so nothing here needs asking first.
+check('pressing it posts the plan by name', await evalJS(`
+  window.__blocked.some(b => b.startsWith('POST /plans/start-session') && b.includes('"prod-none.md"'))
+`), await evalJS(`window.__blocked.join(' | ')`))
+
 /* A plan that has reported back and not been looked at is the other thing that
    has just arrived, so it takes the accent the same way an unread plan does.
    Before the fold this card was on another board and could not say so here. */
@@ -1245,10 +1281,11 @@ check('and the old spelling of accepted reads as accepted beside it', await eval
 check('nothing reached todo.md', await evalJS(`
   !window.__blocked.some(b => b.includes('todo.md'))
 `))
-check('and every write was a plan status, a queue ordering or a run', await evalJS(`
+check('and every write was a plan status, a queue ordering, a run or a session',
+  await evalJS(`
   window.__blocked.every(b =>
     b.startsWith('POST /stream/apply') || b.startsWith('POST /queue/order') ||
-    b.startsWith('POST /planning_agent/run'))
+    b.startsWith('POST /planning_agent/run') || b.startsWith('POST /plans/start-session'))
 `), await evalJS(`String(window.__blocked.length) + ' writes'`))
 // The whole queue column writes to exactly one place, and it is not the list.
 check('the queue writes only its own ordering', await evalJS(`

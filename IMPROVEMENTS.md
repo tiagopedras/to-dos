@@ -742,17 +742,19 @@ they settled is written up in the README rather than left here:
   himself, and that precondition needs checking at the start of the run
   rather than assumed.
 
-- **Opening an accepted plan offers no way to start, or return to, the
-  session actually carrying it out.** `openPlanModal()`
-  (`kanban/js/13-plans.js:278`) draws the same four buttons — It is finished,
-  Plan it again, Turn it down, Leave it alone (`:291-299`) — whether a plan is
-  fresh out of review or already `state: accepted`, and none of them touches
-  a session. The only way to carry one out today is `/pa-do`
-  (`agents/pa_agent/skills/pa-do/SKILL.md`), typed into a terminal session
-  he is already sitting in, because `implementing-agent` "only ever runs from
-  a session he is in" (`agents/implementing_agent/README.md:30`) and never
-  unattended. The plumbing that exists points the opposite direction from what
-  this asks for: a running session announces itself onto
+- ~~**Opening an accepted plan offers no way to start, or return to, the
+  session actually carrying it out.**~~ **Done, 14 Sep 2026 — both pieces,
+  built the way the entry's own reasoning pointed rather than through
+  `ai_canvas`.** `openPlanModal()` (`kanban/js/13-plans.js:278`) draws the
+  same four buttons — It is finished, Plan it again, Turn it down, Leave it
+  alone (`:291-299`) — whether a plan is fresh out of review or already
+  `state: accepted`, and none of them touches a session. The only way to
+  carry one out today is `/pa-do` (`agents/pa_agent/skills/pa-do/SKILL.md`),
+  typed into a terminal session he is already sitting in, because
+  `implementing-agent` "only ever runs from a session he is in"
+  (`agents/implementing_agent/README.md:30`) and never unattended. The
+  plumbing that exists points the opposite direction from what this asks
+  for: a running session announces itself onto
   `data/<dataset>/attach-queue.json`
   (`agents/pa_agent/skills/pa-attach/scripts/attach_session.py`), the board
   drains that queue on load (`kanban/server.py:1765`) and reads it back
@@ -771,6 +773,65 @@ they settled is written up in the README rather than left here:
   `production_session:`-style field on the plan, written back onto it the
   same way `attach_session.py` already writes onto the queue, for the modal
   to read on the way back in.
+
+  **Opening the session** is `open_terminal_session()`'s sibling
+  `start_plan_session()` (`kanban/server.py`) — the same real Terminal.app
+  window the "Talk about the list" entry above opens, rather than reaching
+  for `ai_canvas`: that app draws sessions on a canvas, it does not start
+  new ones, and building a second way to launch a terminal session would
+  have meant two implementations of the one thing this needed. Seeded with
+  `/do the plan for "<task>"`, in the repo's own root.
+
+  **Returning to it** turned out not to need announcing itself onto a queue
+  at all. `claude --session-id <uuid>` lets the caller choose the id up
+  front rather than waiting to learn it, so the server generates one,
+  passes it to the freshly opened window, and writes it straight onto the
+  plan's own frontmatter as `production_session:` — before the session has
+  said a word. `_set_plan_field()` is the same one-line-at-a-time
+  frontmatter edit `stream.py`'s own `_set()` already uses, but reused as a
+  plain, direct file write rather than through `stream_apply()`: this field
+  answers a different question than `state`/`production` do (which session,
+  not which stage), the plans stream's own contract knows nothing about it,
+  and the implementing agent already writes `production_summary` the same
+  direct way for the same reason. A second click, with the id already on
+  file, opens `claude --resume <uuid>` instead of a fresh `/do` — the same
+  window either way, just a different argument.
+
+  `production` and `state` are untouched by any of this — those stay `do`'s
+  own to set, through `stream.py --apply`, exactly as `agents/implementing_agent/skills/do/SKILL.md`
+  already documents. `production_session` is tracking metadata about a
+  session, not a step in that contract, which is also why it lives in
+  `plan_meta()`'s output as its own field rather than folded into
+  `production`.
+
+  The button lives on the card itself rather than in the three-move modal —
+  `PlanCard`'s existing `action` slot, the same one `heldPlanCardNode()`
+  already uses for Release, reading "Start session" or "Return to session"
+  off whether `production_session` is set. Not the modal, on purpose: the
+  modal's three buttons are a deliberately closed set as of the "Four
+  options" entry above ("four options read as four verdicts to weigh rather
+  than three moves and an exit"), and this is neither a verdict nor an
+  exit. Shown for every accepted plan except one already `production: done`
+  — the session's job is finished by then, and its transcript is history
+  rather than something to reopen. No confirm sheet, same reasoning as
+  "Talk about the list": worst case is an extra window, not a spend, since
+  the money is only spent once he actually talks to whatever the window
+  opens.
+
+  `kanban/test_plans.mjs` covers the button's two labels, that it is absent
+  from a plan he has not accepted and from one already produced, and that
+  pressing it posts `/plans/start-session` by the plan's own name with no
+  confirm sheet in the way. The server-side branching — a fresh id and a
+  frontmatter write on the first call, `--resume` with the same id on the
+  second, a clean refusal for a name that doesn't resolve to a file — was
+  checked by hand against a temp plan file with `_open_terminal()` swapped
+  for a recorder, the same "spends real money/opens a real window, verified
+  by hand" line every other agent-spawning path in this repo already draws.
+
+  **The same verification gap as "Talk about the list": untested whether
+  `do script` actually reaches Terminal on this machine**, for the same
+  reason — every attempt from this sandboxed session timed out on the
+  AppleEvent. Both buttons want a real click from the actual board.
 
 - ~~**The four options on a plan's modal stop fitting once it has been
   accepted.**~~ **Done, 13 Sep 2026.** Three buttons now, and only three: the
