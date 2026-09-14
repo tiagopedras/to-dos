@@ -417,8 +417,10 @@ figures and the pace sentence, with a note saying so. A headline number still
 counting a line you have just hidden would contradict the chart directly above
 it.
 
-A fourth report means one more function that returns HTML, listed in
-`reportDefs()`. The tab is built to hold more than one.
+A fourth report means one more `build*()` function in `kanban/js/12-reports.js`
+returning the data it draws from, and one more component in
+`kanban/ui/ReportsBlocks.tsx` to draw it — see `drawReports()` for where the
+three today are called. The tab is built to hold more than one.
 
 The column beside it, **Written reports**, holds the other kind. Counting can only
 ever say how many. Saying what moved and what it means is a judgement, so those

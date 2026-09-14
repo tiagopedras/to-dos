@@ -17,16 +17,25 @@
  * its body, because they are caveats about the data as it stands today rather
  * than a description of what the column is.
  *
- * The counted reports and the written rows still come in as HTML strings rather
- * than nodes, and that is deliberate rather than unfinished. Both are built by
- * functions in `kanban/js/12-reports.js` that the drawer and Plans also use —
- * `mdBlocks()`, `mdInline()` and the three report builders — so porting them
- * would mean porting those three views in the same change. They arrive through
- * `dangerouslySetInnerHTML` until their own views are done, which is the same
- * bargain ProjectsView already makes for a project's blurb.
+ * The counted reports were HTML strings handed to `dangerouslySetInnerHTML`
+ * until 13 Sep 2026, built by four functions in `kanban/js/12-reports.js` that
+ * the drawer and Plans also use — `mdBlocks()`, `mdInline()` and the three
+ * report builders. `mdBlocks()` and `mdInline()` stay exactly that: shared
+ * Markdown rendering, used well beyond this view. The three report builders
+ * did not need to be — nothing outside this file ever called them — so they
+ * are `ReportsBlocks.tsx` now, components taking the data `12-reports.js`
+ * still computes rather than the markup it used to build from it.  A finished
+ * task's title still arrives as `{ __html: mdInline(t.title) }`, the same
+ * `PlanCard.summaryHTML` bargain, because rendering *that* is still the
+ * board's Markdown either way.
  */
 import type { ReactNode } from 'react'
 import { Column } from './Column'
+import {
+  CountedLead, CompletedByCategory, RecentAccomplishments, WeeklyTrend,
+  type CountedLeadProps, type CompletedByCategoryData, type RecentAccomplishmentsData,
+  type WeeklyTrendProps,
+} from './ReportsBlocks'
 
 export interface ReportWindow {
   id: string
@@ -50,9 +59,11 @@ export interface ReportsViewProps {
   onWindow: (id: string) => void
   /** What span the picker is currently showing, in words or as a date range. */
   range: string
-  /** The lead note and the three counted reports, as HTML. See the note above. */
-  leadHTML: string
-  countedHTML: string
+  /** The lead note and the three counted reports, as data. See the note above. */
+  lead: CountedLeadProps
+  completed: CompletedByCategoryData
+  recent: RecentAccomplishmentsData
+  trend: WeeklyTrendProps
   /** null while /reports.json is out. */
   written: WrittenReport[] | null
   writtenError?: { kind: 'stale-helper' | 'unreadable'; detail?: string } | null
@@ -100,7 +111,7 @@ function WrittenRow(props: { report: WrittenReport; onOpen: () => void }) {
 
 export function ReportsView(props: ReportsViewProps) {
   const { windows, window: current, onWindow, range,
-          leadHTML, countedHTML, written, writtenError, onOpen } = props
+          lead, completed, recent, trend, written, writtenError, onOpen } = props
 
   let writtenBody: ReactNode
   if (writtenError) {
@@ -141,8 +152,12 @@ export function ReportsView(props: ReportsViewProps) {
         }
         body={
           <>
-            <div id="countedLead" dangerouslySetInnerHTML={{ __html: leadHTML }} />
-            <div id="countedOut" dangerouslySetInnerHTML={{ __html: countedHTML }} />
+            <div id="countedLead"><CountedLead {...lead} /></div>
+            <div id="countedOut">
+              <CompletedByCategory {...completed} />
+              <RecentAccomplishments {...recent} />
+              <WeeklyTrend {...trend} />
+            </div>
           </>
         }
       />

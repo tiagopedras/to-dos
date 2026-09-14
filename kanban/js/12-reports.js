@@ -85,10 +85,6 @@ function reportWindowPhrase(){
    around it, because no single preposition works for "this week", "the last 30
    days" and "all time" at once. */
 
-function reportDefs(){
-  return [completedByCategoryReport, recentAccomplishmentsReport, weeklyTrendReport];
-}
-
 /* "27 Aug" — the year is noise inside a 30 day window. */
 function reportDay(iso){
   const d = parseDue(iso);
@@ -179,19 +175,19 @@ function completedRecently(){
 
 /* One finished task as a row: the date it was ticked, its title, and a chip on
    the right saying where it sits. Both reports that list tasks rather than
-   count them draw their rows through here, so the live-versus-archived branch
-   below is written once and a row reads the same whichever report it is in.
+   count them build their rows through here, so the live-versus-archived
+   branch below is written once and a row reads the same whichever report it
+   is in. `DoneRow` in `kanban/ui/ReportsBlocks.tsx` is what actually draws
+   it; this is the data it draws from.
 
-   An archived task has no live id to open the drawer with, so it renders as
-   plain text instead of a button. */
-function doneRowHTML(it, color, chip, chipClass){
-  return '<li style="--bc:' + color + '">' +
-      '<span class="dt">' + esc(reportDay(it.doneOn)) + '</span>' +
-      (it.taskId
-        ? '<button class="tt" data-open="' + it.taskId + '" title="Open this task">' + mdInline(it.title) + '</button>'
-        : '<span class="tt archived" title="Archived — no longer in todo.md">' + mdInline(it.title) + '</span>') +
-      '<span class="where' + (chipClass ? ' ' + chipClass : '') + '">' + esc(chip) + '</span>' +
-    '</li>';
+   An archived task has no live id to open the drawer with, so `taskId` comes
+   back null and the component renders plain text instead of a button. */
+function buildDoneRow(it, color, chip, chipClass){
+  return {
+    key: it.taskId || (it.bucketName + '|' + it.doneOn + '|' + it.title),
+    color, dateLabel: reportDay(it.doneOn), titleHTML: mdInline(it.title),
+    taskId: it.taskId || null, chip, chipClass,
+  };
 }
 
 /* The bucket a finished task was in, in the board's own colour. Anything the
@@ -203,7 +199,10 @@ function reportBucketColor(name){
   return i > -1 ? bucketColor(name, i) : 'var(--ink-faint)';
 }
 
-function completedByCategoryReport(){
+/* Builds the data `CompletedByCategory` in `kanban/ui/ReportsBlocks.tsx`
+   draws from — the counts, the bar widths, the effort points, one row per
+   bucket, in a component rather than a string until 13 Sep 2026. */
+function buildCompletedByCategory(){
   const list = completedRecently();
 
   // Every bucket appears, including the empty ones. A bucket with nothing in it
@@ -218,7 +217,7 @@ function completedByCategoryReport(){
   const total = list.length;
   const most = rows.reduce((m, r) => Math.max(m, r.items.length), 0);
 
-  const rowHTML = r => {
+  const dataRow = r => {
     const n = r.items.length;
     const pct = total ? Math.round(n / total * 100) : 0;
     const width = most ? (n / most * 100) : 0;
@@ -234,16 +233,17 @@ function completedByCategoryReport(){
        to a count of 3 reads as work that cost nothing rather than work nobody
        scored. Otherwise the sum, with the title saying how much of the bucket
        it is actually made of — a partial sum is still an undercount. */
-    let effortCell;
+    let effort;
     if (!n) {
-      effortCell = '<span class="ef">—</span>';
+      effort = { kind:'none' };
     } else if (!scored.length) {
-      effortCell = '<span class="ef untagged" title="No effort tag on any of these ' + n +
-        ' tasks, so there is nothing to add up">untagged</span>';
+      effort = { kind:'untagged', title: 'No effort tag on any of these ' + n +
+        ' tasks, so there is nothing to add up' };
     } else {
-      effortCell = '<span class="ef" title="' + pts + ' effort point' + (pts === 1 ? '' : 's') +
-        ', from ' + scored.length + ' of ' + n + ' task' + (n === 1 ? '' : 's') +
-        ' — S counts 1, M 2, L 3">' + pts + ' pt' + (pts === 1 ? '' : 's') + '</span>';
+      effort = { kind:'scored', text: pts + ' pt' + (pts === 1 ? '' : 's'),
+        title: pts + ' effort point' + (pts === 1 ? '' : 's') +
+          ', from ' + scored.length + ' of ' + n + ' task' + (n === 1 ? '' : 's') +
+          ' — S counts 1, M 2, L 3' };
     }
     // The "where" chip says Done for every row rather than it.tierName — Done
     // is not a section in the file, it is the tick box on the task (see
@@ -251,33 +251,26 @@ function completedByCategoryReport(){
     // dragged into and it.tierName would show that raw tier instead. Every
     // task in this report is done by construction, so the live board's own
     // convention (t.done ? DONE_COL : tier.name) is what belongs here too.
-    const tasks = r.items.map(it => doneRowHTML(it, r.color, DONE_COL)).join('');
-    return '<div class="bkgroup">' +
-        '<div class="row' + (n ? '' : ' zero') + '" style="--bc:' + r.color + '">' +
-          '<span class="bkname"><i></i>' + esc(r.name) + '</span>' +
-          '<span class="bar"><span style="width:' + width.toFixed(1) + '%"></span></span>' +
-          '<span class="n">' + n + '</span>' +
-          effortCell +
-          '<span class="pct">' + (total ? pct + '%' : '—') + '</span>' +
-        '</div>' +
-        (n ? '<details><summary>Show the ' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
-             '<ul class="done">' + tasks + '</ul></details>' : '') +
-      '</div>';
+    return {
+      name: r.name, color: r.color, count: n, widthPct: width,
+      pctLabel: total ? pct + '%' : '—', effort,
+      tasks: r.items.map(it => buildDoneRow(it, r.color, DONE_COL)),
+    };
   };
 
-  return '<h2>Completed</h2>' +
-    '<div class="total"><span class="totaln">' + total + '</span>' +
-      '<span class="totall">task' + (total === 1 ? '' : 's') + ' finished across ' +
-      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies') +
-      /* The window used to be named again here, in a `.totalw` span, so the
-         line read "12 tasks finished across 4 categories the last 30 days"
-         directly under a picker already reading "Past 30 days". The picker
-         governs the whole column and says so in its own head; saying it twice
-         made the sentence longer without making it truer. */
-      '</span></div>' +
-    (total ? rows.map(rowHTML).join('')
-           : '<div class="empty">Nothing has been ticked off with a date ' +
-             reportWindowPhrase() + '.</div>');
+  return {
+    total,
+    /* The window used to be named again here, in a `.totalw` span, so the
+       line read "12 tasks finished across 4 categories the last 30 days"
+       directly under a picker already reading "Past 30 days". The picker
+       governs the whole column and says so in its own head; saying it twice
+       made the sentence longer without making it truer. */
+    totalLine: 'task' + (total === 1 ? '' : 's') + ' finished across ' +
+      state.doc.buckets.length + ' categor' + (state.doc.buckets.length === 1 ? 'y' : 'ies'),
+    rows: rows.map(dataRow),
+    emptyMessage: total ? null :
+      'Nothing has been ticked off with a date ' + reportWindowPhrase() + '.',
+  };
 }
 
 /* ---- Recent accomplishments ----
@@ -297,52 +290,33 @@ function completedByCategoryReport(){
    No second walk of the document and no second fetch. completedRecently() has
    already merged the live file with the archive and sorted the result newest
    first, and the Show picker above is the same one every report here reads. */
-function recentAccomplishmentsReport(){
+function buildRecentAccomplishments(){
   const list = completedRecently();
-  const n = list.length;
-  return '<h2>Recent accomplishments</h2>' +
-    '<p class="help listlead">Everything ticked off ' + reportWindowPhrase() +
-      ', newest first — the same tasks counted above, flat and in one place.</p>' +
-    (n
-      ? '<details class="whole">' +
-          '<summary>' + n + ' task' + (n === 1 ? '' : 's') + '</summary>' +
-          '<ul class="done flat">' +
-            list.map(it => doneRowHTML(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')).join('') +
-          '</ul>' +
-        '</details>'
-      : '<div class="empty">Nothing has been ticked off with a date ' +
-        reportWindowPhrase() + '.</div>');
+  return {
+    count: list.length,
+    windowPhrase: reportWindowPhrase(),
+    rows: list.map(it => buildDoneRow(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')),
+    emptyMessage: 'Nothing has been ticked off with a date ' + reportWindowPhrase() + '.',
+  };
 }
 
-/* The one description of what every report on this tab counts and how
-   complete it is — right under the panel's own heading, same shape as the
-   Written reports column beside it: a headline, then what it means, then the
-   content. Lives here rather than inside completedByCategoryReport() because
-   it is true of the reports under it too, not just the first one — they all
-   read the same `done:` dates and reach into the same archive. */
-function countedLeadHTML(){
+/* The data behind CountedLead, in kanban/ui/ReportsBlocks.tsx — the one
+   description of what every report on this tab counts and how complete it
+   is, right under the panel's own heading, same shape as the Written reports
+   column beside it: a headline, then what it means, then the content. Lives
+   here rather than inside buildCompletedByCategory() because it is true of
+   the reports under it too, not just the first one — they all read the same
+   `done:` dates and reach into the same archive. */
+function buildCountedLead(){
   // Below 30 days this window sits inside the one archiving leaves alone, so the
   // count is a complete picture by construction. Past it, completeness depends
   // on the archive fetch above: still loading, failed, or in and merged.
-  let archiveNote;
-  if (reportDays() <= ARCHIVE_DAYS) {
-    archiveNote = 'Finished work older than ' + ARCHIVE_DAYS + ' days can be archived out of todo.md. This window ' +
-      'stays inside that, so every count below is the whole story for the period.';
-  } else if (archiveEntriesError) {
-    archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to the ' +
-      'archive, and that file could not be read — so the older end of these counts may be incomplete.';
-  } else if (archiveEntries === null) {
-    archiveNote = 'Reading the archive for finished work older than ' + ARCHIVE_DAYS + ' days…';
-  } else {
-    archiveNote = 'This window reaches past the ' + ARCHIVE_DAYS + '-day point where finished work moves to ' +
-      '`data/backups/done-archive.md` — counted below too, so these counts still cover the whole period.';
-  }
-  const notes = [
-    'Only tasks carrying a `done:` date are counted. The board writes that date when ' +
-    'a task is ticked, so anything ticked before that was added is invisible below.',
-    archiveNote
-  ];
-  return notes.map(n => '<p class="help listlead">' + n + '</p>').join('');
+  let archiveStatus;
+  if (reportDays() <= ARCHIVE_DAYS) archiveStatus = 'inside';
+  else if (archiveEntriesError) archiveStatus = 'error';
+  else if (archiveEntries === null) archiveStatus = 'loading';
+  else archiveStatus = 'merged';
+  return { archiveDays: ARCHIVE_DAYS, archiveStatus };
 }
 
 /* ---- Weekly pace ----
@@ -407,7 +381,27 @@ function trendEntries(){
   return out;
 }
 
-function weeklyTrendReport(){
+/* Toggling a bucket in the trend's own key, or switching between line and
+   bars, is a real onClick on the button now (WeeklyTrend in
+   kanban/ui/ReportsBlocks.tsx) — not a data-trendkey/data-trendtype pair for
+   #lists's delegated listener to find; see the two cases removed from
+   kanban/js/25-archiving.js. Only the counted card redraws, since nothing
+   about the list itself has changed — this is a change of view, not an edit. */
+function toggleTrendKey(name){
+  if (trendHidden.has(name)) trendHidden.delete(name); else trendHidden.add(name);
+  renderCountedReports();
+}
+function setTrendChartType(type){
+  trendChartType = type;
+  renderCountedReports();
+}
+
+/* Builds the data WeeklyTrend draws from — one series per bucket, one count
+   per week. The chart's own geometry (the SVG coordinates, the smoothed
+   curve, the pace comparison) is pure arithmetic over these values with no
+   read of state.doc, so it lives beside the chart in ReportsBlocks.tsx rather
+   than here. */
+function buildWeeklyTrend(){
   const weeks = weekBuckets(trendWeeks());
   const entries = trendEntries();
   // Bucket order and colour match the board's own, so a bucket reads the same
@@ -426,11 +420,10 @@ function weeklyTrendReport(){
     const order = bucketOrder.filter(n => counts.has(n))
       .concat([...counts.keys()].filter(n => !bucketOrder.includes(n)));
     return {
-      start: w.start, end: w.end, total: inWeek.length,
+      start: w.start,
       breakdown: order.map(n => ({ name: n, n: counts.get(n), color: colorOf(n) }))
     };
   });
-
 
   /* One series per bucket, each week's count read back out of that week's
      breakdown. Buckets that no longer exist in the list still finished work in
@@ -443,154 +436,14 @@ function weeklyTrendReport(){
     name, color: colorOf(name), hidden: trendHidden.has(name),
     values: weekData.map(w => (w.breakdown.find(b => b.name === name) || { n: 0 }).n)
   }));
-  const shown = series.filter(s => !s.hidden);
 
-  /* Every number on this report counts the buckets currently switched on, not
-     all of them. The key hides a line from the chart, and a headline total or a
-     pace sentence still describing the hidden ones would contradict the picture
-     directly above it. Before the total existed the pace line quietly did that;
-     it does not now. */
-  const counts = weekData.map((w, i) => shown.reduce((a, sr) => a + sr.values[i], 0));
-  const hiddenN = series.length - shown.length;
-
-  const n = weekData.length;
-  const W = 700, H = 190, top = 12, base = H - 6;       // viewBox units, scaled to the card's width
-  const peak = Math.max(1, ...shown.map(s => Math.max(...s.values)));
-  const col = W / n;
-  const cx = i => col * (i + 0.5);
-  const cy = v => base - (v / peak) * (base - top);
-  const f = x => x.toFixed(1);
-
-  /* Both control points sit on the vertical midline between the two weeks
-     they join, which keeps every curve inside the pair of values it connects.
-     A smooth line can then never dip below zero or invent a peak no week had —
-     the shape is decoration, the numbers under it are not. The line runs flat
-     out to both edges so the chart fills its box rather than floating in it. */
-  const curve = vals => {
-    let d = 'M0,' + f(cy(vals[0])) + 'L' + f(cx(0)) + ',' + f(cy(vals[0]));
-    for (let i = 1; i < n; i++){
-      const mx = f((cx(i - 1) + cx(i)) / 2);
-      d += 'C' + mx + ',' + f(cy(vals[i - 1])) + ' ' + mx + ',' + f(cy(vals[i])) +
-        ' ' + f(cx(i)) + ',' + f(cy(vals[i]));
-    }
-    return d + 'L' + W + ',' + f(cy(vals[n - 1]));
+  return {
+    chartType: trendChartType,
+    onChartType: setTrendChartType,
+    weeks: weekData.map(w => ({ label: reportDay(ymd(w.start)) })),
+    series,
+    onToggleSeries: toggleTrendKey,
   };
-
-  const grid = weekData.map((w, i) =>
-    '<line class="trendgrid" x1="' + f(cx(i)) + '" y1="' + top + '" x2="' + f(cx(i)) + '" y2="' + base + '"/>'
-  ).join('');
-
-  let picture;
-  if (trendChartType === 'bars') {
-    /* Stacked rather than grouped: a week's bar reads as one total split into
-       its buckets, which is the same "how many, and of what" the line chart's
-       bands already answer — a grouped layout would need to split each week's
-       column width by however many buckets happened to finish something that
-       week, which varies week to week and would make the bars themselves an
-       unsteady width. Scaled against the week's own total rather than against
-       any single bucket's peak, since a stack's height is the total. */
-    const stackPeak = Math.max(1, ...counts);
-    const barW = col * 0.6;
-    const bars = weekData.map((w, i) => {
-      let acc = 0;
-      return shown.map(s => {
-        const v = s.values[i];
-        const y0 = base - (acc / stackPeak) * (base - top);
-        acc += v;
-        const y1 = base - (acc / stackPeak) * (base - top);
-        if (!v) return '';
-        return '<rect class="trendbar" x="' + f(cx(i) - barW / 2) + '" y="' + f(y1) +
-          '" width="' + f(barW) + '" height="' + f(y0 - y1) + '" fill="' + s.color + '">' +
-          '<title>' + esc(s.name) + ': ' + v + '</title></rect>';
-      }).join('');
-    }).join('');
-    picture = grid + bars;
-  } else {
-    // Each band fades out downwards so overlapping ones stay readable through
-    // each other, which a flat fill at any opacity does not.
-    const defs = shown.map((s, i) =>
-      '<linearGradient id="tgrad' + i + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0" stop-color="' + s.color + '" stop-opacity=".42"/>' +
-        '<stop offset="1" stop-color="' + s.color + '" stop-opacity="0"/>' +
-      '</linearGradient>').join('');
-    const bands = shown.map((s, i) => {
-      const d = curve(s.values);
-      return '<path d="' + d + 'L' + W + ',' + base + 'L0,' + base + 'Z" fill="url(#tgrad' + i + ')"/>' +
-        '<path class="trendline" d="' + d + '" stroke="' + s.color + '">' +
-          '<title>' + esc(s.name) + '</title></path>';
-    }).join('');
-    /* One point per week per line, on top of the bands: a small dot to see, and
-       a bigger transparent circle round it to actually hover — a 3px target is
-       real but not a fair one. showTrendPreview reads the count and the week
-       straight off these rather than re-deriving them, the same way matrixDot's
-       aria-label is written once at render time rather than looked up on hover. */
-    const points = shown.map(s =>
-      s.values.map((v, i) => {
-        const x = f(cx(i)), y = f(cy(v));
-        return '<circle class="trenddot" cx="' + x + '" cy="' + y + '" r="2.5" fill="' + s.color + '"/>' +
-          '<circle class="trendpt" cx="' + x + '" cy="' + y + '" r="9" tabindex="0"' +
-          ' data-trendlabel="' + esc(s.name) + '" data-trendcolor="' + s.color + '"' +
-          ' data-trendcount="' + v + '" data-trendweek="' + esc(reportDay(ymd(weekData[i].start))) + '"' +
-          ' aria-label="' + esc(s.name) + ', ' + v + ' task' + (v === 1 ? '' : 's') +
-          ', week of ' + esc(reportDay(ymd(weekData[i].start))) + '"></circle>';
-      }).join('')
-    ).join('');
-    picture = '<defs>' + defs + '</defs>' + grid + bands + points;
-  }
-
-  const chart = '<svg class="trendchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
-      'aria-label="Tasks finished per week, one ' + (trendChartType === 'bars' ? 'stacked bar' : 'line') +
-      ' per bucket">' + picture +
-      '<line class="trendbase" x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '"/>' +
-    '</svg>' +
-    '<div class="trendx">' + weekData.map((w, i) =>
-      '<div class="trendxc' + (i === n - 1 ? ' current' : '') + '">' +
-        '<span class="trendwk">' + esc(reportDay(ymd(w.start))) + '</span>' +
-        '<span class="trendn">(' + counts[i] + ')</span>' +
-      '</div>').join('') + '</div>' +
-    '<div class="trendkey">' + series.map(s =>
-      '<button class="tkey' + (s.hidden ? ' off' : '') + '" data-trendkey="' + esc(s.name) + '" ' +
-        'style="--bc:' + s.color + '" aria-pressed="' + !s.hidden + '" ' +
-        'title="Show or hide this bucket"><i></i>' + esc(s.name) + '</button>').join('') + '</div>';
-
-  // Split the run in half and compare the two halves' averages, rather than
-  // just the last week against the first — one quiet Friday should not read
-  // as a slowdown. A window that rounds up to a single week has no "before"
-  // half to compare against, so it gets its own sentence instead of a
-  // comparison against nothing.
-  let pace;
-  if (weeks.length < 2) {
-    pace = 'Just this one week in view — widen "Show" above to see whether the pace is climbing or slowing.';
-  } else {
-    const half = Math.ceil(weeks.length / 2);
-    const recentAvg = counts.slice(-half).reduce((a, b) => a + b, 0) / half;
-    const earlierN = weeks.length - half;
-    const earlierAvg = counts.slice(0, earlierN).reduce((a, b) => a + b, 0) / earlierN;
-    if (recentAvg === 0 && earlierAvg === 0) {
-      pace = 'Nothing finished with a date across these ' + weeks.length + ' weeks.';
-    } else if (recentAvg > earlierAvg * 1.15) {
-      pace = 'Climbing — the last ' + half + ' weeks are ahead of the ' + earlierN + ' before them.';
-    } else if (recentAvg < earlierAvg * 0.85) {
-      pace = 'Slowing — the last ' + half + ' weeks are behind the ' + earlierN + ' before them.';
-    } else {
-      pace = 'Flat — the last ' + half + ' weeks are close to the ' + earlierN + ' before them.';
-    }
-  }
-  if (hiddenN) pace += ' ' + hiddenN + ' bucket' + (hiddenN === 1 ? ' is' : 's are') +
-    ' hidden, so every number here counts only the rest.';
-
-  const typePicker = '<span class="tabs small" data-trendtype-group role="group" aria-label="Line or bars">' +
-    ['line', 'bars'].map(id => '<button type="button" class="tab' + (id === trendChartType ? ' on' : '') +
-      '" data-trendtype="' + id + '" aria-pressed="' + (id === trendChartType) + '">' +
-      (id === 'line' ? 'Line' : 'Bars') + '</button>').join('') + '</span>';
-
-  return '<div class="trendhead"><h2>Weekly pace</h2>' + typePicker + '</div>' +
-    '<p class="help listlead">Tasks finished per week, Monday to Sunday, over the last ' +
-      weeks.length + ' week' + (weeks.length === 1 ? '' : 's') +
-      ', one ' + (trendChartType === 'bars' ? 'stacked bar' : 'line') +
-      ' per bucket. The number under each week is its total.</p>' +
-    '<div class="trend">' + chart + '</div>' +
-    '<p class="note">' + esc(pace) + '</p>';
 }
 
 /* ---- Written reports ----
@@ -783,12 +636,15 @@ function drawReports(){
     window: reportWindow,
     onWindow: id => { if (setReportWindow(id)) drawReports(); },
     range: reportDateRange(),
-    /* The counted reports and the lead note are still built as HTML by the
-       three functions in this file, because mdBlocks/mdInline and those
-       builders are shared with the drawer and Plans — porting them means
-       porting those views in the same change. */
-    leadHTML: countedLeadHTML(),
-    countedHTML: reportDefs().map(fn => fn()).join(''),
+    /* The counted reports are components now — see ReportsBlocks.tsx — so
+       what crosses here is the data they draw from, not markup. mdBlocks and
+       mdInline stay shared functions: the drawer and Plans still call them
+       directly, and a done task's title here is still `{ __html: mdInline(...) }`
+       inside buildDoneRow(), the same PlanCard.summaryHTML bargain. */
+    lead: buildCountedLead(),
+    completed: buildCompletedByCategory(),
+    recent: buildRecentAccomplishments(),
+    trend: buildWeeklyTrend(),
     written: writtenState.list,
     writtenError: writtenState.error,
     onOpen: r => openReportModal(r),

@@ -1,0 +1,200 @@
+#!/usr/bin/env node
+/* Overview — the five reference sections `renderSections('overview')` draws.
+ *
+ *   python3 kanban/server.py &          # or BOARD_PORT=... at one already up
+ *   node kanban/test_overview.mjs
+ *
+ * Written 14 Sep 2026, alongside the port of the view's own shell — the split
+ * grid and the five Column wrappers — to kanban/ui/SectionsView.tsx. What each
+ * section actually decides to show (byPriority, capCards, the Quick wins
+ * groups) is untouched by that port and stays covered by inspection rather
+ * than by this suite; what this suite pins is the shell: the five titles and
+ * hints, the count beside each, the split grid's track count, and — the one
+ * real risk the port carries — that capMsgCards() still measures the real,
+ * painted DOM rather than racing React's own schedule. mountFlushed() (see
+ * kanban/ui/index.ts) is what that risk turns on, so the check below reads the
+ * .capped class in the same synchronous pass as the render call, with no
+ * setTimeout to paper over a race if one existed.
+ */
+import { spawn } from 'node:child_process'
+
+const PORT = 9458
+const BOARD = process.env.BOARD_PORT || 8765
+const checks = []
+const check = (name, pass, detail = '') => {
+  checks.push(pass)
+  console.log(`${pass ? '  ok  ' : ' FAIL '} ${name}${detail ? ` — ${detail}` : ''}`)
+}
+
+const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
+  '--headless=new', `--remote-debugging-port=${PORT}`, '--no-first-run',
+  '--user-data-dir=/tmp/todo-overview-test-profile', '--window-size=1400,1000',
+  `http://127.0.0.1:${BOARD}/kanban/index.html`
+], { stdio: ['ignore', 'pipe', 'pipe'] })
+
+async function page () {
+  for (let i = 0; i < 60; i++) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${PORT}/json/list`)
+      const t = (await r.json()).find(t => t.type === 'page' && t.url.includes('index.html'))
+      if (t?.webSocketDebuggerUrl) return t.webSocketDebuggerUrl
+    } catch {}
+    await new Promise(r => setTimeout(r, 250))
+  }
+  throw new Error('no page')
+}
+
+const ws = new WebSocket(await page())
+await new Promise(r => (ws.onopen = r))
+let id = 0
+const pending = new Map()
+ws.onmessage = e => {
+  const m = JSON.parse(e.data)
+  if (pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
+}
+const send = (method, params) => new Promise(res => {
+  const n = ++id
+  pending.set(n, res)
+  ws.send(JSON.stringify({ id: n, method, params }))
+})
+async function evalJS (expr) {
+  const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })
+  if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails).slice(0, 500))
+  return r.result?.result?.value
+}
+
+await new Promise(r => setTimeout(r, 2500))
+check('the board loaded', await evalJS(`typeof renderSections === 'function'`))
+
+// LOCK FIRST, then the fixture. Nothing below can write anything.
+await evalJS(`(() => {
+  state.locked = true; state.lockedLabel = 'test';
+  const real = window.fetch;
+  window.__blocked = [];
+  window.fetch = (u, o) => {
+    const m = (o && o.method) || 'GET';
+    if (m !== 'GET') { window.__blocked.push(m + ' ' + u); return Promise.resolve(new Response('{}', { status: 200 })) }
+    return real(u, o);
+  };
+
+  /* One task per section, so a failure names the section rather than a card.
+     The message on the quick win is long enough to overrun the four-line clamp
+     .ref .msg carries (see board.css), which is what proves capMsgCards() ran
+     against real layout rather than an unpainted node. */
+  const longMessage = Array(12).fill('This is one long suggested message, written to run well past the four lines the card clamps to before anything trims it.').join(' ');
+  load([
+    '# To-do', '', '## 1. Tasks', '',
+    '### To do', '',
+    '- [ ] Ship the redesign \`id:ov0001\` [bucket:: People] [impact:: high] [effort:: L]',
+    '- [ ] Standup notes \`id:ov0002\` [bucket:: People] [impact:: med] [effort:: S] \`week\`',
+    '- [ ] Reply to Sam \`id:ov0003\` [bucket:: People] [impact:: med] [effort:: S]',
+    '  - Suggested message: "' + longMessage + '"',
+    '- [ ] Export the report \`id:ov0004\` [bucket:: People] [impact:: high] [effort:: M] \`ai:full\` \`rank:1\`',
+    '',
+    '## Context', '',
+    '- The team runs a fortnightly retro.',
+    ''
+  ].join('\\n'), 'demo.md', {});
+  state.locked = true;
+})()`)
+check('the tab is locked', await evalJS(`state.locked === true`))
+
+/* No setTimeout before this read — mountFlushed() is what makes that safe,
+   and the point of the check is that it stays safe. */
+await evalJS(`state.view = 'overview'; renderView()`)
+
+/* ---- the shell: five columns, in reading order ---- */
+
+check('all five columns are drawn, in reading order', await evalJS(`
+  [...document.querySelectorAll('.lists.split .col h3')].map(h => h.textContent).join('|')
+`) === 'Big rocks|This week|Quick wins|Delegate to Claude|Context')
+
+check('the split grid carries five tracks', await evalJS(`
+  (document.querySelector('.lists.split').style.gridTemplateColumns.match(/minmax/g) || []).length
+`) === 5, await evalJS(`document.querySelector('.lists.split').style.gridTemplateColumns`))
+
+check('a hint with a tag in it renders the tag as code, not literal backticks', await evalJS(`
+  document.querySelector('.lists.split .col:nth-child(2) .colhead-desc code')?.textContent
+`) === 'week', await evalJS(`document.querySelector('.lists.split .col:nth-child(2) .colhead-desc')?.innerHTML`))
+
+/* ---- each section counts what it holds ---- */
+
+const countOf = title => evalJS(`(() => {
+  const h = [...document.querySelectorAll('.lists.split .col h3')].find(h => h.textContent === ${JSON.stringify(title)});
+  return h?.closest('.col')?.querySelector('.colhead-right .count')?.textContent;
+})()`)
+
+check('Big rocks counts the one L task', await countOf('Big rocks') === '1')
+check('This week counts the one week-tagged task', await countOf('This week') === '1')
+check('Quick wins counts the message task', await countOf('Quick wins') === '1')
+check('Delegate to Claude counts the one ai:full task', await countOf('Delegate to Claude') === '1')
+
+/* ---- the section with nothing to count ---- */
+
+check('Context carries no count, since it is prose rather than a list', await evalJS(`(() => {
+  const h = [...document.querySelectorAll('.lists.split .col h3')].find(h => h.textContent === 'Context');
+  return h.closest('.col').querySelector('.colhead-right .count');
+})()`) == null)
+
+/* ---- capMsgCards() against real, painted layout ---- */
+
+check('the long message is clamped and marked capped by measuring the real box, not guessed', await evalJS(`(() => {
+  const msg = document.querySelector('.ref .msg');
+  if (!msg) return false;
+  return msg.classList.contains('capped') && msg.scrollHeight > msg.clientHeight;
+})()`))
+
+/* ---- collapsing a section persists, the same way it always has ---- */
+
+const bigRocksDetails = () => evalJS(`
+  [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks')?.tagName
+`)
+check('a section is a <details>, open by default', await bigRocksDetails() === 'DETAILS')
+
+await evalJS(`(() => {
+  const d = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
+  d.open = false;
+  d.dispatchEvent(new Event('toggle'));
+})()`)
+await new Promise(r => setTimeout(r, 150))
+check('shutting one writes it to the same key Overview has always used', await evalJS(`
+  JSON.parse(localStorage.getItem('todo-board-overview-closed') || '{}')['ov:Big rocks'] === true
+`))
+
+await evalJS(`state.view = 'board'; renderView(); state.view = 'overview'; renderView()`)
+check('and it stays shut across a re-render', await evalJS(`(() => {
+  const d = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
+  return d.open === false;
+})()`))
+
+// Cleaned up so this suite leaves no mark on a machine it runs on twice.
+await evalJS(`localStorage.removeItem('todo-board-overview-closed')`)
+
+/* ---- Quick wins' own sort control, and Delegate to Claude's ranked rows ---- */
+
+check('Quick wins carries its own sort toggle, not the board\'s', await evalJS(`
+  !!document.querySelector('.lists.split .col:nth-child(3) [data-quicksort]')
+`))
+check('Delegate to Claude numbers its rows', await evalJS(`
+  document.querySelector('.lists.split .col:nth-child(4) .refnum')?.textContent
+`) === '1')
+
+/* ---- delegation still opens a card from a React-rendered section ---- */
+
+await evalJS(`document.querySelector('.lists.split [data-open]').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('clicking a card opens it, the same #lists delegation every other view uses', await evalJS(`
+  !!document.querySelector('#drawer:not(.hidden)')
+`))
+await evalJS(`closeDrawer()`)
+
+/* ---- the point of the guard ---- */
+
+check('overview wrote nothing, which is all it should ever do',
+  await evalJS(`window.__blocked.length === 0`), await evalJS(`window.__blocked.join(' | ')`))
+
+ws.close()
+chrome.kill()
+const failed = checks.filter(c => !c).length
+console.log(failed ? `\n${failed} failed` : `\nall ${checks.length} checks passed`)
+process.exit(failed ? 1 : 0)

@@ -528,6 +528,40 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Plans' drag confirmations are inconsistent by kind, and half of what was
+  asked for is already built.** Dropping a task from the queue onto Backlog
+  goes straight through `holdTask()` (`kanban/js/13-plans.js:1123`) with no
+  modal, but dropping a plan on the same column calls `parkPlan()` (`:365`),
+  which opens a confirm sheet — so "no confirmation on Backlog" is only true
+  for one of the two things that can land there today. Doing already takes no
+  drop at all: `renderPlanDoing()`'s own comment (`:789-796`) says "which one
+  is running is not his to choose", and neither a `doingDrop` nor a
+  `reviewDrop` is wired in `paintPlans()` (`:1600-1671`) or declared in
+  `kanban/ui/PlansView.tsx:114-117`.
+
+  Ready to be produced is the one column that conflicts with what was asked.
+  `producedDrop` (`:1659`) does take a drop today, and dropping onto it is his
+  own call, not the agent's: `acceptPlan()` (`:266`) is the accept the column
+  is named for, and its own comment reads "He accepts the plan as written...
+  the implementing agent owns it from here" — after the drop, not instead of
+  it. Refusing that drop with an "up to the agent" message would say the
+  opposite of what the column exists to do, so which of the two readings is
+  right needs settling before `producedDrop`'s handler changes.
+
+- **The Plans view's dashed borders are five different signals, not one
+  decoration to strip.** `.col.agentcol` (`kanban/board.css:852`) dashes the
+  Waiting for review column edge because an agent owns it. `.empty.boxed`
+  (`:1264`) dashes an empty column's placeholder. `.repitem.actioned` (`:1640`),
+  `.repitem.redo` (`:1653`) and `.repitem.planitem.parked` (`:1682`) each dash a
+  plan card to mean finished-and-kept, sent-back, or parked in Backlog, and
+  `.qitem.held` (`:1326`) does the same for a held row in the queue beside it.
+  `CLAUDE.md`, under "The two boards, and why they are one shape", records that
+  the 12 Sep 2026 unify pass deliberately settled the dash to mean one thing
+  app-wide — an agent owns this column — and every card-level use listed above
+  is the same shape reused for "present, not in play." Removing all of them
+  drops that signal rather than tidying an edge, so what (if anything) replaces
+  each one is a decision to make first, not a single CSS deletion.
+
 - ~~**A plan on its second or third revision looks exactly like a plan on its
   first, so there is no way to see whether sending one back achieved
   anything.**~~ **Done, 13 Sep 2026.** `plan_meta()` (`kanban/server.py`) now
@@ -975,8 +1009,9 @@ they settled is written up in the README rather than left here:
   gap worth fixing alongside this — a task that has aged out is invisible to
   the checker as well as to every `pa-*` skill that reads `todo.md` directly.
 
-- **The board has no component layer, so the same column is written twice and
-  every view redraws by replacing `innerHTML`.** 13,972 lines across 28 classic
+- ~~**The board has no component layer, so the same column is written twice and
+  every view redraws by replacing `innerHTML`.**~~ **Done, 14 Sep 2026** — both
+  remaining pieces, the two this entry left open below. 13,972 lines across 28 classic
   scripts in `kanban/js/`, 463 top-level functions in one global scope, no
   `package.json` and no build step. The Board draws `.col`
   (`kanban/board.css:691-730`) from the single place that emits it,
@@ -1285,6 +1320,62 @@ they settled is written up in the README rather than left here:
   Whenever this is picked up it runs on its own branch off `main`, never
   directly on it, and it is a weekly-allowance-sized spend rather than an
   evening's.
+
+  **Both remaining pieces are done, 14 Sep 2026.** `12-reports.js`'s three
+  report builders — `completedByCategoryReport()`, `recentAccomplishmentsReport()`,
+  `weeklyTrendReport()` — and `countedLeadHTML()` are gone; `kanban/ui/ReportsBlocks.tsx`
+  is `CountedLead`, `CompletedByCategory`, `RecentAccomplishments` and
+  `WeeklyTrend` now, and the four functions they replace, prefixed `build`
+  rather than named for the HTML they used to return, compute the data those
+  components draw from. `mdBlocks()` and `mdInline()` were not touched —
+  nothing outside this file called the four that were, but both of those are
+  still what the drawer and Plans render Markdown with, so a finished task's
+  title still crosses as `{ __html: mdInline(t.title) }`, the same
+  `PlanCard.summaryHTML` bargain. The weekly pace chart's SVG geometry — the
+  coordinate math, the smoothed curve, the pace comparison — moved into the
+  component itself rather than staying data the caller computes, since none of
+  it reads `state.doc`. Clicking the trend key or the line/bars picker is a
+  real `onClick` now rather than `data-trendkey`/`data-trendtype` for
+  `#lists`'s delegated listener to find — both cases came out of
+  `kanban/js/25-archiving.js`, which would otherwise have toggled the same
+  click twice. `kanban/test_reports.mjs`'s 31 checks pass unchanged, which is
+  the evidence the markup did not move; the trend key's own click was checked
+  by hand, since the suite never exercised it.
+
+  The `18-timeline.js` composition — Overview's five columns, Matrix's two,
+  the Timeline's one — is `kanban/ui/SectionsView.tsx` now: `OverviewView`,
+  `MatrixView` and `TimelineView`, each built on the same `Column` every other
+  view in the app already draws through. `refSection()`, `splitGridCSS()` and
+  the two track constants are gone with it. What still arrives as
+  `{ __html }` is each section's own body — the cards in Big rocks, the
+  matrix grid, the timeline's lanes — since porting those is a separate job
+  from porting the shell around them, largely because a fair amount of what
+  they do (the timeline's drag-to-reorder, the matrix dot's hover) is wired by
+  `#lists`'s own delegated listener rather than by anything a component could
+  take as a prop; delegation reaches a React-rendered subtree exactly as it
+  reached a string one, so none of that needed touching. The eight titles and
+  hints across the three views are hardcoded in the component now rather than
+  built here, since none of them ever varies — a `` `week` `` or a `` `due:` ``
+  in a hint is a real `<code>` rather than something `mdInline()` had to be
+  asked to make one.
+
+  Two things needed real DOM after the paint rather than a prop: Overview's
+  `capMsgCards()` measures `.ref .msg`'s actual `scrollHeight`, and the
+  Timeline's `wireTimelineDrag()` arms native `ondragstart`/`ondrop` on
+  elements that have to exist first. Neither is fixable by becoming a prop the
+  way Plans' three query-based handlers were, so `mountFlushed()` is back in
+  `kanban/ui/index.ts` — not the general-purpose `mountSync()` that went with
+  Plans' own port, which existed only because handlers were found by selector
+  after a paint that a prop could have avoided. This is a narrower case: real
+  layout measurement and native handler attachment, neither of which a prop
+  can carry. `kanban/test_matrix.mjs`'s 36 checks pass unchanged. Overview and
+  the Timeline had no suite at all — the "Three views are drawn by nothing
+  that tests them" entry below reached Backups and the Matrix but not these
+  two — so `kanban/test_overview.mjs` (18 checks) and `kanban/test_timeline.mjs`
+  (9 checks) are new, and both are aimed at the one real risk the port
+  carries: that `capMsgCards()` and `wireTimelineDrag()` still find a real,
+  painted DOM the instant `renderView()` returns, with no `setTimeout` in
+  either suite to paper over a race if one existed.
 
 - ~~**Three views are drawn by nothing that tests them, and the component port
   wants to go through all three next.**~~ **Done, 13 Sep 2026.**

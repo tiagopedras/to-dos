@@ -213,9 +213,12 @@ that changes, `production` is what the two extra columns get drawn from.
 name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
-written against, plus `mount()` and `unmount()`. Four views are
-ported: Projects, Backups and Reports whole, Plans in the three passes
-described below.
+written against, plus `mount()`, `mountFlushed()` and `unmount()`. Seven views
+are ported: Projects, Backups, Reports, Overview, the Matrix and the Timeline
+whole, Plans in the three passes described below. The board itself, the
+drawer and the canvas are what is left — always meant to go last, since they
+are 3,100 lines behind one `state` object every other view's mutation still
+has to remember to re-render.
 
 The point of doing the primitives first is that a column is one object across
 the whole app, and the section above is what rests on it. So `Column` is not a
@@ -304,6 +307,59 @@ owns those buttons. They are wired by one delegated listener on `document`,
 keyed off the wrapper's own `data-colfilter` — which is what the closing half of
 the same dropdown already did in `09-columns.js`. Delegation queries nothing
 after a paint, so it costs no flush.
+
+**Reports' counted half went real, 14 Sep 2026.** The window picker and both
+columns' shell were already components; `countedLeadHTML()` and the three
+report builders in `12-reports.js` were still string builders behind
+`dangerouslySetInnerHTML`, because nothing outside that file called them and
+porting them was never blocking anything else. `kanban/ui/ReportsBlocks.tsx`
+is `CountedLead`, `CompletedByCategory`, `RecentAccomplishments` and
+`WeeklyTrend` now; the four functions that used to return HTML are `build*()`
+and return the data these draw from instead. `mdBlocks()` and `mdInline()`
+stayed exactly as they were — the drawer and Plans still call them directly —
+so a finished task's title still crosses as `{ __html: mdInline(t.title) }`,
+the same bargain `PlanCard.summaryHTML` already makes. The weekly pace chart's
+SVG geometry moved into the component itself, since none of it reads
+`state.doc`; the trend key and the line/bars picker are real `onClick` props
+now rather than `data-trendkey`/`data-trendtype` for `#lists`'s delegated
+listener to find, and the two cases that used to catch those came out of
+`kanban/js/25-archiving.js` — left in, a click there would have toggled twice.
+
+**Overview, the Matrix and the Timeline went the same day**, as
+`kanban/ui/SectionsView.tsx` — `OverviewView`, `MatrixView`, `TimelineView`,
+each built on `Column` the way every other view now is. `refSection()` and
+`splitGridCSS()` in `18-timeline.js` are gone with it. The eight section
+titles and hints across the three are hardcoded in the component rather than
+built in `18-timeline.js`, since none of them ever varies — a `` `week` ``
+or a `` `due:` `` in a hint is a real `<code>` now rather than something
+`mdInline()` had to be asked to make one. What still arrives as `{ __html }`
+is each section's own body: the cards in Big rocks, the matrix grid, the
+timeline's lanes. Porting those is a separate job, and a fair amount of what
+they do — the timeline's drag-to-reorder, the matrix dot's hover — is wired
+by `#lists`'s own delegated listener rather than anything a component could
+take as a prop, which is exactly why none of that needed touching to make
+this port safe: delegation reaches a React-rendered subtree the same way it
+reached a string one.
+
+**`mountFlushed()` is a second mount function, back in `kanban/ui/index.ts`
+after `mountSync()` went with Plans.** It is not the same case again.
+Overview's `capMsgCards()` measures `.ref .msg`'s real, painted `scrollHeight`,
+and the Timeline's `wireTimelineDrag()` arms native `ondragstart`/`ondrop` on
+elements that have to exist first — neither is a handler a prop could carry
+the way Plans' three query-based ones could, because both need the real DOM
+rather than something React already holds. `mount()` alone would leave both
+racing React's own schedule; `mountFlushed()` wraps the render in `flushSync`
+so `renderSections()` (`18-timeline.js`) can call `capMsgCards()` and
+`wireTimelineDrag()` on its very next line, the same way it always could when
+the section it drew was a string.
+
+`kanban/test_matrix.mjs`'s 36 checks pass unchanged, which is the evidence the
+markup did not move. Overview and the Timeline had no suite before this —
+`kanban/test_overview.mjs` (18 checks) and `kanban/test_timeline.mjs`
+(9 checks) are new, and neither waits out a `setTimeout` before reading
+`capMsgCards()`'s or `wireTimelineDrag()`'s work, which is the point: if
+`mountFlushed()` ever stopped being synchronous, one of those two would fail
+immediately rather than flicker on a slow machine and pass on a fast one.
 
 ## After changing `kanban/server.py`
 
@@ -444,13 +500,15 @@ node core/test_todo.mjs            # the same fixtures, the other language
 node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the eight below need the board running
+node kanban/test_plans.mjs         # the ten below need the board running
 node kanban/test_schedule.mjs
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs
 node kanban/test_notes.mjs
 node kanban/test_backups.mjs       # and the read-only preview it opens
 node kanban/test_matrix.mjs
+node kanban/test_overview.mjs      # capMsgCards() against real, painted layout
+node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted tray card
 node kanban/test_reports.mjs       # both halves, and the window picker over them
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
 node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md

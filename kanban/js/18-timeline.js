@@ -595,56 +595,36 @@ function wireTlResize(scroll){
   grip.ondblclick = () => setTlLabelWidth(200);
 }
 
-/* Overview, Matrix and Timeline draw their sections through the same colHTML()
-   the board, Plans, Execution and Projects draw their columns with — a section
-   here has always been a column of the list in everything but the furniture it
-   was made of, and until 12 Sep 2026 it was a `.listcard` of its own with its
-   own padding, its own heading and its hint as the first paragraph of the body.
-   Now the hint is the head's description, where a sentence saying what a column
-   is for belongs, and the count sits beside the title rather than being left
-   for him to work out from the cards.
+/* Overview, Matrix and Timeline draw their sections through the same Column
+   every other column in the app is drawn with — a section here has always
+   been a column of the list in everything but the furniture it was made of.
+   `OverviewView`/`MatrixView`/`TimelineView` (kanban/ui/SectionsView.tsx) are
+   the components since 14 Sep 2026; `renderSections()` below builds the data
+   they draw from. Each still calls the section builders it always called —
+   `bigRocksSection()`, `matrixSection()`, `timelineSection()` and the rest —
+   and their `{ html, n }` (and, on Quick wins and Matrix, `sort`/`filters`)
+   crosses as `{ __html }`, same as `PlanCard.summaryHTML`; porting the cards
+   themselves is a separate job.
 
-   `sec` is what the section builder returned: { html, n } and, on Matrix,
-   the filter that used to sit inside its legend.
-
-   opts.collapsible is Overview's own five: open unless he has shut one,
-   remembered per section the same way the drawer's fields are — see
-   overviewOpen, and the toggle listener in 19-drawer.js that reads the
-   data-colcollapse colHTML writes. Matrix's two and the Timeline's one stay
-   plain, always open, since there is only ever one or two of them and nothing
-   to skim past. */
-function refSection(title, hint, sec, opts){
-  opts = opts || {};
-  const key = 'ov:' + title;
-  return colHTML({
-    heading: 'h3',
-    title,
-    count: sec && sec.n != null ? sec.n : null,
-    sort: sec && sec.sort ? sec.sort : '',
-    filters: sec && sec.filters ? sec.filters : '',
-    desc: hint ? mdInline(hint) : '',
-    body: (sec && sec.html) || '',
-    cls: 'refcol prose',
-    collapsible: !!opts.collapsible,
-    collapseKey: key,
-    open: opts.collapsible ? overviewOpen(key) : true
-  });
-}
-
-/* The split grid is written out here rather than in the stylesheet because
-   Context is the last column and the only one with a different width: it is
-   prose in full sentences, not cards, and at card width it reads as a ribbon.
-   repeat() cannot take a computed count reliably across browsers, so the tracks
-   are listed one by one. */
-const REF_TRACK = 'minmax(380px,1fr)';
-const CTX_TRACK = 'minmax(540px,1.5fr)';
-function splitGridCSS(cols, hasCtx){
-  const plain = hasCtx ? cols - 1 : cols;
-  const tracks = Array(plain).fill(REF_TRACK);
-  if (hasCtx) tracks.push(CTX_TRACK);
-  // Below this the row scrolls sideways instead of squeezing the columns.
-  const minW = plain * 394 + (hasCtx ? 554 : 0);
-  return 'grid-template-columns:' + tracks.join(' ') + ';min-width:' + minW + 'px';
+   The five titles and hints that used to be built here — 'Big rocks', 'High
+   impact, L effort...' and the rest — are hardcoded in SectionsView.tsx now,
+   since none of the eight across all three views ever varies. What still
+   comes from here is only what does: the count, the body, whether an
+   Overview section is open (overviewOpen(), unchanged — the toggle listener
+   in 19-drawer.js that persists it reads data-colcollapse off the rendered
+   <details> either way, string-built or React). */
+let sectionsRoot = null;
+function sectionsMountPoint(){
+  const lists = $('#lists');
+  if (!lists) return null;
+  let host = lists.querySelector('#sectionsRoot');
+  if (!host) {
+    if (sectionsRoot) BoardUI.unmount(sectionsRoot);
+    lists.innerHTML = '<div id="sectionsRoot"></div>';
+    host = lists.querySelector('#sectionsRoot');
+    sectionsRoot = host;
+  }
+  return host;
 }
 
 function renderSections(viewId){
@@ -657,50 +637,48 @@ function renderSections(viewId){
   // it back out, per shownBuckets().
   const shownNames = new Set(shownBuckets().map(b => b.name));
   const items = allItems().filter(i => shownNames.has(i.bucket));
-  let html = '', split = false, mview = false, tview = false, cols = 4, hasCtx = false;
+  const host = sectionsMountPoint();
+  if (!host) return;
 
+  // { html, n, sort, filters } is what every section builder above has always
+  // returned; SectionBody (kanban/ui/SectionsView.tsx) spells the same four
+  // things bodyHTML/count/sortHTML/filtersHTML, since a bare `html` or `n` on
+  // a prop reads as a stray abbreviation once it is a name in a type rather
+  // than a local convention read next to where it is built.
+  const toBody = sec => ({
+    bodyHTML: sec.html, count: sec.n != null ? sec.n : null,
+    sortHTML: sec.sort, filtersHTML: sec.filters,
+  });
+
+  // mountFlushed(), not mount(): capMsgCards() below measures the real,
+  // painted .ref .msg boxes, and wireTimelineDrag() arms native drag handlers
+  // on elements that have to exist first. Neither is a prop a component could
+  // take instead — see the note in kanban/ui/index.ts.
   if (viewId === 'overview') {
     const ctx = contextSection();
-    split = true;
     // One section per column, left to right, the same way the board reads.
-    const secs = [
-      refSection('Big rocks', 'High impact, L effort. Needs protected time.', bigRocksSection(items), { collapsible:true }),
-      refSection('This week', 'Everything tagged `week`, soonest first.', weekSection(items), { collapsible:true }),
-      refSection('Quick wins', 'Yours to do: meeting agendas, `effort:S` and written messages. Anything `ai:full` sits in Delegate instead.', quickSection(items), { collapsible:true }),
-      refSection('Delegate to Claude', 'Everything tagged `ai:full`, in `rank:` order. Drag a number to move that task up or down the queue.', delegateSection(items), { collapsible:true })
-    ];
-    // The only section with nothing to count — it is standing prose, not a list
-    // of anything — so it is handed over in the same shape with no `n`.
-    if (ctx) {
-      secs.push(refSection('Context', 'Standing facts, not tasks. Edit these in todo.md.',
-        { html: ctx }, { collapsible:true }));
-      hasCtx = true;
-    }
-    cols = secs.length;
-    html = secs.join('');
+    BoardUI.mountFlushed(host, BoardUI.OverviewView({
+      bigRocks: Object.assign(toBody(bigRocksSection(items)), { open: overviewOpen('ov:Big rocks') }),
+      thisWeek: Object.assign(toBody(weekSection(items)), { open: overviewOpen('ov:This week') }),
+      quickWins: Object.assign(toBody(quickSection(items)), { open: overviewOpen('ov:Quick wins') }),
+      delegate: Object.assign(toBody(delegateSection(items)), { open: overviewOpen('ov:Delegate to Claude') }),
+      // The only section with nothing to count — it is standing prose, not a
+      // list of anything — so it is left out entirely rather than drawn empty.
+      context: ctx ? { bodyHTML: ctx, open: overviewOpen('ov:Context') } : null,
+    }));
   } else if (viewId === 'matrix') {
-    mview = true;
     // The chain sits beside the matrix: both answer "what can I actually start",
     // one by score and one by what is still waiting on something else.
-    html = refSection('Impact against effort',
-      'Every open task by its two scores, except the ones parked in Backlog. One dot per task, coloured by bucket — hover for the title, click to open it. Faded dots are waiting on a review or on another task.',
-      matrixSection()) +
-      refSection('Dependency chain', 'Built from every `blocked-by:` tag.', chainSection(items));
+    BoardUI.mountFlushed(host, BoardUI.MatrixView({
+      impactEffort: toBody(matrixSection()),
+      dependencyChain: toBody(chainSection(items)),
+    }));
   } else if (viewId === 'timeline') {
-    tview = true;
-    html = refSection('Timeline',
-      'Open top-level tasks as bars and milestones across their `start:`/`due:` dates, one lane per bucket. ' +
-      'A `due:` with no `start:` draws as a diamond rather than a guessed bar. Undated tasks sit in the tray below — drag one onto the scale to give it a due date.',
-      timelineSection());
+    BoardUI.mountFlushed(host, BoardUI.TimelineView({ timeline: toBody(timelineSection()) }));
   }
 
-  $('#lists').innerHTML =
-    '<div class="lists' + (split ? ' split' : '') + (mview ? ' mview' : '') + (tview ? ' tview' : '') + '"' +
-      (split ? ' style="' + splitGridCSS(cols, hasCtx) + '"' : '') + '>' + html + '</div>' +
-    '<p class="help listnote">Generated from the tags on the tasks, so every card here is a real task. ' +
-    'Open one to change it, then Save.</p>';
   capMsgCards();
-  if (tview) wireTimelineDrag();
+  if (viewId === 'timeline') wireTimelineDrag();
 }
 
 /* .ref .msg's three-line clamp is CSS, and CSS alone cannot tell a card that

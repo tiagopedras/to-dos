@@ -219,22 +219,11 @@ $('#lists').addEventListener('click', e => {
     return;
   }
 
-  /* The pace chart's key. Only the counted card is redrawn, since nothing about
-     the list itself has changed — this is a change of view, not an edit. */
-  const key = e.target.closest('[data-trendkey]');
-  if (key) {
-    const name = key.dataset.trendkey;
-    if (trendHidden.has(name)) trendHidden.delete(name); else trendHidden.add(name);
-    renderCountedReports();
-    return;
-  }
-
-  const trendType = e.target.closest('[data-trendtype]');
-  if (trendType) {
-    trendChartType = trendType.dataset.trendtype;
-    renderCountedReports();
-    return;
-  }
+  /* The pace chart's key and its line/bars picker used to be found here too,
+     by data-trendkey and data-trendtype. Both are real onClick props on
+     WeeklyTrend now (kanban/ui/ReportsBlocks.tsx, calling toggleTrendKey()
+     and setTrendChartType() in 12-reports.js) — left findable here as well
+     would toggle each click twice. */
 
   const tick = e.target.closest('[data-tick]');
   if (tick) {
