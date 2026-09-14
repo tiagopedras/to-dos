@@ -10,6 +10,10 @@ export interface CompanionState {
   dismissed?: string[]
   notified?: string
   notified_at?: string
+  /** Which timed meetings have already popped up today, as `date::task` —
+      so a tick landing after the fire minute doesn't post the same meeting
+      twice, and so a meeting popped yesterday pops again today. */
+  meetingsFired?: string[]
 }
 
 export function statePath(root: string, dataset: string): string {

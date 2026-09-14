@@ -29,6 +29,7 @@ function errorDigest(message: string): Digest {
     headline: null,
     overdue: [],
     today: [],
+    timed_meetings: [],
     messages: [],
     buckets: [],
     today_status: { working: true, holidays: [] }

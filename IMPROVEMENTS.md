@@ -602,25 +602,34 @@ they settled is written up in the README rather than left here:
   a scroll position. The prototype shows the motion, not where that seam with
   the rest of the tab strip sits.
 
-- **A meeting's `repeat:` tag already carries the time it starts, and nothing
-  fires anything at that time.** `read_repeat()` at `core/todo.py:297` parses
-  the `hh:mm` out of a tag like `repeat:wed-9:15` (`REPEAT_VAL` at
-  `core/todo.py:265-267`) into `time`, but every kind's dict only ever folds
-  `time` into the printed `label` (`core/todo.py:324-334`) — nothing reads it
-  back out to schedule anything. The only clock the companion has is once a
-  morning: `companion/digest.py` decides what is owed for a whole day and
-  `companion/notify.py`'s queue is drained on the companion's own tick, inside
-  the 08:30–20:00 window `notify.py`'s docstring names, with no notion of a
-  particular minute. Posting a banner at 9:15 rather than at whatever time the
-  companion happens to poll needs the Electron side to hold its own per-task
-  timers, not just the once-a-day digest.
+- ~~**A meeting's `repeat:` tag already carries the time it starts, and
+  nothing fires anything at that time.**~~ **Done, 14 Sep 2026.**
+  `companion/digest.py`'s `build()` now collects `timed_meetings` alongside
+  `overdue`/`today`: any task due today whose `read_repeat()` result carries a
+  `time` and whose `todo.agenda_topics()` is non-empty, sorted by time and
+  carried through `to_json()` as `{title, task, time}`. Both conditions this
+  entry named — a time on the tag, and an agenda actually ready — gate it; a
+  meeting with one but not the other stays silent here and leaves the calendar
+  notification he already gets to say so.
 
-  It fires for every `repeat:` tag that carries a time, but only when the
-  task's body holds something past its tag lines — that is the agenda, and
-  its absence is the signal to leave the meeting to the calendar notification
-  he already gets. The popup itself stays light: the meeting's title and that
-  an agenda is ready, not the agenda text read out in a banner. Clicking it
-  opens the companion to the card, where the body renders in full.
+  The Electron side holds no real per-task timer, on purpose — `maybeFireMeetings()`
+  (`companion/src/main/index.ts`) checks the wall clock once a tick, the same
+  way `maybeNotify()` already does for the morning briefing, since a real
+  `setTimeout` armed at boot would miss a meeting whose time has already
+  passed by the time the process starts or wakes from sleep. A minute is
+  remembered fired in `state.meetingsFired` (`companion/src/main/state.ts`,
+  `date::task` keys, capped the same way `dismissed` is) so a late tick
+  catching up doesn't pop the same meeting twice. The popup is light — the
+  title and "Agenda ready.", through the same `postNotification()` every other
+  banner uses — and clicking it opens the board to the card, where
+  `agenda_topics()`'s output renders in full.
+
+  `companion/test_companion.py` gained `test_timed_meetings()`, three tasks
+  due the same day — one with both a time and an agenda, one with a time and
+  no agenda, one with an agenda and no time on the tag — asserting only the
+  first is collected. Checked for real against the live list too:
+  `python3 companion/digest.py --json` returns an empty `timed_meetings`
+  array today, correctly, since nothing on it currently carries both.
 
 - **Plans' drag confirmations are inconsistent by kind.** Dropping a task
   from the queue onto Backlog goes straight through `holdTask()`

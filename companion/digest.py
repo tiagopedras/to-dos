@@ -68,6 +68,7 @@ class Digest:
         self.parked = 0        # open, dated, but sitting with someone else
         self.messages = []     # contact steps with a message ready to copy
         self.buckets = []      # bucket names, in the order the file declares them
+        self.timed_meetings = []  # today's repeat: meetings that carry a time and an agenda
         self.error = None      # the file could not be read
 
     @property
@@ -194,11 +195,20 @@ def build(day=None, path=None, dismissed=()):
             d.parked += 1
             continue
         (d.overdue if due < day else d.today).append((due, t))
+        if due == day and t.repeat:
+            rep = todo.read_repeat(t.repeat)
+            # Only when there is something to say beyond "it's on": an agenda
+            # ready is real news, and its absence is the signal to leave the
+            # meeting to the calendar notification he already gets — see the
+            # comment above timed_meetings in to_json() below.
+            if rep and rep["time"] and todo.agenda_topics(t):
+                d.timed_meetings.append((rep["time"], t))
 
     # Oldest deadline first in each group: the thing that has been owed longest
     # is the thing worth reading first.
     d.overdue.sort(key=lambda p: p[0])
     d.today.sort(key=lambda p: (p[1].bucket, p[1].title))
+    d.timed_meetings.sort(key=lambda p: p[0])
     d.messages = read_messages(text, day, dismissed)
     return d
 
@@ -223,6 +233,12 @@ def to_json(d):
                       "due": due.isoformat()} for due, t in d.overdue],
         "today": [{"title": t.title, "bucket": t.bucket, "task": task_key(t),
                     "due": due.isoformat()} for due, t in d.today],
+        # A meeting with a repeat: time and an agenda ready, for the Electron
+        # side to fire a light popup at that exact minute rather than saying
+        # so only once, at whatever minute the morning briefing happens to
+        # land. `time` is "hh:mm", 24-hour, straight off read_repeat().
+        "timed_meetings": [{"title": t.title, "task": task_key(t), "time": time}
+                            for time, t in d.timed_meetings],
         "messages": [{"key": m["key"], "task": m["task"], "where": m["where"],
                        "text": m["text"], "draft": m["draft"], "due": m["due"],
                        "bucket": m.get("bucket", "")}
@@ -264,6 +280,10 @@ def main():
         for due, t in group:
             when = "" if due == d.day else "  (%s)" % due.isoformat()
             print("  %-14s %s%s" % (t.bucket[:14], t.title, when))
+    if d.timed_meetings:
+        print("\nWill pop at their own time")
+        for time, t in d.timed_meetings:
+            print("  %-6s %s" % (time, t.title))
     if d.parked:
         print("\n%d more dated but sitting with somebody else or blocked." % d.parked)
     if d.messages:

@@ -159,6 +159,38 @@ function maybeNotify(d: Digest): void {
   send(d)
 }
 
+/** A repeat: meeting with a time and an agenda ready pops on its own,
+    independent of the once-a-morning briefing above — that one answers
+    "what's owed today", this one answers "it's 9:15". Checked once a tick
+    against the wall clock rather than a real per-task timer, the same way
+    the morning briefing itself is: this process can be asleep or just
+    started when the minute arrives, and a tick landing a little late still
+    catches it, where a timer armed at boot would not. The popup stays
+    light — the title and that an agenda is ready, not the agenda itself —
+    which renders in full once he opens the card it links to. */
+function maybeFireMeetings(d: Digest): void {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const mins = nowMinutes(now)
+  const fired = state.meetingsFired ?? []
+  let changed = false
+  for (const m of d.timed_meetings) {
+    const key = `${today}::${m.task}`
+    if (fired.includes(key)) continue
+    const [hour, minute] = m.time.split(':').map(Number)
+    if (mins < hour * 60 + minute) continue
+    postNotification(m.title, 'Agenda ready.', m.task)
+    fired.push(key)
+    changed = true
+  }
+  if (changed) {
+    // Capped the same way dismissed is — far more than are ever live at
+    // once, so the oldest dropping off costs nothing.
+    state.meetingsFired = fired.slice(-200)
+    writeState(ROOT, DATASET, state)
+  }
+}
+
 function drawTray(d: Digest): void {
   if (!tray) return
   const alert = Boolean(d.error || d.overdue.length)
@@ -189,6 +221,7 @@ async function refresh(): Promise<void> {
   drawTray(digest)
   window_?.webContents.send('companion:snapshot', snapshot)
   maybeNotify(digest)
+  maybeFireMeetings(digest)
 }
 
 function toggleWindow(): void {

@@ -71,6 +71,14 @@ DOC = """# List
 ### To do
 
 - [ ] **The gate** [impact:: high] [effort:: S] [ai:: none] `#gate`
+- [ ] **Weekly design review** [impact:: med] [effort:: S] [ai:: none] `due:2026-09-07` `repeat:mon-9:15`
+  - Agenda:
+    - Rebrand colours
+      - Confirm the palette before Friday.
+- [ ] **Standup, no agenda yet** [impact:: med] [effort:: S] [ai:: none] `due:2026-09-07` `repeat:mon-8:45`
+- [ ] **All-hands, no time on the tag** [impact:: med] [effort:: S] [ai:: none] `due:2026-09-07` `repeat:mon`
+  - Agenda:
+    - Only item
 """
 
 
@@ -188,6 +196,31 @@ def test_json():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_timed_meetings():
+    """A repeat: meeting due today pops on its own only once it carries both
+    a time and an agenda — see the comment above timed_meetings in
+    digest.build(). Three near-misses in DOC: no agenda, no time on the tag,
+    and (implicitly, everything else in DOC) no repeat: at all."""
+    tmp = tempfile.mkdtemp(prefix="digest-meetings-")
+    doc_path = os.path.join(tmp, "todo.md")
+    try:
+        with open(doc_path, "w", encoding="utf-8") as fh:
+            fh.write(DOC)
+        d = digest.build(DAY, path=doc_path)
+        check("only the one with both a time and an agenda",
+              [t.title for _, t in d.timed_meetings], ["Weekly design review"])
+        check("its time is read off the tag",
+              [time for time, _ in d.timed_meetings], ["9:15"])
+
+        out = digest.to_json(d)
+        check("and it carries a task key through to_json",
+              out["timed_meetings"],
+              [{"title": "Weekly design review",
+                "task": digest.task_key(d.timed_meetings[0][1]), "time": "9:15"}])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_task_key():
     t = todo.Task()
     t.title, t.slug = "Ship the thing", ""
@@ -213,6 +246,7 @@ def main():
     test_digest_line()
     test_notify_queue()
     test_json()
+    test_timed_meetings()
     test_task_key()
     test_read_dismissed()
     if FAILED:

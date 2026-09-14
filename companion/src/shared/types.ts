@@ -30,6 +30,15 @@ export interface TodayStatus {
   holidays: [string, string][]
 }
 
+/** A repeat: meeting due today that carries both a time and an agenda ready
+    to read — the two things that turn "it's on" into something worth a
+    popup of its own. `time` is "hh:mm", 24-hour. */
+export interface TimedMeetingRef {
+  title: string
+  task: string
+  time: string
+}
+
 /** digest.py's to_json() — see companion/digest.py. */
 export interface Digest {
   day: string
@@ -40,6 +49,7 @@ export interface Digest {
   headline: HeadlineRef | null
   overdue: TaskRef[]
   today: TaskRef[]
+  timed_meetings: TimedMeetingRef[]
   messages: MessageRef[]
   /** Bucket names in the order todo.md declares them — what the board
       colours a card's left stripe by when nothing is chosen for it. */
