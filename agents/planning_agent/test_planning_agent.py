@@ -361,8 +361,8 @@ def test_folding():
     day = dt.date(2026, 9, 5)
 
     tmp = tempfile.mkdtemp(prefix="fold-test-")
-    real = plan.paths.night_dir
-    plan.paths.night_dir = lambda d=None: tmp
+    real = plan.paths.plans_dir
+    plan.paths.plans_dir = lambda: tmp
     try:
         folded_text = ("---\nstatus: unread\noutcome: folded\n"
                        "summary: Needs the scope settled.\n---\n\n"
@@ -393,7 +393,102 @@ def test_folding():
         check("a missing summary says so rather than borrowing [fill in]",
               summary, "The agent wrote no summary line.")
     finally:
-        plan.paths.night_dir = real
+        plan.paths.plans_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_one_file_per_task():
+    """A replan overwrites the same file in place, History and all.
+
+    See IMPROVEMENTS.md, "Replanning a task writes a second plan file instead
+    of replacing the first." write_plan() used to mint a fresh path every
+    call; it writes to the same one now, for as long as the task's identity
+    (its id, via plan_filename()) does not change.
+    """
+    import shutil
+    import tempfile
+
+    task = todo.parse_task(["- [ ] **Fix the thing** [impact:: high] "
+                            "[effort:: L] [ai:: full] `id:zz9988`"])
+    task.bucket, task.column = "Processes", "Backlog"
+    day1, day2 = dt.date(2026, 9, 1), dt.date(2026, 9, 3)
+
+    tmp = tempfile.mkdtemp(prefix="onefile-test-")
+    real = plan.paths.plans_dir
+    plan.paths.plans_dir = lambda: tmp
+    try:
+        check("the filename carries the task's own id",
+              plan.plan_filename(task), "fix-the-thing-zz9988.md")
+
+        out1, _, _ = plan.write_plan(
+            task, "---\nsummary: First pass.\n---\n\nDo the thing.\n", "sess-1", day1)
+        ledger_row = {"file": os.path.basename(out1), "night": day1.isoformat(),
+                      "state": "ready", "owner": "planning-agent"}
+
+        out2, _, _ = plan.write_plan(
+            task, "---\nsummary: Second pass.\n---\n\nDo it differently.\n",
+            "sess-2", day2, prior=ledger_row)
+
+        check("the replan lands in the same file", out2, out1)
+        check("exactly one file exists for this task",
+              sorted(f for f in os.listdir(tmp) if f.endswith(".md")),
+              ["fix-the-thing-zz9988.md"])
+
+        text = open(out2, encoding="utf-8").read()
+        check("revision 2 is recorded", "revision: 2" in text, True)
+        check("the first pass's History line survives the overwrite",
+              "revision 1." in text, True)
+        check("and the second pass's is appended, not replacing it",
+              "revision 2." in text, True)
+        check("the latest body is what is on disk", "differently" in text, True)
+        check("the first pass's body is not", "Do the thing." in text, False)
+    finally:
+        plan.paths.plans_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_prune():
+    """A plan ages out only once its task is gone, and only after a grace period.
+
+    Replaces the old folder-age prune(): one file per task means a live
+    task's plan is current regardless of age, and what wants pruning now is
+    an orphan — a plan whose task no longer exists on the list at all.
+    """
+    import shutil
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="prune-test-")
+    real = plan.paths.plans_dir
+    plan.paths.plans_dir = lambda: tmp
+    today = dt.date(2026, 10, 1)
+    old = today - dt.timedelta(days=plan.KEEP_DAYS + 5)
+    recent = today - dt.timedelta(days=3)
+
+    def write(name, task_id, stamp):
+        path = os.path.join(tmp, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("---\ntitle: X\nabout: task:%s\n---\n\nBody.\n" % task_id)
+        ts = dt.datetime.combine(stamp, dt.time(12, 0)).timestamp()
+        os.utime(path, (ts, ts))
+
+    try:
+        write("still-here.md", "aaaaaa", old)     # task still on the list
+        write("gone-recent.md", "bbbbbb", recent)  # orphaned, but too fresh
+        write("gone-old.md", "cccccc", old)        # orphaned, past the grace period
+
+        live_task = todo.parse_task(
+            ["- [ ] **Still here** [impact:: high] [effort:: S] [ai:: full] `id:aaaaaa`"])
+        plan.prune(today, [live_task])
+
+        left = sorted(os.listdir(tmp))
+        check("the plan for a task still on the list survives, however old",
+              "still-here.md" in left, True)
+        check("an orphan inside its grace period survives too",
+              "gone-recent.md" in left, True)
+        check("an orphan past KEEP_DAYS is the one that goes",
+              "gone-old.md" in left, False)
+    finally:
+        plan.paths.plans_dir = real
         shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -536,25 +631,27 @@ def test_server():
 
     tmp = tempfile.mkdtemp(prefix="plans-test-")
     try:
-        night = os.path.join(tmp, "2026-09-05")
-        os.makedirs(night)
-        with open(os.path.join(night, "a-planned-thing.md"), "w", encoding="utf-8") as fh:
+        # One file per task, flat under the plans folder — no night subfolder
+        # any more. A dated one still exists here (index.md's own home), and
+        # plan_listing() has to walk past it without mistaking it for a plan.
+        os.makedirs(os.path.join(tmp, "2026-09-05"))
+        with open(os.path.join(tmp, "a-planned-thing.md"), "w", encoding="utf-8") as fh:
             fh.write(PLAN)
-        with open(os.path.join(night, "index.md"), "w", encoding="utf-8") as fh:
+        with open(os.path.join(tmp, "2026-09-05", "index.md"), "w", encoding="utf-8") as fh:
             fh.write("---\ntitle: Plans\n---\n")
         with open(os.path.join(tmp, "ledger.json"), "w", encoding="utf-8") as fh:
             json.dump({"A planned thing": {"fingerprint": "abc", "planned": "2026-09-05",
-                                           "status": "unread", "file": "a-planned-thing.md",
-                                           "night": "2026-09-05"}}, fh)
+                                           "status": "unread", "file": "a-planned-thing.md"}}, fh)
 
         real_dir, real_ds = server.plans_dir, server.current_dataset
         server.plans_dir = lambda name=None: tmp
         server.current_dataset = lambda: "test"
         try:
             rows = server.plan_listing()
-            check("one plan listed, index.md skipped", len(rows), 1)
+            check("one plan listed, the dated folder skipped", len(rows), 1)
             check("its task comes off the frontmatter", rows[0]["task"], "A planned thing")
-            check("and its night off the folder", rows[0]["night"], "2026-09-05")
+            check("and its night off the frontmatter's own date, with no folder to fall back on",
+                  rows[0]["night"], "2026-09-05")
             check("status defaults sensibly", rows[0]["status"], "unread")
 
             # The URL must carry no dataset name. translate_path inserts the
@@ -563,7 +660,7 @@ def test_server():
             # will not open, which is the shape of bug that survives a listing
             # test. Checked here by pushing it back through translate_path.
             check("the plan url has no dataset in it",
-                  rows[0]["url"], "/data/plans/2026-09-05/a-planned-thing.md")
+                  rows[0]["url"], "/data/plans/a-planned-thing.md")
             stub = object.__new__(server.Handler)
             stub.directory = server.ROOT          # what __init__ would have set
             resolved = server.Handler.translate_path(stub, rows[0]["url"])
@@ -579,7 +676,7 @@ def test_server():
             plans_stream.paths.plans_dir = lambda: tmp
             plans_stream.paths.ledger_path = lambda: os.path.join(tmp, "ledger.json")
             try:
-                out = plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                out = plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "done", "owner": "me", "resolution": "actioned"})
                 check("the move succeeds", out.get("ok"), True)
                 check("the file now says done", server.plan_listing()[0]["state"], "done")
@@ -599,7 +696,7 @@ def test_server():
                 # resolution, because nothing has closed yet, and it defaults
                 # to the implementing agent rather than to him, because the next
                 # move on it is a run rather than a decision.
-                out = plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                out = plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "accepted"})
                 check("accepting one succeeds with no resolution", out.get("ok"), True)
                 check("and lands in accepted", server.plan_listing()[0]["state"], "accepted")
@@ -615,7 +712,7 @@ def test_server():
                 # agent reports — and `accepted` is now owned by whichever of
                 # the two is next to move.
                 check("accepted may be owned by him, since the fold",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "accepted", "owner": "me",
                                           "production": "review"}).get("ok"), True)
                 check("and the stage it reached is on the plan",
@@ -624,10 +721,10 @@ def test_server():
                 # and it needs a reason for the same purpose sending one back
                 # does — the record is all that is left of the idea.
                 check("turning a plan down needs a reason",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "done", "resolution": "declined"}).get("ok"), False)
                 check("and with one it closes",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "done", "resolution": "declined",
                                           "reason": "not worth the effort"}).get("ok"), True)
                 check("landing in done, said as declined",
@@ -636,29 +733,27 @@ def test_server():
                 check("and the reason is kept on the plan",
                       server.plan_listing()[0]["feedback"], "not worth the effort")
                 check("but a stage this stream has never heard of is refused",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "accepted", "production": "halfway"}).get("ok"), False)
                 # Put it back where the rest of this section found it.
-                plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                     "to": "done", "owner": "me", "resolution": "actioned"})
 
-                # The three ways a bad reference gets refused, since these come
-                # off a URL and one of them climbs out of the folder.
-                for night, name in [("nope", "a.md"), ("2026-09-05", "../x.md"),
-                                    ("2026-09-05", "missing.md")]:
-                    out = plans_stream.apply({"item": {"group": night, "name": name},
-                                              "to": "review", "owner": "me"})
-                    check("refuses %r/%r" % (night, name), out.get("ok"), False)
+                # The bad references this stream refuses, since these come off
+                # a URL and one of them climbs out of the folder.
+                for name in ("../x.md", "missing.md", "no-extension", ""):
+                    out = plans_stream.apply({"item": {"name": name}, "to": "review", "owner": "me"})
+                    check("refuses %r" % name, out.get("ok"), False)
                 check("refuses a state this stream does not have",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "banana"}).get("ok"), False)
                 # An owner is not decoration: an item nobody owns is one nothing
                 # will ever pick up.
                 check("refuses a state its owner cannot hold",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "review", "owner": "planning-agent"}).get("ok"), False)
                 check("refuses sending one back with no reason",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "ready", "owner": "planning-agent"}).get("ok"), False)
                 # The claim. Advisory on purpose: a claim held by a process
                 # that has gone is ignored, because being unable to write your
@@ -671,12 +766,12 @@ def test_server():
                     # locks itself out, which is why os.getpid() would pass here.
                     json.dump({"who": "something live", "pid": os.getppid(), "at": time.time()}, fh)
                 check("refuses a write while something live holds the claim",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "review", "owner": "me"}).get("ok"), False)
                 with open(lock, "w", encoding="utf-8") as fh:
                     json.dump({"who": "a crashed run", "pid": 999999, "at": time.time()}, fh)
                 check("but a claim whose process has gone locks nobody out",
-                      plans_stream.apply({"item": {"group": "2026-09-05", "name": "a-planned-thing.md"},
+                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
                                           "to": "review", "owner": "me"}).get("ok"), True)
             finally:
                 plans_stream.paths.plans_dir, plans_stream.paths.ledger_path = real_pd, real_lp
@@ -1209,6 +1304,8 @@ def main():
     test_order()
     test_rules()
     test_folding()
+    test_one_file_per_task()
+    test_prune()
     test_agents()
     test_server()
     test_queue_routes()

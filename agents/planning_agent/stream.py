@@ -111,7 +111,7 @@ def _set(text, key, value):
 def apply(req):
     m = _manifest()
     item = req.get("item") or {}
-    night, name = item.get("group") or item.get("night"), item.get("name")
+    name = item.get("name")
     state = req.get("to")
     owner = req.get("owner") or ("implementing-agent" if state == "accepted"
                                  else "me" if state in ("review", "done", "backlog") else None)
@@ -144,19 +144,14 @@ def apply(req):
     # the reason is the only thing left of it worth reading.
     if resolution == "declined" and not reason:
         return {"ok": False, "error": "turning a plan down needs a reason"}
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or ""):
-        return {"ok": False, "error": "bad plan reference"}
     if not name or "/" in name or not name.endswith(".md"):
         return {"ok": False, "error": "bad plan reference"}
 
-    path = os.path.join(paths.plans_dir(), night, name)
+    # One file per task, flat under plans_dir() — no night to resolve through
+    # and no separate archive a plan could have been moved into.
+    path = os.path.join(paths.plans_dir(), name)
     if not os.path.isfile(path):
-        # A plan pruned into plans/actioned/ keeps its real night in its own
-        # frontmatter, so it is still addressable by the night it was written.
-        alt = os.path.join(paths.plans_dir(), "actioned", "%s-%s" % (night, name))
-        if not os.path.isfile(alt):
-            return {"ok": False, "error": "no such plan"}
-        path = alt
+        return {"ok": False, "error": "no such plan"}
 
     # One writer at a time, even though this is the only one there is: a nightly
     # run and a move from the board can land in the same second. Advisory, so a
@@ -203,7 +198,7 @@ def apply(req):
         for _, row in rows.items():
             if not isinstance(row, dict):
                 continue
-            if row.get("file") == name and row.get("night") == night:
+            if row.get("file") == name:
                 row.update({"state": state, "owner": owner, "resolution": resolution,
                             "seen": bool(seen) if seen is not None else True})
                 row.pop("status", None)

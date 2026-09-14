@@ -37,6 +37,7 @@ sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
 import pick  # noqa: E402
+import todo  # noqa: E402
 import windows  # noqa: E402
 
 # Buckets are renameable on the board, and they get renamed: "Design System"
@@ -186,18 +187,31 @@ def read_front(path):
 def plan_path(prior):
     """Where the plan a ledger row points at actually is, or None.
 
-    Two places, for the same reason stream.py looks in two: a plan pruned into
-    `plans/actioned/` keeps the night it was written in its own frontmatter, so
-    it stays addressable by that night after the folder has gone.
+    One file per task, filed flat under plans_dir() — no per-night folder to
+    look inside and no separate archive to fall back to, since a plan is
+    never moved out of the way any more. See plan_filename() for how the name
+    itself is built.
     """
-    night, name = (prior or {}).get("night"), (prior or {}).get("file")
-    if not night or not name:
+    name = (prior or {}).get("file")
+    if not name:
         return None
-    path = os.path.join(paths.plans_dir(), night, name)
-    if os.path.isfile(path):
-        return path
-    alt = os.path.join(paths.plans_dir(), "actioned", "%s-%s" % (night, name))
-    return alt if os.path.isfile(alt) else None
+    path = os.path.join(paths.plans_dir(), name)
+    return path if os.path.isfile(path) else None
+
+
+def plan_filename(task):
+    """The one file this task's plan lives in, for as long as the task does.
+
+    The slug stays for readability — it is what makes `ls plans/` legible —
+    but the id is what actually keeps two tasks that happen to share a title
+    from landing on the same file. That collision was survivable while a
+    plan was scoped to one night; it is not once the file is the task's plan
+    for good. A task with no id yet (a list from before mint-ids.mjs ran)
+    falls back to the slug alone, same as this always worked.
+    """
+    tid = getattr(task, "stable_id", "")
+    base = slugify(task.title)
+    return "%s-%s.md" % (base, tid) if tid else "%s.md" % base
 
 
 SECTION_RE = re.compile(r"^(#{1,4})\s+(.*?)\s*$")
@@ -593,9 +607,9 @@ def write_plan(task, text, session, day, prior=None):
     # An agent that folded could not plan the task without a decision only he
     # can make. That is the same fact the improvements backlog calls "needs
     # you", so it is one canonical field rather than two words for one thing.
-    # Which attempt at this task this is. One file per revision still, since a
-    # plan belongs to the night that wrote it, and the History section inside
-    # each carries the ones before it.
+    # Which attempt at this task this is. One file per task now, overwritten
+    # in place on a replan, so `revision:` is what still says how many times —
+    # the History section inside carries the ones before this one.
     front.append("revision: %d" % rev)
     front.append("needs_you: %s" % ("yes" if outcome == FOLDED else "no"))
     if outcome and outcome != FOLDED:
@@ -603,7 +617,7 @@ def write_plan(task, text, session, day, prior=None):
     front.append("summary: %s" % summary)
     front.append("---")
 
-    out = os.path.join(paths.night_dir(day), slugify(task.title) + ".md")
+    out = os.path.join(paths.plans_dir(), plan_filename(task))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8", newline="") as fh:
         fh.write("\n".join(front) + "\n\n" + body.rstrip("\n") + "\n")
@@ -762,24 +776,54 @@ def write_run_record(day, written, skipped, stopped, spent, started):
     os.replace(tmp, path)
 
 
-# The statuses prune() will not throw away. `actioned` is the record of a
-# decision rather than scratch state; `agreed` is a plan he has approved and
-# that has not been carried out yet, and deleting one of those on its thirtieth
-# day would silently drop work he had already said yes to.
-# A plan worth keeping when its night is pruned: one that was carried out, and
-# one an agent still has to act on. Owner rather than a status word, so a third
-# agent needs no fourth word here. The old form is still matched, because a
-# backup restored from before 11 Sep 2026 carries it.
-KEEP_STATUS = re.compile(
-    r"^(?:state:\s*done\s*$|owner:\s*implementing-agent\s*$|status:\s*(?:actioned|agreed)\s*$)", re.M)
+def prune(day, tasks):
+    """Delete a plan whose task no longer exists on the list.
+
+    One file per task changes what "old" means for a plan. It used to be the
+    folder's own age — a plan was a proposal from a particular night, and a
+    night past KEEP_DAYS was assumed spent. Now the file is the task's plan
+    for as long as the task exists, whatever its state: an accepted plan
+    tied to a task still on the board is never touched here regardless of
+    how long ago it was written, which is what `about:` (the id this plan is
+    about, written by write_plan()) is for — it is checked against the ids
+    actually on todo.md rather than against a status word.
+
+    What ages out is the other case: a plan whose task has been deleted, or
+    archived out of todo.md by ARCHIVE_DAYS in kanban/js/25-archiving.js,
+    leaving nothing that will ever read this file again. Given a grace
+    period rather than removed the moment the task disappears, since an
+    accidental delete-and-undo should not cost the plan as well.
+    """
+    root = paths.plans_dir()
+    if not os.path.isdir(root):
+        return
+    known = {pick.key_of(t) for t in tasks}
+    cutoff = day - dt.timedelta(days=KEEP_DAYS)
+    for name in sorted(os.listdir(root)):
+        if not name.endswith(".md"):
+            continue
+        path = os.path.join(root, name)
+        about = read_front(path).get("about", "")
+        task_id = about[len("task:"):] if about.startswith("task:") else ""
+        if not task_id or task_id in known:
+            continue
+        try:
+            touched = dt.date.fromtimestamp(os.stat(path).st_mtime)
+        except OSError:
+            continue
+        if touched >= cutoff:
+            continue
+        os.remove(path)
+        log("pruned an orphaned plan: %s (its task is gone)" % name)
 
 
-def prune(day):
-    """Delete plan folders older than KEEP_DAYS, keeping the ones that matter.
+def prune_nights(day):
+    """Delete old nights' own run records — index.md and run.json.
 
-    Same policy as the backups, with one exception: a plan he actioned or agreed
-    is worth keeping, so it moves to plans/actioned/ instead of going.
-    Everything else is a proposal that expired.
+    The one thing still filed by date, now that plans themselves are not
+    (see prune() above). A night's folder holds only its own record today,
+    so it ages out whole, past KEEP_DAYS, the same way the whole of
+    plans/<night>/ used to.
     """
     root = paths.plans_dir()
     if not os.path.isdir(root):
@@ -787,7 +831,7 @@ def prune(day):
     cutoff = day - dt.timedelta(days=KEEP_DAYS)
     for name in sorted(os.listdir(root)):
         full = os.path.join(root, name)
-        if not os.path.isdir(full) or name == "actioned":
+        if not os.path.isdir(full):
             continue
         try:
             when = dt.date.fromisoformat(name)
@@ -795,21 +839,8 @@ def prune(day):
             continue
         if when >= cutoff:
             continue
-        for fn in os.listdir(full):
-            src = os.path.join(full, fn)
-            if fn == "index.md" or not fn.endswith(".md"):
-                continue
-            try:
-                with open(src, encoding="utf-8") as fh:
-                    head = fh.read(600)
-            except OSError:
-                continue
-            if KEEP_STATUS.search(head):
-                keep = paths.actioned_dir()
-                os.makedirs(keep, exist_ok=True)
-                shutil.move(src, os.path.join(keep, "%s-%s" % (name, fn)))
         shutil.rmtree(full, ignore_errors=True)
-        log("pruned plans from %s" % name)
+        log("pruned the night record for %s" % name)
 
 
 def count_backlog_runs():
@@ -1031,13 +1062,14 @@ def run(argv=None):
         day, written, skipped, stopped, spent, started)
     write_index(day, day_written, day_skipped, day_stopped)
     write_run_record(day, day_written, day_skipped, day_stopped, day_spent, day_started)
-    prune(day)
+    prune(day, todo.parse_doc(text))
+    prune_nights(day)
     folded = len([w for w in written if w[3]])
     log("done: %d written%s, $%.2f spent%s"
         % (len(written), (" (%d folded)" % folded) if folded else "", spent,
            " (cut short)" if stopped else ""))
     announce(written, skipped, stopped)
-    print("%d plans written to %s" % (len(written), os.path.relpath(paths.night_dir(day), paths.ROOT)))
+    print("%d plans written to %s" % (len(written), os.path.relpath(paths.plans_dir(), paths.ROOT)))
     if folded:
         print("%d of them folded, waiting on a decision from you." % folded)
     if stopped:

@@ -639,7 +639,53 @@ they settled is written up in the README rather than left here:
   handler, so parking is reachable by dragging a card onto the column, and
   `kanban/test_plans.mjs` exercises it there instead of through the button.
 
-- **Replanning a task writes a second plan file instead of replacing the
+- ~~**Replanning a task writes a second plan file instead of replacing the
+  first, so the same task can show two live cards on the Plans board at
+  once.**~~ **Done, 14 Sep 2026.** One file per task, as the entry below
+  proposed. `write_plan()` writes to `plan_filename(task)` — the task's own
+  slug plus its id, flat under `plans_dir()` — every time, so a replan
+  overwrites the same file rather than minting a new one; `history()` and
+  `rejection()` needed no change, since both already read the *previous*
+  file through `plan_path()`, which now just resolves flat rather than
+  through a night folder. `plan_path()`, `plan_meta()` (`kanban/server.py`)
+  and `stream.py`'s `apply()` all lost the `night` half of their addressing
+  at the same time — an item is `{name}` now, not `{group, night}` — and
+  `/stream/apply`'s payload in `kanban/js/13-plans.js` dropped `group`
+  to match.
+
+  `prune()` needed a real rule rather than a day-count, since a live task's
+  plan is current regardless of age now: it deletes a plan only once its
+  `about:` id is no longer on todo.md at all, past a `KEEP_DAYS` grace
+  period, rather than aging out a whole night's folder. A night's own
+  `index.md`/`run.json` still age out by date — `prune_nights()`, the one
+  piece of the old `prune()` that was genuinely about a night rather than
+  about a plan.
+
+  `core/migrations/migrate-plans-one-file-per-task.py` moves what is already
+  on disk: for each task, the file with the highest `revision:` is kept
+  (its History section already carries every earlier one, since that is
+  what `history()` always threaded forward) and renamed flat; every older
+  revision of the same task, and anything sitting in the old `plans/actioned/`
+  archive, is folded in and dropped once superseded. Proved against a fixture
+  reproducing all three shapes — a task replanned across two nights, one
+  planned once, one archived — dry-run and for real, second run finding
+  nothing left to do. **Not yet run against the real datasets** — that is a
+  real, one-way rewrite of `data/twinkl/plans/` and `data/personal/plans/`,
+  worth running with him watching rather than as part of this change.
+
+  `agents/planning_agent/test_planning_agent.py` gained `test_one_file_per_task`
+  (a replan lands in the same file, History intact) and `test_prune` (a live
+  task's plan survives any age, an orphan survives its grace period, an
+  orphan past it does not); `test_server` and `test_folding` were rewritten
+  for the flat layout rather than a temp night folder. All twelve suites in
+  the repo pass, `kanban/test_save_guard.mjs` checked only against the single
+  live server — it fails under two server processes sharing one `todo.md`,
+  which is a fixture-of-convenience problem in the process this was verified
+  with, not a regression.
+
+  The original entry follows.
+
+  **Replanning a task writes a second plan file instead of replacing the
   first, so the same task can show two live cards on the Plans board at
   once.** `write_plan()` (`agents/planning_agent/plan.py:524`) always mints a
   fresh path — `out = os.path.join(paths.night_dir(day), slugify(task.title)

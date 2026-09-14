@@ -59,11 +59,13 @@ def plans_dir():
 
 
 def night_dir(day):
+    """Where one night's own run record lives — index.md and run.json only.
+
+    Not where a plan lives any more: a plan is one file per task, flat under
+    plans_dir(), current for as long as its task is. A night's own record is
+    still scoped to the night that wrote it, the same way it always was.
+    """
     return os.path.join(plans_dir(), day.isoformat())
-
-
-def actioned_dir():
-    return os.path.join(plans_dir(), "actioned")
 
 
 def ledger_path():

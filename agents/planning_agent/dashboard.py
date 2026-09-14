@@ -293,25 +293,31 @@ def _at(raw):
 
 
 GENERATED = re.compile(r"^generated:\s*(\S+)\s*$", re.M)
+REVISION = re.compile(r"^- \*\*(\d{4}-\d\d-\d\d), revision \d+\.\*\*", re.M)
 
 
 def _written_at(day, name):
-    """When one plan was finished, out of its own frontmatter.
+    """When one plan was finished, for the night in question.
 
-    The run record holds no per-plan timestamp — a night is a couple of hours
-    and the record was written for a card that only ever showed the night. A
-    report cuts a window that can open in the middle of one, so the plan file is
-    asked instead. Only the frontmatter is read, which is the top of a file of a
-    few kilobytes.
+    One file per task now, so the frontmatter alone is not enough: a plan
+    replanned since day would carry a later `generated:`, naming the night
+    that rewrote it rather than the one this record is about. The History
+    section is what still holds day's own line — see history() in plan.py,
+    which appends rather than replaces — so it is checked first and the
+    frontmatter is only a fallback, for a plan that has not been replanned
+    since and so has no second History line to prefer over it.
     """
     if not name:
         return None
     try:
-        with open(os.path.join(paths.night_dir(day), name), encoding="utf-8") as fh:
-            head = fh.read(1200)
+        with open(os.path.join(paths.plans_dir(), name), encoding="utf-8") as fh:
+            body = fh.read()
     except OSError:
         return None
-    m = GENERATED.search(head)
+    for m in REVISION.finditer(body):
+        if m.group(1) == day.isoformat():
+            return m.group(1)
+    m = GENERATED.search(body[:1200])
     return m.group(1) if m else None
 
 

@@ -477,8 +477,10 @@ overnight by the planning agent in `agents/planning_agent/` — one per task tag
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
-They are files in `data/<dataset>/plans/<night>/`, listed by the server at
-`/plans.json` and read exactly the way written reports are.
+They are files in `data/<dataset>/plans/`, one per task rather than one per
+night — replanning a task rewrites its own file in place, with a `History`
+section keeping the earlier revisions — listed by the server at `/plans.json`
+and read exactly the way written reports are.
 
 The reason they are not a third column in Reports is that they answer the
 opposite question. A report says what happened, and it is finished the day it is

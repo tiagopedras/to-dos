@@ -394,7 +394,7 @@ async function movePlan(p, state, owner, opts){
   try {
     const res = await postJSON('/stream/apply', {
       stream: 'plans',
-      item: { group: p.night, name: p.name },
+      item: { name: p.name },
       to: state, owner, seen,
       resolution: opts.resolution || '',
       reason: opts.reason || ''

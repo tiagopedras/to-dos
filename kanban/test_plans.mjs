@@ -657,9 +657,9 @@ check('the subhead names the agent that wrote it', await evalJS(`
 
 const marked = await evalJS(`window.__blocked.join(' | ')`)
 check('opening marks it read', marked.includes('POST /stream/apply') && marked.includes('"seen":true'), marked.slice(0, 160))
-// The contract addresses an item by its group and its name, so the night
-// travels as `group` rather than under a key only this stream would know.
-check('and names the night and the file', marked.includes('"group":"2026-09-05"') && marked.includes('"name":"add-caveat.md"'))
+// One file per task now, flat under plans/ — the item is addressed by its
+// name alone, with no night to carry.
+check('and names the file', marked.includes('"name":"add-caveat.md"'))
 
 // The three moves, one per column a plan can be dragged into. Each one is a
 // button in the modal and a drop zone on the board, and both go through the

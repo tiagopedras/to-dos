@@ -909,8 +909,8 @@ def owner_now(owner):
     return _owner_alias.get(owner, owner)
 
 
-def plan_meta(path, name, night):
-    """One nightly plan, described from its frontmatter.
+def plan_meta(path, name):
+    """One task's plan, described from its frontmatter.
 
     Same idea as report_meta and deliberately not the same function: a plan
     carries the task it belongs to, the agent that wrote it and whether it has
@@ -949,14 +949,9 @@ def plan_meta(path, name, night):
         st = os.stat(path)
     except OSError:
         return None
-    # A plan pruned into plans/actioned/ is not from a night called "actioned".
-    # It says which night it is from, in its own frontmatter, and that is what
-    # everything downstream needs: the marker validates a date, and the board
-    # sorted "actioned" above every real date when deciding whether a rejected
-    # plan had been replaced. Both were waiting to fire on 5 Oct 2026, when the
-    # first folder becomes old enough for prune() to move it.
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", night or ""):
-        night = fields.get("night") or fields.get("date") or night
+    # One file per task now, flat under plans_dir() — nothing in the path
+    # says which night this was (re)planned, only the frontmatter does.
+    night = fields.get("night") or fields.get("date") or ""
     return {
         "name": name,
         "night": night,
@@ -1018,30 +1013,29 @@ def plan_meta(path, name, night):
         # translate_path puts the current one in for every /data/ URL, so naming
         # it here asks for data/twinkl/twinkl/plans/... and 404s. Reports and
         # backups build their URLs the same way, for the same reason.
-        "url": "/" + DATA + "/plans/" + night + "/" + name,
+        "url": "/" + DATA + "/plans/" + name,
     }
 
 
 def plan_listing():
-    """Every plan the planning agent has written, newest night first.
+    """Every plan the planning agent has written, newest first.
 
-    index.md is skipped: it is the night's own contents page, useful to read on
-    disk and noise in a list that already shows every plan it points at.
+    One file per task, flat under plans_dir(). What is skipped is everything
+    that is not a plan: the sidecar files (ledger, queue order, the log, the
+    lock) and the dated subfolders that still hold a night's own index.md and
+    run.json — see night_dir() in agents/planning_agent/paths.py — neither of
+    which is a plan.
     """
     root = plans_dir()
     if not os.path.isdir(root):
         return []
     out = []
-    for night in sorted(os.listdir(root), reverse=True):
-        folder = os.path.join(root, night)
-        if not os.path.isdir(folder) or night.startswith("."):
+    for name in sorted(os.listdir(root)):
+        if not name.endswith(".md") or name.startswith("."):
             continue
-        for name in sorted(os.listdir(folder)):
-            if not name.endswith(".md") or name == "index.md" or name.startswith("."):
-                continue
-            meta = plan_meta(os.path.join(folder, name), name, night)
-            if meta:
-                out.append(meta)
+        meta = plan_meta(os.path.join(root, name), name)
+        if meta:
+            out.append(meta)
     out.sort(key=lambda p: (p["night"], p["modified"]), reverse=True)
     return out
 
