@@ -154,8 +154,9 @@ bucket: <its bucket>
 column: <its state>
 ai: full
 date: <today, YYYY-MM-DD>
-summary: <one sentence naming what you are proposing — the card in the list
-          shows this and nothing else>
+summary: <one sentence naming what you are proposing. The card in the list
+          shows this and nothing else, so it says where the whole task
+          stands rather than what you make of his latest note>
 ---
 ```
 
@@ -196,15 +197,25 @@ once you have looked. Name paths. A correction to something the task itself
 assumes goes here.
 
 The bullets are the section that earns the whole exercise, so put the finding
-that makes the work smaller first. If you genuinely found little, say so in one
-bullet; that is itself worth knowing.
+that makes the work smaller first. If you found little, say so in one bullet.
+That is itself worth knowing.
+
+A finding he cannot act on is background, and background goes in **Context**,
+which he never sees. "Figma skills are plain Markdown, created by asking the
+agent in a chat, and publishable to the team library on a paid plan" is the
+shape of what does not belong here. It is how you know something rather than
+something he has to know.
 
 ### Proposed plan
 
-Shown. Numbered steps, each one a thing that could actually be started — "decide
+Shown. Numbered steps, each one a thing that could actually be started. "Decide
 the format" is not a step, "the format in `data/<dataset>/reports/` already
-works, reuse it" is. Say which steps are Claude's and which are his; that is
-what the `[ai:: ]` tag is claiming and it is often wrong once you look.
+works, reuse it" is.
+
+Open with one line saying which steps are Claude's and which are his, before the
+steps rather than after them. That line is how he reads the list, so it is
+useless underneath it. It is also what the `[ai:: ]` tag is claiming, and it is
+often wrong once you look.
 
 ### Needs you
 
@@ -232,11 +243,16 @@ missing one reads as a plan that forgot rather than a plan that was brief.
 
 ## Tone
 
-His, not yours. British English. Plain, direct, short sentences and short
-paragraphs. No em dashes, use commas. No "not X but Y" contrasts. Do not land a
-paragraph on a quotable line. Make positive claims rather than negating
-opposites. Findings is bullets by rule and Context is a trail; everywhere else
-is prose, and bullets there only where naming specific things earns it.
+His, not yours. British English, and no em dashes, use commas.
 
-Do not open with a summary of the task he wrote himself. He knows what it says.
-Summary says what you propose to do about it, and Findings says what you found.
+How to write the sentences is [`WRITING.md`](../../WRITING.md) at the repo root,
+twelve rules with a worked before/after on each. Read it. Every "before" in that
+file came out of a plan written here, so it is this document's own failure modes
+written down. Rules 2 and 9 are the two that a plan breaks most: a question is
+asked as a question, and a bold lead-in carries a verb.
+
+Three things are true of a plan in particular. Findings is bullets by rule and
+Context is a trail, while everywhere else is prose, with bullets there only where
+naming specific things earns it. Do not open with a summary of the task he wrote
+himself, since he knows what it says. Summary says what you propose to do about
+it, and Findings says what you found.

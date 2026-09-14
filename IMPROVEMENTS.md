@@ -528,6 +528,60 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The bucket editor renames, colours, reorders and deletes buckets, and
+  touches none of what actually makes an agent theirs — the brief.**
+  `openBucketEditor()` (`kanban/js/08-buckets.js:160`) wires up
+  `renameBucket()`, `addBucket()`, `deleteBucket()`, `moveBucket()` and
+  `setBucketColor()`, but `buckets/<stream>/<stream>.md` — the file
+  `agents/planning_agent/planning-<stream>.md` and the implementing agent both
+  read for what a bucket's work actually is — has no route in
+  `kanban/server.py` at all, read or write; it exists only to someone who
+  opens it outside the board. A modal here needs a `GET`/`PUT` pair scoped to
+  the current bucket's own brief path, plus a button in `openBucketEditor()`'s
+  per-bucket row to open it, and could lean on the same textarea-for-markdown
+  pattern the drawer's own Description field already uses
+  (`kanban/js/19-drawer.js:785`) rather than inventing a second editing
+  surface. "Creating a list is one `prompt()` for a name, and a zero-dataset
+  board is a state nothing renders" below writes a bucket's brief once, at
+  creation — this is the same file reachable afterwards, which that entry
+  doesn't cover either.
+
+- **Creating a list is one `prompt()` for a name, and a zero-dataset board is
+  a state nothing renders.** `createDataset()` (`kanban/js/21-datasets.js:63-71`)
+  asks only for a name before reloading, and `current_dataset()`
+  (`kanban/server.py:103-112`) returns `None` once `list_datasets()` comes back
+  empty — nothing downstream handles that: every route past it resolves a path
+  through `dataset_dir(name or current_dataset())`, which means
+  `dataset_dir(None)` on a fresh install with `data/` empty. What's wanted is a
+  wizard in place of the prompt, walking through name, buckets, and — for each
+  bucket — a description of the kind of work it covers, which becomes the
+  opening brief `agents/planning_agent/planning-<stream>.md` reads rather than
+  the bare template in `BUCKETS.md` scaffolding alone would write. A welcome
+  screen ahead of it, shown whenever `list_datasets()` is empty, leads into the
+  same wizard rather than a bare board with nothing to switch into.
+
+  Overlaps "Creating a list already works; what it produces is a shell nothing
+  else on the board knows how to use" below: that entry gets the sequence
+  right — ask for buckets, scaffold `buckets/<stream>/<stream>.md` and
+  `buckets/README.md` — but stops at template scaffolding. This is the same
+  plumbing carrying a UI, a multi-step wizard rather than one `prompt()`, plus
+  the zero-dataset welcome screen neither entry names, and the bucket
+  description he types becoming the brief's actual opening content rather than
+  boilerplate.
+
+- **Plans should carry nothing but plan cards, and two of its six columns
+  carry something else.** `PlansView.tsx:16-21` says so itself: Backlog and
+  To do "do not hold only plans" — Backlog carries held tasks and the
+  not-eligible fold (`plansProps.backlog`, built from `/queue.json`), and To
+  do carries tonight's queue rows via `queueRowNode()`
+  (`kanban/js/13-plans.js:965`), only concatenating in the plans sent back
+  for another night (`renderQueueList()`, `:981-994`) alongside them. Making
+  the view carry only plan cards means deciding where a held or not-eligible
+  task, and tonight's queue itself, are shown instead — nothing today reads
+  `pick.select()`'s output anywhere but this view. Surfaced while refining
+  the "Plans' drag confirmations are inconsistent by kind" entry below,
+  which this is bigger than and separate from.
+
 - **Switching from Board to Plans is a flat tab click, and he has a Figma
   prototype exploring it as one continuous vertical transition between two
   stacked surfaces instead, reached by a flip control rather than the tab
