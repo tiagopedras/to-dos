@@ -23,6 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "core"))
 sys.path.insert(0, HERE)
 
+import brief  # noqa: E402
 import paths  # noqa: E402
 import pick  # noqa: E402
 import plan  # noqa: E402
@@ -489,6 +490,82 @@ def test_prune():
               "gone-old.md" in left, False)
     finally:
         plan.paths.plans_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_briefing():
+    """The cache brief.py writes, and the two things that read it back.
+
+    See IMPROVEMENTS.md, "Every place that hands a task to an assistant
+    re-derives its own understanding from the same chaotic notes field."
+    run_brief_agent() is the one piece that spends money and is not covered
+    here, the same reasoning plan.py's own run_agent() is not — see that
+    module's own docstring.
+    """
+    task = todo.parse_task(
+        ["- [ ] **Ship the thing** [impact:: high] [effort:: M] [ai:: none] "
+         "`id:bb77cc`",
+         "  - Project: data/projects/the-thing"])
+    task.bucket, task.column = "BAU", "To do"
+
+    check("every open task is briefable regardless of its ai: tag",
+          [t.title for t in brief.briefable([task])], ["Ship the thing"])
+    done = todo.parse_task(["- [x] **Done already** `done:2026-09-01` `id:zz0000`"])
+    check("a finished task is not", brief.briefable([task, done]), [task])
+
+    prompt = brief.build_brief_prompt(task)
+    check("the prompt carries the task's own text", "Ship the thing" in prompt, True)
+    check("and the project note that is already part of it",
+          "data/projects/the-thing" in prompt, True)
+    check("and asks for the three-line shape, not a plan",
+          "Direction:" in prompt and "Needed:" in prompt, True)
+    check("it is not asked to research or propose",
+          "Research it" not in prompt, True)
+
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="briefing-test-")
+    real = brief.paths.briefings_path
+    brief.paths.briefings_path = lambda: os.path.join(tmp, "briefings.json")
+    try:
+        empty = brief.load_briefings()
+        check("a missing cache reads as empty", empty, {"version": 1, "briefed": {}})
+        check("and every task is stale against it",
+              brief.is_stale(task, empty["briefed"]), True)
+
+        empty["briefed"][pick.key_of(task)] = {
+            "title": task.title, "fingerprint": pick.fingerprint(task),
+            "generated": "2026-09-14T12:00:00", "text": "Direction: ship it.\n"}
+        brief.save_briefings(empty)
+        reloaded = brief.load_briefings()
+        check("it round-trips through disk", reloaded, empty)
+        check("and is no longer stale, same fingerprint",
+              brief.is_stale(task, reloaded["briefed"]), False)
+
+        task2 = todo.parse_task(
+            ["- [ ] **Ship the thing, with more to it now** [impact:: high] "
+             "[effort:: M] [ai:: none] `id:bb77cc`"])
+        check("but a task whose text moved is stale again, same id",
+              brief.is_stale(task2, reloaded["briefed"]), True)
+
+        # plan.py's own reader — an addition to build_prompt(), not a
+        # replacement for the verbatim block.
+        real_bp = plan.paths.briefings_path
+        plan.paths.briefings_path = brief.paths.briefings_path
+        try:
+            check("plan.py reads the same cache back",
+                  plan.task_briefing(task), "Direction: ship it.\n")
+            check("and folds it into the prompt as an orientation, not instead of the text",
+                  ("Direction: ship it." in plan.build_prompt(task)
+                   and "Ship the thing" in plan.build_prompt(task)), True)
+        finally:
+            plan.paths.briefings_path = real_bp
+        never_briefed = todo.parse_task(
+            ["- [ ] **Something else entirely** [impact:: low] [effort:: S] "
+             "[ai:: none] `id:dd99ee`"])
+        check("a task never briefed gets nothing added",
+              plan.task_briefing(never_briefed), "")
+    finally:
+        brief.paths.briefings_path = real
         shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -1306,6 +1383,7 @@ def main():
     test_folding()
     test_one_file_per_task()
     test_prune()
+    test_briefing()
     test_agents()
     test_server()
     test_queue_routes()

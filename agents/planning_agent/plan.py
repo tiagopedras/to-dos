@@ -340,6 +340,24 @@ def rejection(prior):
             was.get("context", ""), was.get("proposed plan", ""))
 
 
+def task_briefing(task):
+    """The cached briefing agents/planning_agent/brief.py wrote for this task, or "".
+
+    Not re-validated against the task's current fingerprint here — a slightly
+    stale orientation is still an orientation, and the verbatim block below it
+    is what the agent is actually meant to plan from. See IMPROVEMENTS.md,
+    "Every place that hands a task to an assistant re-derives its own
+    understanding from the same chaotic notes field."
+    """
+    try:
+        with open(paths.briefings_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return ""
+    row = (data.get("briefed") or {}).get(pick.key_of(task))
+    return (row or {}).get("text", "")
+
+
 def build_prompt(task, prior=None):
     """What the agent is actually asked.
 
@@ -347,10 +365,12 @@ def build_prompt(task, prior=None):
     the notes under a task are where the reasoning lives and a paraphrase of
     them is exactly the context that gets lost.
 
-    Two things are added where they exist: the bucket's own brief, and the
-    reason the last plan for this task was rejected. The second is the point of
-    the redo loop. Without it a rejected plan comes back the next night saying
-    the same thing, having spent the same money to reach it.
+    Three things are added where they exist: a cached briefing, for a fast
+    orientation before the verbatim block rather than instead of it; the
+    bucket's own brief; and the reason the last plan for this task was
+    rejected. The third is the point of the redo loop. Without it a rejected
+    plan comes back the next night saying the same thing, having spent the
+    same money to reach it.
     """
     block = "\n".join([task.raw] + list(task.body))
     parts = [
@@ -363,6 +383,13 @@ def build_prompt(task, prior=None):
         % (os.path.relpath(paths.todo_path(), paths.ROOT),
            block, task.bucket, task.column, task.ai or "?")
     ]
+
+    briefing = task_briefing(task)
+    if briefing:
+        parts.append(
+            "\nA quick orientation generated earlier, before you read the notes "
+            "yourself — useful for direction, not a substitute for reading them, "
+            "and it may already be a little out of date:\n\n%s\n" % briefing)
 
     brief = bucket_brief(task.bucket)
     if brief:

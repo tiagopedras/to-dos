@@ -208,6 +208,20 @@ def bucket_colors_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
 
 
+def briefings_path(name=None):
+    """Where agents/planning_agent/brief.py leaves what it has worked out about
+    each task — direction, what's done, what's still needed — one per task,
+    keyed the same way the ledger is (stable id, falling back to title).
+
+    A separate file for the same reason bucket-colors.json is one: generated
+    prose the board only ever reads, never a fact todo.md itself carries, so
+    it stays out of the one-writer rule entirely. See IMPROVEMENTS.md, "Every
+    place that hands a task to an assistant re-derives its own understanding
+    from the same chaotic notes field."
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "briefings.json")
+
+
 def attach_queue_path(name=None):
     """Where /pa-attach leaves what it could not write itself.
 
@@ -1683,6 +1697,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way an
                 # empty queue is the honest answer.
                 return self._json(200, [])
+        if path == "/briefings.json":
+            try:
+                with open(briefings_path(), encoding="utf-8") as fh:
+                    got = json.load(fh)
+                    return self._json(200, got if isinstance(got, dict) else {"version": 1, "briefed": {}})
+            except (OSError, ValueError):
+                # No file yet — nothing has been briefed — or one written by
+                # hand and broken. Either way every chat falls back to raw
+                # notes, same as before this existed.
+                return self._json(200, {"version": 1, "briefed": {}})
         if path == "/bucket-colors.json":
             try:
                 with open(bucket_colors_path(), encoding="utf-8") as fh:

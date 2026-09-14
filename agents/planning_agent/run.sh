@@ -125,6 +125,18 @@ if [ "$DRY" -eq 0 ]; then
   trap 'rm -f "$PIDFILE" 2>/dev/null; rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
 fi
 
+# --- 2.5. the task briefings, a pass of its own before planning -------------
+# One cheap call per open task whose text has moved since it was last
+# briefed, regardless of its ai: tag — eligible() in pick.py only ever sees
+# ai:full tasks, a tenth of the board at best, and a briefing is read by
+# newChat() and pa too, which reach all of it. Inside the same lock as the
+# batch below rather than a second one, and stopped by its own small budget
+# rather than reaching for the planning budget in step 3. Skipped for --task
+# and --dry-run, the same two flags that skip the batch's own real spend.
+if [ "$DRY" -eq 0 ] && [ "$MANUAL" -eq 0 ]; then
+  "$PY" "$HERE/brief.py" || logline "brief.py failed with exit $?"
+fi
+
 # --- 3. the schedule's own budget and max_plans ------------------------------
 # The dashboard writes these into the schedule file; nothing before today read
 # them back out for a real run to use, so `budget` sat there as a number the

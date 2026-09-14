@@ -289,6 +289,7 @@ template that tried to would be a second copy of them.
 - `scripts/check_todo.py` — the mechanical checker. Run it before delivering.
 - `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
 - `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
+- `data/<dataset>/briefings.json` — a generated briefing per task (direction, what's done, what's still needed), written overnight by `agents/planning_agent/brief.py` and read by `newChat()` and by this skill. Never write this file by hand; refresh one entry with `python3 agents/planning_agent/brief.py --task "<title>"` after a groom that changes what a task is actually asking for — worth doing so the next chat or plan on it starts from what you just settled rather than what the overnight pass last saw.
 
 **Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
 

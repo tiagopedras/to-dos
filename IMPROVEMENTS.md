@@ -528,6 +528,26 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A meeting's `repeat:` tag already carries the time it starts, and nothing
+  fires anything at that time.** `read_repeat()` at `core/todo.py:297` parses
+  the `hh:mm` out of a tag like `repeat:wed-9:15` (`REPEAT_VAL` at
+  `core/todo.py:265-267`) into `time`, but every kind's dict only ever folds
+  `time` into the printed `label` (`core/todo.py:324-334`) — nothing reads it
+  back out to schedule anything. The only clock the companion has is once a
+  morning: `companion/digest.py` decides what is owed for a whole day and
+  `companion/notify.py`'s queue is drained on the companion's own tick, inside
+  the 08:30–20:00 window `notify.py`'s docstring names, with no notion of a
+  particular minute. Posting a banner at 9:15 rather than at whatever time the
+  companion happens to poll needs the Electron side to hold its own per-task
+  timers, not just the once-a-day digest.
+
+  Two decisions come first. Whether the agenda text is a card's body as
+  written today, or a new field a meeting card carries separately — `todo.py`
+  has no `agenda:` tag now, so the body is what there is to show. And which
+  meetings this fires for: every `repeat:` tag with a time gets a firing, or
+  only ones a task is marked to want one, since a 9:15 standing meeting he
+  never wants interrupted by a banner is the same shape of tag as one he does.
+
 - **Plans' drag confirmations are inconsistent by kind, and half of what was
   asked for is already built.** Dropping a task from the queue onto Backlog
   goes straight through `holdTask()` (`kanban/js/13-plans.js:1123`) with no
@@ -1816,7 +1836,57 @@ they settled is written up in the README rather than left here:
   night listing everything attempted, what the diff touched, which suites ran,
   what they said and which branch it is sitting on.
 
-- **Every place that hands a task to an assistant re-derives its own
+- ~~**Every place that hands a task to an assistant re-derives its own
+  understanding from the same chaotic notes field, and none of them leaves
+  behind anything the others could reuse.**~~ **Done, 14 Sep 2026.** Built as
+  the entry proposed: `agents/planning_agent/brief.py` is the pass of its
+  own, running before `plan.py` inside the same lock `run.sh` already takes
+  rather than a second one. `briefable()` is every open task regardless of
+  `ai:`, not `pick.eligible()`'s tenth of the board; staleness is
+  `pick.fingerprint()` against `data/<dataset>/briefings.json`, the same cache
+  shape `attach-queue.json` and the rest already use, keyed by
+  `pick.key_of()` rather than the literal `slug:` tag the entry named — most
+  tasks do not carry one, and the ledger's own identity was already sitting
+  there to reuse.
+
+  Cheap is a real number, not just a word: Haiku (`claude-haiku-4-5-20251001`),
+  no tools beyond a token `Read` grant, a 60-word three-line ask (Direction /
+  Done / Needed), $0.10 per task and $2 across the whole pass — about $0.10 a
+  task in practice, checked against a real call. 77 open tasks on the real
+  list today, so a first sweep spans a few nights at that budget before every
+  task has been through it once; after that, only what changed costs anything.
+
+  All three consumers read the cache rather than re-deriving it. `newChat()`
+  (`kanban/js/10-reference-sections.js`) seeds a chat from `taskBriefing()`
+  when one exists, falling back to raw notes exactly as before for a task
+  never briefed. `build_prompt()` (`plan.py`) adds `task_briefing()`'s answer
+  as a quick orientation ahead of the verbatim block — a supplement, not the
+  replacement the entry offered as the alternative, since the deep-research
+  agent still wants the raw notes it was built to read. `pa`'s hook is a line
+  in `SKILL.md`: `python3 agents/planning_agent/brief.py --task "<title>"`
+  refreshes one entry after a groom, so a task edited today does not wait for
+  the overnight pass to carry its new briefing into the next chat or plan.
+
+  The board reads it through a new `/briefings.json` route, the same shape
+  `/attach-queue.json` already answers with (`{version, briefed: {}}` when
+  nothing exists yet), loaded once at boot into `state.briefings` and never
+  re-validated client-side — the fingerprint check that decides staleness is
+  `brief.py`'s job, the same way the file format itself is parsed in exactly
+  two places and nowhere else.
+
+  `test_briefing()` in `test_planning_agent.py` covers `briefable()`,
+  `build_brief_prompt()`, the cache round-tripping through disk, staleness
+  against a changed fingerprint, and `plan.py`'s own read of it —
+  `run_brief_agent()` itself is untested the same way `plan.py`'s own
+  `run_agent()` is not, since it spends real money. Three new checks in
+  `kanban/test_chats.mjs` cover `taskDescription()`'s two paths. Checked for
+  real against the live list: `--task "Prepare the DS drop-in (Friday)"`
+  produced a genuine three-line briefing for $0.098, and the board read it
+  back correctly through `/briefings.json`.
+
+  The original entry follows.
+
+  **Every place that hands a task to an assistant re-derives its own
   understanding from the same chaotic notes field, and none of them leaves
   behind anything the others could reuse.** `newChat()`
   (`kanban/js/10-reference-sections.js:927`) seeds a fresh chat with

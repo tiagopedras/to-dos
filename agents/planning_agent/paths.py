@@ -68,6 +68,19 @@ def night_dir(day):
     return os.path.join(plans_dir(), day.isoformat())
 
 
+def briefings_path():
+    """Where brief.py leaves what it has worked out about each task.
+
+    Beside data_dir() rather than inside plans_dir(): a briefing is not a
+    proposal about what to do, it is a summary of what a task already says,
+    and newChat() and pa read it whether or not the task has ever been
+    planned at all. Same shape as attach_queue_path() and the rest — a
+    sidecar the board reads and only this agent writes, kept out of
+    todo.md and out of the one-writer rule entirely.
+    """
+    return os.path.join(data_dir(), "briefings.json")
+
+
 def ledger_path():
     return os.path.join(plans_dir(), "ledger.json")
 

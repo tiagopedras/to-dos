@@ -35,6 +35,16 @@ const state = {
      a fact the list itself needs to carry, and todo.md has exactly one writer
      already. */
   bucketColors: {},
+  /* Task key (stableId, falling back to title) -> a generated briefing —
+     direction, what's done, what's still needed — written by the planning
+     agent's own brief.py pass and read by loadBriefings() in
+     20-loading-saving.js. Used as-is, never re-validated against the task's
+     current text here: the fingerprint check that decides whether a
+     briefing is stale is agents/planning_agent/brief.py's job, not the
+     board's, on the same reasoning core/todo.js is the one place the format
+     itself gets parsed. Absent for a task never briefed yet, which falls
+     back to its own raw notes exactly as it always did. */
+  briefings: {},
   /* The whole sessions index, owner key -> rows, handed over by chat.js's
      onSessionsChanged. The drawer only ever needs one owner's worth and asks
      for it directly; openChatByKey() has to search every owner for one id, so

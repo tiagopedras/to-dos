@@ -125,6 +125,36 @@ const built = await evalJS(`
   })()
 `)
 
+// ---- The seed a new chat opens with ----
+// See IMPROVEMENTS.md, "Every place that hands a task to an assistant
+// re-derives its own understanding from the same chaotic notes field." A
+// cached briefing, when brief.py has written one, replaces the raw notes as
+// the seed rather than sitting beside them — a task never briefed falls back
+// to exactly what taskDescription() always returned.
+const briefed = await evalJS(`
+  (() => {
+    let target = null;
+    for (const b of state.doc.buckets) for (const ti of b.tiers) for (const t of ti.tasks)
+      if (!target && t.body && t.body.length) target = t;
+    if (!target) return { error: 'no task with notes in the fixture' };
+    const key = target.stableId || target.title;
+    const withoutBriefing = taskDescription(target);
+    state.briefings[key] = { title: target.title, text: 'Direction: settled already.' };
+    const withBriefing = taskDescription(target);
+    delete state.briefings[key];
+    const afterClearing = taskDescription(target);
+    return { withoutBriefing, withBriefing, afterClearing, title: target.title };
+  })()
+`)
+check('a task with no cached briefing seeds from its raw notes, as before',
+  briefed.withoutBriefing.startsWith(briefed.title) && briefed.withoutBriefing !== briefed.withBriefing,
+  JSON.stringify(briefed))
+check('a cached briefing replaces the notes as the seed',
+  briefed.withBriefing === briefed.title + '\n\nDirection: settled already.',
+  briefed.withBriefing)
+check('clearing the cache falls straight back to raw notes',
+  briefed.afterClearing === briefed.withoutBriefing)
+
 // ---- The card, in the drawer ----
 // The Chats field draws with cvCardHTML rather than chat.js's own row markup.
 const drawer = await evalJS(`

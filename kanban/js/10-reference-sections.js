@@ -987,7 +987,24 @@ function askFromPrompt(taskId, text, raw){
 // The task's own title and description, so a fresh chat opens with something
 // to work from rather than a blank box — seeded the same unsent way
 // askFromPrompt() seeds an authored prompt.
+/* The same identity pick.key_of() uses on the Python side: the task's own id,
+   falling back to its title for a list from before ids existed. Kept as one
+   line here rather than imported, the same as every other small piece of
+   format knowledge this file already carries its own copy of. */
+function briefKeyFor(t){
+  return t.stableId || t.title;
+}
+
+/* A cached briefing, written by agents/planning_agent/brief.py — direction,
+   what's done, what's still needed — read exactly as cached, never
+   re-validated here. Empty for a task never briefed yet. */
+function taskBriefing(t){
+  return (state.briefings[briefKeyFor(t)] || {}).text || '';
+}
+
 function taskDescription(t){
+  const briefing = taskBriefing(t);
+  if (briefing) return t.title + '\n\n' + briefing;
   const notes = dedent(bodyParts(t).notes);
   return notes ? t.title + '\n\n' + notes : t.title;
 }

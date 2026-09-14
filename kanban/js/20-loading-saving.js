@@ -148,3 +148,16 @@ async function loadJira(){
   }
 }
 
+/* Every task's cached briefing, written by agents/planning_agent/brief.py
+   overnight. Absent is the ordinary case for a fresh clone or a task that
+   has not been through a brief pass yet — taskDescription() in
+   10-reference-sections.js falls back to raw notes exactly as it did before
+   this existed, so a board that cannot read this file works exactly as one
+   that predates it. */
+async function loadBriefings(){
+  try {
+    const data = await getJSON('/briefings.json');
+    state.briefings = (data && data.briefed) || {};
+  } catch (err) { /* no cache yet, or unreadable: every chat seeds from raw notes */ }
+}
+
