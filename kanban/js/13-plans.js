@@ -125,13 +125,14 @@ function productionWord(p){
    a view where everything is one.
 
    So colour is spent only where it earns attention: something has arrived, or
-   something is settled. Everything in between takes the ordinary line colour
-   and says what it is in its badge instead.
+   something is settled. Everything in between takes a quiet neutral and says
+   what it is in its badge instead — faint enough not to compete, not so faint
+   the badge itself goes unreadable, which is what the line colour did.
 
      new                            blue,  the accent
      accepted, handed over          green
      read, planning again, parked,
-     finished, replaced             the line colour */
+     finished, replaced             a quiet neutral (ink-faint) */
 function planStripe(p){
   if (p.state === 'review' && !p.seen) return 'var(--b1)';
   /* Reported back and not yet looked at is the other thing that has just
@@ -139,7 +140,7 @@ function planStripe(p){
      card was on a different board entirely and could not say so here. */
   if (p.production === 'review' && !p.seen) return 'var(--b1)';
   if (isAgreed(p)) return 'var(--green)';
-  return 'var(--line)';
+  return 'var(--ink-faint)';
 }
 
 /* Which of the six columns a plan draws in. One function, so the renderers,
@@ -875,7 +876,6 @@ function renderPlanDone(){
 
 let queueRows = [];      // what tonight would plan, in order
 let queueHeld = [];      // deliberately held back — lives in the Backlog column
-let queueSkipped = [];   // dropped by a rule — lives in the Backlog column too
 let queueOrder = [];      // the stored ordering, so held ranks survive a save
 /* The hold list as the file holds it, rather than rebuilt from whatever rows
    happen to be on screen. A task can be held and not drawn — its plan is out
@@ -1145,63 +1145,63 @@ function releaseHeld(title){
 }
 
 /* -------------------------------------------------------------------------
-   Backlog — everything the queue does not contain and why: held back from
-   the board on one hand, excluded by a rule in agents/planning_agent/pick.py on the other.
+   Backlog — everything the agent is to leave alone: a task held back from
+   the board, or a plan already parked. Both drag; a held task drags back
+   into the queue, exactly the reverse of the Hold button.
 
-   Only the first half is draggable. Holding is a board-only preference, so
-   dragging a held card back into the queue is exactly the reverse of the
-   Hold button and just as safe. A card excluded by a rule — blocked, parked,
-   tagged short of ai:full, or waiting on a `start:` date — is excluded for a
-   reason dragging cannot fix, so it is shown rather than offered: see the
-   comment above pick.eligible() and pick.select() for why the order and hold
-   files were deliberately never given a say over what the queue contains.
+   What agents/planning_agent/pick.py excludes for its own reasons — blocked, tagged short
+   of ai:full, waiting on a `start:` date — is not drawn here at all. Nothing
+   about dragging could fix any of that, and a card offering a gesture that
+   does nothing is worse than no card; see the comment above pick.eligible()
+   and pick.select() for why the order and hold files were deliberately
+   never given a say over what the queue contains.
    ------------------------------------------------------------------------- */
 
-/* A held card drags but does not reorder: it has no rank to be dropped above
-   or below, which is why it gets no list to position itself in. */
-function heldRowNode(r){
-  return BoardUI.h(BoardUI.Card, {
-    key: 'h:' + r.title,
-    cls: 'qitem held nostripe',
-    attrs: queueRowDragProps(r, null, 'held'),
-    position: '—',
+/* A held task has no plan written about it yet, but Backlog is meant to read
+   as one thing — a card the agent leaves alone — so it draws in the same
+   `PlanCard` shell every parked plan does, dashed and dimmed the same way,
+   with its eyebrow saying "held" rather than "parked" rather than a
+   different card shape doing the telling. It drags out to To do exactly as
+   the Hold button's reverse always did; there is no rank to drop it
+   against, so nothing here tries to reorder it. */
+function heldPlanCardNode(r){
+  const key = r.slug || r.title;
+  return BoardUI.h(BoardUI.PlanCard, {
+    key: 'held:' + r.title,
+    url: 'held:' + r.title,
     title: r.title,
-    action: BoardUI.h('button', { className: 'btn outline small qhold',
+    variant: ' parked',
+    word: 'held',
+    gotoKey: key,
+    gotoLabel: r.title,
+    where: [r.bucket, r.column],
+    action: BoardUI.h('button', { className: 'btn outline small release',
       title: 'Put it back in the queue',
       onClick: e => { e.stopPropagation(); releaseHeld(r.title); } }, 'Release'),
-    meta: rowMetaNode(r),
-    extra: BoardUI.h('div', { className: 'qwhy' }, r.why || '')
+    onGoto: () => goToPlanTask(key),
+    onDragStart: e => {
+      drag = { kind:'task', title: r.title, from:'held' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', r.title);
+      e.currentTarget.classList.add('dragging');
+    },
+    onDragEnd: e => { drag = null; e.currentTarget.classList.remove('dragging'); }
   });
 }
 
 function renderBacklogList(){
   const held = plansShown(queueHeld);
-  const skipped = plansShown(queueSkipped);
   const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
-  let body = [];
-  body = body.concat(held.map(heldRowNode));
-  /* A parked plan is the written half of the same instruction: the task is
-     held, and this is what the agent had already worked out about it. Kept
-     openable rather than filed away, since taking it out of Backlog later is
-     a decision better made having read it. Drawn alongside the held tasks
-     rather than under a heading of their own — every card in this column is
-     the same instruction, leave it alone. */
-  body = body.concat(planCardNodes(parked));
-  if (skipped.length) {
-    body.push(BoardUI.h('details', { className: 'ufold', key: 'skipped' },
-      BoardUI.h('summary', null, 'Not eligible (' + skipped.length + ')'),
-      skipped.map(r => BoardUI.h('div', { className: 'qskip', key: 's:' + r.title },
-        BoardUI.h('span', null, r.title),
-        gotoButtonNode(r),
-        BoardUI.h('em', null, r.why)))));
-  }
-  if (!body.length) {
-    body = [BoardUI.h('div', { className: 'empty', key: 'none' },
-      'Nothing held back, and nothing excluded right now.')];
-  }
-  plansProps.backlog = body;
-  // Everything the column is holding, in all three of its groups.
-  plansProps.backlogCount = held.length + parked.length + skipped.length;
+  /* A parked plan is the written half of the same instruction the held cards
+     carry: the task is held, and this is what the agent had already worked
+     out about it. Kept openable rather than filed away, since taking it out
+     of Backlog later is a decision better made having read it. Every card
+     here is the same instruction — leave it alone — so nothing separates
+     the two kinds beyond their own eyebrow. */
+  const body = held.map(heldPlanCardNode).concat(planCardNodes(parked));
+  plansProps.backlog = body.length ? body
+    : [BoardUI.h('div', { className: 'empty', key: 'none' }, 'Nothing held back right now.')];
+  plansProps.backlogCount = held.length + parked.length;
 }
 
 /* `ranked` says whether this save is him ordering the queue, and only a drag
@@ -1266,7 +1266,6 @@ async function renderQueue(){
     const q = await res.json();
     queueRows = q.queue || [];
     queueHeld = q.held || [];
-    queueSkipped = q.skipped || [];
     queueOrder = q.order || [];
     queueHoldTitles = q.hold || [];
     renderQueueList();

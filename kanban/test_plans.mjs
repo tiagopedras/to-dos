@@ -150,6 +150,11 @@ await evalJS(`(() => {
         agent:'planning-design-system', position:0, state:'held',
         why:'held back from the board', last:'', lastStatus:'' }
     ],
+    // pick.py still excludes tasks of its own accord (blocked, short of
+    // ai:full, waiting on a start: date), but Backlog no longer draws them —
+    // dragging cannot fix any of that, so a card for one would only offer a
+    // gesture that does nothing. skipped stays in the fixture to prove the
+    // view ignores it rather than erroring on a field it no longer reads.
     skipped: [
       { title:'Something parked', bucket:'People', column:'Blocked', ai:'partial',
         agent:'planning-people', position:0, state:'skipped',
@@ -346,21 +351,20 @@ check('each says why it is being planned again', await evalJS(`
 `))
 
 // --- the backlog column -----------------------------------------------------
-// Held cards and not-eligible cards both live here, and only the first kind
-// can be dragged back into the queue.
+// A held task draws in the same PlanCard shell a parked plan does — dimmed,
+// its eyebrow saying "held" — so every card here reads as one thing.
+// What pick.py excludes on its own is not drawn at all: see the fixture note
+// on `skipped` above.
 
-check('a held card is shown in the backlog, not the queue', await evalJS(`
-  !document.querySelector('#queueOut .qitem.held') &&
-  !!document.querySelector('#backlogOut .qitem.held')
+check('a held card is shown in the backlog, not the queue, in the plan shell', await evalJS(`
+  !document.querySelector('#queueOut [data-plan^="held:"]') &&
+  !!document.querySelector('#backlogOut [data-plan^="held:"].repitem.planitem')
 `))
 check('and it can be dragged', await evalJS(`
-  document.querySelector('#backlogOut .qitem.held').getAttribute('draggable') === 'true'
+  document.querySelector('#backlogOut [data-plan^="held:"]').getAttribute('draggable') === 'true'
 `))
-check('what a rule dropped is shown with its reason', await evalJS(`
-  document.querySelector('#backlogOut .qskip em').textContent.includes('unchanged')
-`))
-check('and it cannot be dragged, unlike a held card', await evalJS(`
-  !document.querySelector('#backlogOut .qskip').closest('[draggable="true"]')
+check('and its eyebrow says held, not parked', await evalJS(`
+  document.querySelector('#backlogOut [data-plan^="held:"] .bucket').textContent === 'held'
 `))
 
 // Dragging the third card above the first. The board reorders locally and then
@@ -414,7 +418,7 @@ check('and names it in the hold list', await evalJS(`
 // back in play, at the position dropped, and only that title leaves the hold
 // list — the second held card stays held.
 await evalJS(`(() => {
-  const from = document.querySelector('#backlogOut .qitem.held');
+  const from = document.querySelector('#backlogOut [data-plan^="held:"]');
   const to = document.querySelectorAll('#queueOut > .qitem')[0];
   const dt = new DataTransfer();
   from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles:true }));
@@ -432,7 +436,7 @@ check('dropped at the top of the queue', await evalJS(`
   document.querySelector('#queueOut > .qitem .title').textContent
 `) === 'Arabic theme as a new token mode')
 check('the other held card stays behind', await evalJS(`
-  document.querySelector('#backlogOut .qitem.held .title').textContent
+  document.querySelector('#backlogOut [data-plan^="held:"] .title').textContent
 `) === 'Adoption and usage report')
 check('and the hold list drops only the one released', await evalJS(`
   (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
@@ -460,11 +464,11 @@ check('dragging a queue card onto the backlog holds it', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 2
 `))
 check('and it shows up there, held', await evalJS(`
-  [...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('without disturbing the card held earlier', await evalJS(`
-  [...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
     .includes('Adoption and usage report')
 `))
 check('and the post names both held titles', await evalJS(`
@@ -479,9 +483,9 @@ check('and the post names both held titles', await evalJS(`
 // are held at this point; releasing one puts it back at the end of the queue
 // and leaves the other where it is.
 await evalJS(`(() => {
-  const row = [...document.querySelectorAll('#backlogOut .qitem.held')]
+  const row = [...document.querySelectorAll('#backlogOut [data-plan^="held:"]')]
     .find(r => r.querySelector('.title').textContent === 'Rename the text styles');
-  row.querySelector('.qhold').click();
+  row.querySelector('.release').click();
   return painted();
 })()`)
 check('Release puts a held card back in the queue', await evalJS(`
@@ -489,7 +493,7 @@ check('Release puts a held card back in the queue', await evalJS(`
     .includes('Rename the text styles')
 `))
 check('and takes it out of the backlog', await evalJS(`
-  ![...document.querySelectorAll('#backlogOut .qitem.held .title')].map(e => e.textContent)
+  ![...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('and drops only that title from the hold list', await evalJS(`

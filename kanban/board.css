@@ -1319,22 +1319,9 @@
   .qhold:hover{border-color:var(--accent); color:var(--accent)}
   @media (prefers-reduced-motion:reduce){ .qhold{transition:none} }
   .qwhy{margin:4px 0 0; font-size:11.5px; color:var(--ink-faint)}
-  /* A held card lives in the Backlog column, not the queue, so it keeps its
-     shape but loses its position — the dashed border marks it as waiting
-     rather than ranked, not as inert; it still drags like any other. The same
-     dimmed-and-dashed a finished plan gets, for the same reason. */
-  .qitem.held{border-style:dashed; opacity:.72}
-  .qitem.held:hover{opacity:1}
-  .qitem.held .qhold{opacity:1}
-  /* Not-eligible cards, the other half of Backlog: shown, not dragged — see
-     the comment above pick.eligible() for why a drag cannot fix what excludes
-     them. */
-  .qskip{
-    display:flex; gap:10px; align-items:baseline; padding:4px 2px; font-size:12px;
-    color:var(--ink-faint);
-  }
-  .qskip span{flex:1; min-width:0; color:var(--ink-soft)}
-  .qskip em{flex:none; font-style:normal}
+  /* A held task lives in the Backlog column now as a PlanCard stub, not a
+     .qitem — see .repitem.planitem.parked below for the dimmed treatment it
+     shares with a parked plan. */
   /* A column lit up as a drop target. Three of the four take drops — Backlog,
      To do and Done — and each lights the whole column rather than a row within
      it, since a card dropped on a column means "put it here" and only the To do
@@ -1620,10 +1607,9 @@
      amber means everywhere else on this view. */
   .planprod-review{color:var(--amber)}
   .planprod-done{color:var(--green)}
-  /* Finished, and kept as a record rather than as something to read. Dimmed
-     and dashed, the same treatment a held queue row gets, because both mean
-     "present, not in play". */
-  .repitem.actioned{opacity:.6; border-style:dashed}
+  /* Finished, and kept as a record rather than as something to read. Dimmed,
+     because it means "present, not in play". */
+  .repitem.actioned{opacity:.6}
   .repitem.actioned:hover{opacity:1}
   /* Agreed: work is owed on this one. Green rather than the accent, which means
      "new", and rather than amber, which means "answer me". Three states on one
@@ -1636,7 +1622,7 @@
   .repitem.agreed{background:var(--green-bg)}
   /* Sent back. Red would read as an error and this is a normal answer, so it
      recedes the way a read plan does and says why in .planredo instead. */
-  .repitem.redo{opacity:.82; border-style:dashed}
+  .repitem.redo{opacity:.82}
   .planredo{
     margin:6px 0 0; padding:6px 8px; border-radius:6px;
     background:var(--chip); color:var(--ink-soft);
@@ -1660,12 +1646,11 @@
      arrived, green for one he has accepted, and the ordinary line colour for
      everything else. Nothing is red. */
   .repitem.planitem{border-left:3px solid var(--bc,var(--line))}
-  /* Parked in Backlog: the same dashed treatment a held task row gets, for the
-     same reason — it is waiting rather than inert. After the stripe rule above
-     for the same reason that rule is where it is: it sets one edge on every
-     plan card, and a dashed card has to be dashed on all four or it reads as a
-     border someone forgot. */
-  .repitem.planitem.parked{border-style:dashed; opacity:.78}
+  /* Parked in Backlog: dimmed, the same treatment a held task card gets, for
+     the same reason — it is waiting rather than inert. After the stripe rule
+     above for the same reason that rule is where it is: it sets one edge on
+     every plan card. */
+  .repitem.planitem.parked{opacity:.78}
   /* The way back to the card a plan is about. Text, not a button chrome — it
      reads as part of the meta line rather than a second action competing with
      Accept/Plan it again/Turn it down below. */

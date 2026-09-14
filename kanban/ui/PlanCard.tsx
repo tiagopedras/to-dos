@@ -48,7 +48,7 @@
  * so nothing has to be flushed. `data-plan` stays, because it is the card's
  * identity rather than a hook — it is how a suite says which plan it means.
  */
-import type { DragEvent, MouseEvent } from 'react'
+import type { DragEvent, MouseEvent, ReactNode } from 'react'
 import { Card } from './Card'
 
 export interface PlanCardProps {
@@ -80,6 +80,10 @@ export interface PlanCardProps {
   summaryHTML?: string
   /** What he told the agent when he sent it back. */
   feedback?: string
+  /** A control beside the title, the same slot every other card's `action`
+   *  sits in. Empty on a real plan — only the held-task stub in Backlog uses
+   *  it, for Release, since that card has no plan of its own to open. */
+  action?: ReactNode
   /** Opening the plan, and the link back to the task it is about. Both are
    *  `13-plans.js`'s — `openPlanModal` and `goToPlanTask` — closed over the
    *  plan this card was built from, so neither needs reading back off the DOM. */
@@ -95,7 +99,7 @@ export function PlanCard(props: PlanCardProps) {
   const {
     url, title, variant, stripe, word, production, productionKind,
     needsYou, gotoKey, gotoLabel, where, scoresHTML, summaryHTML, feedback,
-    onOpen, onGoto, onDragStart, onDragEnd,
+    action, onOpen, onGoto, onDragStart, onDragEnd,
   } = props
 
   const cls = 'repitem planitem' + (variant || '') +
@@ -135,6 +139,7 @@ export function PlanCard(props: PlanCardProps) {
         </>
       }
       title={title}
+      action={action}
       tags={scoresHTML ? { __html: scoresHTML } : null}
       meta={(line || gotoKey) ? (
         <>
