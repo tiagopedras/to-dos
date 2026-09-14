@@ -644,27 +644,25 @@ they settled is written up in the README rather than left here:
   wants Plans to carry nothing but plan cards. That is a bigger question than
   drag confirmations and needs its own entry before it is built.
 
-- **The Plans view's dashed borders are five different signals, not one
-  decoration to strip.** `.col.agentcol` (`kanban/board.css:852`) dashes the
-  Waiting for review column edge because an agent owns it. `.empty.boxed`
-  (`:1264`) dashes an empty column's placeholder. `.repitem.actioned` (`:1640`),
-  `.repitem.redo` (`:1653`) and `.repitem.planitem.parked` (`:1682`) each dash a
-  plan card to mean finished-and-kept, sent-back, or parked in Backlog, and
-  `.qitem.held` (`:1326`) does the same for a held row in the queue beside it.
-  `CLAUDE.md`, under "The two boards, and why they are one shape", records that
-  the 12 Sep 2026 unify pass deliberately settled the dash to mean one thing
-  app-wide — an agent owns this column — and every card-level use listed above
-  is the same shape reused for "present, not in play."
-
-  The dash comes off all four card-level uses, keeping the opacity and any
-  background colour they already carry. What replaces it is the card's own
-  label rather than a border: each of the four states needs its own word
-  naming what it is, not just which column it sits in — a plan sent back to
-  the queue is not simply waiting its turn, it is on a second pass, and the
-  label has to say so rather than leaving the column and the dimming to imply
-  it. `planWord()` already gives `redo`, `completed`, `superseded` and
-  `declined` their own word for exactly this; `.qitem.held` wants the same
-  treatment if it does not have it already.
+- ~~**The Plans view's dashed borders are five different signals, not one
+  decoration to strip.**~~ **Done, 14 Sep 2026 — already built, and not
+  struck through.** `git show 2f0fffb` — "Draw Backlog's held tasks as
+  plan-card stubs, and lighten Plans' quiet-state colour" — is this entry's own
+  fix, landed the same day the entry was written and never linked back to it.
+  The dash is off all four card-level uses: `.repitem.actioned`,
+  `.repitem.redo` and `.repitem.planitem.parked` (`kanban/board.css`) all keep
+  their opacity with no `border-style` line left on any of them, and the held
+  row is not a `.qitem` any more at all — `heldPlanCardNode()`
+  (`kanban/js/13-plans.js`) draws it through the same `PlanCard` shell a parked
+  plan gets, `variant: ' parked'`, so it inherits the same dimmed, undashed
+  treatment rather than carrying a second rule of its own. Each of the four
+  states already has its own word: `planWord()` gives `declined`, `replaced`,
+  `finished` and `accepted` to the three `done` resolutions plus `accepted`
+  itself, `parked` to a plan sitting in Backlog, and `heldPlanCardNode()` passes
+  `word: 'held'` straight past `planWord()` for the held-task stub — the one
+  case this entry named as possibly still missing it, and it was not.
+  `.col.agentcol` is the one dash left in the app, exactly as `CLAUDE.md`
+  already says it should be.
 
 - ~~**A plan on its second or third revision looks exactly like a plan on its
   first, so there is no way to see whether sending one back achieved
