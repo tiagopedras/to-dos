@@ -268,6 +268,15 @@ function cardHTML(t, color, bucketLabel, opts){
     esc('Everything on ' + proj) + '">' + esc(proj) + '</span>';
   // Says it once, on the card, rather than leaving a gap that reads as "low".
   if (unscored(t) && !t.done) meta += '<span class="tag needsscore">needs scoring</span>';
+  /* A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), so
+     on the board it is an ordinary done card wearing one more chip rather than
+     a state of its own — the same shape every other tag already renders as. It
+     sits here rather than with the dates because it answers "was this done",
+     which is the first thing to know about a ticked card. */
+  if (t.done && t.cancelled) meta += '<span class="tag cancelled" title="Decided against on ' +
+    esc(t.cancelled) + ' — not counted as finished work">cancelled</span>';
+  if (t.done && t.archived) meta += '<span class="tag cancelled" title="No longer relevant, ' +
+    esc(t.archived) + ' — not counted as finished work">archived</span>';
   if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '" title="' + esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
   if (t.effort) meta += '<span class="tag">' + esc(t.effort) + '</span>';
   const si = startInfo(t.start);

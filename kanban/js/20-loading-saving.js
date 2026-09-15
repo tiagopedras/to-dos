@@ -96,6 +96,7 @@ function applyPendingTask(){
 function showErr(msg){
   $('#start').classList.remove('hidden');
   $('#board').classList.add('hidden');
+  $('#colTabs').classList.add('hidden');
   $('#hdr').classList.add('hidden');
   $('#bucketBar').classList.add('hidden');
   $('#startErr').innerHTML = '<div class="err">' + msg + '</div>';

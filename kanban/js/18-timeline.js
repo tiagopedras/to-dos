@@ -788,6 +788,8 @@ function renderView(){
 
   $('#board').classList.toggle('hidden', !isBoard);
   $('#lists').classList.toggle('hidden', isBoard);
+  // renderColTabs() puts it back; nothing else on any other view wants it.
+  if (!isBoard) $('#colTabs').classList.add('hidden');
   $('#backupsBtn').classList.toggle('on', isBackups);
 
   if (isBoard) { renderBoard(); return; }
@@ -899,6 +901,59 @@ function renderFilterBar(){
   $('#allBuckets').classList.toggle('hidden', !across);
 }
 
+/* The strip of column names above the board, phone only — which one is on
+   screen and how many there are, neither of which a snapped one-column-wide
+   board says on its own. Names rather than dots: a dot says where you are in
+   the sequence, and the thing that is missing is which column that is. Six
+   names do not fit across 400px, so the strip scrolls horizontally itself and
+   the lit one is scrolled into view with the column it names.
+
+   Drawn at every width and hidden by CSS above 640px — a width check here
+   would be a second breakpoint to keep in step with board.css's. */
+function renderColTabs(columns){
+  const strip = $('#colTabs');
+  if (!strip) return;
+  strip.classList.remove('hidden');
+  strip.innerHTML = columns.map((name, i) =>
+    '<button type="button" class="coltab' + (i === 0 ? ' on' : '') +
+    '" data-coli="' + i + '">' + esc(name) + '</button>').join('');
+
+  const main = $('#main');
+  const tabs = Array.from(strip.querySelectorAll('.coltab'));
+  const cols = () => Array.from($('#board').children);
+
+  const light = i => {
+    tabs.forEach((t, j) => t.classList.toggle('on', j === i));
+    const on = tabs[i];
+    if (on) on.scrollIntoView({ inline:'nearest', block:'nearest' });
+  };
+  /* Nearest left edge rather than scrollLeft divided by a column's width: the
+     columns are one width today and the arithmetic would be wrong the moment
+     that stops being true, and a measurement costs nothing at six columns. */
+  const current = () => {
+    const list = cols();
+    if (!list.length) return 0;
+    let best = 0, dist = Infinity;
+    list.forEach((c, i) => {
+      const d = Math.abs(c.offsetLeft - main.scrollLeft);
+      if (d < dist) { dist = d; best = i; }
+    });
+    return best;
+  };
+
+  tabs.forEach((t, i) => {
+    t.onclick = () => {
+      const c = cols()[i];
+      if (c) c.scrollIntoView({ inline:'start', block:'nearest', behavior:'smooth' });
+      light(i);
+    };
+  });
+  /* One listener, replaced on every render rather than added to — renderBoard
+     runs on every edit and addEventListener would stack them up. */
+  main.onscroll = () => light(current());
+  light(current());
+}
+
 function renderBoard(){
   if (state.view !== 'board') return;
   renderFilterBar();
@@ -987,6 +1042,8 @@ function renderBoard(){
         : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>'
     });
   }).join('');
+
+  renderColTabs(columns);
 
   board.querySelectorAll('.card').forEach(el => {
     el.onclick = () => openDrawer(el.dataset.id);

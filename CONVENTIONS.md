@@ -409,6 +409,13 @@ The tag also stops the archive lying. Without it, a cancelled task and a finishe
 look identical once they are out of the file, so any count of what was completed
 quietly includes work nobody did.
 
+Both are real fields as of 15 Sep 2026, in `core/todo.js` and `core/todo.py` alike,
+and `countsAsFinished()` / `counts_as_finished()` beside them is the one rule every
+count asks — the board's three counted reports, `core/aggregate.py`'s `completed`
+and `done_today`, and the archive as well as the live file. `check_todo.py` reports
+either tag on an unticked task as a FIX. The board draws a cancelled task as an
+ordinary done card wearing one more chip.
+
 ## Named people
 
 **This moved into the file on 10 Aug 2026.** Who is who, who is away, whose contract runs out when, and the spellings that matter are all in the `## Context` section at the bottom of todo.md. Read it every session alongside the buckets.

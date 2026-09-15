@@ -151,6 +151,58 @@ ARCHIVE = """### Design System · Done
 - [x] **Outside the window** [impact:: med] [effort:: S] [ai:: none] `done:2026-01-01`
 """
 
+# A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), and
+# it is indistinguishable from finished work once it has been archived out —
+# which is the whole reason counts_as_finished() exists. Both halves are
+# covered: one still in the live file and one in the archive.
+CANCELLED_ARCHIVE = """### Design System · Done
+
+- [x] **Really finished, in the archive** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-01`
+- [x] **Cancelled, in the archive** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-02` `cancelled:2026-08-02`
+- [x] **Archived away, in the archive** [impact:: low] [effort:: S] [ai:: none] `done:2026-08-03` `archived:2026-08-03`
+"""
+
+CANCELLED_DOC = """# To-do
+
+## 1. Design System
+
+### Done
+
+- [x] **Really finished, live** [impact:: high] [effort:: M] [ai:: none] `done:2026-09-02`
+- [x] **Cancelled, live** [impact:: high] [effort:: M] [ai:: none] `done:2026-09-02` `cancelled:2026-09-02`
+- [x] **Archived away, live** [impact:: low] [effort:: S] [ai:: none] `done:2026-09-02` `archived:2026-09-02`
+"""
+
+
+def test_cancelled_work_is_not_counted_as_finished():
+    tmp = tempfile.mkdtemp(prefix="cancelled-test-")
+    path = os.path.join(tmp, "done-archive.md")
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(CANCELLED_ARCHIVE)
+        tasks = todo.parse_doc(CANCELLED_DOC)
+
+        check("the tags parse off a task line",
+              [(t.cancelled, t.archived) for t in tasks],
+              [("", ""), ("2026-09-02", ""), ("", "2026-09-02")])
+
+        live = aggregate.period_view(tasks, path, dt.date(2026, 9, 1), dt.date(2026, 9, 14))
+        check("a cancelled live task is left out of completed",
+              [r["title"] for r in live["completed"]], ["Really finished, live"])
+        check("and out of the per-bucket count with it",
+              live["by_bucket"], [{"bucket": "Design System", "count": 1}])
+
+        arch = aggregate.period_view(tasks, path, dt.date(2026, 8, 1), dt.date(2026, 8, 5))
+        check("a cancelled archived task is left out too",
+              [r["title"] for r in arch["completed"]], ["Really finished, in the archive"])
+
+        view = aggregate.today_view(tasks, dt.date(2026, 9, 2))
+        check("and out of what was finished today",
+              [r["title"] for r in view["done_today"]], ["Really finished, live"])
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+
 
 def test_archive_and_period_view():
     tmp = tempfile.mkdtemp(prefix="archive-test-")
@@ -243,6 +295,7 @@ def main():
     test_meeting_view()
     test_agenda_topics()
     test_archive_and_period_view()
+    test_cancelled_work_is_not_counted_as_finished()
     test_render_empty_line_and_heading_rules()
     if FAILED:
         print("\n%d failed\n" % len(FAILED))

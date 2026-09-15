@@ -19,152 +19,142 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 ## Small
 
 - **A plan sent back for replanning cannot be dragged from To do to Backlog.**
-  Reported 15 Sep 2026, and it seems to affect only the Planning again cards
-  (`state: ready`, `owner: planning-agent`) that `renderQueueList()`
-  (`kanban/js/13-plans.js:1223`) appends under tonight's queue. On paper the
-  path is open: the card sets `drag = { kind:'plan' }` in `planCardNode()`
-  (`:997`), `backlogDrop` in `paintPlans()` (`:1875`) accepts any plan and
-  calls `parkPlan()`, and `apply()` in `agents/planning_agent/stream.py`
-  allows `backlog` owned by `me`. So the fault is somewhere reading the code
-  did not show. The next step is to reproduce it in a locked tab and see
-  whether Backlog never lights, the move posts and snaps back, or
-  `/stream/apply` refuses it.
+  **Could not reproduce, 15 Sep 2026.** Driven both ways in a locked tab
+  against a stubbed `/plans.json` — a synthetic `DragEvent` sequence, and a
+  real pointer-driven drag through Chrome's own drag interception
+  (`Input.setInterceptDrags` plus `Input.dispatchDragEvent`, which is the only
+  way to get the browser's real HTML5 drag rather than events shaped like one).
+  Both arrangements behave: Backlog lights `.coldrop`, the drop posts
+  `to:"backlog"` with `owner:"me"`, and the task joins the hold list. Tried
+  with an empty Backlog and with a populated one, dropping on the column body
+  and on a held card inside it, with the sent-back plan alone under the queue
+  and with two queue rows above it.
 
-- **A plan sent back looks like a different kind of card from the queue rows
-  above it in To do.** `renderQueueList()` (`kanban/js/13-plans.js:1223`)
-  draws tonight's queue with `queueRowNode()` (`:1204`): rank, title, one meta
-  line, "never planned" or "changed since". The replanning plans under them
-  come from `planCardNodes()`, which is `PlanCard` in full, with an eyebrow,
-  score chips, a date line, a link, the summary and a boxed "Sent back:"
-  reason (`kanban/ui/PlanCard.tsx:160`). Both are the same instruction, plan
-  this tonight, so they share one shape — the plan-card stub, the way
-  Backlog's held tasks are already drawn by `heldPlanCardNode()` (`:1420`).
-  `queueRowNode()` goes, and a queue row becomes a stub whose eyebrow says it
-  has no plan yet; a sent-back plan keeps its Planning again eyebrow. Part of
-  the bigger entry below saying Plans should hold nothing but plan cards,
-  which is the same seam from the other side.
+  So whatever he saw is not in this path, and the next report of it wants the
+  thing this one could not give: what actually happened on screen — Backlog
+  never lighting, the card snapping back, or a toast. Reported 15 Sep 2026.
 
-- **Plans' To do column does not say when the next run is, and Waiting for
-  review does not say when the last one was.** To do's description is
-  `renderStatus()` (`kanban/js/14-schedule.js:252`), which only reports the
-  usage window ("Session open — closes 00:59, 257 min left"). Waiting for
-  review's is `renderDoneStats()` (`kanban/js/13-plans.js:1620`), which leads
-  with "Run started 2026-09-14T00:15" as a raw timestamp slice. Both answers
-  are already on disk: `schedule_listing()` in `kanban/server.py` returns a
-  `next` and a `last` for the planning agent's job, and `schedRow()`
-  (`kanban/js/14-schedule.js:30`) formats them, but only inside the schedule
-  modal. Fetching `/schedule.json` on Plans and leading To do with "Next run
-  Tue 16 Sept, 00:15" and Waiting for review with "Last run Mon 15 Sept,
-  00:15", in `schedRow()`'s date format, would answer both without opening
-  the modal. The window line can follow as a second sentence.
+- ~~**A plan sent back looks like a different kind of card from the queue rows
+  above it in To do.**~~ **Done, 15 Sep 2026.** `queueRowNode()`
+  (`kanban/js/13-plans.js`) builds a `PlanCard` now rather than a bare `Card`,
+  the way `heldPlanCardNode()` already did in Backlog, so the two cards under
+  one heading saying "plan this tonight" are one card shape and only the
+  eyebrow differs — "no plan yet" against a sent-back plan's "planning again".
+  It keeps the two things a plan card has no use for, its rank (which is what
+  a drag in this column edits) and its Hold button (since there is no plan to
+  open instead); the `.qwhy` line is the card's own summary now, which is the
+  slot a plan's standfirst takes, and the rule is gone from `board.css`.
+  `PlanCard` gained `position` and an `attrs` passthrough for the four drop
+  handlers a queue row carries and a plan never does.
 
-- **The dashed drop outline on a Plans column collides with the cards inside
-  it.** Dragging a card over To do lights `.coldrop` (`kanban/board.css:1381`),
-  an `outline` pulled 4px inside the column body by `outline-offset:-4px`,
-  while `.colbody`'s own padding is 9px (`kanban/board.css:970`). On screen the
-  queue rows' borders still run into the dashed line on both sides and the
-  outline reads as tangled with them rather than framing the column. `.coldeny`
-  beside it shares the same geometry. Worth checking in the browser whether the
-  rows are wider than the body or the offset is simply too tight, then either
-  drawing the outline on the whole `.col` instead of the body or giving it
-  enough inset to clear the cards. Screenshot of 15 Sep 2026 in iCloud
-  Screenshots, `Screenshot 2026-09-15 at 20.43.12.png`.
+- ~~**Plans' To do column does not say when the next run is, and Waiting for
+  review does not say when the last one was.**~~ **Done, 15 Sep 2026.**
+  `schedWhen()` in `kanban/js/14-schedule.js` is the one date format all three
+  places now share — the schedule modal's own Next line, and the two column
+  descriptions. `renderNextRun()` fetches `/schedule.json` once when Plans
+  paints, keeps the planning agent's next wake in `nextRunAt`, and
+  `renderStatus()` leads with "Next run Wed 16 Sept, 00:15." and follows it
+  with the window reading as a second sentence. A failed fetch is silent: the
+  line still has the window sentence to say. `renderDoneStats()` leads with
+  "Last run Tue 15 Sept, 00:15" rather than a sixteen-character slice of an
+  ISO string.
 
-- **⌘↵ does not submit a modal's form.** `modalKeys()` in
-  `kanban/js/23-conflict-modal.js:13` handles Escape and nothing else, so the
-  reason boxes in `replanPlan()` and `declinePlan()`
-  (`kanban/js/13-plans.js:333` and `:369`) can only be sent by reaching for the
-  button. ⌘↵ or Ctrl+Enter pressed while focus is in a text field inside the
-  sheet should run the primary button, the same as clicking it, which covers
-  every form `showModal()` draws now or later. It should fire only from inside
-  a text field, so a plain confirmation such as `offerReload()`'s "todo.md
-  changed on disk" cannot be answered by a stray shortcut.
+- ~~**The dashed drop outline on a Plans column collides with the cards inside
+  it.**~~ **Done, 15 Sep 2026.** It was the offset. `.coldrop` and `.coldeny`
+  (`kanban/board.css`) go on `.colbody`, which fills the column's inside, and
+  `outline-offset:-4px` pulled the dashed line 4px into the body's own 9px
+  padding — five pixels from the cards' borders, which is what read as tangled.
+  Both are `outline-offset:-1px` now, so the line sits flush with the column's
+  wall and the cards keep the body's full padding clear of it, with the radius
+  matched to the column's 12px less its 1px border.
 
-- **On a phone the Board gives no sign of which column is on screen or how
-  many there are.** The phone rule at `kanban/board.css:866` makes each column
-  the screen's width and snaps `main` to it, so the only clue that five more
-  sit to the right is a sliver of the next column's edge, and nothing names
-  the one you are on once its head has scrolled away. `renderBoard()`
-  (`kanban/js/18-timeline.js:902`) draws the column names as small tabs above
-  `.board` at phone width only — a strip that scrolls horizontally itself,
-  since six names do not fit across 400px — with the current one lit from
-  `main`'s `scrollLeft` divided by one column's width on a `scroll` listener.
-  Tapping a tab calls `scrollTo` on `main`, which the snap then lands exactly.
-  Names rather than dots: a dot says where you are in the sequence, and the
-  thing that is missing is which column that is.
+- ~~**⌘↵ does not submit a modal's form.**~~ **Done, 15 Sep 2026.**
+  `modalKeys()` (`kanban/js/23-conflict-modal.js`) handles ⌘↵ and Ctrl+↵ beside
+  Escape: it clicks `.foot .btn.primary`, so it goes through the same handler a
+  press does and covers every form `showModal()` draws now or later. It fires
+  only from inside a text field — `isTextField()` beside it, which counts a
+  textarea, a contenteditable and the prose-ish input types and nothing else —
+  so a plain confirmation like `offerReload()`'s cannot be answered by a stray
+  shortcut.
 
-- **The Column stepper in the drawer runs its labels into each other at phone
-  width, and on a phone it is the only way to move a card.** Drag and drop
-  does not fire on touch, so moving a task means opening it and using the
-  stepper `openDrawer` builds from `boardColumns()`
-  (`kanban/js/19-drawer.js:717`). At 400px its six `.stepstop` labels
-  (`kanban/board.css:2387`) share about 340px, and "Backlog" and "To do"
-  touch, with each label's tap area no bigger than its text. Under the
-  existing 640px breakpoint the Column field stops being a `.stepslider` and
-  becomes a plain `<select>` of the same `boardColumns()` list, so the OS
-  draws the list at its own size and a column is one tap. Impact and Effort
-  keep their sliders at every width — they are scales, where Column is a
-  pick from a list, and the phone is where that difference is worth showing.
+- ~~**On a phone the Board gives no sign of which column is on screen or how
+  many there are.**~~ **Done, 15 Sep 2026.** `renderColTabs()` in
+  `kanban/js/18-timeline.js` draws the strip and `#colTabs` in `index.html`
+  holds it — a sibling of `<main>` rather than a child, because main is what
+  scrolls horizontally and anything inside it would scroll away with the
+  columns. It is drawn at every width and hidden by CSS above 640px, so there
+  is one breakpoint to keep in step rather than two. The lit tab is found by
+  nearest left edge rather than by dividing `scrollLeft` by a column's width:
+  the arithmetic would be wrong the moment the columns stop being one width,
+  and a measurement costs nothing at six columns. Tapping one scrolls it in,
+  which the snap then lands exactly. Covered by `kanban/test_phone.mjs`.
 
-- **Two things on the board only reveal themselves on hover, which a phone
-  never does.** `.sortbtn` sits at 55% opacity until `.col:hover`
-  (`kanban/board.css:933` and `:938`), so on a phone the sort control always
-  looks disabled. The Matrix hint in `kanban/ui/SectionsView.tsx:150` tells
-  the reader to "hover for the title", and the floating preview behind it
-  (`matrixPreview()`, `kanban/js/17-matrix.js:89`) never appears on touch,
-  leaving a tap that opens the drawer as the only way to find out what a dot
-  is. A `@media (hover:none)` rule setting `.sortbtn` to full opacity covers
-  the first. The second: a click or tap on a dot shows the preview rather
-  than opening the drawer, and the preview card carries the control that
-  opens the task — one rule at every width rather than a tap counter that
-  only exists on touch. Hover still previews on a desktop, so the only thing
-  that changes there is that opening a task is a click on the card instead of
-  on the dot. The hint says "tap for the title" under `hover:none`.
+- ~~**The Column stepper in the drawer runs its labels into each other at phone
+  width, and on a phone it is the only way to move a card.**~~ **Done, 15 Sep
+  2026.** `stepPickerHTML()` (`kanban/js/19-drawer.js`) draws the slider and a
+  native `<select>` of the same stops in one wrapper, and `.steppick`'s rule in
+  `board.css` picks which shows at the existing 640px breakpoint — so the
+  component never has to know the width, and a window moved between screens is
+  never told the wrong one. `wireStepPicker()` wires both to one `onCommit`,
+  and every commit re-renders the drawer, so the two cannot disagree. Impact
+  and Effort keep their sliders at every width: they are scales, where Column
+  is a pick from a list. Covered by `kanban/test_phone.mjs`, at both widths.
 
-- **A cancelled task and a finished one are indistinguishable once they leave
+- ~~**Two things on the board only reveal themselves on hover, which a phone
+  never does.**~~ **Done, 15 Sep 2026.** `.sortbtn` takes `opacity:1` under
+  `@media (hover:none)`, so the control stops reading as disabled on a touch
+  screen. The Matrix dot is the bigger half: a click or a tap now pins its
+  preview rather than opening the drawer, at every width, and the pinned
+  preview carries `.mopen` — the one control that opens the task. `mPinned` in
+  `kanban/js/17-matrix.js` is what stops a hover moving a pinned preview off
+  its dot, and `.mpreview.pinned` is the only state that takes pointer events,
+  so a hover preview still cannot intercept a click meant for what is under it.
+  A click outside it or Escape unpins. The hint carries both words,
+  `.hoverword` and `.tapword`, swapped in CSS rather than decided once at
+  render time. Covered by `kanban/test_matrix.mjs` and `kanban/test_phone.mjs`.
+
+- ~~**A cancelled task and a finished one are indistinguishable once they leave
   the file, so every count of completed work quietly includes work nobody
-  did.** `CONVENTIONS.md` gained a `Cancelling a task` section on 15 Sep 2026
-  saying a cancellation is a tick plus `` `cancelled:YYYY-MM-DD` `` or
-  `` `archived:YYYY-MM-DD` `` beside the `done:` tag, and nothing implements
-  it. `INLINE_KEYS` in `core/todo.py:61` and the tag block in
-  `core/todo.js:140` both stop at `done`, so neither tag survives a parse, and
-  `serialise` at `core/todo.js:206` would drop it on the next save. No count of finished
-  work may include a cancelled or archived task, and three places count one
-  today: `completed` at `core/aggregate.py:239`, which takes every task where
-  `t.done` and the `done_on` date is in the window, from the live file and
-  from `archive.read_archive()` alike; the same test against today's date at
-  `:136`; and the archive collector at `kanban/js/12-reports.js:124`, which
-  feeds all three counted reports. A cancelled task passes every one of them.
-  The fix is one key in each parser, one line in the serialiser, the same
-  filter in those three places, and a rule in `check_todo.py` rejecting
-  either tag on an unticked task. On the board a cancelled task carries a Cancelled or
-  Archived chip alongside its other tags and is otherwise an ordinary done
-  card — the same shape every tag already renders as, rather than a state of
-  its own.
+  did.**~~ **Done, 15 Sep 2026.** `cancelled` and `archived` are first-class
+  fields in both parsers now — `core/todo.js` and `core/todo.py` — and both
+  serialisers write them. `countsAsFinished()` in `core/todo.js` and
+  `counts_as_finished()` in `core/todo.py` are the one rule, and the three
+  places that counted a tick ask it instead: `parseArchiveEntries()`,
+  `completedRecently()` and `trendEntries()` in `kanban/js/12-reports.js`, and
+  `completed` and `done_today` in `core/aggregate.py`, which asks it of the
+  archive as well as the live file. `check_cancelled()` in `check_todo.py`
+  reports either tag on an unticked task as a FIX. On the board a cancelled
+  task is an ordinary done card wearing one more chip, amber rather than red —
+  it is a normal answer, and red on a card in Done would read as an error.
 
-- **The plan modal is a fixed size, so a long plan reads through a 912px
-  window however big the screen is.** `openPlanModal()`
-  (`kanban/js/13-plans.js:239`) passes `cls:'planmodal'` to `showModal()`
-  (`kanban/js/23-conflict-modal.js:20`), and the sheet is held at
-  `min(912px,100%)` wide (`kanban/board.css:2561`) and
-  `min(84vh,760px)` tall by `.sheet.wide` (`:2556`). Making it resizeable
-  means a drag corner on `.sheet.planmodal` (CSS `resize: both` with the max
-  caps lifted, or a handle of its own if the native corner clashes with the
-  footer), keeping the History column at 198px while the main column takes
-  the extra room, and storing the size in `localStorage` the way
-  `tlLabelWidth` already is (`kanban/js/02-state.js:79`) so the next plan
-  opens at the same size. The narrow layout at `board.css:2598` should ignore
-  the stored size.
+  One thing went the other way from what this entry proposed. The serialiser
+  writes both tags whether or not the task is ticked, where `done:` is guarded
+  by the tick. An unticked one is most likely a tick that was forgotten, which
+  is what the checker says, and dropping the tag on the next autosave would
+  throw that away rather than let him fix it. Covered in `core/fixtures/`
+  (five new cases, generated), `core/test_reports.py`,
+  `kanban/test_reports.mjs` and `kanban/test_archiving.mjs`.
 
-- **The reason box on Turn it down is an unstyled browser textarea.**
-  `declinePlan()` (`kanban/js/13-plans.js:333`) gives its textarea the class
-  `redoinput`, which nothing in `kanban/board.css` defines, so it draws white
-  with the browser's own border, font and focus ring inside a dark sheet.
-  `replanPlan()` (`:368`) builds the same box as `redowhy`, and `.redowhy`
-  (`kanban/board.css:1667`) is the styled one: full width, the sheet's own
-  type, `--panel` fill, `--line` border, 8px radius, accent focus outline.
-  The fix is the class name on `#declineWhy`, and `.redowhy`'s comment, which
-  still names only Send it back, should say it covers both modals.
+- ~~**The plan modal is a fixed size, so a long plan reads through a 912px
+  window however big the screen is.**~~ **Done, 15 Sep 2026.**
+  `.sheet.wide.planmodal` takes `resize:both` with its caps lifted to the
+  viewport (96vw by 92vh) and floors under it, and `wirePlanModalSize()`
+  (`kanban/js/13-plans.js`) applies the stored size on open and records the
+  next one, the way `tlLabelWidth` already is. History stays at 198px and the
+  main column takes the extra room, which it already did. The native corner
+  rather than a handle of its own, and `.planmodal .foot` buys it 20px of
+  clearance from the last button — cheaper than a second grip to build and to
+  explain. The narrow layout under 700px overrides both dimensions with
+  `!important`, so a size dragged out on a desktop is inert on a phone.
+
+  One thing worth keeping: the observer stores a change away from the size the
+  sheet opened at rather than skipping its own first callback, because an
+  attach and a drag in the same frame coalesce into one callback and the skip
+  would swallow the drag.
+
+- ~~**The reason box on Turn it down is an unstyled browser textarea.**~~
+  **Done, 15 Sep 2026.** `#declineWhy` carries `redowhy` rather than the
+  undefined `redoinput`, and `.redowhy`'s comment says it covers both modals.
 
 - ~~**Eleven places on Plans still set a class on a node React owns, and
   nothing says which of them is safe.**~~ **Done, 13 Sep 2026.**

@@ -202,6 +202,31 @@ function stepSliderHTML(id, stops, value, ro, ariaLabel){
     '</div>' +
   '</div>';
 }
+/* The same set of stops as a native <select>, for the phone. Drawn beside the
+   slider rather than instead of it — which one shows is a CSS decision at the
+   640px breakpoint, so nothing here has to know the width. A column is a pick
+   from a list rather than a scale, and at 400px six .stepstop labels share
+   340px and touch each other, with a tap area no bigger than the word; the OS
+   draws its own list at its own size and the pick is one tap. Impact and
+   Effort keep their sliders at every width — those are scales. */
+function stepSelectHTML(id, stops, value, ro, ariaLabel){
+  let idx = stops.findIndex(s => s.value === value);
+  if (idx < 0) idx = 0;
+  return '<select class="stepselect" id="' + id + '-sel" aria-label="' + esc(ariaLabel) + '"' +
+      (ro ? ' disabled' : '') + '>' +
+    stops.map((s, i) => '<option value="' + i + '"' + (i === idx ? ' selected' : '') + '>' +
+      esc(s.label) + '</option>').join('') +
+  '</select>';
+}
+
+/* Slider and select in one wrapper, one of them showing. */
+function stepPickerHTML(id, stops, value, ro, ariaLabel){
+  return '<div class="steppick">' +
+    stepSliderHTML(id, stops, value, ro, ariaLabel) +
+    stepSelectHTML(id, stops, value, ro, ariaLabel) +
+  '</div>';
+}
+
 /* Drag the handle, click a stop label, or arrow-key it once focused — three
    ways into the same fixed set of positions. posToIdx() always rounds to the
    nearest stop, so a drag can only ever land on one of them, never between.
@@ -261,6 +286,16 @@ function wireStepSlider(id, stops, onCommit){
   };
   track.onpointerup = finish;
   track.onpointercancel = finish;
+}
+
+/* Wires both halves of stepPickerHTML() to the same onCommit. The select is
+   wired whether or not it is showing — every commit re-renders the drawer, so
+   the two can never disagree about where the card is. */
+function wireStepPicker(id, stops, onCommit){
+  wireStepSlider(id, stops, onCommit);
+  const sel = $('#' + id + '-sel');
+  if (!sel || sel.disabled) return;
+  sel.onchange = () => onCommit(stops[+sel.value].value);
 }
 /* One picker per date field, so `field` says which one is being edited. Both
    dates use the same calendar; only the value they write differs. */
@@ -811,7 +846,7 @@ function openDrawer(id, focusTitle){
        "Waiting review" needs the room a slider half that wide wouldn't give
        its label, where the old <select> never had to fit the whole word next
        to anything. */
-    '<div class="field"><span>Column</span>' + stepSliderHTML('f-tier', tierStops, nowIn, ro, 'Column') + '</div>' +
+    '<div class="field"><span>Column</span>' + stepPickerHTML('f-tier', tierStops, nowIn, ro, 'Column') + '</div>' +
     '<div class="grid2">' +
       '<div class="field"><span>Impact</span>' + stepSliderHTML('f-impact', IMPACT_STOPS, t.impact, ro, 'Impact') + '</div>' +
       '<div class="field"><span>Effort</span>' + stepSliderHTML('f-effort', EFFORT_STOPS, t.effort, ro, 'Effort') + '</div>' +
@@ -966,7 +1001,7 @@ function openDrawer(id, focusTitle){
   /* Done is the tick box in the file, not a section, so picking it here ticks
      the task off and picking anything else unticks it — exactly what dragging a
      card in or out of the Done column does. */
-  wireStepSlider('f-tier', tierStops, pick => {
+  wireStepPicker('f-tier', tierStops, pick => {
     if (pick === DONE_COL) {
       const msg = blockedMessage(allItems(), t.blockedBy);
       if (msg) { showToast(msg, 'blocked'); openDrawer(id); return; }

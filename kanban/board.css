@@ -579,6 +579,18 @@
     opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
   }
   .mpreview.on{opacity:1; transform:none}
+  /* Pinned by a click or a tap. Only then does it take pointer events, so a
+     hover preview still cannot intercept a click meant for what is under it. */
+  .mpreview.pinned{pointer-events:auto}
+  /* The way into the task from the preview. A click on the dot no longer opens
+     the drawer, at any width, so this is the one control that does. */
+  .mopen{
+    display:block; width:100%; margin-top:6px; padding:7px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    font:inherit; font-size:12.5px; font-weight:620; cursor:pointer; text-align:center;
+    box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
+  }
+  .mopen:hover{border-color:var(--accent); color:var(--accent)}
   .mpreview .card{
     cursor:default; border-color:var(--ink-faint);
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
@@ -587,6 +599,16 @@
   @media (prefers-reduced-motion:reduce){
     .mpreview{transition:none}
   }
+  /* "hover" or "tap", whichever the screen actually does. A CSS swap rather
+     than a branch in the component: the component would have to guess once, at
+     render time, and a window moved to a second screen would be told the wrong
+     one ever after. */
+  .tapword{display:none}
+  @media (hover:none){
+    .hoverword{display:none}
+    .tapword{display:inline}
+  }
+
   .mlegend{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 4px}
   .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft)}
   .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
@@ -867,6 +889,28 @@
      because Overview writes its track count inline and each view counts its
      columns differently; the !important is what beats the inline style and
      Plans' tablet rule. The snap lives on main because main is what scrolls. */
+  /* Which column is on screen, and how many there are. Only ever drawn at
+     phone width — above it the columns are all on screen at once and the strip
+     would say what the board already shows. It scrolls itself, since six names
+     do not fit across 400px, and the lit one is brought into view with the
+     column it names. */
+  .coltabs{display:none}
+  @media (max-width:640px){
+    .coltabs{
+      display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
+      padding:0 16px 8px; background:var(--bg);
+      position:sticky; top:0; z-index:3;
+    }
+    .coltabs::-webkit-scrollbar{display:none}
+    .coltabs.hidden{display:none}
+    .coltab{
+      flex:none; border:1px solid var(--line); background:var(--panel);
+      border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600;
+      color:var(--ink-faint); white-space:nowrap; cursor:pointer;
+    }
+    .coltab.on{color:var(--ink); border-color:var(--accent);
+      background:color-mix(in srgb, var(--accent) 10%, var(--panel))}
+  }
   @media (max-width:640px){
     .board, .lists.split, .lists.mview, .lists.pview, .lists.rview{
       grid-template-columns:none !important; min-width:0 !important;
@@ -944,6 +988,9 @@
   }
   .col:hover .sortbtn{opacity:1}
   .sortbtn:hover{color:var(--ink); border-color:var(--line)}
+  /* A touch screen never hovers, so the quiet state is the only state it would
+     ever see and the control reads as disabled. Full opacity there. */
+  @media (hover:none){ .sortbtn{opacity:1} }
   .sortbtn.on{
     color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, transparent);
     background:color-mix(in srgb, var(--accent) 8%, transparent); opacity:1; font-size:10.5px;
@@ -1355,6 +1402,9 @@
      what is left: the spacing between rows, and the grab cursor. Neither the
      fill nor the radius was saying anything the position and the Hold button
      do not already say. */
+  /* Only the drag feedback and the spacing are left here: a queue row is a
+     PlanCard stub since 15 Sep 2026, so its fill, its radius and its head all
+     come from .repitem.planitem like every other card on the view. */
   .qitem{margin:0 0 7px}
   .qitem:last-child{margin-bottom:0}
   .qitem.dragging{opacity:.4}
@@ -1370,7 +1420,9 @@
   .qitem:hover .qhold, .qitem:focus-within .qhold{opacity:1}
   .qhold:hover{border-color:var(--accent); color:var(--accent)}
   @media (prefers-reduced-motion:reduce){ .qhold{transition:none} }
-  .qwhy{margin:4px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  /* .qwhy is gone: a queue row draws in the PlanCard shell now, so the reason
+     it is queued sits in .cardsum, the same slot a plan's own standfirst
+     takes. */
   /* A held task lives in the Backlog column now as a PlanCard stub, not a
      .qitem — see .repitem.planitem.parked below for the dimmed treatment it
      shares with a parked plan. */
@@ -1378,14 +1430,19 @@
      To do and Done — and each lights the whole column rather than a row within
      it, since a card dropped on a column means "put it here" and only the To do
      column has ranks to drop between. */
+  /* The class goes on .colbody, which fills the column's inside, so the
+     outline is drawn flush with the column's own wall rather than pulled 4px
+     into the padding — at -4px it left only 5px between itself and the cards
+     and read as tangled with their borders rather than as framing the column.
+     The radius matches the column's 12px less its 1px border. */
   .coldrop{
-    outline:2px dashed var(--accent); outline-offset:-4px; border-radius:10px;
+    outline:2px dashed var(--accent); outline-offset:-1px; border-radius:11px;
   }
   /* And one that will refuse what is being dragged: a task has nothing to
      accept, so Done says no while the card is still in the air rather than
-     after it lands. */
+     after it lands. Same geometry. */
   .coldeny{
-    outline:2px dashed var(--red); outline-offset:-4px; border-radius:10px;
+    outline:2px dashed var(--red); outline-offset:-1px; border-radius:11px;
   }
   /* Waiting for review is the agent's own column and takes no drops at all.
      The dashed edge is the whole tell, so it has to be on the card rather than
@@ -1705,8 +1762,8 @@
     color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   }
   .plangoto:hover{color:var(--ink)}
-  /* The reason box on Send it back. Full width, and it inherits the sheet's
-     own type rather than the browser's textarea default. */
+  /* The reason box on Send it back and on Turn it down. Full width, and it
+     inherits the sheet's own type rather than the browser's textarea default. */
   .redowhy{
     width:100%; box-sizing:border-box; margin:8px 0 0; padding:8px 10px;
     font:inherit; font-size:13px; color:var(--ink);
@@ -2358,6 +2415,16 @@
      stop count and label length both vary by field (a column name runs much
      longer than "S"), and only anchoring each label to its own coordinate
      keeps it under the right tick regardless of what the neighbours say. */
+  /* The Column field carries both a slider and a native <select>, and the
+     width picks. Drag and drop does not fire on touch, so on a phone the
+     drawer is the only way to move a card, and six .stepstop labels across
+     340px is not a target anyone can hit. Impact and Effort are scales and
+     keep their sliders everywhere. */
+  .steppick .stepselect{display:none; width:100%}
+  @media (max-width:640px){
+    .steppick > .stepslider{display:none}
+    .steppick .stepselect{display:block}
+  }
   .stepslider{--step-inset:10px; --step-cap:5px; position:relative; padding:14px 18px 4px; cursor:pointer; touch-action:none; -webkit-user-select:none; user-select:none}
   .stepslider.disabled{opacity:.5; pointer-events:none}
   .stepslider:focus-visible{outline:none}
@@ -2551,6 +2618,15 @@
      (urgent, week, #slug, blocked-by — all edited properly elsewhere already)
      drops the pointer cursor and the hover state so it doesn't invite a click
      that does nothing. */
+  /* Cancelled or archived: ticked, and not work that was done. Amber rather
+     than red — it is a normal answer, and red on a card in Done would read as
+     an error. Same amber an unrecognised tag already takes, for the same
+     reason: both mean "read this one properly". */
+  .tag.cancelled{
+    background:var(--amber-bg); color:var(--amber);
+    border:1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+  }
+
   .tagchips{display:flex; flex-wrap:wrap; gap:6px}
   .tagchip{
     font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px;
@@ -2608,7 +2684,19 @@
      the left, then the Summary and two tabs. The head and foot are the sheet's
      own; only the body changes shape, so it drops the .mid padding and each
      column scrolls on its own. */
-  .sheet.wide.planmodal{width:min(912px,100%)}
+  /* Resizeable, 15 Sep 2026: a plan is a document and 912px is a window on to
+     it however big the screen is. The native corner rather than a handle of
+     its own — the footer's buttons are right-aligned and the corner lands on
+     top of the last one, so .planmodal .foot below buys it 20px of clearance,
+     which is cheaper than a second grip to build and to explain. The caps are
+     lifted to the viewport so there is something to drag towards; the floors
+     stop it being dragged to nothing. The size is remembered — see
+     planModalSize in 13-plans.js. */
+  .sheet.wide.planmodal{
+    width:min(912px,100%); resize:both;
+    max-width:96vw; max-height:92vh; min-width:420px; min-height:320px;
+  }
+  .sheet.planmodal .foot{padding-right:30px}
   .sheet.planmodal .mid{padding:0; display:flex; overflow:hidden; min-height:0}
   .planhistory{
     flex:0 0 198px; box-sizing:border-box; padding:14px; overflow:auto;
@@ -2648,6 +2736,14 @@
     .sheet.planmodal .mid{flex-direction:column; overflow:auto}
     .planmain, .planhistory{overflow:visible}
     .planhistory{order:2; flex-basis:auto; border-right:0; border-top:1px solid var(--line-soft)}
+    /* A size dragged out on a desktop means nothing here, and an inline width
+       of 1200px on a 400px screen is a modal off the side of the screen. The
+       !important is what beats the inline style resize writes. */
+    .sheet.wide.planmodal{
+      width:100% !important; height:auto !important; resize:none;
+      min-width:0; max-height:min(84vh,760px);
+    }
+    .sheet.planmodal .foot{padding-right:20px}
   }
   .sheet h2{font-size:15px; font-weight:660; margin:0; letter-spacing:-.01em}
   .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--line-soft); position:relative}

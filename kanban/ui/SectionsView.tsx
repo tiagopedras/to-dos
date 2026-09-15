@@ -147,8 +147,9 @@ export function MatrixView({ impactEffort, dependencyChain }: MatrixViewProps) {
       <div className="lists mview">
         <Section title="Impact against effort"
           hint={<>Every open task by its two scores, except the ones parked in Backlog. One dot per
-            task, coloured by bucket — hover for the title, click to open it. Faded dots are
-            waiting on a review or on another task.</>}
+            task, coloured by bucket — <span className="hoverword">hover</span>
+            <span className="tapword">tap</span> for the title, then open it from the card. Faded
+            dots are waiting on a review or on another task.</>}
           body={impactEffort} />
         <Section title="Dependency chain" hint={<>Built from every <code>blocked-by:</code> tag.</>}
           body={dependencyChain} />

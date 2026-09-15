@@ -120,6 +120,12 @@ await evalJS(`(() => {
   load([
     '# To-do', '', '## 1. People', '', '### Done', '',
     '- [x] Recent small \`id:rr0001\` [impact:: high] [effort:: S] \`done:' + iso(2) + '\`',
+    /* A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task),
+       so both of these are ticked, dated and inside the window — and no count
+       of finished work may include either. They are what countsAsFinished()
+       in core/todo.js exists for. */
+    '- [x] Called off \`id:rr0007\` [impact:: high] [effort:: L] \`done:' + iso(2) + '\` \`cancelled:' + iso(2) + '\`',
+    '- [x] No longer relevant \`id:rr0008\` [impact:: high] [effort:: L] \`done:' + iso(3) + '\` \`archived:' + iso(3) + '\`',
     '- [x] Recent large \`id:rr0002\` [impact:: high] [effort:: L] \`done:' + iso(3) + '\`',
     '- [x] Older one \`id:rr0003\` [impact:: low] [effort:: M] \`done:' + iso(45) + '\`',
     '- [x] Never dated \`id:rr0004\` [impact:: low] [effort:: S]',
@@ -311,6 +317,41 @@ check('with no file loaded it says so rather than drawing empty reports', await 
 `))
 await evalJS(`state.doc = state.__doc; renderReportsView()`)
 await new Promise(r => setTimeout(r, 500))
+
+/* ---- cancelled work is not finished work ---- */
+
+check('a cancelled and an archived task both parse their tag off the line', await evalJS(`
+  (() => {
+    const all = [];
+    state.doc.buckets.forEach(b => b.tiers.forEach(t => t.tasks.forEach(x => all.push(x))));
+    const c = all.find(t => t.title === 'Called off');
+    const a = all.find(t => t.title === 'No longer relevant');
+    return !!c.cancelled && !c.archived && !!a.archived && !a.cancelled;
+  })()
+`))
+
+/* Six ticked and dated — load() dates a ticked task that arrived without one —
+   and four of them are work that was actually done. The two the tags mark are
+   exactly the difference. */
+check('and neither counts as finished, though both are ticked and dated', await evalJS(`
+  (() => {
+    const all = [];
+    state.doc.buckets.forEach(b => b.tiers.forEach(t => t.tasks.forEach(x => all.push(x))));
+    return all.filter(t => t.done && t.doneOn).length === 6 &&
+           all.filter(countsAsFinished).length === 4;
+  })()
+`))
+
+/* Three finished tasks are in the window, not five — the two cancellations are
+   the whole point of the check. A count that includes them says work was done
+   that nobody did, which is the thing the tag exists to stop. */
+check('the counted lead counts the three real ones and leaves the two out', await evalJS(`
+  /\\b3 tasks finished across\\b/.test(document.body.innerText.replace(/\\s+/g, ' '))
+`), await evalJS(`(document.body.innerText.replace(/\\s+/g,' ').match(/\\d+ tasks? finished across \\d+ categor\\w+/) || ['—'])[0]`))
+
+check('and neither shows up in the list of what was finished', await evalJS(`
+  !/Called off|No longer relevant/.test(document.querySelector('.rview')?.innerText || '')
+`))
 
 /* ---- the point of the second guard ---- */
 

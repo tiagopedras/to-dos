@@ -87,7 +87,7 @@ function parseTask(rawLines){
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
   let blockedBy = [], rank = null, tlrank = null, slug = '', headline = '', chat = '', repeat = '';
-  let stableId = '';
+  let stableId = '', cancelled = '', archived = '';
   /* Either syntax lands here, so a tag means the same thing whichever form it
      arrived in. `whole` is what goes into `extra`, which keeps an unrecognised
      tag exactly as it was written. */
@@ -121,6 +121,14 @@ function parseTask(rawLines){
        longer loses those. Six characters of base36, the same shape and the
        same generator as a `chat:` key, which has held up. */
     else if (key === 'id') stableId = v.trim().toLowerCase();
+    /* Why a ticked task was ticked, when the answer is "it wasn't done".
+       First-class rather than left in `extra` because every count of finished
+       work has to be able to leave these out — see CONVENTIONS.md, Cancelling
+       a task. `cancelled` is decided against; `archived` is no longer
+       relevant. Both carry the date the decision was made, which is not
+       necessarily `done:`. */
+    else if (key === 'cancelled') cancelled = v.trim();
+    else if (key === 'archived') archived = v.trim();
     else extra.push(whole);
     return ' ';
   };
@@ -153,11 +161,21 @@ function parseTask(rawLines){
        one task can be delegated to someone and still be drafted by Claude.
        Optional, and blank on almost everything, so nothing shows when it is. */
     to: tags.to || '',
-    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId, extra,
+    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId,
+    cancelled, archived, extra,
     body: rawLines.slice(1),
     raw: first,
     dirty: false
   };
+}
+
+/* Whether a ticked task counts as work that was done. A cancellation is a tick
+   plus `cancelled:` or `archived:` (CONVENTIONS.md, Cancelling a task), so the
+   box being ticked no longer means "finished" on its own — and every count of
+   completed work has to ask this rather than asking `t.done`. Undated finished
+   work is not counted either: `done:` is what puts it in a window. */
+function countsAsFinished(t){
+  return !!(t.done && t.doneOn && !t.cancelled && !t.archived);
 }
 
 /* A new stable id, avoiding everything already in use. Six characters of
@@ -204,6 +222,13 @@ function serializeTask(t){
     if (t.start)  tags.push('`start:' + t.start + '`');
     if (t.due)    tags.push('[due:: ' + t.due + ']');
     if (t.done && t.doneOn) tags.push('`done:' + t.doneOn + '`');
+    /* Beside `done:`, and written whether or not the task is ticked. An
+       unticked one carrying either is what check_todo.py reports as a FIX —
+       most likely a tick that was forgotten — and dropping the tag on the next
+       autosave would throw that away rather than let him fix it. Unlike
+       `done:`, which is meaningless on an open task, these carry a decision. */
+    if (t.cancelled) tags.push('`cancelled:' + t.cancelled + '`');
+    if (t.archived)  tags.push('`archived:' + t.archived + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
     if (t.ai)     tags.push('[ai:: ' + t.ai + ']');

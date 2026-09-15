@@ -132,8 +132,10 @@ def today_view(tasks, today=None):
                 st.bucket, st.column = t.bucket, t.column
                 week.append(_row(st, today))
 
+    # counts_as_finished(), not t.done: a cancelled task is ticked, and
+    # counting it says work was done that was not.
     done_today = [_row(t, today) for t in tasks
-                  if t.done and t.done_on == today.isoformat()]
+                  if todo.counts_as_finished(t) and t.done_on == today.isoformat()]
 
     quick_wins = []
     for t in open_tasks:
@@ -236,9 +238,13 @@ def period_view(tasks, archive_path, start, end, buckets=None):
         d = todo.parse_date(done_on)
         return bool(d and start <= d <= end)
 
-    completed = [t for t in tasks if t.done and in_window(t.done_on)]
+    # Same rule as done_today above, and the same rule the board's own
+    # archive collector applies — the archive is where a cancelled task ends
+    # up, so it has to be asked there too.
+    completed = [t for t in tasks
+                 if todo.counts_as_finished(t) and in_window(t.done_on)]
     completed += [t for t in archive.read_archive(archive_path)
-                  if in_window(t.done_on)]
+                  if todo.counts_as_finished(t) and in_window(t.done_on)]
     if buckets:
         completed = [t for t in completed if t.bucket in buckets]
 

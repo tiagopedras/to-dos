@@ -179,6 +179,63 @@ check('and says nothing about having archived anything', await evalJS(`
   /archived/.test($('#status').textContent)
 `) === false, await evalJS(`$('#status').textContent`))
 
+/* ---- a cancelled task is ticked, and is not finished work ----
+
+   A cancellation is a tick plus `cancelled:` or `archived:` (CONVENTIONS.md,
+   Cancelling a task), so it archives out with everything else and is
+   indistinguishable from real work once it is in `done-archive.md`. The tag is
+   what stops a count including it, and the card is what makes that visible
+   before it gets there. */
+await evalJS(`(() => {
+  state.locked = true;
+  load([
+    '# To-do', '', '## 1. People', '', '### To do', '',
+    '- [x] Really finished [impact:: high] [effort:: M] \u0060done:2026-09-15\u0060',
+    '- [x] Called off [impact:: high] [effort:: M] \u0060done:2026-09-15\u0060 \u0060cancelled:2026-09-15\u0060',
+    '- [x] No longer relevant [impact:: low] [effort:: S] \u0060done:2026-09-15\u0060 \u0060archived:2026-09-14\u0060', ''
+  ].join(String.fromCharCode(10)), 'demo.md', {});
+  state.locked = true;
+  state.view = 'board';
+  renderView();
+})()`)
+await new Promise(r => setTimeout(r, 200))
+
+check('both tags parse off the line as fields of their own', await evalJS(`
+  (() => {
+    const all = [];
+    state.doc.buckets.forEach(b => b.tiers.forEach(t => t.tasks.forEach(x => all.push(x))));
+    return all.map(t => t.cancelled + '/' + t.archived).join('|');
+  })()
+`) === '/|2026-09-15/|/2026-09-14')
+
+check('and countsAsFinished() is what tells the three apart', await evalJS(`
+  (() => {
+    const all = [];
+    state.doc.buckets.forEach(b => b.tiers.forEach(t => t.tasks.forEach(x => all.push(x))));
+    return all.filter(t => t.done).length === 3 && all.filter(countsAsFinished).length === 1;
+  })()
+`))
+
+/* An ordinary done card wearing one more chip, rather than a state of its
+   own — the same shape every other tag on a card already renders as. */
+check('the cards carry a Cancelled and an Archived chip', await evalJS(`
+  [...document.querySelectorAll('#board .col[data-tier="Done"] .card .tag.cancelled')]
+    .map(e => e.textContent).join('|')
+`) === 'cancelled|archived')
+check('and all three are otherwise ordinary done cards', await evalJS(`
+  document.querySelectorAll('#board .col[data-tier="Done"] .card.done').length
+`) === 3)
+
+/* Written back on a save, ticked or not. An unticked one is what check_todo.py
+   reports as a FIX — most likely a forgotten tick — and dropping the tag on the
+   next autosave would throw that away rather than let him fix it. */
+check('both survive a serialise, and an unticked one is kept rather than dropped', await evalJS(`
+  (() => {
+    const t = parseTask(['- [ ] Cancelled but not ticked \u0060cancelled:2026-09-15\u0060']);
+    return serializeTask({ ...t, dirty: true })[0].includes('cancelled:2026-09-15');
+  })()
+`))
+
 /* ---- the button is still hidden, and that is deliberate ---- */
 await evalJS(`window.__archiveFails = false; state.locked = true`)
 check('the header chip stays hidden, since nothing needs pressing now',

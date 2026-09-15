@@ -241,14 +241,52 @@ await new Promise(r => setTimeout(r, 500))
 check('unticking it brings them back', (await dotLabels()).includes('Out for review'))
 check('and the note goes with them', await evalJS(`!document.querySelector('.mhidden')`))
 
-/* ---- opening one ---- */
+/* ---- opening one ----
 
+   A click on a dot pins its preview rather than opening the task, and the
+   preview carries the control that opens it. One rule at every width: a touch
+   screen never hovers, so before 15 Sep 2026 the preview simply never appeared
+   there and the only way to find out what a dot was, was to open it. */
+
+await evalJS(`closeDrawer(); state.openTask = null; unpinMatrixPreview()`)
 await evalJS(`document.querySelector('.mgrid .mdot').click()`)
 await new Promise(r => setTimeout(r, 400))
-check('clicking a dot opens its task', await evalJS(`
-  state.openTask ? true : !!document.querySelector('#drawer:not(.hidden)')
+check('clicking a dot pins its preview rather than opening the task', await evalJS(`
+  !!document.querySelector('.mpreview.on.pinned') && state.openTask === null
+`), await evalJS(`String(state.openTask) + ' / ' + String(document.querySelector('.mpreview')?.className)`))
+check('the pinned preview takes pointer events, where a hover preview does not', await evalJS(`
+  getComputedStyle(document.querySelector('.mpreview')).pointerEvents
+`) === 'auto')
+check('and it carries the one control that opens the task', await evalJS(`
+  !!document.querySelector('.mpreview .mopen')
 `))
+await evalJS(`document.querySelector('.mpreview .mopen').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('pressing it opens the task and takes the preview down', await evalJS(`
+  !!state.openTask && !document.querySelector('.mpreview.on')
+`), await evalJS(`String(state.openTask) + ' / ' + String(document.querySelector('.mpreview')?.className)`))
 await evalJS(`closeDrawer()`)
+
+/* A pinned preview is a floating panel: a click anywhere else takes it down,
+   and so does Escape. */
+await evalJS(`state.openTask = null; document.querySelector('.mgrid .mdot').click()`)
+await new Promise(r => setTimeout(r, 200))
+await evalJS(`document.body.click()`)
+check('a click outside unpins it', await evalJS(`!document.querySelector('.mpreview.on')`))
+await evalJS(`document.querySelector('.mgrid .mdot').click()`)
+await new Promise(r => setTimeout(r, 200))
+await evalJS(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+check('and so does Escape', await evalJS(`!document.querySelector('.mpreview.on')`))
+
+/* The hint says which gesture the screen actually does, swapped in CSS rather
+   than decided once at render time. */
+check('the hint offers both words and shows one of them', await evalJS(`
+  (() => {
+    const h = document.querySelector('.lists.mview .colhead-desc');
+    return !!h.querySelector('.hoverword') && !!h.querySelector('.tapword') &&
+      getComputedStyle(h.querySelector('.tapword')).display === 'none';
+  })()
+`))
 
 /* ---- the point of the second guard ---- */
 

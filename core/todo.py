@@ -68,7 +68,8 @@ class Task:
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
                  "ai", "to", "urgent", "week", "slug", "blocked_by", "rank",
-                 "tlrank", "headline", "chat", "repeat", "stable_id", "extra",
+                 "tlrank", "headline", "chat", "repeat", "stable_id",
+                 "cancelled", "archived", "extra",
                  "body", "raw", "bucket", "column")
 
     def __init__(self):
@@ -81,6 +82,12 @@ class Task:
         # The task's own identity, minted once and written on the line. See
         # `id` in core/todo.js, which is where it is generated.
         self.stable_id = ""
+        # Why a ticked task was ticked, when the answer is "it wasn't done".
+        # `cancelled` is decided against; `archived` is no longer relevant.
+        # Both carry the date the decision was made, which is not necessarily
+        # done_on. See CONVENTIONS.md, Cancelling a task — and every count of
+        # finished work has to leave both out.
+        self.cancelled = self.archived = ""
         self.blocked_by = []
         self.rank = None
         self.tlrank = None
@@ -92,6 +99,18 @@ class Task:
 
     def __repr__(self):
         return "<Task %r %s %s>" % (self.title, self.column, self.due or "-")
+
+
+def counts_as_finished(task):
+    """Whether a ticked task counts as work that was done.
+
+    A cancellation is a tick plus `cancelled:` or `archived:` (CONVENTIONS.md,
+    Cancelling a task), so the box being ticked no longer means "finished" on
+    its own, and every count of completed work has to ask this rather than
+    asking `task.done`. Undated finished work is not counted either: `done:` is
+    what puts it in a window. The port of countsAsFinished() in core/todo.js.
+    """
+    return bool(task.done and task.done_on and not task.cancelled and not task.archived)
 
 
 def parse_task(raw_lines):
@@ -135,6 +154,10 @@ def parse_task(raw_lines):
             task.repeat = val.lower()
         elif key == "id":
             task.stable_id = val.lower()
+        elif key == "cancelled":
+            task.cancelled = val
+        elif key == "archived":
+            task.archived = val
         else:
             task.extra.append(whole)
             return " "

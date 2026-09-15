@@ -80,9 +80,14 @@ export interface PlanCardProps {
   summaryHTML?: string
   /** What he told the agent when he sent it back. */
   feedback?: string
+  /** Where the task sits in tonight's queue, in the same slot a board card's
+   *  own position takes. Only the queue stub in To do carries one: a plan is
+   *  not in an order, and the rank is the thing a drag there edits. */
+  position?: ReactNode
   /** A control beside the title, the same slot every other card's `action`
-   *  sits in. Empty on a real plan — only the held-task stub in Backlog uses
-   *  it, for Release, since that card has no plan of its own to open. */
+   *  sits in. Empty on a real plan — the two stubs use it, Backlog's held task
+   *  for Release and To do's queued task for Hold, since neither has a plan of
+   *  its own to open. */
   action?: ReactNode
   /** Opening the plan, and the link back to the task it is about. Both are
    *  `13-plans.js`'s — `openPlanModal` and `goToPlanTask` — closed over the
@@ -93,13 +98,18 @@ export interface PlanCardProps {
    *  card cannot know which of the six it has been let go over. */
   onDragStart?: (e: DragEvent<HTMLElement>) => void
   onDragEnd?: (e: DragEvent<HTMLElement>) => void
+  /** Anything else the card's own element needs, merged over the attrs above.
+   *  One caller: To do's queue stub, which is the only card on this view that
+   *  is also a drop target — a row there takes a rank from whatever is dropped
+   *  on it, which a plan never does. */
+  attrs?: Record<string, unknown>
 }
 
 export function PlanCard(props: PlanCardProps) {
   const {
     url, title, variant, stripe, word, production, productionKind,
     needsYou, gotoKey, gotoLabel, where, scoresHTML, summaryHTML, feedback,
-    action, onOpen, onGoto, onDragStart, onDragEnd,
+    position, action, onOpen, onGoto, onDragStart, onDragEnd, attrs,
   } = props
 
   const cls = 'repitem planitem' + (variant || '') +
@@ -116,6 +126,7 @@ export function PlanCard(props: PlanCardProps) {
         onClick: onOpen,
         onDragStart,
         onDragEnd,
+        ...(attrs || {}),
       }}
       eyebrow={
         <>
@@ -139,6 +150,7 @@ export function PlanCard(props: PlanCardProps) {
         </>
       }
       title={title}
+      position={position}
       action={action}
       tags={scoresHTML ? { __html: scoresHTML } : null}
       meta={(line || gotoKey) ? (

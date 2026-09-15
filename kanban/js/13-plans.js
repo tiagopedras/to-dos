@@ -233,6 +233,49 @@ function planGeneratedLabel(p){
 }
 
 
+/* The size he last dragged the plan modal out to. Remembered the same way the
+   timeline's frozen title column is (state.tlLabelWidth, 02-state.js) — a drag
+   done once should not have to be repeated on the next plan. Stored rather
+   than kept in memory because the answer is about his screen, which does not
+   change between sessions. */
+const PLAN_SIZE_KEY = 'todo-board-planmodal-size';
+
+function planModalSize(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(PLAN_SIZE_KEY) || 'null');
+    if (raw && raw.w > 0 && raw.h > 0) return raw;
+  } catch (err) { /* a corrupt value is the same as none */ }
+  return null;
+}
+
+/* Applies the stored size and records the next one. The observer is on the
+   sheet, which showModal() replaces on every open, so it goes with it and
+   nothing has to be torn down. Below 700px board.css overrides both
+   dimensions with !important, so a size written on a desktop is inert on a
+   phone rather than having to be guarded here. */
+function wirePlanModalSize(){
+  const sheet = document.querySelector('.sheet.planmodal');
+  if (!sheet || typeof ResizeObserver !== 'function') return;
+  const stored = planModalSize();
+  if (stored) { sheet.style.width = stored.w + 'px'; sheet.style.height = stored.h + 'px'; }
+  /* The size it opens at, measured now. Only a change away from it is a drag
+     worth storing — skipping the observer's first callback instead would lose
+     a drag that arrived in the same frame as the attach, since the two
+     coalesce into one callback. */
+  const size = () => {
+    const r = sheet.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  };
+  const base = size();
+  new ResizeObserver(() => {
+    if (!sheet.isConnected) return;
+    const now = size();
+    if (Math.abs(now.w - base.w) < 2 && Math.abs(now.h - base.h) < 2) return;
+    try { localStorage.setItem(PLAN_SIZE_KEY, JSON.stringify(now)); }
+    catch (err) { /* a full or blocked store is not worth a toast */ }
+  }).observe(sheet);
+}
+
 /* Opening one marks it read, on the grounds that having it open is what being
    read means. Actioned stays a deliberate press, because that is a claim about
    the work rather than about him, and it is the one the runner acts on. */
@@ -267,6 +310,7 @@ function openPlanModal(p){
       (planTexts[p.url] !== undefined ? planMainHTML(planTexts[p.url], p) : '<p class="empty">Loading…</p>') +
     '</div>',
     buttons, { wide:true, cls:'planmodal' });
+  wirePlanModalSize();
   if (planTexts[p.url] === undefined) loadPlanBody(p);
   else wirePlanTabs();
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
@@ -339,7 +383,7 @@ function declinePlan(p){
       '<strong>Done</strong> and stays there as the record, and the planning ' +
       'agent will not come back to the task.</p>' +
       '<p>Say why, so the record is worth reading later.</p>' +
-      '<textarea class="redoinput" id="declineWhy" rows="3" ' +
+      '<textarea class="redowhy" id="declineWhy" rows="3" ' +
         'placeholder="Why this is not worth doing"></textarea>' +
     '</div>',
     [{ label:'Yes, turn it down', primary:true, run: () => {
@@ -1201,19 +1245,42 @@ function queueRowDragProps(r, listOf, from){
   };
 }
 
+/* A task queued for tonight, as a plan-card stub — the same shell every plan
+   on this view draws in, the way Backlog's held tasks already do (see
+   heldPlanCardNode below). It was a bare `Card` until 15 Sep 2026, which put
+   two different-looking cards under one heading saying the same thing: plan
+   this tonight. The eyebrow is what carries the difference, "no plan yet"
+   against the "planning again" a sent-back plan wears, rather than a second
+   card shape doing the telling.
+
+   Two things it keeps that a plan card has no use for: its rank, which is what
+   a drag in this column edits, and the Hold button, since there is no plan to
+   open instead. What was the `.qwhy` line under the row — "never planned", or
+   "changed since" and when it was last planned — is the card's summary now,
+   which is the slot a plan's own standfirst takes. */
 function queueRowNode(r){
-  return BoardUI.h(BoardUI.Card, {
+  const why = (r.why || '') + (r.last ? ' · last planned ' + r.last : '');
+  return BoardUI.h(BoardUI.PlanCard, {
     key: 'q:' + r.title,
-    cls: 'qitem nostripe',
-    attrs: queueRowDragProps(r, () => queueRows, 'queue'),
-    position: r.position,
+    /* No plan file to be identified by, so the title stands in — the same
+       shape heldPlanCardNode's `held:` key takes, for the same reason. */
+    url: 'queued:' + r.title,
     title: r.title,
+    variant: ' qitem',
+    word: 'no plan yet',
+    position: r.position,
+    gotoKey: r.slug || r.title,
+    gotoLabel: r.title,
+    where: [r.bucket, r.column, r.agent],
+    summaryHTML: why ? esc(why) : '',
     action: BoardUI.h('button', { className: 'btn outline small qhold',
       title: 'Hold it back from tonight',
       onClick: e => { e.stopPropagation(); holdTask(r.title); } }, 'Hold'),
-    meta: rowMetaNode(r),
-    extra: BoardUI.h('div', { className: 'qwhy' },
-      (r.why || '') + (r.last ? ' · last planned ' + r.last : ''))
+    onGoto: () => goToPlanTask(r.slug || r.title),
+    /* Through `attrs` rather than as props: a queue row is a drop target as
+       well as a drag source, and the four handlers that make it one are no
+       part of what a plan card does. */
+    attrs: queueRowDragProps(r, () => queueRows, 'queue')
   });
 }
 
@@ -1618,8 +1685,11 @@ function renderDoing(n){
    A plain string rather than markup, since it goes straight into Column's
    `desc`. */
 function renderDoneStats(n){
+  /* Leads with when the run was, in schedWhen()'s format rather than as a
+     sixteen-character slice of an ISO string — the same answer the schedule
+     modal gives, without opening it. */
   let text = n.started
-    ? 'Run started ' + n.started.slice(0, 16) + ' — planned ' + n.done.length +
+    ? 'Last run ' + (schedWhen(n.started) || n.started.slice(0, 16)) + ' — planned ' + n.done.length +
       (n.toPlan ? ' of ' + n.toPlan : '') + (n.left ? ', ' + n.left + ' left' : '') + '.'
     : 'The log has nothing since the last run started. A wake that found no ' +
       'window logs its reason and stops without starting one.';
@@ -1956,5 +2026,6 @@ async function renderPlansView(){
   renderQueue();
   renderNightAgent();
   renderUsage();
+  renderNextRun();
 }
 

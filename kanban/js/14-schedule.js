@@ -27,6 +27,16 @@
    see one was to run core/windows.py at a terminal.
    ========================================================================= */
 
+/* "Tue 16 Sept, 00:15". One format for every time this file prints, so the
+   line in the schedule modal and the two on Plans' column heads agree. */
+function schedWhen(iso){
+  if (!iso) return '';
+  const d = new Date(String(iso).replace(' ', 'T'));
+  if (isNaN(d)) return '';
+  return d.toLocaleString([], { weekday:'short', day:'numeric', month:'short',
+                                hour:'2-digit', minute:'2-digit' });
+}
+
 function schedRow(j){
   const dot = j.armed ? 'on' : 'off';
   const when = j.next ? new Date(j.next) : null;
@@ -39,9 +49,7 @@ function schedRow(j){
     '<p class="schedwhat">' + esc(j.what) + '</p>' +
     '<dl class="schedmeta">' +
       '<dt>Runs</dt><dd>' + esc(j.schedule || '—') + '</dd>' +
-      '<dt>Next</dt><dd>' + (when ? esc(when.toLocaleString([], {
-          weekday:'short', day:'numeric', month:'short',
-          hour:'2-digit', minute:'2-digit' })) : '—') + '</dd>' +
+      '<dt>Next</dt><dd>' + (when ? esc(schedWhen(j.next)) : '—') + '</dd>' +
       '<dt>Last</dt><dd>' + esc(j.last || '—') + '</dd>' +
     '</dl>' +
     (j.hint ? '<p class="schedhint">Not armed. To start it:<code>' + esc(j.hint) + '</code></p>' : '') +
@@ -249,25 +257,50 @@ function usageRow(w, peak){
    13-plans.js rather than into this chart's own #usageOut, since it answers a
    question about tonight's run; still fetched here, because /usage.json is
    the only route that knows it and one call draws both. */
+/* When the planning agent next wakes, as `/schedule.json` reports it. Held
+   here because two things want it and neither should fetch it twice: this
+   file's own status line and, once it has landed, Plans' To do column. Empty
+   until renderNextRun() has been round. */
+let nextRunAt = '';
+
 function renderStatus(u){
   /* Handed over rather than assigned: the description is a prop on the React
      tree PlansView mounts, like every other body on that view. setPlansStatus
      is 13-plans.js's, and is absent on every other view. */
   if (typeof setPlansStatus !== 'function') return;
-  const w = u.window;
-  if (!w || !w.expires) {
-    setPlansStatus('No session open right now.');
-    return;
-  }
-  const end = new Date(w.expires);
-  const mins = Math.max(0, Math.round((end - new Date()) / 60000));
-  setPlansStatus('Session open — closes ' + hm(end) + ', ' + mins + ' min left.');
+  /* The column's own question is "when does this get picked up", so the answer
+     leads and the capacity reading follows it as a second sentence. Both used
+     to need the schedule modal opened to find. */
+  const lead = nextRunAt ? 'Next run ' + schedWhen(nextRunAt) + '.' : '';
+  const w = u && u.window;
+  const rest = !w || !w.expires
+    ? 'No session open right now.'
+    : 'Session open — closes ' + hm(new Date(w.expires)) + ', ' +
+      Math.max(0, Math.round((new Date(w.expires) - new Date()) / 60000)) + ' min left.';
+  setPlansStatus([lead, rest].filter(Boolean).join(' '));
+}
+
+/* Reads the planning agent's next wake off the schedule and repaints the
+   status line with it. A failure is silent: the line still has the window
+   sentence to say, and an error banner over a column description would be
+   louder than the fact is worth. */
+let lastUsage = null;
+async function renderNextRun(){
+  try {
+    const res = await fetch('/schedule.json?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) return;
+    const jobs = (await res.json()).jobs || [];
+    const job = jobs.find(j => j.id === 'planning-agent');
+    nextRunAt = (job && job.next) || '';
+    if (nextRunAt) renderStatus(lastUsage);
+  } catch (err) { /* silent, see above */ }
 }
 
 async function renderUsage(){
   const out = $('#usageOut');
   try {
     const u = await getJSON('/usage.json?days=' + usageDays);
+    lastUsage = u;
     renderStatus(u);
     /* The chart lives in a modal off Plans and is absent most of the time; the
        Status line above it is not. So the fetch happens either way and only the

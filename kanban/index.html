@@ -107,6 +107,15 @@
   <input type="search" id="q" placeholder="Search tasks…">
 </div>
 
+<!-- Which column is on screen, and how many there are. Phone only: at that
+     width every column is the screen's width and snaps, so the only clue that
+     five more sit to the right is a sliver of the next one's edge, and nothing
+     names the one you are on once its head has scrolled away. A sibling of
+     <main> rather than a child, because main is what scrolls horizontally and
+     anything inside it would scroll away with the columns. Built by
+     renderColTabs() in 18-timeline.js. -->
+<div class="coltabs hidden" id="colTabs"></div>
+
 <main id="main">
   <div class="headline hidden" id="headline"></div>
   <div class="board hidden" id="board"></div>

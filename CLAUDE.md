@@ -507,13 +507,24 @@ node kanban/test_chats.mjs
 node kanban/test_projects.mjs
 node kanban/test_notes.mjs
 node kanban/test_backups.mjs       # and the read-only preview it opens
-node kanban/test_matrix.mjs
+node kanban/test_matrix.mjs         # and the dot's pinned preview
+node kanban/test_phone.mjs         # the 640px breakpoint, from both sides
 node kanban/test_overview.mjs      # capMsgCards() against real, painted layout
 node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted tray card
 node kanban/test_reports.mjs       # both halves, and the window picker over them
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
 node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md
 ```
+
+`test_phone.mjs` is the one that runs twice. It opens a 400px window and a
+1400px one and puts both through the same checks, so what is under test is the
+breakpoint rather than one side of it — a rule that showed neither half, or
+both, would pass a suite that only ever looked at the narrow one. What it
+covers is the three things a board only ever checked at desk width quietly
+gets wrong: drag and drop does not fire on touch, so the drawer's Column field
+is the only way to move a card there; a touch screen never hovers, so anything
+revealed by hovering is invisible; and six columns snapped one to a screen say
+nothing about which one you are looking at.
 
 `test_save_guard.mjs` is the odd one in that list: it needs the server but no
 browser, because what it checks is the server's own contract. Every `PUT` it

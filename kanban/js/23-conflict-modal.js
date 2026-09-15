@@ -10,7 +10,31 @@ function closeModal(){
   if (modalEl) { modalEl.remove(); modalEl = null; }
   document.removeEventListener('keydown', modalKeys);
 }
-function modalKeys(e){ if (e.key === 'Escape') closeModal(); }
+/* Escape closes. ⌘↵ / Ctrl+↵ presses the primary button, so a sheet with a
+   reason box in it can be sent without reaching for the mouse — but only from
+   inside a text field, so a plain confirmation like offerReload()'s cannot be
+   answered by a stray shortcut aimed at something else. */
+function modalKeys(e){
+  if (e.key === 'Escape') return closeModal();
+  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
+  if (!modalEl || !modalEl.contains(e.target) || !isTextField(e.target)) return;
+  const primary = modalEl.querySelector('.foot .btn.primary');
+  if (!primary) return;
+  e.preventDefault();
+  primary.click();
+}
+
+/* A field you type prose into. A checkbox or a button inside the sheet is not
+   one, and neither is a select. */
+function isTextField(el){
+  if (!el || !el.tagName) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'textarea') return true;
+  if (el.isContentEditable) return true;
+  if (tag !== 'input') return false;
+  const type = (el.type || 'text').toLowerCase();
+  return ['text','search','url','email','tel','password','number','date'].includes(type);
+}
 
 /* buttons: [{ label, primary, danger, agree, reject, run }] — the first is the
    safe default. The × in .top always closes without running anything.

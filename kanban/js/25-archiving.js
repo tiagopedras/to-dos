@@ -300,6 +300,10 @@ $('#lists').addEventListener('click', e => {
      it works the same from any view. */
   const open = e.target.closest('[data-open]');
   if (!open) return;
+  /* Except a Matrix dot, which shows its preview instead — a touch screen
+     never hovers, so opening the drawer was the only way to find out what a
+     dot was. The preview carries the control that opens the task. */
+  if (open.classList.contains('mdot')) return;
   if (!locate(open.dataset.open)) return;
   openDrawer(open.dataset.open);
 });
@@ -334,7 +338,22 @@ $('#lists').addEventListener('focusout', e => {
    left up after a click sits on top of the drawer that just opened. */
 window.addEventListener('scroll', () => { hideMatrixPreview(); hideTrendPreview(); }, { passive: true });
 window.addEventListener('resize', () => { hideMatrixPreview(); hideTrendPreview(); });
-$('#lists').addEventListener('click', () => { hideMatrixPreview(); hideTrendPreview(); }, true);
+$('#lists').addEventListener('click', e => {
+  /* A click on a dot pins its preview rather than clearing one — which is the
+     whole of what a tap can do here, and what a desktop click does too. */
+  const dot = e.target.closest('.mdot');
+  if (dot) { unpinMatrixPreview(); showMatrixPreview(dot, true); hideTrendPreview(); return; }
+  unpinMatrixPreview(); hideMatrixPreview(); hideTrendPreview();
+}, true);
+/* A pinned preview is a floating panel, so anything outside it takes it down —
+   the same as any other. The preview is a child of <body> rather than of
+   #lists, so its own clicks never reach the handler above. */
+document.addEventListener('click', e => {
+  if (!mPinned) return;
+  if (e.target.closest('.mpreview') || e.target.closest('.mdot')) return;
+  unpinMatrixPreview();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') unpinMatrixPreview(); });
 
 /* The Matrix's own filter. A change event rather than click, since this is a
    real checkbox and click would fire before its checked state settled. */

@@ -96,6 +96,12 @@ SLUG = re.compile(r"`#([a-z0-9][a-z0-9-]*)`")
 WEEK = re.compile(r"`week`")
 BLOCKED_BY = re.compile(r"`blocked-by:([a-z0-9,\- ]+)`")
 RANK = re.compile(r"`rank:(\d+)`")
+# A cancellation is a tick plus one of these — see CONVENTIONS.md, Cancelling a
+# task. Either one on an unticked task is the error check_cancelled() reports:
+# the tag is what stops a count of finished work including work nobody did, and
+# it only means anything once the task has left the board.
+CANCELLED = field_re("cancelled", r"[\d-]*")
+ARCHIVED = field_re("archived", r"[\d-]*")
 HEADLINE = re.compile(r"`headline:([^`]*)`")
 START = re.compile(r"`start:([^`]*)`")
 PROMPT_NOTE = re.compile(r"^\s*-\s+Prompt:", re.IGNORECASE)
@@ -669,6 +675,33 @@ def check_overdue(tasks, today):
     return findings
 
 
+def check_cancelled(tasks):
+    """`cancelled:` and `archived:` only mean anything on a ticked task.
+
+    A cancellation is a tick plus the tag (CONVENTIONS.md, Cancelling a task).
+    On an unticked task the tag says nothing — the task is still on the board
+    and still being counted as open — so it is either a tick that was forgotten
+    or a tag written by mistake, and both are worth a FIX.
+    """
+    findings = []
+    for task in list(tasks) + [s for t in tasks for s in t["subs"]]:
+        if task["checked"]:
+            continue
+        for pat, name in ((CANCELLED, "cancelled"), (ARCHIVED, "archived")):
+            m = pat.search(task["body"])
+            if not m:
+                continue
+            findings.append(
+                Finding(
+                    task["line"],
+                    "FIX",
+                    f"\"{task['title']}\" carries `{name}:` but is not ticked. "
+                    f"A cancellation is a tick plus the tag — tick it, or drop the tag.",
+                )
+            )
+    return findings
+
+
 def check_tag_hygiene(lines, tasks):
     findings = []
     for task in tasks:
@@ -1117,6 +1150,7 @@ def main():
         ("The one thing", check_headline(lines)),
         ("Start dates", check_start_dates(lines)),
         ("Tag hygiene", check_tag_hygiene(lines, tasks)),
+        ("Cancellations", check_cancelled(tasks)),
         ("Field syntax", check_field_syntax(lines)),
         ("Suggested messages", check_suggested_messages(lines)),
         ("Recurring tasks", check_recurring(lines, today)),

@@ -86,16 +86,43 @@ function makePreviewEl(cls){
   return el;
 }
 let mPreviewEl = null;
+/* Pinned by a click rather than shown by a pointer. A touch screen never hovers,
+   so until 15 Sep 2026 a tap on a dot opened the drawer and the preview never
+   appeared at all — the only way to find out what a dot was, was to open it.
+   One rule at every width instead: a click or a tap shows the preview, and the
+   preview carries the control that opens the task. Hover still previews on a
+   desktop, so the only thing that changes there is that opening a task is a
+   click on the card rather than on the dot. */
+let mPinned = false;
+
 function matrixPreview(){ return mPreviewEl || (mPreviewEl = makePreviewEl('mpreview')); }
-function showMatrixPreview(dot){
+
+function showMatrixPreview(dot, pin){
   const loc = locate(dot.dataset.open);
   if (!loc) return;
+  // A hover must not take a pinned preview off the dot it was pinned to.
+  if (mPinned && !pin) return;
   const el = matrixPreview();
   const color = bucketColor(loc.bucket.name, state.doc.buckets.indexOf(loc.bucket));
   const where = loc.bucket.name + ' · ' + (loc.task.done ? DONE_COL : loc.tier.name);
-  el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL, tier: loc.tier.name });
+  el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL, tier: loc.tier.name }) +
+    (pin ? '<button type="button" class="mopen">Open this task</button>' : '');
+  el.classList.toggle('pinned', !!pin);
+  // Inert while it is only a hover preview, so it cannot intercept a click
+  // meant for whatever is underneath it.
+  el.setAttribute('aria-hidden', pin ? 'false' : 'true');
+  if (pin) {
+    mPinned = true;
+    const btn = el.querySelector('.mopen');
+    if (btn) btn.onclick = () => { unpinMatrixPreview(); openDrawer(dot.dataset.open); };
+  }
   el.classList.add('on');
   placeMatrixPreview(dot);
+}
+
+function unpinMatrixPreview(){
+  mPinned = false;
+  if (mPreviewEl) { mPreviewEl.classList.remove('on', 'pinned'); mPreviewEl.setAttribute('aria-hidden', 'true'); }
 }
 /* Beside the dot, flipping to the other side rather than running off the edge,
    and never taller than the window allows. */
@@ -112,7 +139,7 @@ function placeMatrixPreview(dot){
   el.style.left = Math.round(left) + 'px';
   el.style.top = Math.round(top) + 'px';
 }
-function hideMatrixPreview(){ if (mPreviewEl) mPreviewEl.classList.remove('on'); }
+function hideMatrixPreview(){ if (!mPinned && mPreviewEl) mPreviewEl.classList.remove('on'); }
 
 /* ---- Weekly pace hover popover ----
    Same shape as the Matrix's own hover preview just above — a single fixed

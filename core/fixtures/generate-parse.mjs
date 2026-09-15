@@ -31,10 +31,16 @@ const old = JSON.parse(fs.readFileSync(path.join(HERE, 'parse.json'), 'utf8'))
    not here: it is uid(), fresh every parse, and means nothing outside one tab. */
 const FIELDS = ['done', 'title', 'bold', 'impact', 'effort', 'due', 'start', 'doneOn',
   'ai', 'to', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
-  'chat', 'repeat', 'stableId', 'extra']
+  'chat', 'repeat', 'stableId', 'cancelled', 'archived', 'extra']
 
-/* New cases for the stable id. The existing lines are untouched below. */
+/* New cases, appended as the grammar grows. The existing lines are untouched
+   and the list is de-duplicated below, so re-running this is idempotent. */
 const NEW_LINES = [
+  '- [x] **A cancelled task is ticked and says so** `done:2026-09-15` `cancelled:2026-09-15`',
+  '- [x] **An archived task is the other half of the same rule** `done:2026-09-15` `archived:2026-09-14`',
+  '- [x] **Both at once, which is odd but has to round-trip** `done:2026-09-15` `cancelled:2026-09-15` `archived:2026-09-15`',
+  '- [ ] **Unticked, so the tag is kept for him to fix rather than dropped** `cancelled:2026-09-15`',
+  '- [x] **The other syntax reads too** `done:2026-09-15` [cancelled:: 2026-09-15]',
   '- [ ] **Every tag at once, with an id** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [ai:: partial] [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed` `id:ab12cd`',
   '- [ ] **An id and nothing else** `id:zz9zz9`',
   '- [ ] **No id at all, the way every task looked before today** [impact:: low]',

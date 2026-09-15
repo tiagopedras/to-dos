@@ -121,7 +121,10 @@ function parseArchiveEntries(text){
     }
     if (!TASK_RE.test(line)) return;
     const t = parseTask([line]);
-    if (t.done && t.doneOn) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn, effort: t.effort });
+    // countsAsFinished(), not t.done: a cancelled task is ticked and archived
+    // out with everything else, and counting it says work was done that was
+    // not. core/todo.js holds the rule, so both languages ask the same thing.
+    if (countsAsFinished(t)) out.push({ bucketName, tierName, title: t.title, doneOn: t.doneOn, effort: t.effort });
   });
   return out;
 }
@@ -157,7 +160,7 @@ function completedRecently(){
   const out = [];
   const days = reportDays();
   if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
-    if (!t.done || !t.doneOn) return;
+    if (!countsAsFinished(t)) return;
     const age = daysSince(t.doneOn);
     if (age == null || age < 0 || age > days) return;
     out.push({ bucketName:b.name, tierName:tier.name, title:t.title, doneOn:t.doneOn, taskId:t.id, effort:t.effort, age });
@@ -367,7 +370,7 @@ function trendEntries(){
   const from = weekBuckets(trendWeeks())[0].start;
   const out = [];
   if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(tier => tier.tasks.forEach(t => {
-    if (!t.done || !t.doneOn) return;
+    if (!countsAsFinished(t)) return;
     const d = parseDue(t.doneOn);
     if (d && d >= from) out.push({ date: d, bucketName: b.name });
   })));

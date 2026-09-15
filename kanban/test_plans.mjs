@@ -347,8 +347,27 @@ check('every queued task is listed', await evalJS(`
 check('numbered by the order it will be worked through', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem .cardpos')].map(e => e.textContent).join('')
 `) === '123')
+/* The row's own note — "never planned", or "changed since" and when it was
+   last planned — is the card's summary now rather than a .qwhy line of its
+   own, which is what a plan's standfirst already uses. */
 check('each says why it is being planned again', await evalJS(`
-  document.querySelectorAll('#queueOut .qwhy')[1].textContent.includes('changed since 2026-09-03')
+  document.querySelectorAll('#queueOut > .qitem .cardsum')[1].textContent.includes('changed since 2026-09-03')
+`), await evalJS(`[...document.querySelectorAll('#queueOut > .qitem .cardsum')].map(e => e.textContent).join(' | ')`))
+
+/* A queued task and a plan sent back are the same instruction — plan this
+   tonight — so they are one card shape, and only the eyebrow differs. They
+   were a bare Card and a full PlanCard until 15 Sep 2026, which read as two
+   kinds of thing under one heading. */
+check('a queue row draws in the plan shell, like everything else on this view', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem')]
+    .every(el => el.classList.contains('repitem') && el.classList.contains('planitem'))
+`))
+check('and its eyebrow says it has no plan yet', await evalJS(`
+  [...document.querySelectorAll('#queueOut > .qitem .bucket')].map(e => e.textContent).join('|')
+`) === 'no plan yet|no plan yet|no plan yet')
+check('it keeps its rank and its Hold, which a plan card has no use for', await evalJS(`
+  !!document.querySelector('#queueOut > .qitem .cardpos') &&
+  !!document.querySelector('#queueOut > .qitem .qhold')
 `))
 
 // --- the backlog column -----------------------------------------------------
@@ -1336,6 +1355,101 @@ await new Promise(r => setTimeout(r, 300))
 check('and with no reason it posts nothing', await evalJS(`
   !window.__blocked.some(b => b.startsWith('POST /stream/apply'))
 `))
+
+/* The reason box on Turn it down carried a class nothing defined until 15 Sep
+   2026, so it drew as a white browser textarea inside a dark sheet. .redowhy
+   is the styled one Send it back already used, and both now share it. */
+check('both reason boxes use the one styled class', await evalJS(`
+  (() => {
+    const cls = p => { p(window.__plans.find(x => x.name === 'add-caveat.md'));
+      const c = document.querySelector('.mscrim textarea').className; closeModal(); return c };
+    return cls(declinePlan) + '|' + cls(replanPlan);
+  })()
+`) === 'redowhy|redowhy')
+
+/* ⌘↵ from inside a text field presses the primary button, so a reason can be
+   sent without reaching for the mouse. It must not fire from outside one: a
+   plain confirmation like offerReload()'s would otherwise be answerable by a
+   stray shortcut aimed at something else. */
+check('cmd-enter in a reason box presses the primary button', await evalJS(`(() => {
+  window.__cmdEnter = 0;
+  showModal('T', 's', '<textarea id="tBox"></textarea>',
+    [{ label:'Go', primary:true, run: () => { window.__cmdEnter = 1 } }, { label:'Cancel' }]);
+  const box = document.querySelector('#tBox');
+  box.focus();
+  box.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', metaKey:true, bubbles:true }));
+  return window.__cmdEnter === 1;
+})()`))
+check('and does nothing pressed outside one', await evalJS(`(() => {
+  window.__cmdEnter = 0;
+  showModal('T', 's', '<p>a plain confirmation</p>',
+    [{ label:'Go', primary:true, run: () => { window.__cmdEnter = 1 } }, { label:'Cancel' }]);
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', metaKey:true, bubbles:true }));
+  const ran = window.__cmdEnter;
+  closeModal();
+  return ran === 0;
+})()`))
+
+/* The plan modal is resizeable, and the size is remembered — a plan is a
+   document and 912px was a window on to it however big the screen was. */
+await evalJS(`localStorage.removeItem('todo-board-planmodal-size')`)
+await evalJS(`openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md')); 'ok'`)
+check('the plan sheet can be dragged bigger', await evalJS(`
+  getComputedStyle(document.querySelector('.sheet.planmodal')).resize
+`) === 'both')
+check('and its caps are lifted so there is somewhere to drag to', await evalJS(`
+  getComputedStyle(document.querySelector('.sheet.planmodal')).maxHeight !== '760px'
+`))
+/* The native corner sits where the footer's last button is, so the footer buys
+   it clearance rather than a second grip being built to avoid it. */
+check('the footer clears the native corner', await evalJS(`
+  getComputedStyle(document.querySelector('.sheet.planmodal .foot')).paddingRight
+`) === '30px')
+/* Waits for the ResizeObserver rather than sleeping a fixed time: its callback
+   is scheduled against the frame loop, and a headless page under no paint
+   pressure can take longer than any number picked here. */
+await evalJS(`(async () => { const s = document.querySelector('.sheet.planmodal');
+  s.style.width = '1100px'; s.style.height = '800px';
+  for (let i = 0; i < 40; i++) {
+    if (localStorage.getItem('todo-board-planmodal-size')) return;
+    await new Promise(r => setTimeout(r, 50));
+  } })()`)
+check('a resize is remembered', await evalJS(`
+  JSON.parse(localStorage.getItem('todo-board-planmodal-size') || '{}').w === 1100
+`), await evalJS(`String(localStorage.getItem('todo-board-planmodal-size'))`))
+await evalJS(`closeModal(); openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md')); 'ok'`)
+check('and the next plan opens at that size', await evalJS(`
+  document.querySelector('.sheet.planmodal').style.width
+`) === '1100px')
+await evalJS(`closeModal(); localStorage.removeItem('todo-board-planmodal-size')`)
+
+/* Plans' To do column says when the next run is, and Waiting for review says
+   when the last one was — both answers were only in the schedule modal. */
+check('To do leads with the next run', await evalJS(`
+  (() => { const was = nextRunAt; nextRunAt = '2026-09-16T00:15';
+    renderStatus({ window: null });
+    const t = plansProps.queueDesc; nextRunAt = was; return t })()
+`) && /^Next run \w{3} 16 Sep/.test(await evalJS(`
+  (() => { const was = nextRunAt; nextRunAt = '2026-09-16T00:15';
+    renderStatus({ window: null });
+    const t = plansProps.queueDesc; nextRunAt = was; return t })()
+`)), await evalJS(`
+  (() => { const was = nextRunAt; nextRunAt = '2026-09-16T00:15';
+    renderStatus({ window: null });
+    const t = plansProps.queueDesc; nextRunAt = was; return t })()`))
+check('and the window reading follows it as a second sentence', /No session open right now\.$/.test(await evalJS(`
+  (() => { const was = nextRunAt; nextRunAt = '2026-09-16T00:15';
+    renderStatus({ window: null });
+    const t = plansProps.queueDesc; nextRunAt = was; return t })()
+`)))
+const lastRun = await evalJS(`
+  (() => { renderDoneStats({ started:'2026-09-15T00:15:04', done:[], failed:[], toPlan:3, left:1 });
+    return plansProps.reviewDesc })()
+`)
+check('Waiting for review leads with the last run, formatted rather than sliced',
+  /^Last run \w{3} 15 Sept?, 00:15 /.test(lastRun), await evalJS(`
+  (() => { renderDoneStats({ started:'2026-09-15T00:15:04', done:[], failed:[], toPlan:3, left:1 });
+    return plansProps.reviewDesc })()`))
 
 /* The drop outline. It stayed on after a drag had left the column across a
    card, and after a drag let go somewhere else, until 15 Sep 2026. */
