@@ -18,6 +18,66 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A plan sent back for replanning cannot be dragged from To do to Backlog.**
+  Reported 15 Sep 2026, and it seems to affect only the Planning again cards
+  (`state: ready`, `owner: planning-agent`) that `renderQueueList()`
+  (`kanban/js/13-plans.js:1223`) appends under tonight's queue. On paper the
+  path is open: the card sets `drag = { kind:'plan' }` in `planCardNode()`
+  (`:997`), `backlogDrop` in `paintPlans()` (`:1875`) accepts any plan and
+  calls `parkPlan()`, and `apply()` in `agents/planning_agent/stream.py`
+  allows `backlog` owned by `me`. So the fault is somewhere reading the code
+  did not show. The next step is to reproduce it in a locked tab and see
+  whether Backlog never lights, the move posts and snaps back, or
+  `/stream/apply` refuses it.
+
+- **A plan sent back looks like a different kind of card from the queue rows
+  above it in To do.** `renderQueueList()` (`kanban/js/13-plans.js:1223`)
+  draws tonight's queue with `queueRowNode()` (`:1204`): rank, title, one meta
+  line, "never planned" or "changed since". The replanning plans under them
+  come from `planCardNodes()`, which is `PlanCard` in full, with an eyebrow,
+  score chips, a date line, a link, the summary and a boxed "Sent back:"
+  reason (`kanban/ui/PlanCard.tsx:160`). Both are the same instruction, plan
+  this tonight, so they should share `queueRowNode()`'s shape. The replanning
+  ones keep a Planning again tag and lose the summary and the reason. The
+  reason stays in the plan's `feedback:` and in the modal. Separate from the
+  bigger entry below saying Plans should hold nothing but plan cards.
+
+- **Plans' To do column does not say when the next run is, and Waiting for
+  review does not say when the last one was.** To do's description is
+  `renderStatus()` (`kanban/js/14-schedule.js:252`), which only reports the
+  usage window ("Session open — closes 00:59, 257 min left"). Waiting for
+  review's is `renderDoneStats()` (`kanban/js/13-plans.js:1620`), which leads
+  with "Run started 2026-09-14T00:15" as a raw timestamp slice. Both answers
+  are already on disk: `schedule_listing()` in `kanban/server.py` returns a
+  `next` and a `last` for the planning agent's job, and `schedRow()`
+  (`kanban/js/14-schedule.js:30`) formats them, but only inside the schedule
+  modal. Fetching `/schedule.json` on Plans and leading To do with "Next run
+  Tue 16 Sept, 00:15" and Waiting for review with "Last run Mon 15 Sept,
+  00:15", in `schedRow()`'s date format, would answer both without opening
+  the modal. The window line can follow as a second sentence.
+
+- **The dashed drop outline on a Plans column collides with the cards inside
+  it.** Dragging a card over To do lights `.coldrop` (`kanban/board.css:1381`),
+  an `outline` pulled 4px inside the column body by `outline-offset:-4px`,
+  while `.colbody`'s own padding is 9px (`kanban/board.css:970`). On screen the
+  queue rows' borders still run into the dashed line on both sides and the
+  outline reads as tangled with them rather than framing the column. `.coldeny`
+  beside it shares the same geometry. Worth checking in the browser whether the
+  rows are wider than the body or the offset is simply too tight, then either
+  drawing the outline on the whole `.col` instead of the body or giving it
+  enough inset to clear the cards. Screenshot of 15 Sep 2026 in iCloud
+  Screenshots, `Screenshot 2026-09-15 at 20.43.12.png`.
+
+- **⌘↵ does not submit a modal's form.** `modalKeys()` in
+  `kanban/js/23-conflict-modal.js:13` handles Escape and nothing else, so the
+  reason boxes in `replanPlan()` and `declinePlan()`
+  (`kanban/js/13-plans.js:333` and `:369`) can only be sent by reaching for the
+  button. ⌘↵ or Ctrl+Enter pressed while focus is in a text field inside the
+  sheet should run the primary button, the same as clicking it, which covers
+  every form `showModal()` draws now or later. It should fire only from inside
+  a text field, so a plain confirmation such as `offerReload()`'s "todo.md
+  changed on disk" cannot be answered by a stray shortcut.
+
 - **On a phone the Board gives no sign of which column is on screen or how
   many there are.** The phone rule at `kanban/board.css:866` makes each column
   the screen's width and snaps `main` to it, so the only clue that five more
