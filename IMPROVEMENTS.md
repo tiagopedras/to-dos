@@ -18,6 +18,79 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **On a phone the Board gives no sign of which column is on screen or how
+  many there are.** The phone rule at `kanban/board.css:866` makes each column
+  the screen's width and snaps `main` to it, so the only clue that five more
+  sit to the right is a sliver of the next column's edge, and nothing names
+  the one you are on once its head has scrolled away. `renderBoard()`
+  (`kanban/js/18-timeline.js:902`) could draw a row of dots, or the column
+  names as small tabs, above `.board` at phone width only, lit from `main`'s
+  `scrollLeft` divided by one column's width on a `scroll` listener. Tapping a
+  dot would call `scrollTo` on `main`, which the snap then lands exactly.
+
+- **The Column stepper in the drawer runs its labels into each other at phone
+  width, and on a phone it is the only way to move a card.** Drag and drop
+  does not fire on touch, so moving a task means opening it and using the
+  stepper `openDrawer` builds from `boardColumns()`
+  (`kanban/js/19-drawer.js:717`). At 400px its six `.stepstop` labels
+  (`kanban/board.css:2387`) share about 340px, and "Backlog" and "To do"
+  touch, with each label's tap area no bigger than its text. Under the
+  existing 640px breakpoint the stops could drop their labels in favour of
+  one line under the track naming the current column, or become a wrapping
+  row of buttons, either of which gives a thumb-sized target.
+
+- **Two things on the board only reveal themselves on hover, which a phone
+  never does.** `.sortbtn` sits at 55% opacity until `.col:hover`
+  (`kanban/board.css:933` and `:938`), so on a phone the sort control always
+  looks disabled. The Matrix hint in `kanban/ui/SectionsView.tsx:150` tells
+  the reader to "hover for the title", and the floating preview behind it
+  (`matrixPreview()`, `kanban/js/17-matrix.js:89`) never appears on touch,
+  leaving a tap that opens the drawer as the only way to find out what a dot
+  is. A `@media (hover:none)` rule setting `.sortbtn` to full opacity covers
+  the first; the second wants the hint to say "tap" under the same query, or
+  the dot's title shown in the preview on first tap and the drawer on second.
+
+- **A cancelled task and a finished one are indistinguishable once they leave
+  the file, so every count of completed work quietly includes work nobody
+  did.** `CONVENTIONS.md` gained a `Cancelling a task` section on 15 Sep 2026
+  saying a cancellation is a tick plus `` `cancelled:YYYY-MM-DD` `` or
+  `` `archived:YYYY-MM-DD` `` beside the `done:` tag, and nothing implements
+  it. `INLINE_KEYS` in `core/todo.py:61` and the tag block in
+  `core/todo.js:140` both stop at `done`, so neither tag survives a parse, and
+  `serialise` at `core/todo.js:206` would drop it on the next save. The count
+  that actually goes wrong is `completed` in `todayView`'s sibling at
+  `core/aggregate.py:239`, which takes every task where `t.done` and the
+  `done_on` date is in the window, from the live file and from
+  `archive.read_archive()` alike — a cancelled task passes both tests. The fix
+  is one key in each parser, one line in the serialiser, a filter on that
+  comprehension, and a rule in `check_todo.py` rejecting either tag on an
+  unticked task. The board rendering a marker on the card is the only part
+  that needs a view decision.
+
+- **The plan modal is a fixed size, so a long plan reads through a 912px
+  window however big the screen is.** `openPlanModal()`
+  (`kanban/js/13-plans.js:239`) passes `cls:'planmodal'` to `showModal()`
+  (`kanban/js/23-conflict-modal.js:20`), and the sheet is held at
+  `min(912px,100%)` wide (`kanban/board.css:2561`) and
+  `min(84vh,760px)` tall by `.sheet.wide` (`:2556`). Making it resizeable
+  means a drag corner on `.sheet.planmodal` (CSS `resize: both` with the max
+  caps lifted, or a handle of its own if the native corner clashes with the
+  footer), keeping the History column at 198px while the main column takes
+  the extra room, and storing the size in `localStorage` the way
+  `tlLabelWidth` already is (`kanban/js/02-state.js:79`) so the next plan
+  opens at the same size. The narrow layout at `board.css:2598` should ignore
+  the stored size.
+
+- **The reason box on Turn it down is an unstyled browser textarea.**
+  `declinePlan()` (`kanban/js/13-plans.js:333`) gives its textarea the class
+  `redoinput`, which nothing in `kanban/board.css` defines, so it draws white
+  with the browser's own border, font and focus ring inside a dark sheet.
+  `replanPlan()` (`:368`) builds the same box as `redowhy`, and `.redowhy`
+  (`kanban/board.css:1667`) is the styled one: full width, the sheet's own
+  type, `--panel` fill, `--line` border, 8px radius, accent focus outline.
+  The fix is the class name on `#declineWhy`, and `.redowhy`'s comment, which
+  still names only Send it back, should say it covers both modals.
+
 - ~~**Eleven places on Plans still set a class on a node React owns, and
   nothing says which of them is safe.**~~ **Done, 13 Sep 2026.**
   `kanban/ui/test_primitives.mjs` now greps `13-plans.js` for every
@@ -528,8 +601,80 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **The plan modal reads a plan as one long document, when it should split
-  into a history column, a summary, and two tabs.** Specs are in Figma
+- **On a phone the header and the filter strip take half the screen before any
+  task, and both stay pinned while scrolling.** At 400px the wrapped view
+  tabs, the status line, the Data menu, the two rows of bucket tabs, the
+  scoring chip, the Status and AI filters and the search box stack to about
+  430px of an 860px screen. `header` (`kanban/board.css:154`) and `.bucketbar`
+  (`:233`) are both `position:sticky`, the second offset by the header's
+  measured height from `syncHeaderHeight()`
+  (`kanban/js/16-backup-preview.js:130`), so what is left for cards stays at
+  roughly half the screen all the way down. It needs a decision on what a
+  phone keeps in view: the likely shape is the view tabs alone pinned, with
+  buckets and filters behind one Filters button that opens a sheet and shows
+  a count of what is active, which is new markup in `index.html` rather than
+  a CSS change.
+
+- **The plan modal has no way to talk a plan through before deciding on it,
+  and accepting one carries no instructions at all.** `openPlanModal()`
+  (`kanban/js/13-plans.js:239`) offers Accept it, Plan it again and Turn it
+  down, and the only place he can say anything is the one-sentence textarea
+  `replanPlan()` (`:367`) collects into `reason`, which `stream.py` (`:120`)
+  cuts to 500 characters and writes as `feedback:`. `acceptPlan()` (`:294`)
+  asks nothing, so whatever he wants the implementing agent to keep in mind
+  has nowhere to go; `/do` and `implementing-agent.md` (`:51`) only ever read
+  `feedback:`, which on an accepted plan is empty. The chat machinery is
+  already on the board — `newChat()` (`kanban/js/10-reference-sections.js:1012`)
+  seeds `chat.openNew()` from `taskDescription()` — but it is keyed to a task
+  in the drawer, not to a plan, and nothing it says ever reaches a plan's
+  frontmatter.
+
+  It wants a Chat button in the plan modal that opens a session seeded with
+  the plan's own text, and a way for what comes out of it to land on the plan
+  as either a replan reason or build notes for acceptance.
+
+  Decided, 15 Sep 2026: it is the same embedded chat modal the drawer's New
+  chat opens, not a Terminal window. The box opens empty, and nothing starts
+  until he sends. His first message goes out with two parts added in front of
+  it: first "Here's a plan another session has been working on, including the
+  goal we're trying to solve and what it suggested so far.", followed by the
+  task, its summary, Findings and Proposed plan; then "Here's what the user has
+  to say about that.", followed by what he typed. That differs from how
+  `newChat()` works today, which drops `taskDescription()` into the input box
+  unsent for him to see and edit. The `onSend` hook
+  (`PACKAGES/ai_chat_engine/interface/chat.js:437`) is told what was sent but
+  cannot change it, so wrapping the first message means a change in
+  `ai_chat_engine`, which `ai_canvas` also loads.
+
+  What happens after the chat was decided the same day. He talks for as long as
+  he needs, usually briefly, then closes it and presses one of the modal's
+  existing buttons, most likely Plan it again or Accept it. The conversation
+  goes with whichever one he presses, as context for the agent that picks it up
+  next, and the button needs no separate typed reason when a chat is attached.
+  The conversation and the decision are both recorded in the plan's History.
+  Today History belongs to the planning agent's runner and nothing else writes
+  it (`agents/planning_agent/plan.py:629`, read back by `plan_meta()` in
+  `kanban/server.py:962`), so the board, or `stream.py` on its behalf, becomes
+  a second place that adds lines there, and `history_entry()` (`:929`) needs a
+  way to show that a line has a conversation attached.
+
+  Where it is stored was decided the same day: the conversation is `feedback`,
+  a fuller version of the one-sentence reason, not a new key. The reason typed
+  into `replanPlan()` today and a chat attached to either button are the same
+  thing. So `stream.py`'s 500-character cut (`:120`) cannot apply to a chat,
+  and `/do` (`~/.claude/skills/do/SKILL.md:51`) and `implementing-agent.md`
+  (`:51`) have to stop reading every `feedback:` as "he sent this back". On an
+  accepted plan it is what he wants kept in mind while building.
+
+- ~~**The plan modal reads a plan as one long document, when it should split
+  into a history column, a summary, and two tabs.**~~ **Done, 15 Sep 2026.**
+  Built from the spec below rather than the frames, since Figma was not
+  reachable that night. `plan_meta()` now splits each History line through
+  `history_entry()` into a note and the send-back reason; `planSections()`
+  and `planMainHTML()` in `13-plans.js` split the plan by heading, and
+  `planHistoryItems()` draws the timeline. A plan with neither Findings nor
+  Proposed plan still reads as one document. The column is a `div`, since the
+  drawer's styles are written against every `aside`. Specs are in Figma
   (file `Cgocs5SMDGPSF5MzNan4Hu`, frames `61:9227` for the Findings tab and
   `61:9333` for Proposed plan). `openPlanModal()`
   (`kanban/js/13-plans.js:218`) hands the whole body to `openDocModal()`
