@@ -301,6 +301,20 @@ function registerIpc(): void {
     clipboard.writeText(message.text)
     log(`copied the message for ${taskKeyLabel(message)}`)
   })
+  ipcMain.on('companion:copyAgenda', (_event, task: string) => {
+    const meeting = snapshot?.digest.meetings.find((m) => m.task === task)
+    if (!meeting) return
+    // Plain text rather than Markdown, so it pastes cleanly into Slack,
+    // a calendar invite or a doc alike.
+    const name = meeting.title.replace(/^prepare for\s+/i, '').replace(/^./, (c) => c.toUpperCase())
+    const lines = [`${name}, ${meeting.time}`, '']
+    for (const t of meeting.agenda) {
+      lines.push(`• ${t.topic}`)
+      if (t.context) lines.push(`  ${t.context}`)
+    }
+    clipboard.writeText(lines.join('\n'))
+    log(`copied the agenda for ${task}`)
+  })
   ipcMain.on('companion:dismissMessage', (_event, key: string) => {
     const seen = state.dismissed ?? []
     if (!seen.includes(key)) {

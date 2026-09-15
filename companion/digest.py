@@ -69,6 +69,7 @@ class Digest:
         self.messages = []     # contact steps with a message ready to copy
         self.buckets = []      # bucket names, in the order the file declares them
         self.timed_meetings = []  # today's repeat: meetings that carry a time and an agenda
+        self.meetings = []     # every repeat: meeting on today with a time, agenda or not
         self.error = None      # the file could not be read
 
     @property
@@ -168,6 +169,12 @@ def read_messages(text, day, dismissed=()):
     return out
 
 
+def minutes(hhmm):
+    """"9:15" as 555, so "9:15" sorts before "10:00" rather than after it."""
+    hour, _, minute = hhmm.partition(":")
+    return int(hour) * 60 + int(minute or 0)
+
+
 def build(day=None, path=None, dismissed=()):
     day = day or dt.date.today()
     path = path or todo_path()
@@ -184,6 +191,12 @@ def build(day=None, path=None, dismissed=()):
     for t in tasks:
         if t.bucket and t.bucket not in d.buckets:
             d.buckets.append(t.bucket)
+        # Before the done and parked checks: a ticked meeting card means the
+        # agenda is prepared, and the meeting still happens today.
+        if t.repeat:
+            rep = todo.read_repeat(t.repeat)
+            if rep and rep["time"] and todo.effective_due(t, day) == day:
+                d.meetings.append((rep["time"], t))
         if t.done:
             continue
         if t.headline and not d.headline:
@@ -208,7 +221,8 @@ def build(day=None, path=None, dismissed=()):
     # is the thing worth reading first.
     d.overdue.sort(key=lambda p: p[0])
     d.today.sort(key=lambda p: (p[1].bucket, p[1].title))
-    d.timed_meetings.sort(key=lambda p: p[0])
+    d.timed_meetings.sort(key=lambda p: minutes(p[0]))
+    d.meetings.sort(key=lambda p: minutes(p[0]))
     d.messages = read_messages(text, day, dismissed)
     return d
 
@@ -239,6 +253,12 @@ def to_json(d):
         # land. `time` is "hh:mm", 24-hour, straight off read_repeat().
         "timed_meetings": [{"title": t.title, "task": task_key(t), "time": time}
                             for time, t in d.timed_meetings],
+        # Every timed meeting on today, for the window's Meetings today list.
+        # Wider than timed_meetings on purpose: a meeting with no agenda yet
+        # is still on, and the empty agenda is itself worth seeing.
+        "meetings": [{"title": t.title, "task": task_key(t), "time": time,
+                      "prepared": t.done, "agenda": todo.agenda_topics(t)}
+                     for time, t in d.meetings],
         "messages": [{"key": m["key"], "task": m["task"], "where": m["where"],
                        "text": m["text"], "draft": m["draft"], "due": m["due"],
                        "bucket": m.get("bucket", "")}

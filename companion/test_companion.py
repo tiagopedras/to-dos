@@ -221,6 +221,29 @@ def test_timed_meetings():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_meetings():
+    """Every repeat: meeting on today with a time, agenda or not, in time
+    order, each carrying its agenda for the window to draw."""
+    tmp = tempfile.mkdtemp(prefix="digest-meetings-all-")
+    doc_path = os.path.join(tmp, "todo.md")
+    try:
+        with open(doc_path, "w", encoding="utf-8") as fh:
+            fh.write(DOC)
+        out = digest.to_json(digest.build(DAY, path=doc_path))
+        check("timed meetings only, earliest first",
+              [(m["time"], m["title"]) for m in out["meetings"]],
+              [("8:45", "Standup, no agenda yet"), ("9:15", "Weekly design review")])
+        check("the agenda travels with it",
+              out["meetings"][1]["agenda"],
+              [{"topic": "Rebrand colours", "context": "Confirm the palette before Friday."}])
+        check("an empty agenda is an empty list", out["meetings"][0]["agenda"], [])
+        check("not prepared until ticked", out["meetings"][1]["prepared"], False)
+        check("minutes sorts 9:15 before 10:00",
+              sorted(["10:00", "9:15"], key=digest.minutes), ["9:15", "10:00"])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_task_key():
     t = todo.Task()
     t.title, t.slug = "Ship the thing", ""
@@ -247,6 +270,7 @@ def main():
     test_notify_queue()
     test_json()
     test_timed_meetings()
+    test_meetings()
     test_task_key()
     test_read_dismissed()
     if FAILED:

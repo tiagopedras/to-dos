@@ -39,6 +39,22 @@ export interface TimedMeetingRef {
   time: string
 }
 
+export interface AgendaTopic {
+  topic: string
+  context: string
+}
+
+/** Every repeat: meeting on today that carries a time, agenda or not.
+    `prepared` is the card's tick, which on a meeting means the agenda is
+    written. */
+export interface MeetingRef {
+  title: string
+  task: string
+  time: string
+  prepared: boolean
+  agenda: AgendaTopic[]
+}
+
 /** digest.py's to_json() — see companion/digest.py. */
 export interface Digest {
   day: string
@@ -50,6 +66,7 @@ export interface Digest {
   overdue: TaskRef[]
   today: TaskRef[]
   timed_meetings: TimedMeetingRef[]
+  meetings: MeetingRef[]
   messages: MessageRef[]
   /** Bucket names in the order todo.md declares them — what the board
       colours a card's left stripe by when nothing is chosen for it. */
@@ -106,6 +123,7 @@ export interface CompanionApi {
   onSnapshot: (cb: (snapshot: Snapshot) => void) => () => void
   openBoard: (task?: string, view?: string) => void
   copyMessage: (key: string) => void
+  copyAgenda: (task: string) => void
   dismissMessage: (key: string) => void
   checkNow: () => void
 }

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { MessageRef, NightRun, PlanRef, Snapshot, TaskRef } from '../../shared/types.js'
+import type { MeetingRef, MessageRef, NightRun, PlanRef, Snapshot, TaskRef } from '../../shared/types.js'
 
 type SectionKey = 'plans' | 'overdue' | 'today' | 'messages'
+
+/* What the sliding screen is showing: one of the section lists, or one
+   meeting's agenda. A meeting is held by its task key rather than as the
+   object, so a refresh that lands while it is open redraws the new agenda. */
+type Screen = { kind: 'section'; key: SectionKey } | { kind: 'meeting'; task: string }
 
 /* The board's own bucket colours — bucketColor() in kanban/js/02-state.js.
    A name with nothing chosen for it in bucket-colors.json falls through to
@@ -166,6 +171,82 @@ function MessageCard({ message, color }: { message: MessageRef; color: string })
   )
 }
 
+/* The card on a recurring meeting is its prep, so the title usually starts
+   "Prepare for". The meeting is what follows. */
+function meetingName(title: string): string {
+  return title.replace(/^prepare for\s+/i, '').replace(/^./, (c) => c.toUpperCase())
+}
+
+function agendaCount(meeting: MeetingRef): string {
+  const n = meeting.agenda.length
+  if (!n) return 'No agenda yet'
+  return n === 1 ? '1 topic' : `${n} topics`
+}
+
+function MeetingCard({ meeting, onOpen }: { meeting: MeetingRef; onOpen: (task: string) => void }): React.JSX.Element {
+  return (
+    <Card
+      className="meeting-card"
+      title={meetingName(meeting.title)}
+      onClick={() => onOpen(meeting.task)}
+      tags={
+        <>
+          <span className="tag meeting-time">{meeting.time}</span>
+          <span className={`meeting-count${meeting.agenda.length ? '' : ' none'}`}>{agendaCount(meeting)}</span>
+        </>
+      }
+    />
+  )
+}
+
+function MeetingAgenda({ meeting }: { meeting: MeetingRef | undefined }): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(t)
+  }, [copied])
+  if (!meeting) return <div className="quiet">This meeting is no longer on today.</div>
+  return (
+    <div className="agenda">
+      <div className="agenda-when">
+        Today at {meeting.time}
+        {meeting.prepared && <span className="tag agenda-ready">Prepared</span>}
+      </div>
+      {meeting.agenda.length ? (
+        <ul className="agenda-topics">
+          {meeting.agenda.map((t, i) => (
+            <li key={i}>
+              <div className="agenda-topic">{t.topic}</div>
+              {t.context && <div className="agenda-context">{t.context}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="quiet">No agenda yet.</div>
+      )}
+      <div className="agenda-actions">
+        {meeting.agenda.length > 0 && (
+          <button
+            className="iconbtn"
+            onClick={() => {
+              window.companion.copyAgenda(meeting.task)
+              setCopied(true)
+            }}
+          >
+            <span className="iconbtn-glyph">{copied ? '✓' : '⎘'}</span>
+            <span>{copied ? 'Copied' : 'Copy agenda'}</span>
+          </button>
+        )}
+        <button className="iconbtn" onClick={() => window.companion.openBoard(meeting.task)}>
+          <span className="iconbtn-glyph">⧉</span>
+          <span>Open on the board</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface SectionDef {
   key: SectionKey
   title: string
@@ -246,7 +327,7 @@ export default function App(): React.JSX.Element {
   // `mounted` stays set through the close animation so the detail screen keeps
   // drawing while it slides away; `closing` is what swaps which animation it
   // runs. See app.css for why this is an animation rather than a transition.
-  const [mounted, setMounted] = useState<SectionKey | null>(null)
+  const [mounted, setMounted] = useState<Screen | null>(null)
   const [closing, setClosing] = useState(false)
 
   useEffect(() => {
@@ -266,9 +347,17 @@ export default function App(): React.JSX.Element {
     ]
   }, [snapshot])
 
-  function pushSection(key: SectionKey): void {
+  function pushScreen(screen: Screen): void {
     setClosing(false)
-    setMounted(key)
+    setMounted(screen)
+  }
+
+  function pushSection(key: SectionKey): void {
+    pushScreen({ kind: 'section', key })
+  }
+
+  function pushMeeting(task: string): void {
+    pushScreen({ kind: 'meeting', task })
   }
 
   function popSection(): void {
@@ -328,6 +417,15 @@ export default function App(): React.JSX.Element {
             </div>
           )}
 
+          {digest.meetings.length > 0 && (
+            <section className="meetings">
+              <div className="group-title">Meetings today</div>
+              {digest.meetings.map((m) => (
+                <MeetingCard key={m.task} meeting={m} onOpen={pushMeeting} />
+              ))}
+            </section>
+          )}
+
           <div className="cards">
             {sections.map((s) => (
               <SectionCard key={s.key} section={s} onOpen={pushSection} />
@@ -338,7 +436,7 @@ export default function App(): React.JSX.Element {
             <div className="parked">{digest.parked} more with somebody else or blocked</div>
           )}
 
-          {!digest.headline && sections.every((s) => s.count === 0) && (
+          {!digest.headline && !digest.meetings.length && sections.every((s) => s.count === 0) && (
             <div className="quiet">Nothing owed today</div>
           )}
         </main>
@@ -350,10 +448,18 @@ export default function App(): React.JSX.Element {
             <button className="back" onClick={popSection}>
               <span className="back-chevron">‹</span> Back
             </button>
-            <div className="detail-title">{SECTION_TITLES[mounted]}</div>
+            <div className="detail-title">
+              {mounted.kind === 'section'
+                ? SECTION_TITLES[mounted.key]
+                : meetingName(digest.meetings.find((m) => m.task === mounted.task)?.title ?? 'Meeting')}
+            </div>
           </header>
           <main className="detail-body">
-            <DetailList sectionKey={mounted} snapshot={snapshot} colorOf={colorOf} />
+            {mounted.kind === 'section' ? (
+              <DetailList sectionKey={mounted.key} snapshot={snapshot} colorOf={colorOf} />
+            ) : (
+              <MeetingAgenda meeting={digest.meetings.find((m) => m.task === mounted.task)} />
+            )}
           </main>
         </div>
       )}

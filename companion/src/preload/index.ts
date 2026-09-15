@@ -10,6 +10,7 @@ const api: CompanionApi = {
   },
   openBoard: (task, view) => ipcRenderer.send('companion:openBoard', task, view),
   copyMessage: (key) => ipcRenderer.send('companion:copyMessage', key),
+  copyAgenda: (task) => ipcRenderer.send('companion:copyAgenda', task),
   dismissMessage: (key) => ipcRenderer.send('companion:dismissMessage', key),
   checkNow: () => ipcRenderer.send('companion:checkNow')
 }
