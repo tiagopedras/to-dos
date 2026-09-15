@@ -258,6 +258,15 @@
   .tab.on{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
   .tab.on .dot{opacity:1}
   .tab.on .n{background:var(--chip); color:var(--ink-soft)}
+  /* The number badge (numberBadgeHTML / NumberBadge): filled in the accent,
+     so it reads as waiting on you where `.n` beside it only counts. */
+  .nbadge{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding:0 5px; box-sizing:border-box;
+    border-radius:var(--r-pill); background:var(--accent); color:var(--accent-ink);
+    font-size:11px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;
+  }
+  .tab .nbadge{margin:-2px -4px -2px -2px}
   /* The grouped view tab — Board, Matrix, Timeline. Two buttons, one pill: the
      name switches to the view it names, the chevron opens the panel. The pill
      itself lives on the wrapper so the seam between the two halves is a hairline

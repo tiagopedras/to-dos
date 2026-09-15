@@ -509,6 +509,31 @@ document.addEventListener('click', e => {
    The gaps come from the component: 5px between rows, and a few rows carry a
    little more of their own — tags 2, meta 4, summary 6, progress 3, note 1.
    ========================================================================= */
+/* =========================================================================
+   The number badge. A filled pill with a count in it, for something that is
+   waiting on him: the Plans tab carries one for plans in Waiting for review.
+   It is louder than `.tab .n`, the grey count a bucket tab carries, and that
+   difference is the meaning: `.n` says how many there are, the badge says
+   how many need looking at.
+
+     n       the count; nought or less draws nothing, since there is nothing
+             to flag, and above 99 it reads 99+
+     label   what the count is of, for a screen reader and the tooltip
+
+   `kanban/ui/NumberBadge.tsx` is its twin and test_primitives.mjs holds the
+   two to the same markup.
+   ========================================================================= */
+function numberBadgeHTML(o){
+  o = o || {};
+  const n = Math.floor(Number(o.n) || 0);
+  if (n < 1) return '';
+  const text = n > 99 ? '99+' : String(n);
+  const label = o.label ? n + ' ' + o.label : '';
+  return '<span class="nbadge"' +
+    (label ? ' title="' + esc(label) + '" aria-label="' + esc(label) + '"' : '') + '>' +
+    text + '</span>';
+}
+
 function cardShellHTML(o){
   o = o || {};
   const cls = ('card ' + (o.cls || '')).trim().replace(/\s+/g, ' ');

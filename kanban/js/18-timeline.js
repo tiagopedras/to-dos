@@ -709,7 +709,7 @@ const groupPicks = {};   // group -> which member the collapsed tab is named aft
 function renderViewTabs(defs){
   const drawn = new Set();
   const tab = (d, attrs) => '<button class="tab' + (d.id === state.view ? ' on' : '') + '" ' +
-    attrs + '>' + esc(d.label) + '</button>';
+    attrs + '>' + esc(d.label) + (d.id === 'plans' ? plansAwaitingBadgeHTML() : '') + '</button>';
 
   $('#viewToggle').innerHTML = defs.map(d => {
     if (d.sep) return '<span class="tabsep"></span>';
@@ -781,6 +781,7 @@ function renderView(){
   // syncs the URL to the right value.
 
   renderViewTabs(defs);
+  if (def.id !== 'plans') refreshPlansBadge();
 
   $('#board').classList.toggle('hidden', !isBoard);
   $('#lists').classList.toggle('hidden', isBoard);

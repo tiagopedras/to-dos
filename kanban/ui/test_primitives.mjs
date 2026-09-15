@@ -44,7 +44,7 @@ const fail = (...m) => { console.log('FAIL', ...m); failures++ }
 const ESC = `const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));`
 const columnsSrc = fs.readFileSync(path.join(REPO, 'kanban/js/09-columns.js'), 'utf8')
 const legacy = vm.runInNewContext(
-  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML, esc });',
+  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML, numberBadgeHTML, esc });',
   { document: { addEventListener() {} } },
   { filename: 'kanban/js/09-columns.js' })
 
@@ -55,7 +55,7 @@ const legacy = vm.runInNewContext(
 const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
 await esbuild.build({
   entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx'),
-    path.join(HERE, 'PlanCard.tsx')],
+    path.join(HERE, 'PlanCard.tsx'), path.join(HERE, 'NumberBadge.tsx')],
   outdir, bundle: true, format: 'esm', jsx: 'automatic',
   external: ['react', 'react-dom', 'react/jsx-runtime'],
   logLevel: 'silent',
@@ -63,6 +63,7 @@ await esbuild.build({
 const { Column } = await import(url.pathToFileURL(path.join(outdir, 'Column.js')))
 const { Card } = await import(url.pathToFileURL(path.join(outdir, 'Card.js')))
 const { PlanCard } = await import(url.pathToFileURL(path.join(outdir, 'PlanCard.js')))
+const { NumberBadge } = await import(url.pathToFileURL(path.join(outdir, 'NumberBadge.js')))
 
 /* ---- comparing two spellings of the same markup ---------------------------
    Neither side is wrong where they differ, so both are put in one form first:
@@ -200,6 +201,21 @@ check('card — a different tag',
 check('card — an action',
   legacy.cardShellHTML({ title: 'X', action: '<button class="cardact-btn">Open</button>' }),
   h(Card, { title: 'X', action: h('button', { className: 'cardact-btn' }, 'Open') }))
+
+/* ---- the number badge -----------------------------------------------------
+   Nought draws nothing on both sides, which is what lets the Plans tab carry
+   one unconditionally rather than asking first. */
+const BADGES = [
+  ['a count', { n: 3 }],
+  ['a count with a label', { n: 3, label: 'plans waiting for review' }],
+  ['nought, which draws nothing', { n: 0 }],
+  ['a negative, which draws nothing', { n: -2 }],
+  ['a hundred, capped', { n: 100 }],
+  ['a label needing escaping', { n: 1, label: `Alex's "plans" & <b>` }],
+]
+for (const [why, o] of BADGES) {
+  check('badge — ' + why, legacy.numberBadgeHTML(o), h(NumberBadge, o))
+}
 
 /* ---- the plan card --------------------------------------------------------
    `planItemHTML()` is gone — PlanCard is the only spelling of a plan card now —
