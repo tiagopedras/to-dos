@@ -282,6 +282,18 @@
   .viewgroup.on .viewchev{border-left:1px solid var(--line-soft); border-radius:0 6px 6px 0}
   .viewgroup .tab:hover{background:var(--line-soft)}
 
+  /* On a phone the view tabs and the bucket tabs are each wider than the
+     screen, and one row that does not fit widens the whole page. Both pills
+     wrap instead. Wrapping rather than scrolling because the grouped view tab
+     hangs its menu below itself, and a scrolling pill would clip it. The
+     dividers go with it: at the start of a wrapped row they divide nothing.
+     The status line is a sentence and wraps like one. */
+  @media (max-width:640px){
+    .tabs{flex-wrap:wrap; max-width:100%}
+    .tabsep{display:none}
+    .status{white-space:normal}
+  }
+
   /* No colour dot: All is not one of the buckets, it is all of them. */
   .taball{font-weight:640}
   /* The status filter dropdown — same button-plus-popover shape as the
@@ -845,6 +857,27 @@
      Until 12 Sep 2026 the two were unrelated furniture — the board's `.col`
      with padding 0 and a divider under its heading, and Plans' `.listcard`
      with padding 14/16/16 and no divider — and the Plans lead paragraph was
+  /* A phone keeps that order and makes each column the width of the screen,
+     less main's two 16px gutters, so a swipe moves exactly one column and
+     snaps to it. Decided 15 Sep 2026 over stacking the columns, for the same
+     reason as the rule above, and the same day extended to every view that
+     is a row of columns: Overview, Matrix, Plans and Reports swipe the same
+     way rather than stacking. Plans still stacks between 641px and 1000px.
+     The columns are laid out as automatic tracks rather than a template,
+     because Overview writes its track count inline and each view counts its
+     columns differently; the !important is what beats the inline style and
+     Plans' tablet rule. The snap lives on main because main is what scrolls. */
+  @media (max-width:640px){
+    .board, .lists.split, .lists.mview, .lists.pview, .lists.rview{
+      grid-template-columns:none !important; min-width:0 !important;
+      grid-auto-flow:column; grid-auto-columns:calc(100vw - 32px);
+      /* main's right padding is not part of what it scrolls, so without this
+         the last column stops flush with the screen edge instead of 16px in. */
+      width:max-content; padding-inline-end:16px;
+    }
+    main{scroll-snap-type:x mandatory; scroll-padding-inline:16px}
+    :is(.board, .lists.split, .lists.mview, .lists.pview, .lists.rview) > .col{scroll-snap-align:start}
+  }
      the first thing in the body rather than part of the head. Standardising
      on the board's shape was the smaller change: it has six columns and
      thirty-odd cards against four columns of prose. */
@@ -1219,7 +1252,8 @@
      Same choice as Matrix and Overview: never stack these into one column,
      just let `main`'s own overflow-x:auto scroll the pair sideways on a
      narrower window, so the two reports keep reading side by side at
-     everything but genuinely small widths. */
+     everything but genuinely small widths. On a phone the pair swipes one
+     screen-wide column at a time, like the board (see the board section). */
   .lists.rview{
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
     grid-template-columns:minmax(960px,1fr) minmax(420px,600px); min-width:1394px;
@@ -2173,6 +2207,13 @@
   aside .dbody{padding:14px; overflow:auto; flex:1; container-type:inline-size}
   /* Two columns when the drawer is wide enough to hold them side by side —
      main task fields on the left, everything suggestion-shaped (chats,
+  /* On a phone the drawer is the screen. Its width is set inline from the
+     last drag, which is a desktop number, hence the !important. */
+  @media (max-width:640px){
+    aside{width:100vw !important; border-left:0}
+    .dgrip{display:none}
+    .mscrim{padding:12px}
+  }
      dependencies, agenda, message/prompt suggestions, Jira) on the right.
      A container query on #dbody rather than a viewport media query, because
      the drawer is user-resized independently of the window (see dgrip) —
