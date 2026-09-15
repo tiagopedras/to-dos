@@ -376,20 +376,18 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **On a phone the header and the filter strip take half the screen before any
-  task, and both stay pinned while scrolling.** At 400px the wrapped view
-  tabs, the status line, the Data menu, the two rows of bucket tabs, the
-  scoring chip, the Status and AI filters and the search box stack to about
-  430px of an 860px screen. `header` (`kanban/board.css:154`) and `.bucketbar`
-  (`:233`) are both `position:sticky`, the second offset by the header's
-  measured height from `syncHeaderHeight()`
-  (`kanban/js/16-backup-preview.js:130`), so what is left for cards stays at
-  roughly half the screen all the way down. Under the phone breakpoint
-  neither is sticky: both scroll away with the cards and are reached by
-  scrolling back to the top, which is two `position:static` overrides and no
-  new markup. Switching view or bucket costs a scroll up, and that is the
-  right trade on a screen this size — the board is for reading tasks, and
-  nothing in the header is touched often enough to hold half of it.
+- ~~**On a phone the header and the filter strip take half the screen before any
+  task, and both stay pinned while scrolling.**~~ **Done, 15 Sep 2026**, as
+  written: `header, .bucketbar{position:static}` inside the existing phone
+  breakpoint in `kanban/board.css`, no new markup. `syncHeaderHeight()` and
+  `--header-h` are untouched — the offset they feed is inert once nothing is
+  sticky, and both still do their job above 640px.
+
+  One thing stays pinned, and it is the one added the same day: the column
+  strip (`#colTabs`), which is four lines tall and says which of six columns is
+  on screen. That is the question the header was holding half a screen to
+  answer. Covered by `kanban/test_phone.mjs`, at both widths, since the whole
+  point is the breakpoint.
 
 - **The plan modal has no way to talk a plan through before deciding on it,
   and accepting one carries no instructions at all.** `openPlanModal()`
@@ -526,20 +524,13 @@ they settled is written up in the README rather than left here:
   description he types becoming the brief's actual opening content rather than
   boilerplate.
 
-- **Plans should carry nothing but plan cards, and one of its six columns
-  carries something else.** Backlog is already there — its held tasks are
-  drawn by `heldPlanCardNode()` (`kanban/js/13-plans.js:1420`) as plan-card
-  stubs, and the not-eligible fold is gone (`:1052`). To do is what is left:
-  `renderQueueList()` (`:1220`) draws tonight's queue with `queueRowNode()`
-  (`:1204`) and concatenates the plans sent back for another night after
-  them, so the column holds two card kinds. The queue stays on this view —
-  it is what the night is about to plan and nothing else shows it — and the
-  rows take the same treatment Backlog's held tasks got: `queueRowNode()`
-  goes and a queue row is a plan-card stub, eyebrow saying it has no plan
-  yet. `PlansView.tsx:16-21`, which still says two columns do not hold only
-  plans, says one card kind afterwards. The entry above about a sent-back
-  plan looking different from the rows around it is the same seam from the
-  other side, and settles the same way.
+- ~~**Plans should carry nothing but plan cards, and one of its six columns
+  carries something else.**~~ **Done, 15 Sep 2026**, as the Small entry above
+  about a sent-back plan looking different from the rows around it — the same
+  seam from the other side, settled the same way. `queueRowNode()` is a
+  `PlanCard` stub with the eyebrow "no plan yet", and every card on all six
+  columns is that one card now. `PlansView.tsx`'s own header comment says so
+  rather than saying two columns do not hold only plans.
 
 - **Switching from Board to Plans is a flat tab click, and he has a Figma
   prototype exploring it as one continuous vertical transition between two
@@ -590,27 +581,17 @@ they settled is written up in the README rather than left here:
   `python3 companion/digest.py --json` returns an empty `timed_meetings`
   array today, correctly, since nothing on it currently carries both.
 
-- **Plans' drag confirmations are inconsistent by kind.** Dropping a task
-  from the queue onto Backlog goes straight through `holdTask()`
-  (`kanban/js/13-plans.js:1123`) with no modal, but dropping a plan on the
-  same column calls `parkPlan()` (`:365`), which opens a confirm sheet.
-  `parkPlan()` loses that sheet, so both kinds land the same direct way —
-  dragging onto Backlog is already the deliberate act, and either kind is one
-  drag back out if it lands wrong. Doing already takes no drop at all:
-  `renderPlanDoing()`'s own comment (`:789-796`) says "which one is running
-  is not his to choose", and neither a `doingDrop` nor a `reviewDrop` is
-  wired in `paintPlans()` (`:1600-1671`) or declared in
-  `kanban/ui/PlansView.tsx:114-117` — unchanged, and correct.
+- ~~**Plans' drag confirmations are inconsistent by kind.**~~ **Already true,
+  15 Sep 2026 — the entry was stale when it was written.** `parkPlan()`
+  (`kanban/js/13-plans.js`) is one `movePlan()` call with no sheet, and its own
+  comment already records the decision: "No confirm sheet, decided 13 Sep
+  2026". `doingDrop` and `reviewDrop` are wired nowhere and declared nowhere,
+  which is what the entry wanted; `producedDrop` and `doneDrop` are as they
+  were. Nothing to build.
 
-  `producedDrop` (`:1659`) stays exactly as it is, with no confirm sheet of
-  its own: dropping onto Ready to be produced is his own accept, not the
-  agent's, and `acceptPlan()` (`:266`) already says as much — a popup there
-  would only be confirming something he had just done on purpose.
-
-  Separately, and out of scope for this entry: Backlog and To do currently
-  hold queue rows (held or not-eligible tasks) alongside plan cards, and he
-  wants Plans to carry nothing but plan cards. That is a bigger question than
-  drag confirmations and needs its own entry before it is built.
+  The second half of it — Plans carrying nothing but plan cards, which it
+  called out of scope and said needed its own entry — is the entry above, and
+  that one is done.
 
 - ~~**The Plans view's dashed borders are five different signals, not one
   decoration to strip.**~~ **Done, 14 Sep 2026 — already built, and not

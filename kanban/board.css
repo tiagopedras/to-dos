@@ -889,6 +889,21 @@
      because Overview writes its track count inline and each view counts its
      columns differently; the !important is what beats the inline style and
      Plans' tablet rule. The snap lives on main because main is what scrolls. */
+  /* Neither the header nor the bucket strip is pinned on a phone. At 400px the
+     two together stack to about 430px of an 860px screen — the wrapped view
+     tabs, the status line, the Data menu, two rows of bucket tabs, the scoring
+     chip, the Status and AI filters and the search box — and sticky held that
+     at roughly half the screen all the way down a column. They scroll away
+     with the cards now and are reached by scrolling back to the top.
+     Switching view or bucket costs a scroll up, which is the right trade at
+     this size: the board is for reading tasks, and nothing in the header is
+     touched often enough to hold half of it. The one thing that stays pinned
+     is the column strip below, which is four lines tall and says where you
+     are. */
+  @media (max-width:640px){
+    header, .bucketbar{position:static}
+  }
+
   /* Which column is on screen, and how many there are. Only ever drawn at
      phone width — above it the columns are all on screen at once and the strip
      would say what the board already shows. It scrolls itself, since six names

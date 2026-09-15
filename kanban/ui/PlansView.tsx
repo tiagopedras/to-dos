@@ -13,14 +13,21 @@
  * heads. That is the half that was six longhand `colHTML()` calls, and it is
  * the half `test_primitives.mjs` already holds `Column` to.
  *
- * Four of the six bodies are cards now as well, and they are the four that
- * hold nothing but plans: Doing, Waiting for review, Ready to be produced and
- * Done each take a list of `PlanCard`s. Backlog and To do do not, because
- * neither holds only plans — Backlog carries held tasks and a fold of the ones
- * a rule excluded, To do carries tonight's queue rows — and porting a card is
- * worth doing once per kind rather than once per column.
+ * Every one of the six bodies is a list of `PlanCard`s since 15 Sep 2026, and
+ * every card on the view is that one card. The two that were not are the two
+ * that hold something other than a written plan, and both draw it as a stub of
+ * the same card rather than as a shape of its own: Backlog's held tasks
+ * (`heldPlanCardNode()`, eyebrow "held") and To do's queue rows
+ * (`queueRowNode()`, eyebrow "no plan yet"). A card in either column is the
+ * same instruction as the plan cards beside it — leave it alone, or plan it
+ * tonight — so it is the eyebrow that carries the difference rather than a
+ * second card shape.
  *
- * So two currencies, deliberately, until the queue row is a component too.
+ * The stubs keep what a plan has no use for, through props `PlanCard` grew for
+ * them: `action` for Release and Hold, since neither has a plan to open
+ * instead, `position` for the queue's rank, which is what a drag there edits,
+ * and `attrs` for the four drop handlers a queue row carries as a reorder
+ * target.
  * What still arrives as an HTML string is what four independent fetches fill
  * at different times — `/plans.json`, `/queue.json`, the agent's own status,
  * and the usage reconstruction that takes about a second — each painting as it

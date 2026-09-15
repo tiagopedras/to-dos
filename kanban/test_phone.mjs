@@ -162,6 +162,26 @@ async function run (label, width, height) {
     await evalJS(`!document.querySelector('#f-impact-sel') && !document.querySelector('#f-effort-sel')`))
   await evalJS(`closeDrawer()`)
 
+  /* ---- the header and the bucket strip are not pinned on a phone ----
+
+     At 400px the two together stack to about half the screen, and sticky held
+     that all the way down a column. They scroll away with the cards now.
+     Asserted at both widths, since the whole point is the breakpoint: pinned
+     on a desktop, where the header is one row, and not on a phone. */
+
+  const pinned = sel => evalJS(`getComputedStyle(document.querySelector(${JSON.stringify(sel)})).position`)
+  check(at('the header is pinned only where it costs nothing'),
+    await pinned('header') === (phone ? 'static' : 'sticky'), await pinned('header'))
+  check(at('and so is the bucket strip'),
+    await pinned('.bucketbar') === (phone ? 'static' : 'sticky'), await pinned('.bucketbar'))
+  /* The strip is the one thing that stays pinned on a phone: four lines tall,
+     and it says where you are, which is the thing the header was holding half
+     the screen to answer. */
+  if (phone) {
+    check(at('the column strip is what stays pinned instead'),
+      await pinned('#colTabs') === 'sticky')
+  }
+
   /* ---- 3. the sort control on a touch screen ---- */
 
   check(at('.sortbtn is at full opacity where nothing can hover'), await evalJS(`
