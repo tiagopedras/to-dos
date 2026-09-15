@@ -925,6 +925,30 @@ def owner_now(owner):
     return _owner_alias.get(owner, owner)
 
 
+def history_entry(date, revision, rest):
+    """One line of a plan's History section, split into what the modal draws.
+
+    plan.py's history() writes two shapes after the bold date and revision:
+    "Planned by `agent`." and "Re-planned by `agent` after revision N was sent
+    back: <his reason>." The second is two events on one line, the send-back
+    and the revision that answered it, so the reason comes back on its own
+    rather than left inside the note for the board to cut out again. The line
+    carries one date, so the send-back is dated the day the answer was written.
+    """
+    rest = rest.strip()
+    sent_back = ""
+    m = re.match(r"^Re-planned by `([^`]*)` after revision \d+ was sent back:\s*(.*)$", rest)
+    if m:
+        agent, sent_back = m.group(1), m.group(2).strip()
+        note = "Re-planned by `%s`." % agent
+    else:
+        m = re.match(r"^Planned by `([^`]*)`", rest)
+        agent = m.group(1) if m else ""
+        note = rest
+    return {"date": date, "revision": revision, "agent": agent,
+            "note": note, "sent_back": sent_back}
+
+
 def plan_meta(path, name):
     """One task's plan, described from its frontmatter.
 
@@ -956,9 +980,9 @@ def plan_meta(path, name):
                     continue
                 if not in_history:
                     continue
-                m = re.match(r"^- \*\*(\d{4}-\d{2}-\d{2}), revision (\d+)\.\*\*", line)
+                m = re.match(r"^- \*\*(\d{4}-\d{2}-\d{2}), revision (\d+)\.\*\*\s*(.*)$", line)
                 if m:
-                    revisions.append({"date": m.group(1), "revision": int(m.group(2))})
+                    revisions.append(history_entry(m.group(1), int(m.group(2)), m.group(3)))
     except OSError:
         return None
     try:

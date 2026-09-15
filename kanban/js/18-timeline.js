@@ -240,7 +240,9 @@ function timelineHeaderHTML(scale){
   const months = tlMonths(scale);
   const weeks = tlWeeks(scale);
   const weekends = tlWeekends(scale);
-  const todayOffset = tlOffset(scale, ymd(today()));
+  // Half a day in, so the line runs down the middle of today's column,
+  // the same place a diamond due today sits.
+  const todayOffset = tlOffset(scale, ymd(today())) + 0.5;
   const trackWidth = scale.days * scale.dayPx;
   return '<div class="tlrow tlheader">' +
       '<div class="tllabel">' +
@@ -249,6 +251,7 @@ function timelineHeaderHTML(scale){
     '<div class="tltrack" style="width:' + trackWidth + 'px">' +
       months.map(m => '<span class="tlmonth" style="left:' + (m.offset * scale.dayPx) + 'px">' + esc(m.label) + '</span>').join('') +
       weeks.map(w => '<span class="tlweeknum" style="left:' + (w.offset * scale.dayPx) + 'px">W' + w.n + '</span>').join('') +
+      '<span class="tltodaytick" style="left:' + (todayOffset * scale.dayPx) + 'px"></span>' +
       '<span class="tltodaylabel" style="left:' + (todayOffset * scale.dayPx) + 'px" title="Today">today</span>' +
     '</div></div>' +
     weekends.map(w => '<div class="tlweekend" style="left:' +
@@ -277,7 +280,7 @@ function timelineSection(){
     lanes += timelineLaneHTML(bucket, ranked.concat(unranked), scale);
   });
   const body = dated.length
-    ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px" data-daypx="' +
+    ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px;--tldaypx:' + scale.dayPx + 'px" data-daypx="' +
         scale.dayPx + '">' + timelineHeaderHTML(scale) + lanes + '</div></div>'
     : '<p class="empty">Nothing with a date yet — everything open is in the tray below.</p>';
   // Every open top-level task, dated or not — the tray is part of the column,
@@ -312,8 +315,8 @@ function wireTimelineDrag(){
     const rect = body.getBoundingClientRect();
     const x = e.clientX - rect.left - state.tlLabelWidth;
     const scale = timelineScale(timelineTasks().dated);
-    const dayN = Math.round(x / scale.dayPx);
-    showTlTargetLine(state.tlLabelWidth + dayN * scale.dayPx);
+    const dayN = Math.floor(x / scale.dayPx);
+    showTlTargetLine(state.tlLabelWidth + (dayN + 0.5) * scale.dayPx);
     showTlPopover(e.clientX, e.clientY, dueLabel(ymd(addDays(scale.min, dayN))));
   };
   scroll.ondragleave = e => { if (!scroll.contains(e.relatedTarget)) { hideTlTargetLine(); hideTlPopover(); } };
@@ -327,7 +330,7 @@ function wireTimelineDrag(){
     const rect = body.getBoundingClientRect();
     const x = e.clientX - rect.left - state.tlLabelWidth;
     const scale = timelineScale(timelineTasks().dated);
-    const dayN = Math.round(x / scale.dayPx);
+    const dayN = Math.floor(x / scale.dayPx);
     const date = addDays(scale.min, dayN);
     loc.task.due = ymd(date);
     loc.task.dirty = true;
@@ -947,11 +950,9 @@ function renderBoard(){
         .map(x => x.e);
     }
     const n = entries.length;
-    // Handed to AI is read-only the same way Done isn't — a card there can
-    // still be reordered against Done, but it moved here by the ai: tag, not
-    // by a drag, so dragging it back out is blocked the same way: taking work
-    // back off Claude goes through stripDelegation(), not this zone.
-    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked || isAi, muted: name === WAIT_COL, tier: name })).join('');
+    // A card lands in Handed to AI by its ai: tag rather than a drag, but it
+    // can be dragged back out: dropTask() sets the tag to none on the way.
+    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked, muted: name === WAIT_COL, tier: name })).join('');
 
     const sortBtn = (isDone || isAi) ? '' :
       '<button class="sortbtn' + (mode === 'priority' ? ' on' : '') + '" data-sort="' + esc(name) + '"' +
@@ -1129,11 +1130,26 @@ function dropTask(id, tierName, zone, clientY){
     if (state.openTask === id) openDrawer(id);
     return;
   }
-  // Handed to AI is not a section either — it is the ai: tag. Its own cards
-  // are already undraggable; this only guards a card dragged in from
-  // elsewhere, which would otherwise call ensureTier() and write a real
-  // "Handed to AI" heading into the file.
-  if (tierName === AI_COL) return;
+  // Handed to AI is not a section either — it is the ai: tag. A drop into it
+  // sets the tag and leaves the task under its own heading, since
+  // ensureTier() would otherwise write a real "Handed to AI" heading into the file.
+  if (tierName === AI_COL) {
+    if (loc.task.ai === 'full' && !loc.task.done) return;
+    loc.task.ai = 'full';
+    loc.task.dirty = true;
+    setDone(loc.task, false);
+    markDirty(); refreshView();
+    if (state.openTask === id) openDrawer(id);
+    return;
+  }
+  // Dragged out of Handed to AI onto a real column: taking the work back off
+  // Claude, the same as setting the drawer's AI slider to None, prompts and
+  // all. Onto Done it keeps the tag, since that is finishing it, not taking it back.
+  if (!loc.task.done && loc.task.ai === 'full') {
+    loc.task.ai = 'none';
+    stripDelegation(loc.task);
+    loc.task.dirty = true;
+  }
   setDone(loc.task, false);                       // dragged back out of Done
 
   const targetTier = ensureTier(loc.bucket, tierName);

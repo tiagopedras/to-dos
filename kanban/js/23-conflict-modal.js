@@ -14,14 +14,15 @@ function modalKeys(e){ if (e.key === 'Escape') closeModal(); }
 
 /* buttons: [{ label, primary, danger, agree, reject, run }] — the first is the
    safe default. The × in .top always closes without running anything.
-   opts: { wide } — wide is the document-width variant a written report opens
-   in, rather than the confirmation-sized default. */
+   opts: { wide, cls } — wide is the document-width variant a written report
+   opens in, rather than the confirmation-sized default; cls is one more class
+   on the sheet, for a modal with a body shape of its own (the plan modal). */
 function showModal(heading, sub, bodyHTML, buttons, opts){
   closeModal();
   modalEl = document.createElement('div');
   modalEl.className = 'mscrim';
   modalEl.innerHTML =
-    '<div class="sheet' + (opts && opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
+    '<div class="sheet' + (opts && opts.wide ? ' wide' : '') + (opts && opts.cls ? ' ' + opts.cls : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
       '<div class="top"><button type="button" class="mclose" aria-label="Close">×</button>' +
         '<h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
       '<div class="mid">' + bodyHTML + '</div>' +

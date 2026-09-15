@@ -46,7 +46,6 @@
    for ever. Nothing in this view goes near todo.md.
    ========================================================================= */
 
-const planBodies = {};
 let planList = [];
 
 /* A folded plan is one whose agent stopped and asked rather than guessing —
@@ -151,16 +150,17 @@ async function startPlanSession(p){
    the badge itself goes unreadable, which is what the line colour did.
 
      new                            blue,  the accent
-     accepted, handed over          green
-     read, planning again, parked,
-     finished, replaced             a quiet neutral (ink-faint) */
+     read, accepted, planning again,
+     parked, finished, replaced     a quiet neutral (ink-faint)
+
+   Accepted was green until 15 Sep 2026. A whole column of green cards in
+   Ready to be produced said nothing the column heading does not. */
 function planStripe(p){
   if (p.state === 'review' && !p.seen) return 'var(--b1)';
   /* Reported back and not yet looked at is the other thing that has just
      arrived, so it takes the same colour as a new plan. Before the fold this
      card was on a different board entirely and could not say so here. */
   if (p.production === 'review' && !p.seen) return 'var(--b1)';
-  if (isAgreed(p)) return 'var(--green)';
   return 'var(--ink-faint)';
 }
 
@@ -253,16 +253,22 @@ function openPlanModal(p){
      them is what a plan modal least needs. Parking is still reachable, by
      dragging the card into Backlog, which calls the same parkPlan() the button
      called. */
-  openDocModal({
-    title: p.title, sub, cache: planBodies, url: p.url, load: loadPlanBody,
-    buttons: planColumn(p) === PLAN_COL.produced
+  const buttons = planColumn(p) === PLAN_COL.produced
       ? [{ label:'It is finished', agree:true, run: () => finishPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
          { label:'Turn it down', reject:true, run: () => declinePlan(p) }]
       : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) }]
-  });
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) }];
+  planModalTab = 'plan';
+  showModal(p.title, sub,
+    planHistoryHTML(p) +
+    '<div class="planmain">' +
+      (planTexts[p.url] !== undefined ? planMainHTML(planTexts[p.url], p) : '<p class="empty">Loading…</p>') +
+    '</div>',
+    buttons, { wide:true, cls:'planmodal' });
+  if (planTexts[p.url] === undefined) loadPlanBody(p);
+  else wirePlanTabs();
   if (!p.seen) movePlan(p, 'review', 'me', { seen:true, quiet:true });
 }
 
@@ -336,14 +342,20 @@ function declinePlan(p){
       '<textarea class="redoinput" id="declineWhy" rows="3" ' +
         'placeholder="Why this is not worth doing"></textarea>' +
     '</div>',
-    [{ label:'Yes, turn it down', primary:true, keep:true, run: () => {
-        const el = document.querySelector('#declineWhy');
-        declineText = (el && el.value || '').trim();
-        if (!declineText) { if (el) el.focus(); return; }
-        closeModal();
-        movePlan(p, 'done', 'me', { resolution:'declined', reason: declineText });
+    [{ label:'Yes, turn it down', primary:true, run: () => {
+        const why = declineText.trim();
+        if (!why) return showToast('Turning a plan down needs a reason.', 'bad');
+        movePlan(p, 'done', 'me', { resolution:'declined', reason: why });
       } },
      { label:'Cancel' }]);
+  /* Read as he types, the same as replanPlan(): showModal closes the sheet
+     before running a button, so the textarea is gone by the time it runs.
+     Reading it on press is what made this button do nothing until 15 Sep. */
+  const box = $('#declineWhy');
+  if (box) {
+    box.oninput = () => { declineText = box.value; };
+    box.focus();
+  }
 }
 
 /* To do. The plan is wrong and tonight should write another, so the move has to
@@ -401,8 +413,159 @@ function parkPlan(p){
 // and History is the previous revision's own line saying otherwise.
 const PLAN_UNSHOWN = ['Context'];
 
-async function loadPlanBody(url){
-  return loadDocBody(url, planBodies, 'plan', { drop: PLAN_UNSHOWN });
+/* ---- The plan modal's body -----------------------------------------------
+   Two columns since 15 Sep 2026, to the Figma frames 61:9227 and 61:9333.
+   History down the left, read-only because a replan overwrites the same file
+   and there is no older revision to open. On the right the Summary in a box of
+   its own, then two tabs: Proposed plan, which it opens on and which carries
+   Needs you, and Findings.
+
+   So the plan is read as sections rather than one mdBlocks() string, split on
+   the headings PLAN-BRIEF.md names. Only those names split, so a subheading
+   inside a section stays in it — which is how Context still takes its own
+   subheadings with it. A plan with neither Findings nor Proposed plan predates
+   the brief's shape, and reads as one document the way every plan used to. */
+const planTexts = {};
+let planModalTab = 'plan';
+const PLAN_SECTIONS = ['context', 'summary', 'findings', 'proposed plan', 'needs you', 'history'];
+
+function planSections(text){
+  const fm = /^---\n[\s\S]*?\n---\n/.exec(text);
+  const body = fm ? text.slice(fm[0].length) : text;
+  const out = { extra: [] };
+  let name = null, level = 0, lines = [];
+  const flush = () => {
+    const md = lines.join('\n').trim();
+    if (name) out[name] = (out[name] ? out[name] + '\n\n' : '') + md;
+    else if (md) out.extra.push(md);
+    lines = [];
+  };
+  body.split('\n').forEach(raw => {
+    const h = /^(#{1,4})\s+(.*)$/.exec(raw.trim());
+    if (h) {
+      const key = h[2].trim().toLowerCase();
+      // An h1 is the plan's own title, which the modal already shows.
+      if (h[1].length === 1) return;
+      if (PLAN_SECTIONS.indexOf(key) !== -1) { flush(); name = key; level = h[1].length; return; }
+      // A heading of its own at the section's level or above ends the section.
+      if (name && h[1].length <= level) { flush(); name = null; }
+    }
+    lines.push(raw);
+  });
+  flush();
+  return out;
+}
+
+// Top-level items only: an indented line under a finding is part of it.
+const planCount = (md, re) => (md || '').split('\n').filter(l => re.test(l)).length;
+
+function planMainHTML(text, p){
+  if (text === null) return '<div class="err">Could not read that plan.</div>';
+  const s = planSections(text);
+  if (s.findings === undefined && s['proposed plan'] === undefined) {
+    return '<div class="repdoc">' + mdBlocks(text, { drop: PLAN_UNSHOWN.concat('History') }) + '</div>';
+  }
+  const summary = s.summary ? mdBlocks(s.summary) : (p.summary ? '<p>' + mdInline(p.summary) + '</p>' : '');
+  const steps = planCount(s['proposed plan'], /^\d+[.)]\s/);
+  const found = planCount(s.findings, /^[-*]\s/);
+  const extra = s.extra.map(md => mdBlocks(md)).join('');
+  const tab = (id, label, n) =>
+    '<button type="button" class="tab" role="tab" ' +
+      'data-plantab="' + id + '" aria-selected="' + (planModalTab === id) + '">' +
+      esc(label) + '<span class="n">' + n + '</span></button>';
+  return (summary
+      ? '<section class="plansummary"><h3 class="planlabel">Summary</h3><div class="repdoc">' + summary + '</div></section>'
+      : '') +
+    '<div class="tabs plantabs" role="tablist">' +
+      tab('plan', 'Proposed plan', steps) + tab('findings', 'Findings', found) +
+    '</div>' +
+    '<div class="repdoc planpanel' + (planModalTab === 'plan' ? '' : ' hidden') + '" data-planpanel="plan" role="tabpanel">' +
+      (s['proposed plan'] ? mdBlocks(s['proposed plan']) : '<p class="empty">No steps written.</p>') +
+      (s['needs you'] ? '<h4>Needs you</h4>' + mdBlocks(s['needs you']) : '') +
+      extra +
+    '</div>' +
+    '<div class="repdoc planpanel' + (planModalTab === 'findings' ? '' : ' hidden') + '" data-planpanel="findings" role="tabpanel">' +
+      (s.findings ? mdBlocks(s.findings) : '<p class="empty">No findings written.</p>') +
+    '</div>';
+}
+
+function wirePlanTabs(){
+  const sheet = modalEl && modalEl.querySelector('.sheet.planmodal');
+  if (!sheet) return;
+  sheet.querySelectorAll('[data-plantab]').forEach(b => {
+    b.onclick = () => {
+      planModalTab = b.dataset.plantab;
+      sheet.querySelectorAll('[data-plantab]').forEach(t => {
+        // aria-selected carries the look as well, since this file keeps .on
+        // off classList (test_primitives.mjs holds it to that).
+        t.setAttribute('aria-selected', String(t.dataset.plantab === planModalTab));
+      });
+      sheet.querySelectorAll('[data-planpanel]').forEach(el =>
+        el.classList.toggle('hidden', el.dataset.planpanel !== planModalTab));
+    };
+  });
+}
+
+/* The timeline, newest first, from plan_meta()'s reading of the History
+   section. A line that re-planned after a send-back is two events, so it draws
+   two: the revision, and below it the send-back quoting his reason. A plan
+   sent back and not yet written again has that send-back on top, from its own
+   `feedback:`. Lines carry a date only, so the current revision alone shows a
+   time. */
+function planHistoryItems(p){
+  const revs = (p.revisions || []).slice().sort((a, b) => b.revision - a.revision);
+  const items = [];
+  const pending = p.feedback && planColumn(p) === PLAN_COL.todo;
+  if (pending) items.push({ kind:'sent', when: p.modified ? reportDay(p.modified.slice(0, 10)) : '',
+                            title:'Sent back', quote: p.feedback });
+  const iso = p.generated || p.created;
+  if (!revs.length) {
+    items.push({ kind: pending ? 'old' : 'current', title:'Revision 1',
+                 when: iso ? backupWhen(iso) : reportDay(p.night || p.date || ''),
+                 note: p.agent ? 'Planned by `' + p.agent + '`.' : '' });
+  }
+  revs.forEach((r, i) => {
+    const current = i === 0 && !pending;
+    items.push({ kind: current ? 'current' : 'old', title:'Revision ' + r.revision,
+                 when: current && iso ? backupWhen(iso) : reportDay(r.date), note: r.note || '' });
+    if (r.sent_back) items.push({ kind:'sent', title:'Sent back', when: reportDay(r.date), quote: r.sent_back });
+  });
+  return items;
+}
+
+function planHistoryHTML(p){
+  const items = planHistoryItems(p);
+  // A div rather than an <aside>: the drawer's styles are written against
+  // every aside on the page.
+  return '<div class="planhistory" role="complementary" aria-label="History">' +
+    '<h3 class="planlabel">History <span class="n">' + items.length + '</span></h3>' +
+    '<ol class="plantimeline">' + items.map(it =>
+      '<li class="' + it.kind + '">' +
+        '<span class="pdot" aria-hidden="true"></span>' +
+        '<div class="phead"><b>' + esc(it.title) + '</b>' +
+          (it.when ? '<span class="pwhen">' + esc(it.when) + '</span>' : '') + '</div>' +
+        (it.quote ? '<q class="pnote" title="' + esc(it.quote) + '">' + esc(it.quote) + '</q>'
+          : it.note ? '<div class="pnote">' + mdInline(it.note) + '</div>' : '') +
+      '</li>').join('') +
+    '</ol></div>';
+}
+
+async function loadPlanBody(p){
+  let text;
+  try {
+    const res = await fetch(p.url + '?t=' + Date.now(), { cache:'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    text = await res.text();
+    planTexts[p.url] = text;
+  } catch (err) {
+    text = null;
+  }
+  // The modal may have been closed, or moved on to another plan, while this
+  // was in flight — write back only if it is still the one showing.
+  const main = modalEl && modalEl.querySelector('.sheet.planmodal .planmain');
+  if (!main || modalEl.querySelector('h2').textContent !== p.title) return;
+  main.innerHTML = planMainHTML(text, p);
+  wirePlanTabs();
 }
 
 /* `quiet` is the read-on-open case: it should not redraw the list underneath an
@@ -422,6 +585,9 @@ async function movePlan(p, state, owner, opts){
     p.state = state; p.owner = owner; p.seen = seen;
     if (opts.resolution) p.resolution = opts.resolution;
     if (opts.reason) p.feedback = opts.reason;
+    // A quiet move repaints nothing, so opening a plan would leave the badge
+    // counting it until the next render.
+    if (opts.quiet) setPlansBadge(countPlansAwaiting(planList));
     /* The task behind the plan, and the hold list that decides whether tonight
        touches it. A plan's own state means nothing to agents/planning_agent/pick.py — it reads
        the ledger and the hold list — so a move that says "leave this alone" has
@@ -459,8 +625,8 @@ async function setTaskHeld(title, on){
    moment two bucket tabs were on at once. A row with no bucket on it (should
    not happen in practice) is shown regardless, rather than disappearing
    because of a field that was never set. */
-/* The Plans tab's badge: how many plans are sitting in Waiting for review,
-   across every bucket whatever the filter says, since the tab is asking him
+/* The Plans tab's badge: how many plans are sitting in Waiting for review
+   that he has not opened yet, across every bucket whatever the filter says, since the tab is asking him
    to go and look rather than describing the view he has filtered.
 
    Plans loads its list only when it is opened, so the count has a fetch of its
@@ -472,7 +638,13 @@ async function setTaskHeld(title, on){
 let plansAwaiting = 0;
 
 function plansAwaitingBadgeHTML(){
-  return numberBadgeHTML({ n: plansAwaiting, label: 'plans waiting for review' });
+  return numberBadgeHTML({ n: plansAwaiting, label: 'new plans waiting for review' });
+}
+
+// Unread only, decided 15 Sep 2026: one he has opened and not yet decided on is
+// already his to get to, so counting it again only nags.
+function countPlansAwaiting(list){
+  return list.filter(p => planColumn(p) === PLAN_COL.review && !p.seen).length;
 }
 
 function setPlansBadge(n){
@@ -489,7 +661,7 @@ async function refreshPlansBadge(){
     const res = await fetch('/plans.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) return;
     const list = (await res.json()).plans || [];
-    setPlansBadge(list.filter(p => planColumn(p) === PLAN_COL.review).length);
+    setPlansBadge(countPlansAwaiting(list));
   } catch (_) { /* the board helper is down; the badge keeps what it had */ }
 }
 
@@ -755,7 +927,7 @@ document.addEventListener('click', e => {
    on its own any more — each writes into plansProps and the paint happens once
    at the end, which is what stops six renders and six re-wirings per move. */
 function renderPlansList(){
-  setPlansBadge(planList.filter(p => planColumn(p) === PLAN_COL.review).length);
+  setPlansBadge(countPlansAwaiting(planList));
   renderPlanReview();
   renderPlanProduced();
   renderPlanDone();
@@ -1114,9 +1286,13 @@ function columnDropProps(onDrop, canTake, deny){
       e.preventDefault();
       el.classList.add('coldrop');
     },
+    /* Moving onto a card inside the column fires a leave too, so it only
+       clears once the pointer is really outside, the board's own .drop rule.
+       Checking e.target instead kept the outline on whenever the pointer left
+       across a card, until 15 Sep 2026. */
     onDragLeave: e => {
       const el = e.currentTarget;
-      if (e.target === el) el.classList.remove('coldrop', 'coldeny');
+      if (!el.contains(e.relatedTarget)) el.classList.remove('coldrop', 'coldeny');
     },
     onDrop: e => {
       const el = e.currentTarget;
@@ -1137,6 +1313,12 @@ function columnDropProps(onDrop, canTake, deny){
     }
   };
 }
+
+/* A drag let go anywhere else, or cancelled with Escape, reaches no column's
+   drop handler, so whatever column it was over would keep its outline. */
+document.addEventListener('dragend', () => {
+  document.querySelectorAll('.coldrop, .coldeny').forEach(el => el.classList.remove('coldrop', 'coldeny'));
+});
 
 const draggedPlan = d => planList.find(x => x.url === d.url);
 

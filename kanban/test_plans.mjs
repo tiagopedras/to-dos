@@ -618,43 +618,54 @@ check('confirming posts the run', await evalJS(`
 // write that happens without being asked for.
 await evalJS(`document.querySelector('#plansOut .planitem').click()`)
 await new Promise(r => setTimeout(r, 500))
-check('it opens in the wide modal', await evalJS(`!!document.querySelector('.mscrim .sheet.wide')`))
-// mdBlocks renders every heading below h1 as an h4 — the h1 is the document's
-// own title, which the modal already shows above it.
-check('the body is rendered as Markdown', await evalJS(`
-  !!document.querySelector('.mscrim .repdoc h4') &&
-  document.querySelector('.mscrim .repdoc h4').textContent === 'Summary'
+check('it opens in the wide modal, as the plan modal', await evalJS(`!!document.querySelector('.mscrim .sheet.wide.planmodal')`))
+// Two columns since 15 Sep 2026: History down the left, then the Summary in a
+// box of its own and two tabs. The plan is split on its own headings to do it.
+check('the Summary sits in its own box above the tabs', await evalJS(`
+  (el => !!el && el.textContent.includes('Confirm the weights'))(document.querySelector('.mscrim .plansummary'))
 `))
-// Context is the night's research trail, which the implementing agent reads
-// rather than him, so it is left out of the render. History stays now — it is
-// the previous revision's own line, and dropping it is what let a plan sent
-// back read as indistinguishable from one written for the first time.
-check('Context is dropped but History renders', await evalJS(`
-  [...document.querySelectorAll('.mscrim .repdoc h4')].map(h => h.textContent).join(',')
-    === 'Summary,Findings,Proposed plan,History'
+check('two tabs, each with its count, opening on Proposed plan', (await evalJS(`
+  [...document.querySelectorAll('.mscrim .plantabs .tab')].map(t => t.textContent + (t.getAttribute('aria-selected') === 'true' ? '*' : '')).join(',')
+`)) === 'Proposed plan2*,Findings1')
+check('the proposed steps are a numbered list', await evalJS(`
+  (el => !!el && el.textContent === 'Run ds-analyst.')(document.querySelector('.mscrim [data-planpanel="plan"] ol.repnum li'))
 `))
-check('and Context leaks through neither the heading nor its body', await evalJS(`
-  (t => !t.includes('ds-inventory') &&
-        !t.includes('Still not his to read'))(document.querySelector('.mscrim .repdoc').textContent)
+check('Findings is hidden until its tab is pressed', await evalJS(`
+  document.querySelector('.mscrim [data-planpanel="findings"]').classList.contains('hidden')
 `))
-check('History reads as what it is', await evalJS(`
-  document.querySelector('.mscrim .repdoc').textContent.includes('revision 1')
+await evalJS(`document.querySelector('.mscrim [data-plantab="findings"]').click()`)
+check('and pressing it shows the findings as a list, hiding the plan', await evalJS(`
+  !document.querySelector('.mscrim [data-planpanel="findings"]').classList.contains('hidden') &&
+  document.querySelector('.mscrim [data-planpanel="plan"]').classList.contains('hidden') &&
+  document.querySelector('.mscrim [data-planpanel="findings"] ul.repbul li').textContent === 'Caveat is in Foundations.'
 `))
-check('a dropped section takes its own subheadings with it', await evalJS(`
-  !document.querySelector('.mscrim .repdoc').textContent.includes('A subheading inside it')
+check('Context leaks through neither its heading, its body nor its subheading', await evalJS(`
+  (t => !t.includes('Context') && !t.includes('ds-inventory') && !t.includes('Still not his to read') &&
+        !t.includes('A subheading inside it'))(document.querySelector('.mscrim .mid').textContent)
 `))
-check('the findings are a list', await evalJS(`
-  !!document.querySelector('.mscrim .repdoc ul.repbul li')
-`))
-// Numbered steps were falling through to the paragraph branch and coming back
-// as one run-on sentence, which every plan hits: the proposed steps and the
-// open questions are both written numbered.
-check('and the proposed steps are a numbered one', await evalJS(`
-  !!document.querySelector('.mscrim .repdoc ol.repnum li') &&
-  document.querySelector('.mscrim .repdoc ol.repnum li').textContent === 'Run ds-analyst.'
+check('History is the left column rather than a section of the body', await evalJS(`
+  !!document.querySelector('.mscrim .planhistory li.current') &&
+  !document.querySelector('.mscrim .planmain').textContent.includes('revision 1')
 `))
 check('and the frontmatter is not part of it', await evalJS(`
-  !document.querySelector('.mscrim .repdoc').textContent.includes('title: t')
+  !document.querySelector('.mscrim .mid').textContent.includes('title: t')
+`))
+check('the timeline reads a re-plan after a send-back as two events, newest first', (await evalJS(`
+  (() => {
+    const items = planHistoryItems({ state:'review', owner:'me', generated:'2026-09-14T00:23:04', revisions: [
+      { date:'2026-09-11', revision:1, note:'Planned by \`a\`.', sent_back:'' },
+      { date:'2026-09-14', revision:2, note:'Re-planned by \`a\`.', sent_back:'Too broad.' }] });
+    return items.map(i => i.kind + ':' + i.title + (i.quote ? ':' + i.quote : '')).join('|');
+  })()
+`)) === 'current:Revision 2|sent:Sent back:Too broad.|old:Revision 1')
+check('a plan sent back and not yet re-written has the send-back on top', (await evalJS(`
+  planHistoryItems({ state:'ready', owner:'planning-agent', feedback:'Split it.',
+    revisions: [{ date:'2026-09-11', revision:1, note:'Planned.', sent_back:'' }] })
+    .map(i => i.kind).join(',')
+`)) === 'sent,old')
+check("a plan without the brief's sections still reads as one document", await evalJS(`
+  (h => h.includes('class="repdoc"') && !h.includes('plantabs') && h.includes('Just prose.'))(
+    planMainHTML('---\\ntitle: t\\n---\\n\\nJust prose.\\n', {}))
 `))
 check('the subhead names the agent that wrote it', await evalJS(`
   document.querySelector('.mscrim .msub').textContent.includes('planning-design-system')
@@ -1304,6 +1315,49 @@ check('the modal offers three moves and no more', await evalJS(`
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();
     return labels.join('|') })()`))
+
+/* Turning a plan down, pressed for real. The button read its textarea on
+   press until 15 Sep 2026, after showModal had already removed it, so every
+   press found an empty reason and did nothing. */
+await evalJS(`(() => { window.__blocked.length = 0;
+  declinePlan(window.__plans.find(x => x.name === 'add-caveat.md')); })()`)
+await evalJS(`(() => { const box = document.querySelector('#declineWhy');
+  box.value = 'Not worth it.'; box.dispatchEvent(new Event('input')); })()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, turn it down').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('turning a plan down posts it to done, declined, with the reason', await evalJS(`
+  window.__blocked.some(b => b.startsWith('POST /stream/apply') && b.includes('"to":"done"') &&
+    b.includes('"resolution":"declined"') && b.includes('Not worth it.'))
+`))
+await evalJS(`(() => { window.__blocked.length = 0;
+  declinePlan(window.__plans.find(x => x.name === 'add-caveat.md')); })()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, turn it down').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('and with no reason it posts nothing', await evalJS(`
+  !window.__blocked.some(b => b.startsWith('POST /stream/apply'))
+`))
+
+/* The drop outline. It stayed on after a drag had left the column across a
+   card, and after a drag let go somewhere else, until 15 Sep 2026. */
+const outline = await evalJS(`(async () => {
+  const body = document.querySelector('#plansProduced');
+  const inside = body.querySelector('.card');
+  const fire = (el, type, related) => el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, relatedTarget: related || null }));
+  const lit = () => body.classList.contains('coldrop');
+  const tick = () => new Promise(r => setTimeout(r, 50));
+  const p = window.__plans.find(x => planColumn(x) === PLAN_COL.review);
+  const out = [];
+  drag = { kind: 'plan', url: p.url, from: 'review' };
+  fire(body, 'dragover'); await tick(); out.push(lit());
+  fire(inside, 'dragleave', body); await tick(); out.push(lit());
+  fire(inside, 'dragleave', document.body); await tick(); out.push(lit());
+  fire(body, 'dragover'); await tick(); out.push(lit());
+  document.body.dispatchEvent(new DragEvent('dragend', { bubbles: true })); await tick(); out.push(lit());
+  drag = null;
+  return out.join(',');
+})()`)
+check('the drop outline shows over the column, stays while crossing a card, and clears on leaving across a card or ending the drag',
+  outline === 'true,true,false,true,false', outline)
 
 ws.close()
 chrome.kill()
