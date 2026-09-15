@@ -385,6 +385,30 @@ Added 20 Aug 2026, after a session where roughly twenty ticked sub-steps from th
 
 Tick sub-steps, not parents. A parent closes only when all its sub-steps are ticked. Add a short inline note on a completed step when the outcome matters later, for example "received and added to the spreadsheet", because that detail is what makes the next step possible.
 
+## Cancelling a task
+
+Added 15 Sep 2026, at his request, after a cancelled task was deleted outright and
+took its own record with it.
+
+**A cancellation is a tick, plus a tag saying it was never done.** Tick the task the
+normal way, so it carries `done:YYYY-MM-DD` and gets archived out with everything
+else, and add one of these beside it:
+
+- `` `cancelled:YYYY-MM-DD` `` — decided against. The work is not happening.
+- `` `archived:YYYY-MM-DD` `` — no longer relevant. The reason it existed has gone,
+  rather than the work being rejected.
+
+Both dates are the day the decision was made. Write a note underneath saying why,
+in one line, because that is the part a reader in three months actually needs.
+
+**Never delete the block.** A deleted task cannot be found again, cannot be counted,
+and leaves anybody it was delegated to holding something nobody is tracking. Ticking
+it keeps it in `done-archive.md` where it can be read back.
+
+The tag also stops the archive lying. Without it, a cancelled task and a finished one
+look identical once they are out of the file, so any count of what was completed
+quietly includes work nobody did.
+
 ## Named people
 
 **This moved into the file on 10 Aug 2026.** Who is who, who is away, whose contract runs out when, and the spellings that matter are all in the `## Context` section at the bottom of todo.md. Read it every session alongside the buckets.

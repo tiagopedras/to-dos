@@ -23,6 +23,7 @@ everything else feeds it.
 | `pa-review-plans` | Triages the planning agent's plans. Writes plan statuses through the board's own routes, hands task notes to `pa`. |
 | `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so its requested changes come back through `pa`. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Touches nothing else. |
+| `pa-reports` | Makes a report off the list from its catalogue of types and sends it. Reads only; screenshots go through a locked headless board. |
 
 **Why one writer.** The board holds the whole document in the browser and writes
 all of it back when it saves, within seconds of anything marking the document

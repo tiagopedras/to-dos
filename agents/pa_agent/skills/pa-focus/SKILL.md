@@ -25,6 +25,14 @@ and ask whether the column still tells the truth.
 Top-level tasks only, in To do and Doing, read from the live board rather than
 assumed.
 
+**Unticked only.** A ticked task in either column is finished work waiting to be
+archived, and asking whether it is still live is a question with an answer
+already on the card. Filter on `- [ ]` and never on `- [x]`. This is worth
+saying because the columns hold far more ticked than unticked work — on the
+twinkl list in September 2026, 35 of the 64 tasks sitting in Doing and To do
+were already done, so a count that includes them is more than double the real
+one and the walk opens on a task he closed weeks ago.
+
 ## The three moves
 
 ### 1. Count
