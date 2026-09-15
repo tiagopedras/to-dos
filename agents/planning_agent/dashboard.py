@@ -155,18 +155,19 @@ def target():
         out["counts"] = [
             {"n": len(plan) + len(skip), "l": "eligible", "kind": "total", "opens": "detail",
              "title": "What tonight would plan, and what it would leave"},
-            {"n": len(plan), "l": "tonight", "kind": "good"},
+            {"n": len(plan), "l": "tonight", "kind": "good", "status": "ready",
+             "opens": "detail", "title": "What tonight would plan"},
             {"n": len(unread), "l": "unread plans", "kind": "warn"},
             {"n": len(agreed), "l": "agreed"},
             {"n": len(skip), "l": "skipped"},
         ]
         out["detail"] = {"groups": [
             {"name": "Tonight’s queue", "cards": [
-                {"tags": [t.bucket], "tone": "good", "state": "to plan",
+                {"tags": [t.bucket], "tone": "good", "state": "to plan", "status": "ready",
                  "index": n + 1, "text": t.title}
                 for n, t in enumerate(plan)]},
             {"name": "Not planned", "cards": [
-                {"tags": [t.bucket], "state": "skipped", "text": t.title, "why": why}
+                {"tags": [t.bucket], "state": "skipped", "status": "backlog", "text": t.title, "why": why}
                 for t, why in skip]},
         ]}
     return out
