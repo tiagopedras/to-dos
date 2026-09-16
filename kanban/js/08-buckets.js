@@ -187,6 +187,11 @@ function openBucketEditor(){
           '<div class="bkpalette hidden" data-palette-for="' + i + '">' + palette + '</div>' +
         '</span>' +
         '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
+        /* The one thing in this sheet that is about the work rather than the
+           heading. It sits here because this is where a bucket is already
+           being thought about, and because the brief is otherwise reachable
+           only by opening the file outside the board. */
+        '<button class="btn small" data-brief="' + i + '" title="What the work in this bucket actually is">Brief</button>' +
         moveDeleteButtonsHTML(i, list.length, {
           upAttr: 'data-up', downAttr: 'data-down', delAttr: 'data-del',
           upTitle: 'Move up', downTitle: 'Move down', noun: 'bucket'
@@ -230,6 +235,9 @@ function openBucketEditor(){
     modalEl.querySelectorAll('[data-down]').forEach(el => {
       el.onclick = () => { moveBucket(list[+el.dataset.down], 1); draw(); };
     });
+    modalEl.querySelectorAll('[data-brief]').forEach(el => {
+      el.onclick = () => openBucketBrief(list[+el.dataset.brief], draw);
+    });
     modalEl.querySelectorAll('[data-del]').forEach(el => {
       el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
     });
@@ -267,6 +275,67 @@ function openBucketEditor(){
   };
 
   draw();
+}
+
+/* The brief behind a bucket: data/<dataset>/buckets/<stream>/<stream>.md, which
+   both planning agents and the implementing agent read before they touch a task
+   in it. Renaming, reordering and colouring a bucket are all this editor did
+   until now, and none of them is what makes an agent that bucket's.
+
+   A file of its own rather than anything todo.md carries, so it saves on its own
+   button and nothing about it waits for Done — the same arrangement a colour
+   already has. Raw Markdown in a textarea, not the drawer's click-to-edit
+   rendering: this sheet is opened to write the brief, where the drawer's
+   Description is the thing you land on every time a task opens and earns its
+   rendering that way. */
+async function openBucketBrief(b, back){
+  let got;
+  try {
+    got = await getJSON('/bucket-brief.json?bucket=' + encodeURIComponent(b.name));
+  } catch (err) {
+    showToast('Could not open that brief: ' + (err.message || err), 'bad');
+    return back();
+  }
+  briefSheet(b, back, got.path, got.text);
+}
+
+function briefSheet(b, back, path, text){
+  const empty = !text.trim();
+  /* Read as he types: showModal takes the sheet down before it runs a button,
+     so the textarea is gone by the time Save fires. The same trap the decline
+     and replan sheets on Plans already document. */
+  let current = text;
+  showModal('Brief for “' + b.name + '”',
+    'What the work in this bucket actually is: the processes you run in it, what each one ' +
+    'produces, which skill already does it, and who is involved. Saved straight to ' +
+    esc(path) + ' on its own, the moment you press Save.' +
+    (empty ? ' Nothing is written for this one yet — BUCKETS.md holds the template to start from.' : ''),
+    '<textarea class="bkbrief" data-briefbox spellcheck="false" ' +
+      'placeholder="# ' + esc(b.name) + '">' + esc(text) + '</textarea>',
+    [{ label: 'Cancel', run: back },
+     { label: 'Save', primary: true, run: () => saveBucketBrief(b, back, path, current) }],
+    // The document-width sheet a written report opens in, for the same reason:
+    // this is a page of prose being written rather than a question being answered.
+    { wide: true });
+  const box = modalEl.querySelector('[data-briefbox]');
+  box.oninput = () => { current = box.value; };
+  box.focus();
+}
+
+/* A failed save comes back to the sheet holding what he typed rather than to the
+   bucket list. A brief is written over weeks, and dropping a page of it because
+   the server was restarted underneath the tab is the one failure here that
+   cannot be undone by pressing the button again. */
+async function saveBucketBrief(b, back, path, text){
+  try {
+    await postJSON('/bucket-brief', { bucket: b.name, text });
+  } catch (err) {
+    showToast('Could not save that brief: ' + (err.message || err), 'bad');
+    briefSheet(b, back, path, text);
+    return;
+  }
+  showToast('Brief saved.', 'good');
+  back();
 }
 
 /* The one write a colour makes — straight to bucket-colors.json, independent

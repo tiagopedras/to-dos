@@ -364,6 +364,17 @@
   }
   /* Always in the layout, so an error appearing does not shove the buttons down. */
   .bkerr{margin:11px 0 0; min-height:1.3em; font-size:12.5px; color:var(--red)}
+  /* The brief sheet behind a row's Brief button. Monospaced and tall, the same
+     as the drawer's own notes textarea: it holds raw Markdown, and a page of it
+     rather than a sentence. */
+  .bkbrief{
+    width:100%; box-sizing:border-box; min-height:52vh; padding:10px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px; line-height:1.5; color:var(--ink);
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    resize:vertical; white-space:pre-wrap; overflow-wrap:anywhere;
+  }
+  .bkbrief:focus{outline:2px solid var(--accent); outline-offset:1px}
   /* One height for every control on the page — 33px, which is what a
      default-size .btn comes to. They were 32.3 (search, the AI filter), 34.85
      (the date and bucket buttons) and 36.3 (the drawer's text inputs), three

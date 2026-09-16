@@ -210,6 +210,27 @@ def bucket_colors_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
 
 
+def bucket_brief_path(bucket, name=None):
+    """Where one bucket's own brief lives — what the work in it actually is,
+    which process produces what, and which skill already does it. Both halves of
+    the planning agent read it; see BUCKETS.md.
+
+    Named off the stream rather than the heading, because that is what the agent
+    and the folder are named off too: `bucket_stream()` in the planning agent is
+    the one table mapping a heading to a stream, aliases and all, so asking it
+    here means a bucket renamed on the board reaches the same file its planner
+    does, or neither of them does.
+
+    None where this checkout has no agents/planning_agent/ — without that table
+    there is no honest answer to which file a heading means, and guessing one
+    would write a brief nothing ever reads.
+    """
+    if not planning_agent_plan:
+        return None
+    stream = planning_agent_plan.bucket_stream(bucket)
+    return os.path.join(dataset_dir(name or current_dataset()), "buckets", stream, "%s.md" % stream)
+
+
 def briefings_path(name=None):
     """Where agents/planning_agent/brief.py leaves what it has worked out about
     each task — direction, what's done, what's still needed — one per task,
@@ -1867,6 +1888,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way
                 # every bucket falls back to its position in the list.
                 return self._json(200, {})
+        # One bucket's brief, asked for by the bucket editor. Text rather than
+        # the file itself, because the file sits under data/ and everything
+        # there is served through a route that knows which dataset is current.
+        if path == "/bucket-brief.json":
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            bucket = (q.get("bucket") or [""])[0]
+            out = bucket_brief_path(bucket)
+            if not bucket or not out:
+                return self._json(404, {"error": "no bucket briefs here"})
+            try:
+                with open(out, encoding="utf-8") as fh:
+                    text = fh.read()
+            except OSError:
+                # Nothing written for this bucket yet. Empty and absent read the
+                # same way — BUCKETS.md holds the template to start from — and
+                # the first save is what creates the folder.
+                text = ""
+            return self._json(200, {
+                "bucket": bucket,
+                "stream": planning_agent_plan.bucket_stream(bucket),
+                "path": os.path.relpath(out, ROOT),
+                "text": text,
+            })
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
         if path == "/projects.json":
@@ -2099,6 +2144,43 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 os.fsync(fh.fileno())
             os.replace(tmp, path_out)
             return self._json(200, {"ok": True})
+        if path == "/bucket-brief":
+            # A POST rather than a PUT, though what it sends is a whole file:
+            # do_PUT below is the todo.md route and everything in it — the
+            # backup, the hash check, the shape check — is about that one file.
+            # A second PUT past those guards is the wrong thing to have to read
+            # twice, so a brief writes the way every other sidecar here does.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, dict):
+                return self._json(400, {"error": "expected an object"})
+            bucket, text = payload.get("bucket"), payload.get("text")
+            if not isinstance(bucket, str) or not isinstance(text, str):
+                return self._json(400, {"error": "expected a bucket and its text"})
+            out = bucket_brief_path(bucket)
+            if not out:
+                return self._json(404, {"error": "no bucket briefs here"})
+            # Same refusal do_PUT makes on an empty body, and for the same
+            # reason: a brief is written by hand over weeks, and a select-all
+            # and a slipped key would be the whole of it gone with nothing to
+            # restore from. Deleting one is a thing to do outside the board.
+            if not text.strip():
+                return self._json(400, {"error": "an empty brief is refused — delete the file by hand instead"})
+            if len(text.encode("utf-8")) > MAX_BYTES:
+                return self._json(413, {"error": "brief too large"})
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            tmp = out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, out)
+            return self._json(200, {"ok": True, "path": os.path.relpath(out, ROOT)})
         if path == "/attach-queue.json":
             # Same guard, same shape as /chat-viewed. Only the board calls this,
             # after draining what it could — see attach_queue_path() — to
