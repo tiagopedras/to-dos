@@ -187,6 +187,12 @@ function openBucketEditor(){
           '<div class="bkpalette hidden" data-palette-for="' + i + '">' + palette + '</div>' +
         '</span>' +
         '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
+        /* The brief is the only thing on this row that is not a property of
+           the bucket as the board draws it — it is a file, and a page of
+           prose — so it is a button to somewhere rather than a control here.
+           See openBucketBrief. */
+        '<button type="button" class="btn small" data-brief="' + i + '" ' +
+          'title="What the agents read for what this bucket\u2019s work actually is">Brief</button>' +
         moveDeleteButtonsHTML(i, list.length, {
           upAttr: 'data-up', downAttr: 'data-down', delAttr: 'data-del',
           upTitle: 'Move up', downTitle: 'Move down', noun: 'bucket'
@@ -199,7 +205,7 @@ function openBucketEditor(){
       esc(state.fileName) + ' and leaves every task under it alone. The number follows the ' +
       'order, so moving a bucket renumbers the ones it passes — the colour follows the dot ' +
       'instead, so reordering never reshuffles it. Nothing reaches the file until you save; ' +
-      'a colour saves itself the moment you pick it.',
+      'a colour saves itself the moment you pick it, and Brief opens a file of its own.',
       '<div class="bklist">' + rows + '</div>' +
       '<div class="bkadd">' +
         '<input type="text" id="bkNew" placeholder="New bucket name" aria-label="New bucket name">' +
@@ -232,6 +238,9 @@ function openBucketEditor(){
     });
     modalEl.querySelectorAll('[data-del]').forEach(el => {
       el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
+    });
+    modalEl.querySelectorAll('[data-brief]').forEach(el => {
+      el.onclick = () => openBucketBrief(list[+el.dataset.brief].name, draw);
     });
     modalEl.querySelectorAll('[data-palette]').forEach(dot => {
       dot.onclick = e => {
@@ -267,6 +276,84 @@ function openBucketEditor(){
   };
 
   draw();
+}
+
+/* The brief behind a bucket: `data/<dataset>/buckets/<stream>/<stream>.md`,
+   the file both planning agents and the implementing agent read for what a
+   bucket's work actually is. The editor above renames, colours, reorders and
+   deletes, and until now touched none of it — the file existed only to
+   someone who opened it outside the board.
+
+   A sheet of its own rather than a sixth control on the row, because it is a
+   page of prose rather than a property. showModal replaces whatever is open,
+   so Save and Cancel both draw the bucket editor again on the way out; the ×
+   and Escape close to the board, which is what both mean everywhere else.
+
+   Read fresh every time it opens and written whole. Nothing else writes it
+   while the board is up, and the board holds no copy of it between openings,
+   so there is nothing here of todo.md's preconditions. */
+let briefText = '';
+async function openBucketBrief(bucketName, back){
+  let brief;
+  try {
+    brief = await getJSON('/bucket-brief.json?bucket=' + encodeURIComponent(bucketName));
+  } catch (err) {
+    showToast('Could not read that brief — the board helper may need restarting. ' +
+      (err.message || err), 'bad');
+    return;
+  }
+  briefText = brief.text || '';
+
+  const marker = brief.marker || '';
+  /* Three things worth knowing before typing, and only when each is true: a
+     brief that does not exist yet, one that is still the untouched template,
+     and a bucket whose heading is mapped to nothing — the last is the one
+     that explains why two buckets can open the same file. */
+  const notes =
+    (brief.exists
+      ? ''
+      : '<p>No brief yet. This opens on the template from <code>BUCKETS.md</code>, ' +
+        'and saving writes the file.</p>') +
+    (brief.exists && !brief.filled
+      ? '<p>This one still carries <code>' + esc(marker) + '</code>, so no agent is ' +
+        'pointed at it. Delete that line once it is written.</p>'
+      : '') +
+    (brief.fallback
+      ? '<p>This bucket\u2019s heading is mapped to the <strong>' + esc(brief.stream) +
+        '</strong> fallback rather than a stream of its own, so this is the ' +
+        'catch-all brief — every unmapped bucket reads it.</p>'
+      : '');
+
+  showModal('Brief: ' + bucketName,
+    'What the planning agents and the implementing agent read for the work in this ' +
+    'bucket \u2014 the processes it holds, what each produces, which skill already ' +
+    'does it, and who is involved. Markdown, saved to <code>' + esc(brief.path) + '</code>.',
+    '<div class="repdoc">' + notes + '</div>' +
+    '<textarea id="briefBody" class="briefbody" spellcheck="false" ' +
+      'aria-label="This bucket\u2019s brief">' + esc(briefText) + '</textarea>',
+    [{ label:'Cancel', run: () => { if (back) back(); } },
+     { label:'Save brief', primary:true, run: async () => {
+        try {
+          const res = await putJSON('/bucket-brief', { bucket: bucketName, text: briefText });
+          showToast(res.filled ? 'Brief saved.'
+            : 'Brief saved \u2014 still carrying the empty marker, so no agent reads it yet.',
+            res.filled ? '' : 'bad');
+        } catch (err) {
+          showToast('Could not save that brief: ' + (err.message || err), 'bad');
+        }
+        if (back) back();
+      } }],
+    { wide: true });
+
+  /* Read as he types. showModal closes the sheet before running a button, so
+     the textarea is gone by the time one runs — the same reason declinePlan()
+     and replanPlan() keep theirs in a variable. */
+  const box = modalEl && modalEl.querySelector('#briefBody');
+  if (box) {
+    box.oninput = () => { briefText = box.value; };
+    box.focus();
+    box.setSelectionRange(0, 0);
+  }
 }
 
 /* The one write a colour makes — straight to bucket-colors.json, independent

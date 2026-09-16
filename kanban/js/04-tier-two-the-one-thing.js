@@ -302,7 +302,7 @@ function renameParked(doc){
 const $  = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* The board's two fetch shapes, collapsed out of what used to be 32 separate
+/* The board's fetch shapes, collapsed out of what used to be 32 separate
    call sites copy-pasted from whichever one was nearest. A GET that forgets
    the cache-bust, or a POST that forgets X-Board, is how the two drift; going
    through here instead means a new endpoint gets both for free.
@@ -319,9 +319,9 @@ async function getJSON(url){
   if (!res.ok) throw new Error('the server answered ' + res.status);
   return res.json();
 }
-async function postJSON(url, data){
+async function sendJSON(method, url, data){
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', 'X-Board': '1' },
     body: JSON.stringify(data)
   });
@@ -329,6 +329,12 @@ async function postJSON(url, data){
   if (!res.ok) throw new Error(info.error || ('the server answered ' + res.status));
   return info;
 }
+function postJSON(url, data){ return sendJSON('POST', url, data); }
+/* The one route the board writes with PUT rather than POST, because it
+   replaces a whole file with a whole file: a bucket's brief. todo.md's own
+   save is not this shape and does not go through here — it carries
+   preconditions of its own (see 24-autosave-watching.js). */
+function putJSON(url, data){ return sendJSON('PUT', url, data); }
 
 function allTiers(){
   const names = [];

@@ -357,6 +357,23 @@
     flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
     border-radius:7px; padding:5px 8px; font-size:13px;
   }
+  /* The brief button. Shrink-proof beside the name input, which takes the
+     rest of the row — a two-line "Brief" is the one thing that would make
+     these rows different heights from one another. */
+  .bkrow [data-brief]{flex:0 0 auto; white-space:nowrap}
+  /* The brief itself, in its own wide sheet. Monospaced because it is Markdown
+     being edited raw, where the drawer's Description renders at rest and this
+     never does: a brief is read by agents far more often than by him, and the
+     headings are the structure. Tall enough that the template's own headings
+     are visible without scrolling on a laptop. */
+  .briefbody{
+    width:100%; box-sizing:border-box; margin:10px 0 0; padding:10px 12px;
+    min-height:min(58vh, 520px); resize:vertical;
+    font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color:var(--ink); background:var(--panel);
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .briefbody:focus{outline:2px solid var(--accent); outline-offset:1px}
   .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
   .bkadd input{
     flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);

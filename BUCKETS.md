@@ -65,6 +65,13 @@ It also means the knowledge is mine to edit without opening an agent definition,
 which is the part that has to keep being true. This is a living file, not a
 spec.
 
+Since 16 Sep 2026 the board edits it too: **Brief**, on each row of the bucket
+editor, opens the file in a sheet and saves it back. It resolves the path
+through `bucket_stream()` the same way the agents do, so what the board opens
+is always the file they read — including for a heading mapped to nothing,
+where it says plainly that this is the `general` catch-all rather than that
+bucket's own. A bucket with no brief yet opens on the template below.
+
 ## Why the skills sit with the brief
 
 A brief that says "probation reviews run through `probation-review`" and a

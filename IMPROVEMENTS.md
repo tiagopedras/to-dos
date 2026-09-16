@@ -483,8 +483,25 @@ they settled is written up in the README rather than left here:
   earlier send-back and its reason has to be parsed from the History section
   before the column can draw them.
 
-- **The bucket editor renames, colours, reorders and deletes buckets, and
-  touches none of what actually makes an agent theirs — the brief.**
+- ~~**The bucket editor renames, colours, reorders and deletes buckets, and
+  touches none of what actually makes an agent theirs — the brief.**~~
+  **Done, 16 Sep 2026.** `GET /bucket-brief.json?bucket=` and
+  `PUT /bucket-brief` (`kanban/server.py`) resolve the path through
+  `planning_agent_plan.bucket_stream()`, so the board edits the file the
+  agents actually read rather than one named off the heading; a Brief button
+  on each row of `openBucketEditor()` opens `openBucketBrief()`
+  (`kanban/js/08-buckets.js`), a wide sheet holding the raw Markdown, and
+  Save and Cancel both draw the editor again. A bucket with no brief yet
+  opens on the template read out of `BUCKETS.md` rather than an empty box,
+  and the sheet says three things when each is true: the file does not exist,
+  it still carries `<!-- NOT FILLED IN YET -->` so no agent is pointed at it,
+  or the heading is mapped to nothing and this is the `general` catch-all
+  every unmapped bucket shares. `kanban/test_bucket_brief.py` covers the
+  routes with no browser and no board, `kanban/test_bucket_brief.mjs` the
+  button and the sheet. Scaffolding a brief at the moment a bucket is
+  *created* is still the entry below.
+
+  The original entry:
   `openBucketEditor()` (`kanban/js/08-buckets.js:160`) wires up
   `renameBucket()`, `addBucket()`, `deleteBucket()`, `moveBucket()` and
   `setBucketColor()`, but `buckets/<stream>/<stream>.md` — the file

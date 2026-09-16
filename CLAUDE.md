@@ -171,12 +171,13 @@ whose `<summary>` is the head — because five columns of prose open at once is 
 lot of scrolling. The Figma `Column` and `Column header` components carry the
 same set, and the two are meant to be changed together.
 
-Plans carries six columns rather than four, and reads
-**Backlog → To do → Doing → Waiting for review → Ready to be produced → Done**.
-Doing was a Status block inside To do that renamed the column and hid its
-queue; a run in flight and a queue waiting to run are two answers. Ready to be
-produced is the old Done saying what it is, and Done behind it is new. The
-board's six and Plans' six are not the same six words, and that is honest: a
+Plans carries seven columns rather than four, and reads
+**Backlog → To do → Doing → Waiting for review → Ready to be produced →
+Producing → Done**. Doing was a Status block inside To do that renamed the
+column and hid its queue; a run in flight and a queue waiting to run are two
+answers. Ready to be produced is the old Done saying what it is, and Done
+behind it is new. Producing arrived 16 Sep 2026 and is described below. The
+board's six and Plans' seven are not the same words, and that is honest: a
 task and a plan about it do not move through the same stages.
 
 A card on Plans is a plan, and since 13 Sep 2026 it carries both halves of the
@@ -201,11 +202,20 @@ is now the agent definition and its brief, with no stream of its own.
 
 What carries the second half is a field rather than more states, because the
 contract allows one `state:` per document: `production:` on an accepted plan says
-whether it is `none`, `doing`, `review` or `done`. The Plans view draws all four
-in Ready to be produced and marks the card — **six columns rather than eight**,
-decided the same day, because the implementing agent only ever runs from a
-session he is sitting in, so there is never a card to watch move on its own. If
-that changes, `production` is what the two extra columns get drawn from.
+whether it is `none`, `doing`, `review` or `done`. All four drew in Ready to be
+produced as a mark on the card until 16 Sep 2026, on the argument that the
+implementing agent only ever runs from a session he is sitting in, so there is
+never a card to watch move on its own.
+
+**One of the four is a column now**, Producing, drawn from `production: doing`.
+The other three keep their mark and their place. It is the one column in the app
+that takes cards and gives none back: dropping a plan on it posts
+`production: doing` through `/stream/apply` — the stream has always accepted
+that field, so no new route — and the cards inside it are not draggable, because
+what happens next is the agent reporting back or the work finishing, and neither
+of those is a card to move by hand. `planColumn()` in `kanban/js/13-plans.js` is
+where the rule sits, one function the renderers, the drop handlers and the counts
+all read.
 
 ## The React half, and why it is only a half
 
@@ -501,7 +511,8 @@ python3 core/test_reports.py       # aggregate.py, render.py, archive.py — no 
 node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
-node kanban/test_plans.mjs         # the ten below need the board running
+python3 kanban/test_bucket_brief.py # the brief routes — no board, no browser
+node kanban/test_plans.mjs         # the eleven below need the board running
 node kanban/test_schedule.mjs
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs
@@ -514,6 +525,7 @@ node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted 
 node kanban/test_reports.mjs       # both halves, and the window picker over them
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
 node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md
+node kanban/test_bucket_brief.mjs  # the Brief button, and the sheet behind it
 ```
 
 `test_phone.mjs` is the one that runs twice. It opens a 400px window and a

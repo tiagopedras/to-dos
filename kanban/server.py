@@ -210,6 +210,50 @@ def bucket_colors_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
 
 
+def bucket_brief_path(bucket, name=None):
+    """A bucket's own brief, resolved the way the agents that read it resolve it.
+
+    `bucket_stream()` in agents/planning_agent/plan.py is the one table mapping
+    a heading to a stream, and the brief, the folder and the planning agent are
+    all named off it. Going through that function rather than slugifying the
+    heading here means the board edits the file the agents actually read —
+    including where the heading is mapped to nothing and the stream is the
+    `general` fallback, which is worth seeing in the editor rather than hidden
+    behind a file that looks like this bucket's own.
+
+    Returns (stream, path), or (None, None) in a checkout with no planning
+    agent in it: there is no brief to edit there, and the board says so rather
+    than writing a file nothing would read.
+    """
+    if planning_agent_plan is None:
+        return None, None
+    stream = planning_agent_plan.bucket_stream(bucket)
+    # bucket_stream() returns a value from its own table or the fallback, so
+    # this cannot be a path today. Checked anyway, because the entry that
+    # retires that table slugifies the live heading instead, and a heading is
+    # typed by hand.
+    if not stream or stream.startswith(".") or "/" in stream or "\\" in stream:
+        return None, None
+    base = os.path.join(dataset_dir(name or current_dataset()), "buckets")
+    return stream, os.path.join(base, stream, "%s.md" % stream)
+
+
+def brief_template():
+    """The template a new brief opens on, read out of BUCKETS.md.
+
+    Read rather than copied, because BUCKETS.md is where the template is
+    documented and a second copy in here is a second thing to keep in step.
+    An empty string if it cannot be found, which costs an empty box.
+    """
+    try:
+        with open(os.path.join(ROOT, "BUCKETS.md"), encoding="utf-8") as fh:
+            body = fh.read()
+    except OSError:
+        return ""
+    m = re.search(r"```markdown\n(.*?)```", body, re.S)
+    return m.group(1) if m else ""
+
+
 def briefings_path(name=None):
     """Where agents/planning_agent/brief.py leaves what it has worked out about
     each task — direction, what's done, what's still needed — one per task,
@@ -1784,9 +1828,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # failure instead of the 404 the server had actually decided on. Any
         # missing file became an unexplainable "Failed to fetch".
         first = args[0] if args else ""
-        if isinstance(first, str) and "PUT" in first:
-            sys.stdout.write("saved %s/%s/todo.md\n" % (DATA, current_dataset()))
-            sys.stdout.flush()
+        if not isinstance(first, str) or "PUT" not in first:
+            return
+        # Only a write that landed. do_PUT refuses far more than it accepts —
+        # every precondition failure on todo.md, and everything that is not one
+        # of the two files written with PUT at all — and a refusal printing
+        # "saved" is the line you would read while looking for why nothing was.
+        code = args[1] if len(args) > 1 else ""
+        if not str(code).startswith("2"):
+            return
+        # Two files are written with PUT, so the line says which.
+        what = ("a bucket brief" if "/bucket-brief" in first
+                else "%s/%s/todo.md" % (DATA, current_dataset()))
+        sys.stdout.write("saved %s\n" % what)
+        sys.stdout.flush()
 
     def _json(self, code, payload):
         body = json.dumps(payload).encode()
@@ -1867,6 +1922,37 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way
                 # every bucket falls back to its position in the list.
                 return self._json(200, {})
+        if path == "/bucket-brief.json":
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            bucket = (q.get("bucket") or [""])[0]
+            if not bucket.strip():
+                return self._json(400, {"error": "which bucket?"})
+            stream, bpath = bucket_brief_path(bucket)
+            if not bpath:
+                return self._json(404, {"error": "this checkout has no planning agent, "
+                                                 "so there is no brief to edit"})
+            try:
+                with open(bpath, encoding="utf-8") as fh:
+                    text, exists = fh.read(), True
+            except OSError:
+                # No brief yet. The template is the honest starting point, and
+                # it is what the folder would have been scaffolded with anyway.
+                text, exists = brief_template(), False
+            marker = planning_agent_plan.BRIEF_EMPTY
+            return self._json(200, {
+                "bucket": bucket,
+                "stream": stream,
+                "path": os.path.relpath(bpath, ROOT),
+                "text": text,
+                "exists": exists,
+                # What the agents themselves ask: a file still carrying the
+                # marker line is treated as absent, so the editor says so
+                # rather than letting an untouched template read as written.
+                "filled": exists and marker not in text,
+                "marker": marker,
+                "fallback": stream == planning_agent_plan.FALLBACK_STREAM,
+            })
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
         if path == "/projects.json":
@@ -2276,7 +2362,49 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         sys.stdout.flush()
         return self._json(200, {"ok": True, "archive": name})
 
+    def _put_bucket_brief(self):
+        """A bucket's brief, replaced whole.
+
+        A PUT rather than a POST beside /bucket-colors because that is what it
+        is — one file replaced by one file, with no merge and nothing partial
+        about it. None of todo.md's preconditions apply: the brief has no
+        second writer, the board holds no cached copy of it between openings,
+        and it is read fresh every time the sheet opens.
+        """
+        if self.headers.get("X-Board") != "1":
+            return self._json(403, {"error": "not from the board"})
+        data = self._body()
+        try:
+            payload = json.loads((data or b"{}").decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return self._json(400, {"error": "body was not valid JSON"})
+        if not isinstance(payload, dict):
+            return self._json(400, {"error": "expected a bucket and its brief"})
+        bucket, text = payload.get("bucket"), payload.get("text")
+        if not isinstance(bucket, str) or not bucket.strip() or not isinstance(text, str):
+            return self._json(400, {"error": "expected a bucket and its brief"})
+        stream, bpath = bucket_brief_path(bucket)
+        if not bpath:
+            return self._json(404, {"error": "this checkout has no planning agent, "
+                                             "so there is no brief to write"})
+        os.makedirs(os.path.dirname(bpath), exist_ok=True)
+        # Same temp-then-swap as every other write in here, so a crash
+        # mid-write cannot leave a half-written brief for the night to read.
+        tmp = bpath + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, bpath)
+        return self._json(200, {"ok": True, "stream": stream,
+                                "filled": planning_agent_plan.BRIEF_EMPTY not in text})
+
     def do_PUT(self):
+        # Answered before the guard below, which is written to refuse
+        # everything that is not todo.md. A brief is a different file with a
+        # different contract — see _put_bucket_brief().
+        if self.path.split("?")[0] == "/bucket-brief":
+            return self._put_bucket_brief()
         if self.path.split("?")[0].lstrip("/") != TARGET:
             return self._json(404, {"error": "only %s can be written" % TARGET})
 
