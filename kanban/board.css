@@ -2810,6 +2810,43 @@
   .changes .none{font-size:12.5px; color:var(--ink-faint)}
   .hidden{display:none !important}
 
+  /* ---------- the flip, Board <-> Plans ----------
+     The two views are one canvas with Plans under the Board, so moving between
+     them is a pan rather than a swap. The control names where it goes and which
+     way it is about to move, since a lone arrow on a page that does not scroll
+     vertically says nothing about what is at the other end.
+
+     Bottom-left: the drawer takes 400px of the right-hand side whenever a card
+     is open, and a control that spends half its life under a panel is no route
+     at all. Below the drawer (z-index 31) and its scrim for the same reason. */
+  .viewflip{
+    position:fixed; left:18px; bottom:18px; z-index:25;
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius:999px; padding:9px 15px;
+    background:var(--panel); color:var(--ink); cursor:pointer;
+    font-size:13px; font-weight:620;
+    box-shadow:0 8px 22px rgba(10,12,16,.16), 0 1px 3px rgba(10,12,16,.1);
+    transition:border-color .12s, box-shadow .12s, transform .12s;
+  }
+  .viewflip:hover{border-color:var(--accent); transform:translateY(-1px)}
+  .viewflip .flipway{font-size:14px; color:var(--ink-faint); line-height:1}
+  .viewflip:hover .flipway{color:var(--accent)}
+  @media (prefers-reduced-motion:reduce){ .viewflip{transition:none} }
+
+  /* The outgoing view, cloned, for as long as the pan lasts. Fixed and clipped
+     to what is on screen below the header: the two surfaces are page-tall and
+     a pan that was not clipped would slide the old board up over the tab strip
+     on its way out. Inert, so a click during the pan reaches the real view. */
+  .flipstage{
+    position:fixed; left:0; right:0; z-index:25;
+    overflow:hidden; pointer-events:none;
+  }
+  .flipghost{position:absolute; will-change:transform}
+  /* .36s, and 18-timeline.js holds the same number as FLIP_MS — it clears the
+     stage on a timer rather than on transitionend, so a transition that never
+     starts still leaves nothing behind. */
+  .flipghost.flipgo, .flipsurf{transition:transform .36s cubic-bezier(.22,.61,.36,1)}
+
   /* ---------- toasts ----------
      Anything that stops an action the user just took — a drag onto Done, a
      tick — needs to land where the eye already is, not in the header status

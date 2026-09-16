@@ -761,6 +761,96 @@ function closeViewMenu(){
 document.addEventListener('click', e => { if (!e.target.closest('#viewMenu')) closeViewMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewMenu(); });
 
+/* ---------- the flip, Board <-> Plans ----------
+   The tasks and the plans written about them are the same work seen twice, so
+   the two views read as one tall canvas with Plans below the Board, panned
+   between rather than swapped. The tab strip is untouched: every tab stays
+   where it is, Plans included, and this is a second route to the same two
+   views rather than the only one. Nothing here touches state.view's meaning —
+   it still names one current view, and the pan is a picture of the change
+   rather than a state the board can sit in half-way through. */
+const FLIP_PAIR = { board:'plans', plans:'board' };
+const FLIP_MS = 360;          // matches .flipghost.flipgo / .flipsurf in board.css
+let flipping = false;
+
+const flipSurface = view => view === 'board' ? $('#board') : $('#lists');
+
+function renderViewFlip(){
+  const btn = $('#viewFlip');
+  if (!btn) return;       // a tab open since before this existed still renders
+  const to = FLIP_PAIR[state.view];
+  btn.classList.toggle('hidden', !to);
+  if (!to) return;
+  const label = to === 'plans' ? 'Plans' : 'Board';
+  const down = to === 'plans';
+  btn.innerHTML = '<span class="flipway" aria-hidden="true">' + (down ? '↓' : '↑') + '</span>' +
+    '<span class="flipto">' + label + '</span>';
+  btn.title = label + ' sits ' + (down ? 'below' : 'above') + ' this';
+  btn.setAttribute('aria-label', 'Go to ' + label);
+  btn.onclick = () => flipView(to);
+}
+
+function flipView(to){
+  if (flipping || !FLIP_PAIR[to] || to === state.view) return;
+  const from = flipSurface(state.view);
+  // Nothing to pan from, or he has asked for less motion: the swap the tab
+  // strip already does.
+  if (!from || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    state.view = to; renderView(); return;
+  }
+  const stage = flipStage(from);
+  const travel = stage.getBoundingClientRect().height * (to === 'plans' ? 1 : -1);
+  flipping = true;
+
+  state.view = to;
+  renderView();
+  const into = flipSurface(to);
+  into.style.transform = 'translateY(' + travel + 'px)';
+  void into.offsetWidth;        // land the start frame before the transition is on
+  into.classList.add('flipsurf');
+  stage.firstChild.classList.add('flipgo');
+  requestAnimationFrame(() => {
+    into.style.transform = '';
+    stage.firstChild.style.transform = 'translateY(' + -travel + 'px)';
+  });
+
+  setTimeout(() => {
+    stage.remove();
+    into.classList.remove('flipsurf');
+    into.style.transform = '';
+    flipping = false;
+  }, FLIP_MS + 40);
+}
+
+/* A copy of the view being left, fixed where it was drawn and clipped to what
+   is on screen under the header, so the pan has two surfaces to move without
+   either view having to survive the other being rendered. */
+function flipStage(from){
+  const r = from.getBoundingClientRect();
+  const top = Math.max(0, r.top);
+  const stage = document.createElement('div');
+  stage.className = 'flipstage';
+  stage.style.top = top + 'px';
+  stage.style.height = (window.innerHeight - top) + 'px';
+
+  const ghost = document.createElement('div');
+  ghost.className = 'flipghost';
+  ghost.style.top = (r.top - top) + 'px';
+  ghost.style.left = r.left + 'px';
+  ghost.style.width = r.width + 'px';
+
+  const copy = from.cloneNode(true);
+  // Two answers to $('#id') for the length of the pan is the one way a copy of
+  // a live view can reach back into the board that is replacing it.
+  copy.removeAttribute('id');
+  copy.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  copy.classList.remove('hidden');
+  ghost.appendChild(copy);
+  stage.appendChild(ghost);
+  document.body.appendChild(stage);
+  return stage;
+}
+
 /* Two views: the board, and the hand-written summaries from the end of the file.
    The bucket tabs, the AI filter and search only make sense on the board. */
 function renderView(){
@@ -784,6 +874,7 @@ function renderView(){
   // syncs the URL to the right value.
 
   renderViewTabs(defs);
+  renderViewFlip();
   if (def.id !== 'plans') refreshPlansBadge();
 
   $('#board').classList.toggle('hidden', !isBoard);

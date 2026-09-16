@@ -127,6 +127,13 @@
   </section>
 </main>
 
+<!-- The flip. Board and Plans read as one tall canvas with the plans under the
+     tasks they were written about, panned between rather than swapped — see
+     renderViewFlip() in 18-timeline.js. A second route to two views the tab
+     strip still carries, so nothing in the strip moves for it. Bottom-left
+     because the drawer is 400px of fixed panel down the right-hand side. -->
+<button class="viewflip hidden" id="viewFlip"></button>
+
 <div class="scrim" id="scrim"></div>
 <aside id="drawer">
   <div class="dgrip" id="dgrip" title="Drag to resize · double-click to reset"></div>
