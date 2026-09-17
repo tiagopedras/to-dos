@@ -164,7 +164,7 @@ Timeline, both halves of Reports, Backups, Projects and the two reference cards
 in the Spend modal were all `.listcard`s of their own until the same date, and
 all of them are columns now. Two things came with them. A control that narrows
 or orders a column lives in its head rather than at the top of its body, which
-is where Reports' window picker, Matrix's "Hide Waiting review" and Projects'
+is where Reports' window picker, Matrix's "Hide Waiting for review" and Projects'
 order select went. And `colHTML()` grew the one part those views needed that a
 board column never did — `collapsible`, which draws the column as a `<details>`
 whose `<summary>` is the head — because five columns of prose open at once is a

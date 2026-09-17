@@ -13,22 +13,22 @@
     "ready":   "To do",
     "doing":   "Doing",
     "blocked": "Blocked",
-    "review":  "Waiting review",
+    "review":  "Waiting for review",
     "done":    "Done"
   },
-  "reserved": ["Backlog", "To do", "Doing", "Waiting review", "Done"],
+  "reserved": ["Backlog", "To do", "Doing", "Waiting for review", "Done"],
   "on_demand": ["Blocked"],
   "hints": {
     "Backlog":        "no time pressure yet",
     "To do":          "two to four weeks out",
     "Doing":          "current focus, next two weeks",
     "Blocked":        "can't move until something changes",
-    "Waiting review": "done, waiting on someone else",
+    "Waiting for review": "done, waiting on someone else",
     "Done":           "ticked off",
     "Handed to AI":   "tagged ai:: full, not done yet"
   },
   "synthetic": [
-    { "lane": "Handed to AI", "before": "done", "draggable": false,
+    { "lane": "Handed to AI", "before": "blocked", "draggable": false,
       "when": { "field": "ai", "is": "full" },
       "note": "drawn from the ai tag, never a heading in the file" },
     { "lane": "Done", "state": "done", "draggable": true,

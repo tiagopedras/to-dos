@@ -62,7 +62,7 @@ DOC = """# List
   - [ ] Ask them [due:: 2026-09-09] [ai:: none]
     - Suggested message: "Too early."
 
-### Waiting review
+### Waiting for review
 
 - [ ] **Sitting with somebody** [impact:: high] [effort:: S] [ai:: none]
   - [ ] Nudge them [due:: 2026-09-08] [ai:: none]

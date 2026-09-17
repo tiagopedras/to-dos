@@ -37,6 +37,13 @@ const BUCKET_RE = /^##\s+(\d+)\.\s+(.*)$/;
 const TIER_RE   = /^###\s+(.*)$/;
 const HR_RE     = /^---\s*$/;
 
+/* Column headings that have been renamed, old name to new. Read on parse, so
+   a backup or a list not yet rewritten still lands in the right column, and
+   the next save writes the new heading. Waiting review became Waiting for
+   review on 17 Sep 2026, to match the Plans view. core/todo.py holds the same
+   table. */
+const TIER_RENAMED = { 'Waiting review': 'Waiting for review' };
+
 let uidCounter = 0;
 const uid = () => 't' + (++uidCounter);
 
@@ -274,7 +281,9 @@ function parseDoc(text){
     while (i < lines.length && !TIER_RE.test(lines[i]) && !/^##\s/.test(lines[i])) bucket.intro.push(lines[i++]);
 
     while (i < lines.length && TIER_RE.test(lines[i])) {
-      const tier = { name: TIER_RE.exec(lines[i])[1].trim(), raw: lines[i],
+      const heading = TIER_RE.exec(lines[i])[1].trim();
+      const renamed = TIER_RENAMED[heading];
+      const tier = { name: renamed || heading, raw: renamed ? null : lines[i],
                      lead: null, tasks: [], tail: [] };
       i++;
       let gap = [];                                   // lines seen since the last task

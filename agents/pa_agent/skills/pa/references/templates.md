@@ -113,12 +113,12 @@ never negative) and `who` (from `[to:: ]`, or a `Waiting on:` note).
 
 | List | What is in it |
 | --- | --- |
-| `overdue` | Past `[due:: ]`, not ticked, not in Waiting review |
+| `overdue` | Past `[due:: ]`, not ticked, not in Waiting for review |
 | `due_today` | Due today |
 | `due_tomorrow` | Due tomorrow |
 | `due_this_week` | Due between today and Sunday |
 | `doing` | Top-level tasks in Doing, every bucket |
-| `waiting` | Top-level tasks in Waiting review |
+| `waiting` | Top-level tasks in Waiting for review |
 | `blocked` | Top-level tasks in Blocked |
 | `week` | Anything tagged `week`, tasks and sub-steps both |
 | `done_today` | Ticked with today's `done:` date |

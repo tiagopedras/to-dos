@@ -8,7 +8,7 @@ The three exclusions are the same ones companion/digest.py applies, deliberately
 two readers of one list disagreeing about what is actionable is worse than
 either answer on its own.
 
-  - Waiting review and Blocked. The next move belongs to somebody else, so
+  - Waiting for review and Blocked. The next move belongs to somebody else, so
     there is nothing to plan.
   - An unticked `blocked-by:`. The blocker is the real task.
   - A `start:` that has not arrived. It cannot begin yet.
@@ -50,7 +50,7 @@ sys.path.insert(0, HERE)
 import todo  # noqa: E402
 import paths  # noqa: E402
 
-PARKED = {"waiting review", "blocked"}
+PARKED = {"waiting for review", "blocked"}
 
 # Only `[ai:: full]`. `partial` was in here until 6 Sep 2026, on the reasoning
 # that a task Claude could half-do was still worth a night's research. It is

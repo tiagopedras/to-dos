@@ -97,7 +97,7 @@ await evalJS(`(() => {
     '  - [ ] the step itself, which has no scores of its own',
     '- [ ] Blocked on the big one \`id:aa0009\` [bucket:: People] [impact:: high] [effort:: S] \`blocked-by:aa0003\`',
     '',
-    '### Waiting review', '',
+    '### Waiting for review', '',
     '- [ ] Out for review \`id:aa0010\` [bucket:: People] [impact:: high] [effort:: S]',
     '',
     '### Backlog', '',
@@ -221,14 +221,14 @@ check('a tray dot is still a dot you can open', await evalJS(`
   !!document.querySelector('.mtray .mdot[data-open]')
 `))
 
-/* ---- hiding Waiting review ---- */
+/* ---- hiding Waiting for review ---- */
 
 await evalJS(`document.querySelector('[data-mxfilter]').click()`)
 await new Promise(r => setTimeout(r, 500))
 check('the filter takes the review column off the grid',
   (await dotLabels()).includes('Out for review') === false, await dotLabels())
 check('and says how many it took off', await evalJS(`
-  /1 hidden, sitting in Waiting review/.test(document.querySelector('.mhidden')?.textContent || '')
+  /1 hidden, sitting in Waiting for review/.test(document.querySelector('.mhidden')?.textContent || '')
 `), await evalJS(`document.querySelector('.mhidden')?.textContent`))
 check('the blocked one is still there, since it is not in review',
   (await dotLabels()).includes('Blocked on the big one'))

@@ -340,14 +340,14 @@ function allTiers(){
   const names = [];
   (state.doc ? state.doc.buckets : []).forEach(b => b.tiers.forEach(t => { if (names.indexOf(t.name) < 0) names.push(t.name); }));
   if (!names.length) return ['Now','Next','Later','Parked'];
-  // Blocked always sits right after Waiting review. Once a bucket actually
+  // Blocked always sits right after Waiting for review. Once a bucket actually
   // has the heading, the scan above finds it wherever that bucket happens to
   // put it in the merged list — meaningless, and it throws the board order
   // off (reversed, the end of this list is the far left of the board) — so
   // pull it back out and reinsert it in its fixed spot every time.
   const at = names.indexOf(BLOCKED_TIER);
   if (at > -1) names.splice(at, 1);
-  const after = names.indexOf('Waiting review');
+  const after = names.indexOf(WAIT_COL);
   names.splice(after < 0 ? names.length : after + 1, 0, BLOCKED_TIER);
   return names;
 }

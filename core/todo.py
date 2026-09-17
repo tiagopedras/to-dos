@@ -48,6 +48,17 @@ TASK_RE = re.compile(r"^-\s+\[([ xX])\]\s?(.*)$")
 BUCKET_RE = re.compile(r"^##\s+(\d+)\.\s+(.*)$")
 TIER_RE = re.compile(r"^###\s+(.*)$")
 
+# Column headings that have been renamed, old name to new, the same table as
+# TIER_RENAMED in core/todo.js. Waiting review became Waiting for review on
+# 17 Sep 2026; a backup still carrying the old heading reads as the new one.
+TIER_RENAMED = {"Waiting review": "Waiting for review"}
+
+
+def column_name(heading):
+    """A column heading as the board names it, old names translated."""
+    heading = heading.strip()
+    return TIER_RENAMED.get(heading, heading)
+
 # Both accepted syntaxes in one pass. impact, effort, due, ai, start, done and to
 # are written as Dataview inline fields because views.md queries them and
 # Dataview cannot see inside a code span; everything else stays a code span
@@ -223,7 +234,7 @@ def parse_doc(text):
             break
         tm = TIER_RE.match(line)
         if tm:
-            column = tm.group(1).strip()
+            column = column_name(tm.group(1))
             i += 1
             continue
         if in_buckets and TASK_RE.match(line):

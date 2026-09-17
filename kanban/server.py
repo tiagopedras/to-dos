@@ -483,7 +483,7 @@ def project_listing():
 NEW_DATASET_TEMPLATE = (
     "# To-do\n\n"
     "## 1. Tasks\n\n"
-    "### Waiting review\n\n"
+    "### Waiting for review\n\n"
     "### Doing\n\n"
     "### To do\n\n"
     "### Backlog\n\n"

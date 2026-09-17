@@ -92,7 +92,7 @@ DOC = """# List
 
 ## 1. People
 
-### Waiting review
+### Waiting for review
 
 - [ ] **Sitting with someone** [impact:: high] [effort:: S] [ai:: full]
 

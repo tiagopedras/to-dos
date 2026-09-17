@@ -161,7 +161,7 @@ to split it for.
 | --- | --- | --- | --- |
 | `pa-checkin` | The full review. Status, what changed, apply it, meeting agendas, optimisation, the headline. | Everything | What has moved since last time |
 | `pa-focus` | Scope. What is claimed as in-flight or next-up that honestly is not, and goes back to Backlog. | Doing, To do | Does this column still tell the truth |
-| `pa-checkout` | Movement. What has stopped moving, and what is piling up under review with nobody looking at it. | Doing, Waiting review, Blocked | What would make this move |
+| `pa-checkout` | Movement. What has stopped moving, and what is piling up under review with nobody looking at it. | Doing, Waiting for review, Blocked | What would make this move |
 | `pa-retrieve-tasks` | Intake. Action items the meeting recorder captured, reviewed one by one before anything lands. | The recorder, plus existing titles for duplicates | Is this yours, and is it real |
 
 Two of them meet in Doing, on purpose. `pa-focus` asks whether it should be there at

@@ -14,7 +14,7 @@ always **"who has it, and what would move it"**.
 
 ## What to work out
 
-- **Who currently holds it.** A task in Waiting review with no note saying who
+- **Who currently holds it.** A task in Waiting for review with no note saying who
   has it is the most forgettable thing on the list. If your task names a person,
   check `## Context` in `todo.md` for whether they are on leave, whose team they
   are on, and whether their contract is running out.

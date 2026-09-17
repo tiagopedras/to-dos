@@ -1217,7 +1217,7 @@
         {
           "title": "Send the Q3 design system review pack to Anu",
           "bucket": "Design System",
-          "column": "Waiting review",
+          "column": "Waiting for review",
           "body": [
             "  - Went over on the 21st. Nothing to do until it comes back with comments."
           ]
@@ -1323,6 +1323,19 @@
           "title": "Rethink how the team shares work in progress",
           "bucket": "Strategic",
           "column": "Backlog",
+          "body": []
+        }
+      ]
+    },
+    {
+      "why": "a column heading that has since been renamed reads as its new name, so an old backup lands in the right column. It does not round-trip: the next save writes the new heading.",
+      "text": "## 1. People\n\n### Waiting review\n\n- [ ] Sent over, waiting on comments\n",
+      "roundTrips": false,
+      "tasks": [
+        {
+          "title": "Sent over, waiting on comments",
+          "bucket": "People",
+          "column": "Waiting for review",
           "body": []
         }
       ]

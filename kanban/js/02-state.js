@@ -288,8 +288,8 @@ const DONE_COL = 'Done';
 const AI_COL = 'Handed to AI';
 /* Not a special column the way Done is — just a tier the board tints, so a
    renamed section simply stops matching and goes back to looking normal. */
-const WAIT_COL = 'Waiting review';
-/* Sits between Doing and Waiting review. Unlike the other columns it has no
+const WAIT_COL = 'Waiting for review';
+/* Sits between Handed to AI and Waiting for review. Unlike the other columns it has no
    standing heading in every bucket — it is only ever created the first time a
    task is moved into it (see ensureTier), and the board hides it again once
    nothing is left there (see the filter in renderBoard). */
@@ -320,7 +320,7 @@ const ALL_BUCKETS = '__all__';
    show no hint, so renaming a section in todo.md never breaks the board. */
 const TIER_HINT = {
   'Backlog': 'no time pressure yet',
-  'Waiting review': 'done, waiting on someone else',
+  'Waiting for review': 'done, waiting on someone else',
   'Later':   'no time pressure',
   'To do':   'two to four weeks out',
   'Next':    'after that',
@@ -332,9 +332,17 @@ const TIER_HINT = {
 };
 
 /* The file lists tiers Now → Backlog. The board shows them the other way
-   round, with a synthetic Handed to AI column ahead of Done on the far
-   right for anything tagged ai:full and not yet done. */
-function boardColumns(){ return allTiers().slice().reverse().concat([AI_COL, DONE_COL]); }
+   round, with Done on the far right and a synthetic Handed to AI column
+   straight after Doing for anything tagged ai:full and not yet done. It sat
+   ahead of Done until 17 Sep 2026; it moved because a task handed to AI is
+   in progress, not waiting on anyone. A list with no Doing heading gets it
+   ahead of Done as before. */
+function boardColumns(){
+  const cols = allTiers().slice().reverse();
+  const at = cols.indexOf(DOING_TIER);
+  cols.splice(at < 0 ? cols.length : at + 1, 0, AI_COL);
+  return cols.concat([DONE_COL]);
+}
 
 /* The five names above, and the two synthetic columns, are also written down in
    stream.json, which is this list's manifest under the work-item contract. Two

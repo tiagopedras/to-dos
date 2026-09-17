@@ -195,7 +195,7 @@ function stepSliderHTML(id, stops, value, ro, ariaLabel){
        size itself: an even split is the one guarantee that holds regardless
        of stop count or label length, so a wide one wraps onto a second line
        under .stepstop's line-height instead of running into its neighbour —
-       which a name like "Waiting review" otherwise does at 5 stops. */
+       which a name like "Waiting for review" otherwise does at 5 stops. */
     '<div class="stepstops">' +
       stops.map((s, i) => '<span class="stepstop' + (i === idx ? ' on' : '') + '" data-i="' + i +
         '" style="left:' + stepTickPos(i, n) + ';max-width:' + (100 / n).toFixed(3) + '%">' + esc(s.label) + '</span>').join('') +
@@ -843,7 +843,7 @@ function openDrawer(id, focusTitle){
       '</div>' +
     '</div>' +
     /* Full width rather than sharing a grid2 with Bucket: a column name like
-       "Waiting review" needs the room a slider half that wide wouldn't give
+       "Waiting for review" needs the room a slider half that wide wouldn't give
        its label, where the old <select> never had to fit the whole word next
        to anything. */
     '<div class="field"><span>Column</span>' + stepPickerHTML('f-tier', tierStops, nowIn, ro, 'Column') + '</div>' +

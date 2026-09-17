@@ -53,7 +53,7 @@ DOC = """## 1. Design System
 
 - [ ] **In progress right now** [impact:: high] [effort:: M] [ai:: none]
 
-### Waiting review
+### Waiting for review
 
 - [ ] **Sitting with someone else** [impact:: high] [effort:: S] [ai:: none] `due:2026-09-10`
 
@@ -87,7 +87,7 @@ def test_today_view():
     check("its next step is the first unticked sub-step",
           v["headline_next_step"], "Not yet started")
 
-    check("overdue excludes Waiting review — its date belongs to someone else now",
+    check("overdue excludes Waiting for review — its date belongs to someone else now",
           [r["title"] for r in v["overdue"]], [])
     check("due today", [r["title"] for r in v["overdue"] + v["due_today"]],
           ["Weekly design review"])

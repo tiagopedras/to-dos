@@ -69,6 +69,15 @@ const DOC_FILES = [
        + 'and the only whole realistic file both parsers are held to',
     file: 'kanban/demo.md' }
 ]
+/* Hand-written documents added after the first three, appended the same way
+   NEW_LINES is. */
+const NEW_DOCS = [
+  { why: 'a column heading that has since been renamed reads as its new name, '
+       + 'so an old backup lands in the right column. It does not round-trip: '
+       + 'the next save writes the new heading.',
+    text: '## 1. People\n\n### Waiting review\n\n- [ ] Sent over, waiting on comments\n' }
+]
+
 const docText = d => d.file
   ? fs.readFileSync(path.join(REPO, d.file), 'utf8')
   : d.text
@@ -105,7 +114,8 @@ const out = {
      being written into the table as true. De-duplicated by `file` for the same
      reason the cases are de-duplicated by line. */
   docs: [...old.docs,
-         ...DOC_FILES.filter(f => !old.docs.some(d => d.file === f.file))].map(docFor)
+         ...DOC_FILES.filter(f => !old.docs.some(d => d.file === f.file)),
+         ...NEW_DOCS.filter(n => !old.docs.some(d => d.text === n.text))].map(docFor)
 }
 fs.writeFileSync(path.join(HERE, 'parse.json'), JSON.stringify(out, null, 2) + '\n')
 console.log(`parse.json: ${out.cases.length} cases (${old.cases.length} kept, ${NEW_LINES.length} new), ${out.docs.length} docs, ${FIELDS.length} fields`)

@@ -19,7 +19,7 @@ Three things take a task out, all three matching what the board's Quick wins
 view already does, because two views of one list disagreeing about what is
 actionable is worse than either answer:
 
-  - Waiting review and Blocked. Both mean the next move belongs to somebody
+  - Waiting for review and Blocked. Both mean the next move belongs to somebody
     else. Nothing is owed on them until they come back, so a notification about
     one is a notification he can do nothing with.
   - An unticked `blocked-by:`. The blocker is the real task; this one is not
@@ -56,7 +56,7 @@ import todo  # noqa: E402
 # a second.
 DATASET = "twinkl"
 
-PARKED_COLUMNS = {"waiting review", "blocked"}
+PARKED_COLUMNS = {"waiting for review", "blocked"}
 
 
 class Digest:

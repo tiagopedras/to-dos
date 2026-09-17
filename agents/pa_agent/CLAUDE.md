@@ -18,7 +18,7 @@ everything else feeds it.
 | `pa-checkin` | The daily session. Invokes `pa-retrieve-tasks` once a day, reads the list, renders the brief from its own templates, asks what has moved, hands the changes to `pa`. |
 | `pa-retrieve-tasks` | Intake from the meeting recorder. Reviews what it finds one at a time, hands what he kept to `pa`, owns the watermark's value. |
 | `pa-mobile` | The phone surface over any of the above. Asks in multiple choice, renders from its own templates, writes through `pa`. |
-| `pa-checkout` | Walks Doing, Waiting review and Blocked. Reviews and asks; `pa` writes. |
+| `pa-checkout` | Walks Doing, Waiting for review and Blocked. Reviews and asks; `pa` writes. |
 | `pa-focus` | Walks To do and Doing, trimming what is not really in flight. Reviews and asks; `pa` writes. |
 | `pa-review-plans` | Triages the planning agent's plans. Writes plan statuses through the board's own routes, hands task notes to `pa`. |
 | `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so its requested changes come back through `pa`. |

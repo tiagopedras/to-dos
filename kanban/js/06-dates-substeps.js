@@ -9,7 +9,7 @@ function parseDue(s){
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s||'').trim());
   return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
 }
-/* `muted` is set on anything sitting in Waiting review: the date is still
+/* `muted` is set on anything sitting in Waiting for review: the date is still
    worth showing, but the work is done as far as he is concerned, so it should
    not read as something to act on today. The label and the note stay — "5d
    late" is still a true fact about the date — only the red/amber urgency

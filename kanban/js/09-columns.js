@@ -71,7 +71,7 @@ function renameTier(oldName, newName){
   const clean = cleanTierName(newName);
   if (!clean) return 'A column needs a name.';
   if (clean === oldName) return '';
-  // Backlog, To do, Doing, Waiting review and Done are matched by this exact
+  // Backlog, To do, Doing, Waiting for review and Done are matched by this exact
   // text all through the board (rollRecurring, ensureTier, the status
   // filter's synthetic columns) — renaming one away doesn't fail gracefully
   // the way an ordinary tier does, it leaves a second, empty column of the

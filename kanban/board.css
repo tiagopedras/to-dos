@@ -972,7 +972,7 @@
      Handed to AI on the board, Waiting for review on Plans and on Execution.
      One rule rather than the three it was until 12 Sep 2026 — `.col.aicol` for
      the board and `.lists.pview .col.agentcol` for the other two, which left
-     Execution's dash riding a selector scoped to Plans. Waiting review and
+     Execution's dash riding a selector scoped to Plans. Waiting for review and
      Done used to be transparent as well as (for Done) dashed, which was the
      same meaning carried twice — once by the fill and once by the border — so
      the fill went and Done's dash went with it. */
@@ -1480,7 +1480,7 @@
      The dashed edge is the whole tell, so it has to be on the card rather than
      only on the rows inside it. */
   /* Dashed, and not tinted. The tint was the same fact as the dash said twice,
-     which is the reason the board's own Done and Waiting review columns lost
+     which is the reason the board's own Done and Waiting for review columns lost
      theirs on the same day — see .col.aicol above. Handed to AI on the board
      and this column are the two dashed columns in the app, and they mean the
      same thing: an agent owns it. */
@@ -2476,7 +2476,7 @@
      positioned absolutely (so it can sit at its own coordinate rather than in
      flexbox flow), which means the parent never sees their height and won't
      stretch for a wrapped one on its own. 28px is two lines' worth at this
-     font, which is as far as a name like "Waiting review" ever needs to
+     font, which is as far as a name like "Waiting for review" ever needs to
      wrap once it's capped to its own fair share of the track's width below. */
   .stepstops{position:relative; height:28px; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
   .stepstop{

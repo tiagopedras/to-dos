@@ -102,7 +102,7 @@ was done. The `pa` skill makes the change, asks him, and handles the board.
 
 Never ask for a change the plan you were given did not name. Which bucket or column
 a task sits in, `done:` stamps, the `## Context` section and any other task are not
-yours to request either. Moving a task to Doing or Waiting review is a statement of
+yours to request either. Moving a task to Doing or Waiting for review is a statement of
 fact only he can make, and `CONVENTIONS.md` says so directly.
 
 What you do write: the task's project folder. The plan's own state you ask for

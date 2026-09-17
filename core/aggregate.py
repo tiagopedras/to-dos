@@ -30,7 +30,7 @@ import todo
 # names rather than a slug — a renamed column would need renaming here too,
 # the same cost every other string-matched column name in this repo carries.
 DOING = "Doing"
-WAITING = "Waiting review"
+WAITING = "Waiting for review"
 BLOCKED = "Blocked"
 BACKLOG = "Backlog"
 
@@ -102,7 +102,7 @@ def today_view(tasks, today=None):
             # with someone else — the date belongs to them now. Same
             # reasoning check_overdue() already applies, extended to every
             # date list here rather than only the overdue one: a "due today"
-            # card sitting in Waiting review is not actionable by him today
+            # card sitting in Waiting for review is not actionable by him today
             # either.
             continue
         due = todo.effective_due(t, today)

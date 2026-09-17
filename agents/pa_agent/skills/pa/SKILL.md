@@ -212,7 +212,7 @@ Agenda
 
 The date of the meeting in full, on its own line. A blank line. The word `Agenda` on its own line. Then the topics, both levels as bullets. The board builds that from the block and the task's date, and it also puts an HTML flavour on the clipboard so a paste into Google Docs keeps both levels as real bullets rather than as hyphens. Nothing about that is yours to write — write the block, and the format follows. It matters only because it tells you what the topics have to survive being read as: a heading and a list in somebody else's document.
 
-**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Morgan 1:1 that means anything in Waiting review or due around the meeting date that touches them or their team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
+**How to fill it.** Work out the topics from the live list rather than from the last agenda, then read `Previous agenda` to see what was already raised. The script says what to look at; go and look. For the Morgan 1:1 that means anything in Waiting for review or due around the meeting date that touches them or their team, plus the regulars the script names. A topic earns its place when there is a decision, an input or a sign-off wanted from the other person, or when something has moved enough that they would want to know.
 
 Rules for the writing itself:
 
@@ -331,7 +331,7 @@ template that tried to would be a second copy of them.
 | --- | --- |
 | `pa-checkin` | The daily check-in. Pulls meeting actions, reads the list, renders the brief, asks what has changed. Hands you the changes and the headline decision. |
 | `pa-retrieve-tasks` | Pulls action items from the meeting recorder and reviews them one by one. Hands you the ones he kept, each with its provenance line. |
-| `pa-checkout` | Walks Doing, Waiting review and Blocked. Hands you what he decided about each. |
+| `pa-checkout` | Walks Doing, Waiting for review and Blocked. Hands you what he decided about each. |
 | `pa-focus` | Walks To do and Doing, asking what is honestly in flight. Hands you what goes back to Backlog. |
 | `pa-review-plans` | Goes through the planning agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
 | `pa-mobile` | Any of the above, from a phone, asked as multiple choice and reported from the mobile templates. Hands you the same changes. |

@@ -16,10 +16,10 @@ BAU and DS were renamed from Design oversight and Design System; Processes was a
 
 ## States
 
-Inside each bucket, five states. Doing / To do / Backlog replaced Now / Next / Later / Parked on 10 Aug 2026 at his request; if a file still uses the old four, rename the headings rather than adding new ones alongside. Waiting review was added on 26 Aug 2026, Blocked on 28 Aug 2026.
+Inside each bucket, five states. Doing / To do / Backlog replaced Now / Next / Later / Parked on 10 Aug 2026 at his request; if a file still uses the old four, rename the headings rather than adding new ones alongside. Waiting for review was added on 26 Aug 2026 (as Waiting review, renamed 17 Sep 2026; the readers still accept the old heading), Blocked on 28 Aug 2026.
 
-- **Waiting review** — finished as far as he is concerned, sitting with somebody else for sign-off. On the board it is the column to the right of Doing, so in the file it is the first heading in the bucket.
-- **Blocked** — can't move until something changes, sitting right after Waiting review. Unlike the other four it has no standing heading: it is only ever created the first time a task is moved into it, and the board hides the column again once nothing unfinished is left there. A task blocked on a person or an event gets a `Waiting on:` note here; a task blocked on another task uses `blocked-by:` instead, wherever it actually sits.
+- **Waiting for review** — finished as far as he is concerned, sitting with somebody else for sign-off. On the board it is the last column before Done, so in the file it is the first heading in the bucket.
+- **Blocked** — can't move until something changes, sitting right after Waiting for review. Unlike the other four it has no standing heading: it is only ever created the first time a task is moved into it, and the board hides the column again once nothing unfinished is left there. A task blocked on a person or an event gets a `Waiting on:` note here; a task blocked on another task uses `blocked-by:` instead, wherever it actually sits.
 - **Doing** — the current focus window, roughly the next two weeks
 - **To do** — two to four weeks out
 - **Backlog** — real work, no time pressure yet. Also where anything deliberately not being done goes, with a revisit date in the note.
@@ -28,7 +28,7 @@ Backlog absorbed the old Parked state, so it holds two different things: real wo
 
 **New tasks do not go into Doing.** That state is his own statement that something is live, so it is only ever set from what he says: he has started it, is working on it, is mid-way through it. A task arriving on the list goes to To do if prioritisation puts it next up, or Backlog if it does not, whatever its score or date. Adding to Doing on his behalf makes the state a wish list rather than a record of what is in flight.
 
-**Nothing goes into Waiting review on his behalf either.** Like Doing, it is a statement of fact about where the work sits, and only he knows whether the pack actually went. Move a task there when he says he has sent it, handed it over or is waiting on a reply; move it back to Doing when the review comes back with work in it, and tick it when it comes back clear. A task sitting in Waiting review with no note saying who has it is worth asking about. Waiting on a person is the state most likely to be forgotten.
+**Nothing goes into Waiting for review on his behalf either.** Like Doing, it is a statement of fact about where the work sits, and only he knows whether the pack actually went. Move a task there when he says he has sent it, handed it over or is waiting on a reply; move it back to Doing when the review comes back with work in it, and tick it when it comes back clear. A task sitting in Waiting for review with no note saying who has it is worth asking about. Waiting on a person is the state most likely to be forgotten.
 
 A state can be empty. Leave the empty headings in place, they make the shape scannable and they stop a bucket looking abandoned.
 

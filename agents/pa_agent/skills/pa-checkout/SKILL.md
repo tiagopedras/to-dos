@@ -1,18 +1,18 @@
 ---
 name: pa-checkout
-description: Walk through everything sitting in Doing, Waiting review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with the total number of tasks it will go through and the count in each of the three states, then numbers them as it goes. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read, which is pa-checkin, or for a re-prioritisation, which is pa, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; the pa skill does the actual writing.
+description: Walk through everything sitting in Doing, Waiting for review or Blocked on the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"), one task at a time, and help him decide whether it moves forward, needs more detail, or is stuck for a reason worth naming. Opens with the total number of tasks it will go through and the count in each of the three states, then numbers them as it goes. Use whenever he asks to clear the backlog, go through what's stuck, review what's blocked or waiting, chase what's sitting in Doing, or asks something like "let's go through what's stuck", "what's been sitting there", "help me close some of this out", or "what's blocked right now". Top-level tasks only — a sub-step has no state of its own, it inherits its parent's. Do not use this for a general status read, which is pa-checkin, or for a re-prioritisation, which is pa, or for pulling meeting actions, which is pa-retrieve-tasks. This skill only reviews and asks; the pa skill does the actual writing.
 ---
 
-# Unsticking Doing, Waiting review and Blocked
+# Unsticking Doing, Waiting for review and Blocked
 
 **Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
 Three states on the list are not really about the work, they are a claim about
-where it sits: **Doing** says it is live, **Waiting review** says it is finished
+where it sits: **Doing** says it is live, **Waiting for review** says it is finished
 and sitting with somebody else, **Blocked** says it cannot move until something
 outside the list changes. None of the three carry a date that expires, so a task
 can sit in any of them for weeks without ever surfacing as overdue — Doing has no
-deadline of its own, Waiting review is deliberately not chased by the checker
+deadline of its own, Waiting for review is deliberately not chased by the checker
 (see `check_overdue` in `../pa/scripts/check_todo.py`), and Blocked has no timer by
 design. That is exactly the shape of thing that goes quiet.
 
@@ -38,8 +38,8 @@ the task drawer's own Dependencies section are for.
 
 Read the file, group by state, and open with the numbers before anything else:
 the **total** he is about to walk through, then how many in Doing, how many in
-Waiting review, how many in Blocked, across which buckets. The total comes first
-and is said as a number of tasks — "6 to go through: 1 blocked, 2 waiting review,
+Waiting for review, how many in Blocked, across which buckets. The total comes first
+and is said as a number of tasks — "6 to go through: 1 blocked, 2 waiting for review,
 3 in Doing" — so he knows the length of the session before it starts. Say it
 plainly enough that it is a real answer on its own, not just a lead-in to the rest.
 
@@ -53,7 +53,7 @@ report the count as if it were the whole answer.
 ### 2. Walk through, one at a time
 
 **Every task in the three states, not a sample of them.** The count in move 1
-is a promise about how many are coming — if it said 11 in Waiting review, he
+is a promise about how many are coming — if it said 11 in Waiting for review, he
 gets 11, not four picked out as representative. Cutting the list short is a
 different failure to reading it out as a batch, but it is still a failure: the
 whole point is that nothing sitting in these states goes unseen.
@@ -74,7 +74,7 @@ through.
 depends on whether it is settled:
 
 - **Settled** — one line, no more. What is being written, or that nothing is.
-  `Moved to Waiting review, noted Morgan has it.` Then the next task.
+  `Moved to Waiting for review, noted Morgan has it.` Then the next task.
 - **Not settled** — stay on it. Ask the follow-up, as long as it needs to be,
   and **do not show him the next task** until it has an outcome. A new task
   named while the last one is still open turns the conversation into two at
@@ -84,7 +84,7 @@ depends on whether it is settled:
 the opening of the next one, so the two read as separate beats rather than one
 block of text.
 
-Order: Blocked first, then Waiting review, then Doing — the ones most likely to
+Order: Blocked first, then Waiting for review, then Doing — the ones most likely to
 need a decision before the ones that are probably fine as they are. Within a
 state, soonest due first, then undated ones last, the same ordering the board
 itself uses.
@@ -100,7 +100,7 @@ Then one question, shaped to the state it is in:
   already on the task saying what it is blocked on is the thing to read back to
   him, not just the title — if there is no such note, that is worth naming, since
   a Blocked task with no reason written down is not really trackable.
-- **Waiting review** — "any word back, or still waiting?" If it names who has it,
+- **Waiting for review** — "any word back, or still waiting?" If it names who has it,
   ask whether it is worth a nudge.
 - **Doing** — "still live, or has it stalled?" Doing is his own claim that
   something is in flight; a task that has quietly stopped being worked belongs
@@ -109,7 +109,7 @@ Then one question, shaped to the state it is in:
 Take whatever he says and turn it into one of a small set of outcomes — do not
 invent more:
 
-- **Move it** to a different state (Doing → Waiting review, Blocked → Doing, and
+- **Move it** to a different state (Doing → Waiting for review, Blocked → Doing, and
   so on).
 - **Tick it done.**
 - **Add or update a note** — who has it, what it is blocked on, a date something
@@ -145,7 +145,7 @@ Do not insist on covering all three just because the skill can.
 that has since happened). Say so and ask directly whether it should move,
 rather than asking the generic question and making him notice it himself.
 
-**Something in Waiting review is actually done** — it came back clear and just
+**Something in Waiting for review is actually done** — it came back clear and just
 was never ticked. Tick it, do not move it to Doing first.
 
 **He answers with a batch instruction** ("move everything in Blocked to

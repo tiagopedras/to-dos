@@ -183,7 +183,7 @@ def tier_of(lines, idx):
     """Nearest preceding state heading, Doing / To do / Backlog."""
     for i in range(idx, -1, -1):
         if lines[i].startswith("### "):
-            return lines[i][4:].strip()
+            return todo.column_name(lines[i][4:])
         if lines[i].startswith("## "):
             return None
     return None
@@ -648,10 +648,10 @@ def check_overdue(tasks, today):
         for entry in [task] + task["subs"]:
             if entry["checked"] or not entry["due"]:
                 continue
-            # Waiting review means the work is done as far as he is concerned
+            # Waiting for review means the work is done as far as he is concerned
             # and it is sitting with someone else — the due date belongs to
             # them now, so it is not an actionable overdue item for him.
-            if entry["tier"] == "Waiting review":
+            if entry["tier"] == "Waiting for review":
                 continue
             if entry["due"] < today:
                 days = (today - entry["due"]).days

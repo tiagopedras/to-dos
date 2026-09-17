@@ -25,7 +25,7 @@ chip both show up somewhere too.
 
 ## 1. People
 
-### Waiting review
+### Waiting for review
 
 ### Doing
 
@@ -83,7 +83,7 @@ chip both show up somewhere too.
 
 ## 2. Design oversight
 
-### Waiting review
+### Waiting for review
 
 ### Doing
 
@@ -118,7 +118,7 @@ chip both show up somewhere too.
 
 ## 3. Design System
 
-### Waiting review
+### Waiting for review
 
 - [ ] **Send the Q3 design system review pack to Anu** [impact:: high] [effort:: S] [ai:: none]
   - Went over on the 21st. Nothing to do until it comes back with comments.
@@ -161,7 +161,7 @@ chip both show up somewhere too.
 
 ## 4. Strategic
 
-### Waiting review
+### Waiting for review
 
 ### Doing
 

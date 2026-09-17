@@ -282,7 +282,7 @@ bucket. A column is a `### Name` heading, and like a bucket it has no id: it is
 whichever name a heading uses, read the same everywhere that name turns up.
 
 Not every bucket carries every heading — Design System alone has a Blocked
-column, and Waiting review, Doing, To do and Backlog are elsewhere — but the
+column, and Waiting for review, Doing, To do and Backlog are elsewhere — but the
 board draws all of them on every bucket's view regardless, empty wherever that
 bucket has no tasks in one. A rename, a reorder, an add or a delete here
 reaches every bucket the same way, seeding an empty heading into whichever ones
@@ -301,7 +301,7 @@ column cannot be deleted, for the same reason as the last bucket — the board
 cannot draw one with nothing to sort into.
 
 A brand new data set starts with the same four columns as every other one —
-Waiting review, Doing, To do, Backlog — precisely so a second list's board
+Waiting for review, Doing, To do, Backlog — precisely so a second list's board
 reads the same as the first from the moment it exists, rather than falling
 back to a generic default nobody chose.
 
@@ -1087,7 +1087,7 @@ recorded on a quiet day, so the next working morning goes out as normal.
 
 **What it counts as owed.** The same three exclusions Quick wins already makes,
 because two views of one list disagreeing about what is actionable is worse than
-either answer on its own. Waiting review and Blocked are out, since the next
+either answer on its own. Waiting for review and Blocked are out, since the next
 move belongs to somebody else. A task whose `blocked-by:` names something
 unticked is out, since the blocker is the real task. Sub-steps are out, since a
 step has no state of its own. Whatever is left out is counted in a line at the
@@ -1402,10 +1402,11 @@ Tags work on sub-steps as readily as on tasks, and usually belong there.
 
 The columns on the board are exactly the `###` headings in the file, so a new
 state is a heading rather than a code change. The board reads them in reverse
-file order and adds a **Done** column on the end that no heading produces. Left
-to right that is Backlog, To do, Doing, Waiting review, Done.
+file order and adds two columns no heading produces: **Handed to AI** straight
+after Doing, and **Done** on the end. Left to right that is Backlog, To do,
+Doing, Handed to AI, Waiting for review, Done.
 
-**Blocked** sits between Doing and Waiting review, but it is not a standing
+**Blocked** sits between Handed to AI and Waiting for review, but it is not a standing
 heading like the other four — it has no place in the file until a task is
 actually moved there from the drawer's Column field, and the board drops the
 column again once nothing is left in it. Use it for a task that cannot move
@@ -1420,7 +1421,7 @@ easily be delegated to somebody and still be drafted by Claude first. When it is
 set, the name appears on the card as an arrowed chip in the accent colour, so
 scanning a column tells you what is with somebody else without opening anything.
 
-**Waiting review** holds work that is finished as far as you are concerned and is
+**Waiting for review** holds work that is finished as far as you are concerned and is
 now sitting with somebody else for sign-off. Nothing is owed on it until it comes
 back, which is a different thing from Doing (live) and from Backlog (real work,
 unscheduled). It appears first in each bucket in the file and last before Done on

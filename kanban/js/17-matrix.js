@@ -21,13 +21,13 @@
    same tier for the same reason: Backlog is not a real priority, so it is left
    out there too, not just muted.
 
-   Waiting review is the softer case: the work is done and someone else has it.
+   Waiting for review is the softer case: the work is done and someone else has it.
    It belongs on the grid, since it still costs what it costs, but the dot is
    faded the way a done card is faded on the board. Anything blocked by an
    unfinished task is faded for the same reason — the grid can rank it, but he
    cannot start it. */
 const HELD_TIER  = 'Backlog';
-const MATRIX_MUTED_TIER = 'Waiting review';
+const MATRIX_MUTED_TIER = 'Waiting for review';
 
 const MATRIX_IMPACT = ['high', 'med', 'low'];      // top row down
 const MATRIX_EFFORT = ['S', 'M', 'L'];             // left column across
@@ -240,7 +240,7 @@ function matrixSection(){
     '<span class="mkey mkeymuted"><i></i>waiting or blocked</span>' +
   '</div>';
   const filters = '<label class="mxfilter"><input type="checkbox" data-mxfilter' +
-    (hideWaiting ? ' checked' : '') + '> Hide Waiting review</label>';
+    (hideWaiting ? ' checked' : '') + '> Hide Waiting for review</label>';
 
   let grid = '<div class="mgrid">' +
     '<div class="mcorner">' +
@@ -309,7 +309,7 @@ function matrixSection(){
   }
 
   const hiddenNote = hiddenWaiting
-    ? '<p class="mhidden">' + hiddenWaiting + ' hidden, sitting in Waiting review.</p>'
+    ? '<p class="mhidden">' + hiddenWaiting + ' hidden, sitting in Waiting for review.</p>'
     : '';
 
   /* Counted on the grid rather than on the list behind it: the two trays under
