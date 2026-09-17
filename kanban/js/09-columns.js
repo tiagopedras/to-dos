@@ -384,6 +384,11 @@ function cardHTML(t, color, bucketLabel, opts){
                   the only dashed thing in the app, which is what makes the
                   dash readable; see the note on .col.agentcol in board.css.
                   Anything else, including nothing, is Style=Default.
+     hot          a running queue worked by AI: Doing and Producing on Plans,
+                  Handed to AI on the board. An orange tint and a gear after
+                  the title. The gear turns while the column is hot; pausing
+                  it when nothing is actually running is `.hotcol.idle` in
+                  board.css, for when the board can tell.
      collapsible  draws the column as a <details> whose <summary> is the head,
                   with `open` saying whether it starts open and `collapseKey`
                   naming where that is remembered (data-colcollapse, read by
@@ -417,6 +422,7 @@ function colHTML(o){
         '<div class="colhead-left">' +
           (o.collapsible ? '<span class="colchev" aria-hidden="true"></span>' : '') +
           '<' + tag + '>' + esc(o.title) + '</' + tag + '>' +
+          (o.hot ? '<span class="colgear" aria-hidden="true"></span>' : '') +
           (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') +
         '</div>' +
         '<div class="colhead-right">' +
@@ -429,7 +435,8 @@ function colHTML(o){
       (o.desc ? '<p class="colhead-desc">' + o.desc + '</p>' : '') +
     '</' + headTag + '>';
   return '<' + el + ' class="col' + (cls ? ' ' + cls : '') +
-      (o.style === 'agent' ? ' agentcol' : '') + '"' +
+      (o.style === 'agent' ? ' agentcol' : '') +
+      (o.hot ? ' hotcol' : '') + '"' +
     (o.collapsible ? ' data-colcollapse="' + esc(o.collapseKey || o.title) + '"' +
       (o.open === false ? '' : ' open') : '') +
     (o.attrs ? ' ' + o.attrs : '') + '>' +

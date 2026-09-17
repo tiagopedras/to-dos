@@ -209,6 +209,7 @@ export function PlansView (props: PlansViewProps) {
       <Column
         heading="h3"
         title="Doing"
+        hot
         cls="reportsview doingview"
         id="doingCol"
         sort={doingSort}
@@ -260,6 +261,7 @@ export function PlansView (props: PlansViewProps) {
       <Column
         heading="h3"
         title="Producing"
+        hot
         cls="reportsview decided"
         id="producingCol"
         sort={producingSort}

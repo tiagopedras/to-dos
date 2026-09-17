@@ -46,6 +46,9 @@ export interface ColumnProps {
    *  this column and you do not drag into it. It is the only dashed thing in
    *  the app, which is what makes the dash readable. */
   style?: ColumnStyle
+  /** A running queue worked by AI — an orange tint and a turning gear after
+   *  the title. Same as colHTML()'s `hot`. */
+  hot?: boolean
   /** Draws the column as a <details> whose <summary> is the head. Overview's
    *  five are the only ones — five columns of prose open at once is a lot of
    *  scrolling, and a column of cards has nothing to gain by hiding. */
@@ -62,7 +65,7 @@ const clean = (s?: string) => (s || '').trim().replace(/\s+/g, ' ')
 export function Column(props: ColumnProps) {
   const {
     title, id, heading, hint, sort, count, action, filters, desc,
-    body, footer, cls, bodyCls, style, collapsible, open, collapseKey, children,
+    body, footer, cls, bodyCls, style, hot, collapsible, open, collapseKey, children,
   } = props
 
   const Tag = heading === 'h3' ? 'h3' : 'h2'
@@ -72,6 +75,7 @@ export function Column(props: ColumnProps) {
   const colClass = 'col'
     + (cleanCls ? ' ' + cleanCls : '')
     + (style === 'agent' ? ' agentcol' : '')
+    + (hot ? ' hotcol' : '')
 
   /* Two groups pushed apart, not one row with things floated right. What the
      column is called sits left; what you do to it sits right. A long title
@@ -83,6 +87,7 @@ export function Column(props: ColumnProps) {
         <div className="colhead-left">
           {collapsible ? <span className="colchev" aria-hidden="true" /> : null}
           <Tag>{title}</Tag>
+          {hot ? <span className="colgear" aria-hidden="true" /> : null}
           {hint ? <span className="hint">{hint}</span> : null}
         </div>
         <div className="colhead-right">

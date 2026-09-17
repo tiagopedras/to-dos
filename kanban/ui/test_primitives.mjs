@@ -103,6 +103,8 @@ const COLUMNS = [
   ['extra classes, half-empty the way callers build them', { title: 'X', cls: '  wide   plans ' }],
   ['a body class', { title: 'X', bodyCls: 'droptarget' }],
   ['the agent variant', { title: 'Waiting for review', style: 'agent' }],
+  ['a hot column', { title: 'Producing', hot: true }],
+  ['hot and agent together', { title: 'Handed to AI', style: 'agent', hot: true }],
   ['a title needing escaping', { title: `Alex's "review" & <b>bold</b>` }],
   ['a hint needing escaping', { title: 'X', hint: `a < b & c's` }],
   ['collapsible, open by default', { title: 'Overview', collapsible: true }],

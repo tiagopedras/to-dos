@@ -1033,6 +1033,7 @@ function renderBoard(){
       // rather than a dashed rule of its own — `aicol` above is left holding
       // only the head colour it also sets.
       style: isAi ? 'agent' : '',
+      hot: isAi,
       attrs: 'data-tier="' + esc(name) + '"',
       // .drop as well as .colbody: the board's body is a drag target, and the
       // wiring below and .drop.over in board.css both find it by that class.
