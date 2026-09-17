@@ -807,6 +807,14 @@ await new Promise(r => setTimeout(r, 300))
 check('in Producing the button only reopens the session, with no move', await evalJS(`
   !window.__blocked.some(x => x.startsWith('POST /stream/apply') && x.includes('"prod-doing.md"'))
 `), await evalJS(`window.__blocked.join(' | ')`))
+// The press above really moved it; put it back, since the column counts
+// further down are written against the seed.
+await evalJS(`(() => {
+  const p = planList.find(x => x.name === 'prod-none.md');
+  p.production = 'none';
+  renderPlansList();
+})()`)
+await new Promise(r => setTimeout(r, 300))
 
 /* A plan that has reported back and not been looked at is the other thing that
    has just arrived, so it takes the accent the same way an unread plan does.
