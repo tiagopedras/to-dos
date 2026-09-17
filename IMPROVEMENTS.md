@@ -18,6 +18,55 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **Nothing the board puts in the URL ever reaches the browser's history, so
+  Back never returns to the view or the card you just left.** `syncHash()` at
+  `kanban/js/07-render-board.js:82` builds the whole fragment —
+  `#<view>/<bucket-slug>!task=<key>` — and writes it with
+  `history.replaceState()`, which overwrites the current entry rather than
+  adding one. Its own comment gives the reason: the hash setter would fire
+  `hashchange` and could loop with the listener at
+  `kanban/js/25-archiving.js:506`. That listener is already the right thing to
+  land on, since it reads `parseHash()` and restores the view, the bucket
+  filter and the open task, and its comment says Back and forward come through
+  it; it simply never gets an entry to go back to. `history.pushState()` does
+  not fire `hashchange` either, so the loop that replaceState was chosen to
+  avoid is not an argument against it. What has to be decided is which
+  transitions earn an entry: a view switch and opening a card plainly do,
+  closing the drawer is the same navigation backwards rather than a new place,
+  and a bucket-filter toggle would fill the history with a press per chip.
+  Since `syncHash()` is called from `renderTabs()`, `openDrawer()` and
+  `closeDrawer()` without knowing which it is serving, it needs to be told —
+  a parameter at the three call sites in `07-render-board.js:129` and
+  `kanban/js/19-drawer.js:1254`, `:1263` and `:1279`, rather than something it
+  can work out from `state`.
+
+- **A note block written after a task's sub-steps disappears from the drawer.**
+  `splitBody()` at `core/todo.js:405` gives any indented line deeper than the
+  step indent to `steps[steps.length - 1].notes`, from the first sub-step
+  onwards, so an `Agenda:` heading and its children placed below the steps are
+  read as notes on the last step rather than as a block on the task, and
+  `agenda_topics()` finds nothing. `core/todo.py:559` does the same with
+  `(steps[-1]["notes"] if steps else notes).append(line)`, so the board and
+  every Python reader agree and both are wrong in the same way. The fix is to
+  let a line at exactly the task's own note indent close the run of step notes
+  and go back to `notes`, keeping the deeper lines under it with it — which is
+  the distinction the grammar already makes everywhere else, and is why an
+  Agenda written above the steps works and one written below it is silently
+  lost. Worth a fixture case in `core/fixtures/` either way, since it is the
+  kind of thing that reads as correct in the file and shows up as an empty
+  section on the card.
+
+- **A board link posted in the chat modal should open its card in this tab.**
+  Once `mdInline()` in `PACKAGES/ai_chat_engine/interface/chat.js:87` turns URLs
+  into links, clicking a `#!task=<id>` one changes nothing but the part after
+  the `#`, which is already what the listener at `kanban/js/25-archiving.js:506`
+  wakes on and what `parseHash()` at `kanban/js/02-state.js:154` reads. What is
+  left on the board side is closing the chat modal when the click lands, so the
+  drawer it just opened is not sitting behind it — `closeChat()` is already on
+  the object `AIChat.create()` returns, and the fallback stub at
+  `kanban/js/10-reference-sections.js:785` would need the same key adding so a
+  board loaded without the module does not throw.
+
 - ~~**Finishing a plan takes the same two clicks, in the same places, as
   accepting one.**~~ **Done.** The sub-line opens with the column
   (`PLAN_COL_LABEL`), It is finished is last and unstyled in Ready to be
