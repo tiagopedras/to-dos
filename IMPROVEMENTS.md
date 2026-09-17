@@ -18,6 +18,24 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- ~~**Finishing a plan takes the same two clicks, in the same places, as
+  accepting one.**~~ **Done.** The sub-line opens with the column
+  (`PLAN_COL_LABEL`), It is finished is last and unstyled in Ready to be
+  produced, and the two confirms read "Move to Ready to be produced" and
+  "Move to Done". Three new checks in `kanban/test_plans.mjs`. `openPlanModal()` (`kanban/js/13-plans.js:306`) puts its
+  first button in one slot for every column: Accept it in Waiting for review,
+  It is finished in Ready to be produced, both styled `agree`. The confirm
+  sheets then repeat the pattern, with `acceptPlan()` (`:345`) and
+  `finishPlan()` (`:392`) each putting their primary button first, and
+  `showModal()` (`kanban/js/23-conflict-modal.js`) focusing that first button.
+  An already-accepted plan opened in the belief that it was still waiting for
+  review got marked finished by exactly those two clicks, and nothing on
+  either sheet said which column the card was in. The fix is a sitting
+  change across those three functions. The plan modal's sub-line should name
+  the column the card is in now. It is finished should lose the `agree`
+  styling and leave the first slot. Each confirm should say which column the
+  card moves to, in the button label itself ("Move to Done").
+
 - **A plan sent back for replanning cannot be dragged from To do to Backlog.**
   **Could not reproduce, 15 Sep 2026.** Driven both ways in a locked tab
   against a stubbed `/plans.json` — a synthetic `DragEvent` sequence, and a
@@ -375,6 +393,34 @@ they settled is written up in the README rather than left here:
   frozen table, so the JavaScript third copy cannot drift either.
 
 ## Big
+
+- **The Plans view needs one review of its whole lifecycle: what a card is,
+  how a task becomes one, what each drag does, and what the plan modal
+  offers in each column.** Today the pieces were decided one at a time and no
+  longer add up. Backlog and To do draw task rows (`queueRowNode()`,
+  `kanban/js/13-plans.js:1338`) rather than plan cards. The plan modal
+  (`openPlanModal()`, `:292`) has only two button sets, split on
+  `planColumn() === PLAN_COL.produced`, so a plan in Producing or Done still
+  offers Accept it, and pressing it on a declined plan reopens it. The drop
+  rules live in the `columnDropProps()` calls inside `paintPlans()` (around
+  `:2025`), and a task reaches Plans by being dropped on the board's Handed to
+  AI column (`AI_COL`, `kanban/js/02-state.js:288`). Four requirements from
+  the owner, to be discussed with him before anything is built:
+
+  1. Everything on the Plans view is a plan card, including a task that has
+     not been planned yet and has nothing to show but the task it came from.
+     That bare card is only for new plans. A task that has been planned and
+     sent back to be replanned keeps its existing plan card, with its history.
+  2. Tasks and plans need better parity. Rethink how dropping a task onto
+     Handed to AI creates a new plan in Backlog or To do, and agree how the
+     board and Plans interact as two views of one piece of work.
+  3. Moving a plan between columns must say plainly what it does. Write the
+     whole behaviour down as a sequence, column by column, including which
+     drags are allowed, which are refused, and why.
+  4. The plan review modal is the most important part to get right. Review
+     every button label and every confirm sheet. If the buttons differ by
+     column, each column's set must be deliberate and its meaning obvious,
+     agreed with the owner column by column.
 
 - ~~**On a phone the header and the filter strip take half the screen before any
   task, and both stay pinned while scrolling.**~~ **Done, 15 Sep 2026**, as

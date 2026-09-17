@@ -788,6 +788,25 @@ await new Promise(r => setTimeout(r, 300))
 check('pressing it posts the plan by name', await evalJS(`
   window.__blocked.some(b => b.startsWith('POST /plans/start-session') && b.includes('"prod-none.md"'))
 `), await evalJS(`window.__blocked.join(' | ')`))
+// Since 17 Sep 2026 pressing it in Ready to be produced moves the card to
+// Producing too, and the move goes first so the session only opens on a plan
+// the stream agreed is being made.
+check('and moves it to Producing before the session opens', await evalJS(`(() => {
+  const b = window.__blocked;
+  const move = b.findIndex(x => x.startsWith('POST /stream/apply') && x.includes('"prod-none.md"') && x.includes('"production":"doing"'));
+  const open = b.findIndex(x => x.startsWith('POST /plans/start-session') && x.includes('"prod-none.md"'));
+  return move > -1 && open > move;
+})()`), await evalJS(`window.__blocked.join(' | ')`))
+
+await evalJS(`(() => {
+  const card = [...document.querySelectorAll('#plansProducing .card')].find(c =>
+    c.querySelector('.title')?.textContent === 'Being made right now');
+  card.querySelector('.startsession').click();
+})()`)
+await new Promise(r => setTimeout(r, 300))
+check('in Producing the button only reopens the session, with no move', await evalJS(`
+  !window.__blocked.some(x => x.startsWith('POST /stream/apply') && x.includes('"prod-doing.md"'))
+`), await evalJS(`window.__blocked.join(' | ')`))
 
 /* A plan that has reported back and not been looked at is the other thing that
    has just arrived, so it takes the accent the same way an unread plan does.
@@ -839,7 +858,7 @@ check('Accept says the planning agent stops re-planning it', await evalJS(`
 check('and that nothing runs yet', await evalJS(`
   document.querySelector('.mscrim .repdoc').textContent.includes('Nothing runs now')
 `))
-await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Yes, accept it').click()`)
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Move to Ready to be produced').click()`)
 await new Promise(r => setTimeout(r, 400))
 const after = await evalJS(`window.__blocked.join(' | ')`)
 // No resolution with it: nothing has closed, so there is nothing to say about
@@ -1381,6 +1400,31 @@ check('the modal offers three moves and no more', await evalJS(`
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();
     return labels.join('|') })()`))
+
+/* An accepted plan must never offer finishing where every other column offers
+   Accept it: first, green, and focused. Its sub-line names the column too. */
+const producedModal = await evalJS(`
+  (() => { const p = window.__plans.find(x => planColumn(x) === PLAN_COL.produced);
+    if (!p) return 'no produced plan in the fixture';
+    openPlanModal(p);
+    const btns = [...document.querySelectorAll('.mscrim .foot .btn')];
+    const out = btns.map(b => b.textContent).join('|') +
+      ' / first-is-agree:' + btns[0].classList.contains('agree') +
+      ' / finish-is-agree:' + btns[2].classList.contains('agree') +
+      ' / sub:' + document.querySelector('.mscrim .msub').textContent.startsWith('In Ready to be produced');
+    closeModal();
+    return out })()`)
+check('an accepted plan puts finishing last, plain, and says which column it is in',
+  producedModal === 'Plan it again|Turn it down|It is finished / first-is-agree:false / finish-is-agree:false / sub:true',
+  producedModal)
+const reviewSub = await evalJS(`
+  (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
+    const t = document.querySelector('.mscrim .msub').textContent; closeModal(); return t })()`)
+check('a plan in review says so on its sub-line', reviewSub.startsWith('In Waiting for review'), reviewSub)
+const finishLabel = await evalJS(`
+  (() => { finishPlan(window.__plans.find(x => planColumn(x) === PLAN_COL.produced));
+    const t = document.querySelector('.mscrim .foot .btn.primary').textContent; closeModal(); return t })()`)
+check('the finish confirm names where the card goes', finishLabel === 'Move to Done', finishLabel)
 
 /* Turning a plan down, pressed for real. The button read its textarea on
    press until 15 Sep 2026, after showModal had already removed it, so every

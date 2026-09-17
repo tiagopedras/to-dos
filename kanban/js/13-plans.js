@@ -176,6 +176,9 @@ function planStripe(p){
 const PLAN_COL = { backlog:'backlog', todo:'todo', doing:'doing',
                    review:'review', produced:'produced', producing:'producing',
                    done:'done' };
+const PLAN_COL_LABEL = { backlog:'Backlog', todo:'To do', doing:'Doing',
+                         review:'Waiting for review', produced:'Ready to be produced',
+                         producing:'Producing', done:'Done' };
 function planColumn(p){
   if (p.state === 'backlog') return PLAN_COL.backlog;
   if (p.state === 'ready' && p.owner === 'planning-agent') return PLAN_COL.todo;
@@ -287,7 +290,11 @@ function wirePlanModalSize(){
    read means. Actioned stays a deliberate press, because that is a claim about
    the work rather than about him, and it is the one the runner acts on. */
 function openPlanModal(p){
-  const sub = [p.bucket, p.column, planGeneratedLabel(p), p.agent].filter(Boolean).map(esc).join(' · ');
+  /* The column leads the sub-line, since the buttons below change with it: an
+     accepted plan opened in the belief it was still waiting for review got
+     marked finished by two clicks in the usual places, 17 Sep 2026. */
+  const sub = ['In ' + PLAN_COL_LABEL[planColumn(p)], p.bucket, p.column, planGeneratedLabel(p), p.agent]
+    .filter(Boolean).map(esc).join(' · ');
   /* Three buttons and only three: the move forward, the move back, and the way
      out. Forward is named after the column it lands in, which is the one that
      changes with where the card already is. Back is always a replan rather
@@ -303,10 +310,12 @@ function openPlanModal(p){
      them is what a plan modal least needs. Parking is still reachable, by
      dragging the card into Backlog, which calls the same parkPlan() the button
      called. */
+  /* In Ready to be produced, finishing goes last and plain rather than first
+     and green, so it never sits where Accept it does in every other column. */
   const buttons = planColumn(p) === PLAN_COL.produced
-      ? [{ label:'It is finished', agree:true, run: () => finishPlan(p) },
-         { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) }]
+      ? [{ label:'Plan it again', reject:true, run: () => replanPlan(p) },
+         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
+         { label:'It is finished', run: () => finishPlan(p) }]
       : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
          { label:'Plan it again', reject:true, run: () => replanPlan(p) },
          { label:'Turn it down', reject:true, run: () => declinePlan(p) }];
@@ -350,7 +359,7 @@ function acceptPlan(p){
       '<p>Nothing runs now. It lands in the execution board\'s Backlog, and the ' +
       'implementing agent only picks it up once you move it to To do there.</p>' +
     '</div>',
-    [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'accepted', 'implementing-agent') },
+    [{ label:'Move to Ready to be produced', primary:true, run: () => movePlan(p, 'accepted', 'implementing-agent') },
      { label:'Cancel' }]);
 }
 
@@ -383,6 +392,16 @@ function producePlan(p){
      { label:'Cancel' }]);
 }
 
+/* The card's Start session button in Ready to be produced, since 17 Sep 2026.
+   Starting the session is starting production, so the card moves to Producing
+   first and the window opens only if that move landed — producePlan()'s rule,
+   without its question, since pressing the button already answered it. */
+async function startProducing(p){
+  if (await movePlan(p, 'accepted', 'implementing-agent', { production:'doing' })) {
+    await startPlanSession(p);
+  }
+}
+
 /* Done. The work the plan describes has finished. Not a verdict on the plan —
    he gave that when he accepted it — so this asks nothing and carries no
    reason; it is the record closing. `actioned` because the plan was carried
@@ -394,7 +413,7 @@ function finishPlan(p){
       '<p>The work this plan describes is done. It moves to <strong>Done</strong> ' +
       'and stays there as the record.</p>' +
     '</div>',
-    [{ label:'Yes, it is finished', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'completed' }) },
+    [{ label:'Move to Done', primary:true, run: () => movePlan(p, 'done', 'me', { resolution:'completed' }) },
      { label:'Cancel' }]);
 }
 
@@ -1063,7 +1082,7 @@ function planCardNode(p){
        something to reopen. */
     action: ((col === PLAN_COL.produced || col === PLAN_COL.producing) && p.production !== 'done')
       ? BoardUI.h('button', { className: 'btn outline small startsession',
-          onClick: e => { e.stopPropagation(); startPlanSession(p); } },
+          onClick: e => { e.stopPropagation(); col === PLAN_COL.produced ? startProducing(p) : startPlanSession(p); } },
           p.production_session ? 'Return to session' : 'Start session')
       : null,
     /* Not every plan resolves: the task might since have been renamed or
