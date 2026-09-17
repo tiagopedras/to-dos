@@ -211,7 +211,11 @@ never a card to watch move on its own.
 The other three keep their mark and their place. It is the one column in the app
 that takes cards and gives none back: dropping a plan on it posts
 `production: doing` through `/stream/apply` — the stream has always accepted
-that field, so no new route — and the cards inside it are not draggable, because
+that field, so no new route — and then opens the session carrying it out, the
+same `/plans/start-session` the card's own button posts, so the drag and the
+button are one gesture rather than two. Only if the move landed: a session
+against a plan the stream refused would be a window doing work the board does
+not believe is happening. The cards inside it are not draggable, because
 what happens next is the agent reporting back or the work finishing, and neither
 of those is a card to move by hand. `planColumn()` in `kanban/js/13-plans.js` is
 where the rule sits, one function the renderers, the drop handlers and the counts

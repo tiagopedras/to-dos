@@ -110,9 +110,9 @@ await evalJS(`(() => {
       date:'2026-09-04', summary:'Done and dusted.' },
     /* The three stages the implementing agent's half can be at, since the
        Execution board was folded into this one on 13 Sep 2026. All three are
-       accepted plans and all three draw in Ready to be produced — six columns
-       rather than eight was the decision, so the stage is a mark on the card
-       and not a place. */
+       accepted plans, and one of the three stages is a column: production
+       'doing' draws in Producing since 16 Sep 2026, while 'none' and 'review'
+       stay in Ready to be produced wearing the stage as a mark on the card. */
     { name:'prod-none.md', night:'2026-09-05', url:'/x/prod-none.md', state:'accepted',
       owner:'implementing-agent', seen:true, production:'none',
       title:'Accepted, not started', task:'Accepted, not started',
@@ -256,7 +256,7 @@ check('a plan with no History behind it says nothing about revisions', await eva
    plan accepted under the old spelling and belongs in Ready to be produced,
    which is the distinction the seventh state was added to draw. */
 check('accepted ones sit in Ready to be produced, not Done', await evalJS(`
-  document.querySelectorAll('#plansProduced > .repitem').length === 4 &&
+  document.querySelectorAll('#plansProduced > .repitem').length === 3 &&
   [...document.querySelectorAll('#plansProduced .bucket')]
     .every(b => b.textContent === 'accepted') &&
   document.querySelectorAll('#plansDone > .repitem').length === 1 &&
@@ -283,10 +283,22 @@ check('the summary is what the closed row shows', await evalJS(`
 // What tonight would plan, in the order it would plan it, and the two ways to
 // change that: drag to reorder, hold to take one out entirely.
 
-check('all six columns are drawn', await evalJS(`
-  ['#backlogOut','#queueOut','#doingOut','#plansOut','#plansProduced','#plansDone']
+check('all seven columns are drawn', await evalJS(`
+  ['#backlogOut','#queueOut','#doingOut','#plansOut','#plansProduced',
+   '#plansProducing','#plansDone']
     .every(id => !!document.querySelector(id))
 `))
+/* Producing draws from `production: doing` rather than from `state:`, and it
+   is one-way: a card goes in by being dropped and none comes out by hand, so
+   the card itself is not draggable. */
+check('Producing holds the one being made, and nothing drags out of it', await evalJS(`
+  document.querySelectorAll('#plansProducing > .repitem').length === 1 &&
+  document.querySelector('#plansProducing .repitem').textContent.includes('Being made right now') &&
+  document.querySelector('#plansProducing .repitem').draggable === false &&
+  [...document.querySelectorAll('#plansProduced > .repitem')].every(c => c.draggable === true)
+`), await evalJS(`
+  [...document.querySelectorAll('#plansProducing > .repitem')]
+    .map(c => c.querySelector('.cardtitle')?.textContent).join('/')`))
 // Token Session and the clock are behind a button, not a fifth column: neither
 // is a decision, and the view's work is the four columns.
 check('and the two reference cards are not on the view', await evalJS(`
@@ -302,13 +314,13 @@ check('To do keeps its name and its queue while nothing is running', await evalJ
   !document.querySelector('#queueOut').classList.contains('hidden') &&
   document.querySelector('#doingOut').classList.contains('hidden')
 `))
-// The same six words as the board itself, in the same order. That parallel is
-// the whole point of the rename on 12 Sep 2026: where a card sits is the
-// instruction, and it means the same thing on both boards.
-check('the board\'s own six columns read left to right', await evalJS(`
+// The board's own six words in the same order, plus Producing between the last
+// two. Where a card sits is the instruction here as it is there; the seventh
+// column is the implementing agent's half, which the board has no equivalent of.
+check('the seven columns read left to right', await evalJS(`
   [...document.querySelectorAll('.lists.pview .col')]
     .map(c => c.querySelector('.colhead h3').textContent).join(' | ')
-`) === 'Backlog | To do | Doing | Waiting for review | Ready to be produced | Done')
+`) === 'Backlog | To do | Doing | Waiting for review | Ready to be produced | Producing | Done')
 // Every column carries one, and it is in the head rather than being the first
 // paragraph of the body — a sentence describing a column governs the column.
 check('each one says what it is for, in its own head', await evalJS(`
@@ -708,24 +720,25 @@ check('and names the file', marked.includes('"name":"add-caveat.md"'))
    second document is gone, so the stage the implementing agent has reached
    rides on the plan card.
 
-   Six columns rather than eight was the decision. Where a card sits is the
-   instruction everywhere else in this app, and by that rule these would be
-   columns — they are not, because the agent only runs from a session he is in,
-   so there is never a card to watch move. All three therefore draw in Ready to
-   be produced and differ only by their mark. */
+   One of the three is a column, since 16 Sep 2026: being made now is a place,
+   and the two either side of it are marks on a card in Ready to be produced.
+   The mark is still drawn on all three, including the one in Producing, so a
+   card says what stage it is at wherever it is read. */
 
-check('every stage of production draws in Ready to be produced', await evalJS(`
-  ['Accepted, not started','Being made right now','Reported back'].every(t =>
-    [...document.querySelectorAll('#plansProduced .card .title')].some(e => e.textContent === t))
+check('the stage being made now is a column, and the other two are not', await evalJS(`
+  ['Accepted, not started','Reported back'].every(t =>
+    [...document.querySelectorAll('#plansProduced .card .title')].some(e => e.textContent === t)) &&
+  [...document.querySelectorAll('#plansProducing .card .title')]
+    .map(e => e.textContent).join() === 'Being made right now'
 `), await evalJS(`
   [...document.querySelectorAll('#plansProduced .card .title')].map(e => e.textContent).join(' | ')`))
 
-check('and none of them is a column of its own', await evalJS(`
+check('which makes seven columns', await evalJS(`
   document.querySelectorAll('.lists.pview > .col').length
-`) === 6, await evalJS(`document.querySelectorAll('.lists.pview > .col').length`))
+`) === 7, await evalJS(`document.querySelectorAll('.lists.pview > .col').length`))
 
 const prodChip = title => evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+  const card = [...document.querySelectorAll('#plansProduced .card, #plansProducing .card')].find(c =>
     c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
   const chip = card && card.querySelector('.planprod');
   return chip ? chip.textContent + '/' + chip.className : 'missing';
@@ -747,7 +760,7 @@ check('and one that has reported back is the one waiting on him',
    start over: the server writes the id it used back onto the plan, and the
    card's own button reads that back to know which word to use. */
 const sessionBtn = title => evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
+  const card = [...document.querySelectorAll('#plansProduced .card, #plansProducing .card')].find(c =>
     c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
   const btn = card && card.querySelector('.startsession');
   return btn ? btn.textContent : 'missing';
@@ -834,9 +847,10 @@ const after = await evalJS(`window.__blocked.join(' | ')`)
 check('accepting moves it to accepted, not done',
   after.includes('"to":"accepted"') && after.includes('"owner":"implementing-agent"') &&
   !after.includes('"resolution":"actioned"'))
-// Five, not two: the four the column already held plus the one just accepted.
+// Four: the three the column already held plus the one just accepted — the
+// fourth accepted plan is in Producing, being made.
 check('and the row moves out of Waiting for review into Ready to be produced', await evalJS(`
-  document.querySelectorAll('#plansProduced > .repitem').length === 5 &&
+  document.querySelectorAll('#plansProduced > .repitem').length === 4 &&
   !document.querySelector('#plansOut > .repitem.agreed')
 `), await evalJS(`document.querySelectorAll('#plansProduced > .repitem').length + ' in the column'`))
 
@@ -995,6 +1009,39 @@ await new Promise(r => setTimeout(r, 300))
 check('the reason box is the same one', await evalJS(`!!document.querySelector('#redoWhy')`))
 await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent === 'Cancel').click()`)
 await new Promise(r => setTimeout(r, 200))
+
+/* Producing, since 16 Sep 2026. The drop confirms and then does two things:
+   writes `production: doing`, and opens the session the card's own button
+   would have opened. The second is the point of the change — moving a plan
+   into the column by hand and then hunting for the button on it was one
+   gesture split in two. Confirmed rather than applied, because both halves
+   spend something. */
+check('dropping it on Producing asks whether it is being made', await evalJS(dropOn('#plansProducing')))
+await new Promise(r => setTimeout(r, 300))
+check('and says a window will open', await evalJS(`
+  !!document.querySelector('.mscrim .repdoc') &&
+  document.querySelector('.mscrim .repdoc').textContent.includes('A Claude window opens')
+`))
+await evalJS(`[...document.querySelectorAll('.mscrim .foot .btn')].find(b => b.textContent.startsWith('Yes')).click()`)
+await new Promise(r => setTimeout(r, 400))
+const producedByDrag = await evalJS(`window.__blocked.join(' | ')`)
+check('it writes the stage', producedByDrag.includes('"production":"doing"'), producedByDrag)
+check('and starts the session on the same plan', await evalJS(`
+  window.__blocked.some(b => b.startsWith('POST /plans/start-session') && b.includes('"drag-me.md"'))
+`), producedByDrag)
+
+// Re-seeded for the same reason the Backlog drop below is: this one applied.
+await evalJS(`(() => {
+  planList = [
+    { name:'drag-me.md', night:'2026-09-05', url:'/x/drag-me.md', state:'review', owner:'me', seen:true,
+      title:'A plan to drag', task:'A plan to drag', slug:'a-plan-to-drag',
+      bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
+      date:'2026-09-05', summary:'Something to move about.' }
+  ];
+  reviewFilter = 'all'; doneFilter = 'all';
+  renderPlansList();
+  return painted();
+})()`)
 
 // Backlog takes no confirm, decided 14 Sep 2026: dragging onto it is already
 // the deliberate act, the same as a held task's queue-to-Backlog drag.

@@ -174,7 +174,8 @@ function planStripe(p){
    work was finished — which is what the `accepted` state was added to split.
    Ready to be produced is that column renamed to say what it is. */
 const PLAN_COL = { backlog:'backlog', todo:'todo', doing:'doing',
-                   review:'review', produced:'produced', done:'done' };
+                   review:'review', produced:'produced', producing:'producing',
+                   done:'done' };
 function planColumn(p){
   if (p.state === 'backlog') return PLAN_COL.backlog;
   if (p.state === 'ready' && p.owner === 'planning-agent') return PLAN_COL.todo;
@@ -195,6 +196,12 @@ function planColumn(p){
      not finished, which is what Ready to be produced says. It is also the
      fallback, so a state this view has never heard of is drawn rather than
      dropped. */
+  /* Producing, since 16 Sep 2026. `production: doing` is the implementing
+     agent being on it right now, which was a badge on a card in Ready to be
+     produced and is a column of its own now. Only that one stage: a plan that
+     has reported back (`production: review`) or finished (`production: done`)
+     stays where it was, still wearing its badge. */
+  if (p.production === 'doing') return PLAN_COL.producing;
   return PLAN_COL.produced;
 }
 
@@ -344,6 +351,35 @@ function acceptPlan(p){
       'implementing agent only picks it up once you move it to To do there.</p>' +
     '</div>',
     [{ label:'Yes, accept it', primary:true, run: () => movePlan(p, 'accepted', 'implementing-agent') },
+     { label:'Cancel' }]);
+}
+
+/* Producing. The implementing agent has this one in hand. The do skill writes
+   `production: doing` itself when it picks a plan up, so this is the same fact
+   said by hand — for the runs he starts from the card's own button, and for a
+   plan he is carrying out himself. The state stays `accepted`, which is what
+   the stream requires of anything with a production stage on it.
+
+   Dropping a card here also opens the session, since 16 Sep 2026. The drag and
+   the card's own Start session button are one gesture — moving a plan into
+   Producing by hand and then having to find the button on it was two — so this
+   runs startPlanSession() after the move, and only if the move landed: a
+   session opened against a plan the stream refused would be a window carrying
+   out work the board does not believe is happening. */
+function producePlan(p){
+  showModal('Is this being made now?', esc(p.title),
+    '<div class="repdoc">' +
+      '<p>It moves to <strong>Producing</strong> and stays there until the work ' +
+      'reports back or finishes. Cards in that column cannot be dragged out.</p>' +
+      '<p>A Claude window opens to carry it out, the same one the card\'s own ' +
+      'button opens — or the session already carrying it, if there is one.</p>' +
+    '</div>',
+    [{ label:'Yes, it is being made', primary:true,
+       run: async () => {
+         if (await movePlan(p, 'accepted', 'implementing-agent', { production:'doing' })) {
+           await startPlanSession(p);
+         }
+       } },
      { label:'Cancel' }]);
 }
 
@@ -623,10 +659,15 @@ async function movePlan(p, state, owner, opts){
       item: { name: p.name },
       to: state, owner, seen,
       resolution: opts.resolution || '',
-      reason: opts.reason || ''
+      reason: opts.reason || '',
+      /* Left out unless the move is about production, since the stream treats
+         a `production` it is given as the new value and a move that says
+         nothing about it must not reset it. */
+      ...(opts.production ? { production: opts.production } : {})
     });
     if (res && res.ok === false) throw new Error(res.error || 'the stream refused it');
     p.state = state; p.owner = owner; p.seen = seen;
+    if (opts.production) p.production = opts.production;
     if (opts.resolution) p.resolution = opts.resolution;
     if (opts.reason) p.feedback = opts.reason;
     // A quiet move repaints nothing, so opening a plan would leave the badge
@@ -640,8 +681,10 @@ async function movePlan(p, state, owner, opts){
       await setTaskHeld(planTaskKey(p), !!opts.hold);
     }
     if (!opts.quiet) { renderPlansList(); renderQueue(); }
+    return true;
   } catch (err) {
     if (!opts.quiet) showToast('Could not move that plan: ' + (err.message || err), 'bad');
+    return false;
   }
 }
 
@@ -966,7 +1009,7 @@ document.addEventListener('click', e => {
   btn.setAttribute('aria-expanded', String(open));
 });
 
-/* A move can land a card in any of the six, so all six are worked out together
+/* A move can land a card in any of the seven, so all seven are worked out together
    rather than each render guessing which two were touched. None of them paints
    on its own any more — each writes into plansProps and the paint happens once
    at the end, which is what stops six renders and six re-wirings per move. */
@@ -974,6 +1017,7 @@ function renderPlansList(){
   setPlansBadge(countPlansAwaiting(planList));
   renderPlanReview();
   renderPlanProduced();
+  renderPlanProducing();
   renderPlanDone();
   renderPlanDoing();
   renderQueueList();
@@ -998,6 +1042,7 @@ function renderPlansList(){
 function planCardNode(p){
   const task = planTask(p);
   const key = planTaskKey(p);
+  const col = planColumn(p);
   return BoardUI.h(BoardUI.PlanCard, {
     key: p.url,
     url: p.url,
@@ -1016,7 +1061,7 @@ function planCardNode(p){
        not once do has already marked it produced, since the session's job
        is finished by then and the transcript is history rather than
        something to reopen. */
-    action: (planColumn(p) === PLAN_COL.produced && p.production !== 'done')
+    action: ((col === PLAN_COL.produced || col === PLAN_COL.producing) && p.production !== 'done')
       ? BoardUI.h('button', { className: 'btn outline small startsession',
           onClick: e => { e.stopPropagation(); startPlanSession(p); } },
           p.production_session ? 'Return to session' : 'Start session')
@@ -1043,7 +1088,12 @@ function planCardNode(p){
       e.dataTransfer.setData('text/plain', p.url);
       e.currentTarget.classList.add('dragging');
     },
-    onDragEnd: e => { drag = null; e.currentTarget.classList.remove('dragging'); }
+    onDragEnd: e => { drag = null; e.currentTarget.classList.remove('dragging'); },
+    /* Producing is one-way: cards go in and none comes out by hand. `attrs`
+       merges over PlanCard's own `draggable: true`, so the card is still a
+       card in every other respect — it opens, it links back to its task, it
+       keeps its session button. */
+    attrs: col === PLAN_COL.producing ? { draggable: false } : undefined
   });
 }
 
@@ -1113,6 +1163,24 @@ function renderPlanProduced(){
                 'it is waiting to be produced.');
   plansProps.producedCount = shown.length;
   plansProps.producedSort = plansSortBtn('produced');
+}
+
+/* Producing. The implementing agent is on this one now — `production: doing`,
+   which the do skill writes on handover and which the board writes too when a
+   card is dropped in here.
+
+   One-way, and that is the whole shape of it: it takes drops from Ready to be
+   produced, and its cards are not draggable out. What happens next is the
+   agent reporting back or the work finishing, and neither is something to say
+   by dragging a card — the same reason Waiting for review takes no drops. A
+   card leaves this column when `production` moves on. */
+function renderPlanProducing(){
+  const shown = orderPlans(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.producing), 'producing');
+  plansProps.producing = shown.length
+    ? planCardNodes(shown)
+    : emptyNode('Nothing being made. Drag a plan here when the implementing agent picks it up.');
+  plansProps.producingCount = shown.length;
+  plansProps.producingSort = plansSortBtn('producing');
 }
 
 /* Done. The work a plan describes has finished, which is the last thing that
@@ -1908,11 +1976,13 @@ const PLANS_BLANK = {
   doingPlans: null,
   review: 'Loading…',
   produced: 'Loading…',
+  producing: 'Loading…',
   done: 'Loading…',
   backlogCount: '',
   queueCount: '',
   doingCount: '',
   producedCount: '',
+  producingCount: '',
   reviewFilterHTML: '',
   doneFilterHTML: '',
   runLive: false
@@ -1964,6 +2034,15 @@ function paintPlans(){
     }, d => d.kind === 'plan',
        'Nothing has been planned for that yet, so there is nothing to accept.'),
 
+    /* Producing takes a plan from Ready to be produced and gives none back:
+       there is no drag out of it, so this is the only way a card gets in or
+       out by hand. Plans only, for the same reason the column before it is. */
+    producingDrop: columnDropProps(d => {
+      const p = draggedPlan(d);
+      if (p) producePlan(p);
+    }, d => d.kind === 'plan',
+       'Nothing has been planned for that yet, so there is nothing to make.'),
+
     /* Done takes them from the column before it, so a plan whose work has
        landed can be dragged across rather than only closed from inside the
        modal. */
@@ -2006,10 +2085,11 @@ async function renderPlansView(){
         'Nothing yet. The planning agent writes into ',
         BoardUI.h('code', null, 'data/plans/'),
         '; the queue on the left is what it would pick up tonight.');
-      /* Neither of the two columns past review has any reason to explain where
+      /* None of the three columns past review has any reason to explain where
          plans come from — the column beside them just did — so each
          only says it is empty rather than sitting on "Loading…" forever. */
       plansProps.produced = emptyNode('Nothing accepted yet.');
+      plansProps.producing = emptyNode('Nothing being made.');
       plansProps.done = emptyNode('Nothing finished yet.');
       paintPlans();
     } else {

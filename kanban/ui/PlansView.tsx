@@ -1,10 +1,14 @@
-/* Plans — the six columns a plan moves through.
+/* Plans — the seven columns a plan moves through.
  *
  * The fourth view off the string builders, and the first one that is a board
  * rather than a page: Backlog, To do, Doing, Waiting for review, Ready to be
- * produced, Done. Where a card sits is the instruction, the same as on the
- * task board, which is why Waiting for review draws with the dashed edge and
- * takes no drops — it is the agent's own column.
+ * produced, Producing, Done. Where a card sits is the instruction, the same as
+ * on the task board, which is why Waiting for review draws with the dashed edge
+ * and takes no drops — it is the agent's own column.
+ *
+ * Producing arrived 16 Sep 2026 and is drawn from `production: doing` rather
+ * than from `state:`, which is what a seventh column costs: the contract
+ * allows one `state:` per file, so the second half of the pipeline is a field.
  *
  * What this component is, and what it deliberately is not
  * ------------------------------------------------------
@@ -93,6 +97,9 @@ export interface PlansViewProps {
   doingPlans: ReactNode
   review: ReactNode
   produced: ReactNode
+  /** Producing: the plans the implementing agent has in hand right now,
+   *  `production: doing`. */
+  producing: ReactNode
   done: ReactNode
   /** The priority/night toggle for each of the four, built by plansSortBtn()
    *  in 13-plans.js — a prop rather than a slot filled after paint, the same
@@ -100,6 +107,7 @@ export interface PlansViewProps {
   doingSort?: ReactNode
   reviewSort?: ReactNode
   producedSort?: ReactNode
+  producingSort?: ReactNode
   doneSort?: ReactNode
   /** Counts in the heads. An empty string draws no count at all — the two
    *  filtered columns say "All 12" on their own button, and the same number
@@ -108,6 +116,7 @@ export interface PlansViewProps {
   queueCount?: string
   doingCount?: string
   producedCount?: string
+  producingCount?: string
   /** The two filter dropdowns, built by colFilterHTML(). Markup rather than a
    *  component, and the only thing on this view still wired off the DOM — by
    *  one delegated listener on `document` rather than a query after a paint,
@@ -121,12 +130,15 @@ export interface PlansViewProps {
   runLive?: boolean
   onRunQueue: () => void
   onOpenRefCards: () => void
-  /** The four columns that take a card. Waiting for review takes none — it is
+  /** The five columns that take a card. Waiting for review takes none — it is
    *  the agent's own column, which is what the dashed edge says — and Doing
-   *  takes none either, since nothing puts a run in flight by hand. */
+   *  takes none either, since nothing puts a run in flight by hand. Producing
+   *  takes them and gives none back: the cards in it are not draggable, which
+   *  `13-plans.js` sets on the card rather than here. */
   backlogDrop?: DropZone
   queueDrop?: DropZone
   producedDrop?: DropZone
+  producingDrop?: DropZone
   doneDrop?: DropZone
 }
 
@@ -144,15 +156,15 @@ export function PlansView (props: PlansViewProps) {
   const {
     backlog, queueErrorHTML, queueDesc, queue,
     orphanHTML, doingHTML, doingEmptyHTML,
-    reviewDesc, doingPlans, review, produced, done,
-    backlogCount, queueCount, doingCount, producedCount,
+    reviewDesc, doingPlans, review, produced, producing, done,
+    backlogCount, queueCount, doingCount, producedCount, producingCount,
     reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
-    backlogDrop, queueDrop, producedDrop, doneDrop,
-    doingSort, reviewSort, producedSort, doneSort,
+    backlogDrop, queueDrop, producedDrop, producingDrop, doneDrop,
+    doingSort, reviewSort, producedSort, producingSort, doneSort,
   } = props
 
   return (
-    <div className="lists pview">
+    <div className="lists pview" style={{ ['--pcols' as string]: 7 }}>
       <Column
         heading="h3"
         title="Backlog"
@@ -240,6 +252,20 @@ export function PlansView (props: PlansViewProps) {
         count={producedCount ?? ''}
         desc="Accepted as written, and waiting on the implementing agent."
         body={<div id="plansProduced" {...producedDrop}>{produced}</div>}
+      />
+
+      {/* One-way. It takes drops, and nothing in it drags out — what happens
+          next is the agent reporting back or the work finishing, neither of
+          which is a card to move. */}
+      <Column
+        heading="h3"
+        title="Producing"
+        cls="reportsview decided"
+        id="producingCol"
+        sort={producingSort}
+        count={producingCount ?? ''}
+        desc="Being made now by the implementing agent."
+        body={<div id="plansProducing" {...producingDrop}>{producing}</div>}
       />
 
       <Column
