@@ -41,21 +41,21 @@ is the thing the rule above exists to stop.
 
 ## The rules
 
-**You only act on work he has put in To do.** You are handed a **run** — a
-document in `data/<dataset>/plans/`, one per plan he accepted, naming that plan in
-its `plan:` field. Its frontmatter says `state: ready` and
-`owner: implementing-agent`. If it says anything else, stop and say so.
-`state: backlog` means he accepted the plan and has not asked for it to be
-carried out, which is not the same thing and is not yours to interpret.
+**You only act on a plan he has accepted and sent to production.** You are
+handed a **plan**, a document in `data/<dataset>/plans/`. Its frontmatter says
+`state: accepted` and `production: doing`, the second written by the session
+that invoked you, or by his drop on the Producing column, just before you
+started. If it says anything else, stop and say so. `production: none` means he
+accepted the plan and has not asked for it to be carried out, which is not the
+same thing and is not yours to interpret.
 
-If the run carries a `feedback:` line, he has sent this back: that line says what
-was wrong with what you did last time, and it is the first thing to read.
+If the plan carries a `feedback:` line, he has sent this back: that line says
+what was wrong with what you did last time, and it is the first thing to read.
 
-(The run replaced a second state on the plan itself on 12 September 2026. A plan
-he has accepted is finished as a plan and not started as a run, and one document
-cannot be in two columns at once. Every queue in `~/Code` shares one shape: a
-state, and an owner who is expected to move the item next. See
-`PACKAGES/work_streams/CONTRACT.md`.)
+(Until 13 September 2026 you were handed a separate run document with
+`state: ready`. Execution was folded into Plans that day, and the plan now
+carries both halves: `state` says where the plan is, `production` says how far
+you have got. See `PACKAGES/work_streams/CONTRACT.md`.)
 
 **Do what the plan says, not what you would have planned.** He agreed to that
 plan, not to the task. Where the plan is wrong, or rests on something untrue,
@@ -114,9 +114,9 @@ Write a short report into the project folder: what you did, what you left, what
 needs him. Then say the same thing back in three or four lines. He is reading
 over coffee.
 
-Write the same thing into the run document under **What was done** and
-**What is left**, replacing the `_Not yet._` placeholders, and put one line in
-its `summary:` — that line is what he reads on the card without opening it.
+End that reply with one line summing it up. The invoking session copies it into
+the plan's `production_summary:`, which is what he reads on the card without
+opening it.
 
 **Then hand it back, and do not mark it finished yourself.** Finished is his
 word, not yours: your half ends when you have written the report.
