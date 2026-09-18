@@ -80,7 +80,7 @@
    "text": ""
   }
  ],
- "doc": "## 1. People\n\n### Doing\n\n- [ ] **Chase the pack** [impact:: high] [effort:: M] [due:: 2026-09-11] [ai:: none]\n  - Suggested message: \"On the task itself.\"\n  - [ ] Ask the nominees [due:: 2026-09-08] [ai:: none]\n    - Suggested message: \"Hey 👋 Could you fill in the form?\"\n  - [x] Send the first request [ai:: none]\n    - Suggested message: \"Already gone out.\"\n  - [ ] Share it with Alex [ai:: none]\n    - Suggested message (draft): \"Hey Alex 👋 This one needs editing first.\"\n\n- [x] **A finished task** [impact:: low] [effort:: S] [ai:: none]\n  - [ ] A step nobody ticked\n    - Suggested message: \"Under a task that is done.\"\n",
+ "doc": "## 1. People\n\n### Doing\n\n- [ ] **Chase the pack** [impact:: high] [effort:: M] [due:: 2026-09-11] [ai:: none]\n  - Suggested message: \"On the task itself.\"\n  - [ ] Ask the nominees [due:: 2026-09-08] [ai:: none]\n    - Suggested message: \"Hey 👋 Could you fill in the form?\"\n  - [x] Send the first request [ai:: none]\n    - Suggested message: \"Already gone out.\"\n  - [ ] Share it with Alex [ai:: none]\n    - Suggested message (draft): \"Hey Alex 👋 This one needs editing first.\"\n\n- [x] **A finished task** [impact:: low] [effort:: S] [ai:: none]\n  - [ ] A step nobody ticked\n    - Suggested message: \"Under a task that is done.\"\n\n- [ ] **A block written below the steps belongs to the task** [impact:: med] [effort:: S] [due:: 2026-09-12] [ai:: none]\n  - [ ] A step with its own note\n    - Suggested message: \"Under the step.\"\n  - Agenda:\n    - A topic\n  - Suggested message: \"Below the steps, so on the task.\"\n",
  "live": [
   {
    "text": "On the task itself.",
@@ -99,7 +99,19 @@
    "where": "Share it with Alex",
    "due": "2026-09-11",
    "draft": true
+  },
+  {
+   "text": "Below the steps, so on the task.",
+   "where": "",
+   "due": "2026-09-12",
+   "draft": false
+  },
+  {
+   "text": "Under the step.",
+   "where": "A step with its own note",
+   "due": "2026-09-12",
+   "draft": false
   }
  ],
- "everyCount": 5
+ "everyCount": 7
 }

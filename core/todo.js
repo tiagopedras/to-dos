@@ -372,7 +372,7 @@ const SUB_RE = /^(\s*)-\s+\[([ xX])\]\s+(.*)$/;
    whether a suggested message serves the task or one step inside it. */
 function splitBody(t){
   const notes = [], steps = [];
-  let base = null;
+  let base = null, intoSteps = false;
   t.body.forEach((line, idx) => {
     const m = SUB_RE.exec(line);
     if (m && (base === null || m[1].length <= base)) {
@@ -400,9 +400,18 @@ function splitBody(t){
         clean: stripTags(text).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim(),
         notes: []
       });
+      intoSteps = true;
       return;
     }
-    if (steps.length && base !== null && /^\s+\S/.test(line) && leadIndent(line) > base) {
+    /* A line back at the step indent or shallower ends the run of notes under
+       the last step and hands the rest of the body back to the task, taking
+       the lines deeper than it along with it. Without that, everything after
+       the first step belonged to that step for the remainder of the body, so
+       an `Agenda:` written below the steps landed on the task while its own
+       topics landed on the last step — a heading in the drawer with nothing
+       under it. */
+    if (line.trim() && base !== null && leadIndent(line) <= base) intoSteps = false;
+    if (steps.length && intoSteps && base !== null && /^\s+\S/.test(line) && leadIndent(line) > base) {
       steps[steps.length - 1].notes.push(line);
       return;
     }

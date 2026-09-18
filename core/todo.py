@@ -548,6 +548,7 @@ def split_body(task):
     """
     notes, steps = [], []
     base = None
+    into_steps = False
     for line in task.body:
         m = SUB_RE.match(line)
         if m and (base is None or len(m.group(1)) <= base):
@@ -555,9 +556,20 @@ def split_body(task):
             step = parse_task(["- [%s] %s" % (m.group(2), m.group(3))])
             step.bucket, step.column = task.bucket, task.column
             steps.append({"task": step, "done": step.done, "notes": []})
+            into_steps = True
             continue
-        (steps[-1]["notes"] if steps else notes).append(line)
+        # A line back at the step indent or shallower ends the run of notes
+        # under the last step and hands the rest of the body back to the task,
+        # taking the lines deeper than it along with it. Without that, an
+        # `Agenda:` written below the steps became notes on the last step.
+        if line.strip() and base is not None and lead_indent(line) <= base:
+            into_steps = False
+        (steps[-1]["notes"] if steps and into_steps else notes).append(line)
     return notes, steps
+
+
+def lead_indent(line):
+    return len(line) - len(line.lstrip())
 
 
 def messages(task, live_only=True):
