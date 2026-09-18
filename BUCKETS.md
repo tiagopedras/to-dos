@@ -99,22 +99,39 @@ bucket they actually apply.
 
 ## How a brief is found
 
-`bucket_stream()` in `agents/planning_agent/plan.py` maps a bucket heading to a
+`bucket_stream()` in `agents/planning_agent/plan.py` gives a bucket heading a
 stream name, and the agent, the folder and the brief are all named off it: the
 agent is `planning-<stream>` and the brief is
 `data/<dataset>/buckets/<stream>/<stream>.md`, with the dataset coming from
-`paths.buckets_dir()`. A heading that matches nothing falls back to `general`,
-and that fallback is logged loudly, since it usually means a bucket was renamed.
+`paths.buckets_dir()`.
 
-`STREAMS` is one table across every dataset, on purpose. Stream names are the
-shared vocabulary — they name the planning agents, which are global — while the
-briefs behind them are not. So two lists can both have a `general` stream and
-mean entirely different things by it, and neither has to know about the other.
+**The heading is the stream.** Strip the leading number, lowercase it, join the
+words with hyphens: `## 3. DS` is `ds`, `## 2. BAU` is `bau`. So a bucket
+created today needs nothing written down anywhere before the night can plan
+against it.
 
-Renaming a bucket on the board means adding an alias to `STREAMS`. That table is
-the only place bucket headings are known, and a heading that is deliberately
-general belongs in it rather than left to the fallback, so the noise stays
-reserved for headings nobody has mapped yet.
+There was a `STREAMS` table in `plan.py` doing this until 17 September 2026, one
+table across every dataset. All it ever did was bridge two shorthands — `ds` to
+`design-system`, `bau` to `work-oversight` — while its other entries mapped a
+heading to itself, and the cost was that a bucket invented on the board was
+invisible until somebody edited it by hand. Every task in a new list planned
+against `general` and logged loudly for it, which is how `personal` behaved from
+the day it was made.
+
+**A rename is the one thing a slug cannot survive**, and a rename must not move
+a bucket's brief. So the slug is fixed when the bucket is created and written
+into that list's own `buckets/README.md` beside the heading; `stream_map()`
+reads it there first and only slugifies the live heading for a bucket that has
+never been through the editor. Renaming `Personal Tasks` to `Family stuff` on
+the board rewrites that row and touches nothing on disk. Both places that create
+a bucket — the new-list wizard and the bucket editor — write the row and
+scaffold the folder as they go, through `POST /bucket/scaffold`.
+
+`general` is still the fallback, and what reaches it now is only a bucket whose
+heading slugifies to nothing. What is logged loudly instead is a stream with no
+`agents/planning_agent/planning-<stream>.md` on disk, which is the same signal
+one step later and a stronger one: it names the file to write rather than a
+table row to add.
 
 ## The empty marker
 

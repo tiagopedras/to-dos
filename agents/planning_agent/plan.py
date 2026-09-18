@@ -40,34 +40,26 @@ import pick  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
 
-# Buckets are renameable on the board, and they get renamed: "Design System"
-# and "Work oversight" became "DS" and "BAU" within a day of this being written,
-# which sent both to the fallback agent without anything looking broken. So every
-# bucket carries its aliases, and a task landing on the fallback is logged loudly
-# rather than quietly planned by a generalist.
-# Bucket heading -> the stream it belongs to. One table rather than two,
-# because everything per-bucket is named off this: the planning agent is
-# `planning-<stream>`, beside this file, and the bucket brief is
-# `data/<dataset>/buckets/<stream>/<stream>.md`.
-# A second table keyed the same way is a second thing to keep in step, and the
-# headings move — People, BAU, DS, Strategic and Processes are what the file
-# says today, and the four in CONVENTIONS.md are what it said in August.
-STREAMS = {
-    "people": "people",
-    "design system": "design-system",
-    "ds": "design-system",
-    "work oversight": "work-oversight",
-    "bau": "work-oversight",
-    "strategic": "strategic",
-    "strategy": "strategic",
-    "processes": "processes",
-    "process": "processes",
-    # `personal`'s only heading. It would reach `general` through the fallback
-    # anyway, but the fallback logs loudly and is meant to — it is how a renamed
-    # bucket gets noticed. A heading that is deliberately general belongs in the
-    # table, so the noise stays reserved for headings nobody has mapped yet.
-    "tasks": "general",
-}
+# Which stream a bucket belongs to, and there is no table of it any more.
+#
+# There was one until 17 Sep 2026, `STREAMS`, mapping a heading to a name. All
+# it ever did was bridge a shorthand — `ds` to `design-system`, `bau` to
+# `work-oversight` — while its other three entries mapped a heading to itself.
+# The cost was that a bucket invented on the board was invisible to this file
+# until someone edited the table by hand, so every task in a new list planned
+# against the fallback and logged loudly for it. That is how `personal` behaved
+# from the day it was made.
+#
+# So the heading is the stream: strip the leading number, lowercase it, join the
+# words with hyphens. `3. DS` is `ds`, `2. BAU` is `bau`, and a bucket created
+# today needs nothing written down anywhere.
+#
+# One thing a slug alone cannot do is survive a rename, and a rename must not
+# move a bucket's brief. So the slug is fixed when the bucket is created and
+# written into the dataset's own `buckets/README.md` beside the heading;
+# stream_map() below reads it there first. Slugifying the live heading is the
+# fallback for a bucket that has never been through the editor, which is what
+# lets a hand-written todo.md keep working unchanged.
 FALLBACK_STREAM = "general"
 FALLBACK_AGENT = "planning-general"
 
@@ -104,14 +96,70 @@ LIMIT_RE = re.compile(
 RESET_RE = re.compile(r"resets? (?:at )?([0-9]{1,2}:[0-9]{2}\s*(?:am|pm)?|[0-9T:\-\+]{10,})", re.I)
 
 
+def bucket_slug(bucket):
+    """A heading as a stream name. "## 3. DS" -> "ds"."""
+    key = re.sub(r"^#+\s*", "", (bucket or ""))
+    key = re.sub(r"^\d+[.)]\s*", "", key).strip().lower()
+    return re.sub(r"[^a-z0-9]+", "-", key).strip("-")
+
+
+# The row shape in a dataset's buckets/README.md: the heading, the stream, the
+# brief. Only the first two are read — the third is worked out from the second
+# by bucket_brief(), and two places saying where a brief lives is one too many.
+README_ROW = re.compile(r"^\|\s*`?([^|`]+)`?\s*\|\s*`?([a-z0-9-]+)`?\s*\|")
+
+
+def stream_map(path=None):
+    """Heading -> stream, out of the dataset's own buckets/README.md.
+
+    Empty when there is no such file, which is the honest answer rather than a
+    failure: every heading then slugifies to itself, which is what a list
+    written by hand has always effectively done.
+    """
+    path = path or os.path.join(paths.buckets_dir(), "README.md")
+    out = {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                m = README_ROW.match(line.strip())
+                if not m:
+                    continue
+                heading, stream = m.group(1).strip(), m.group(2).strip()
+                if heading in ("Heading in `todo.md`", "---", "\u2014"):
+                    continue
+                key = bucket_slug(heading)
+                if key:
+                    out[key] = stream
+    except OSError:
+        return {}
+    return out
+
+
 def bucket_stream(bucket):
-    """Which stream a bucket heading belongs to. "3. DS" -> "design-system"."""
-    key = re.sub(r"^\d+[.)]\s*", "", (bucket or "")).strip().lower()
-    return STREAMS.get(key, FALLBACK_STREAM)
+    """Which stream a bucket heading belongs to. "3. DS" -> "ds".
+
+    The README first, so a bucket renamed on the board keeps the brief it has
+    always had, and the heading's own slug behind it.
+    """
+    key = bucket_slug(bucket)
+    if not key:
+        return FALLBACK_STREAM
+    return stream_map().get(key, key)
 
 
 def bucket_agent(bucket):
     return "planning-%s" % bucket_stream(bucket)
+
+
+def agent_on_disk(agent):
+    """Whether a planner of that name exists to be invoked.
+
+    Claude Code reads agent definitions out of `.claude/agents/`, and each file
+    there is a symlink back to the real copy beside this one — so the real copy
+    is what is checked, and a missing symlink shows up as the run failing rather
+    than as this quietly saying no.
+    """
+    return os.path.isfile(os.path.join(HERE, "%s.md" % agent))
 
 
 def bucket_brief(bucket):
@@ -1015,14 +1063,15 @@ def run(argv=None):
         print("%d to plan, %d skipped\n" % (len(plan), len(skipped)))
         for t in plan:
             agent = bucket_agent(t.bucket)
-            flag = "  <- no agent for this bucket" if agent == FALLBACK_AGENT else ""
+            flag = "" if agent_on_disk(agent) else "  <- no planner for this bucket"
             if not bucket_brief(t.bucket):
                 flag += "  <- no bucket brief yet"
             print("  %-22s %-58s %s%s" % (t.bucket, t.title[:58], agent, flag))
-        orphans = sorted({t.bucket for t in plan if bucket_agent(t.bucket) == FALLBACK_AGENT})
+        orphans = sorted({t.bucket for t in plan if not agent_on_disk(bucket_agent(t.bucket))})
         if orphans:
-            print("\n%d bucket(s) have no agent: %s" % (len(orphans), ", ".join(orphans)))
-            print("Either add an alias to AGENTS in agents/planning_agent/plan.py, or write the agent.")
+            print("\n%d bucket(s) have no planner: %s" % (len(orphans), ", ".join(orphans)))
+            print("Write agents/planning_agent/planning-<stream>.md for each, and symlink it "
+                  "into .claude/agents/.")
         for title, why in skipped:
             print("  skip  %-58s %s" % (title[:58], why))
         return 0
@@ -1069,9 +1118,16 @@ def run(argv=None):
             break
 
         agent = bucket_agent(task.bucket)
-        if agent == FALLBACK_AGENT:
-            log("  NO AGENT for bucket %r — planning %r with the fallback. Add an "
-                "alias to AGENTS in agents/planning_agent/plan.py." % (task.bucket, task.title[:50]))
+        # A slugified heading always resolves, so the loud log is no longer about a
+        # table row nobody added — it is about a planner file that is not on
+        # disk, which is the same signal one step later and a stronger one: it
+        # names the file to create rather than a table to edit. What runs is
+        # still the fallback, because a plan written by a generalist beats no
+        # plan at all.
+        if not agent_on_disk(agent):
+            log("  NO PLANNER for bucket %r — planning %r with the fallback. "
+                "Write agents/planning_agent/%s.md." % (task.bucket, task.title[:50], agent))
+            agent = FALLBACK_AGENT
         # Logged before the run, not only after. An agent takes minutes, so
         # without this the log — and the board's Schedule view, which reads it —
         # says nothing at all about the one currently in flight, which is the

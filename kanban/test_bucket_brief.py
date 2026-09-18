@@ -84,12 +84,15 @@ def main():
         ok("so nothing reads as filled", got["filled"] is False)
         ok("and People is not the fallback", got["fallback"] is False)
 
-        # --- an unmapped heading is honest about the fallback -------------------
+        # --- a bucket nobody has written a planner for --------------------------
+        # It used to fall back to the `general` stream and share `general`'s
+        # brief; since 17 Sep 2026 the heading is the stream, so it gets a brief
+        # of its own and what is missing is the planner that would read it.
         code, body = request(base, "GET", "/bucket-brief.json?bucket=9.%20Nothing%20maps%20here")
         got = json.loads(body)
-        ok("an unmapped heading falls back", got["stream"] == "general",
+        ok("a new heading gets a stream of its own", got["stream"] == "nothing-maps-here",
            "got %r" % got.get("stream"))
-        ok("and the reply says so", got["fallback"] is True)
+        ok("and the reply says no planner reads it yet", got["fallback"] is True)
 
         # --- the write ---------------------------------------------------------
         written = "# People\n\nWhat lands in this bucket.\n"

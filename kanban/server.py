@@ -480,6 +480,7 @@ def project_listing():
 # the Columns editor can rename, add to, or remove from them), but because
 # nothing is more confusing than a second list whose board looks unlike the
 # first for no reason anyone chose.
+NEW_DATASET_COLUMNS = ("Waiting for review", "Doing", "To do", "Backlog")
 NEW_DATASET_TEMPLATE = (
     "# To-do\n\n"
     "## 1. Tasks\n\n"
@@ -489,18 +490,190 @@ NEW_DATASET_TEMPLATE = (
     "### Backlog\n\n"
 )
 
+# The marker BUCKETS.md defines: while it is in a brief, no agent is pointed at
+# the file. A brief scaffolded with a description he typed does not carry it —
+# the description is the one line the template asks for, so the file is started
+# rather than empty.
+BRIEF_EMPTY = "<!-- NOT FILLED IN YET -->"
+BRIEF_ABOUT = "<One line: what kind of work lands in this bucket.>"
 
-def create_dataset(name):
-    """A new dataset starts as one bucket with the standard four columns,
-    empty — the least a file needs for load() and this server's own PUT
-    check to accept it — and nothing else: no backups, no Claude or Jira
-    config, until something asks for one."""
+
+def buckets_dir(name=None):
+    return os.path.join(dataset_dir(name or current_dataset()), "buckets")
+
+
+def brief_text(name, about=""):
+    """One bucket's brief, from the template BUCKETS.md carries.
+
+    Read through brief_template() rather than held here, for the reason that
+    function already gives: BUCKETS.md is where the template is documented and
+    a second copy is a second thing to keep in step.
+
+    A description he typed becomes the template's own one-line opening, and
+    takes the empty marker out with it. That is the whole difference between a
+    scaffolded brief and an empty one: the first says what the bucket is for
+    and can be planned against, the second is a page of headings no agent will
+    be pointed at.
+    """
+    body = brief_template() or ("# <Bucket name>\n\n%s\n\n%s\n" % (BRIEF_ABOUT, BRIEF_EMPTY))
+    about = " ".join((about or "").split())
+    body = body.replace("<Bucket name>", name)
+    if about:
+        body = body.replace(BRIEF_ABOUT, about)
+        # The marker and the sentence under it explaining the marker.
+        body = re.sub(r"\n?" + re.escape(BRIEF_EMPTY) + r"\n+> [^\n]*\n(> [^\n]*\n)*", "\n", body)
+        body = body.replace(BRIEF_EMPTY + "\n", "")
+    return body.lstrip("\n")
+
+
+def buckets_readme(dataset, buckets):
+    """The table `stream_map()` in plan.py reads a bucket's stream out of.
+
+    It is what lets a bucket be renamed without moving its brief, so it is
+    written at creation rather than left for someone to remember — the entry
+    this replaces existed because nobody ever did.
+    """
+    rows = "".join(
+        "| `## %d. %s` | `%s` | `%s/%s.md` |\n" % (i + 1, b["name"], b["stream"],
+                                                   b["stream"], b["stream"])
+        for i, b in enumerate(buckets))
+    return (
+        "# The %s list's buckets\n\n"
+        "What this dataset actually has. The rules, the template and how a brief "
+        "is found live in `BUCKETS.md` at the root of the repo.\n\n"
+        "| Heading in `todo.md` | Stream | Brief |\n"
+        "| --- | --- | --- |\n"
+        "%s\n"
+        "**This table is what fixes a bucket's stream.** `stream_map()` in\n"
+        "`agents/planning_agent/plan.py` parses it, and the bucket editor rewrites a\n"
+        "row when a bucket is renamed — which is how a heading can change without\n"
+        "the brief, the folder or the planner moving with it.\n\n"
+        "A heading with no row here slugifies instead: strip the leading number,\n"
+        "lowercase, hyphens for spaces.\n" % (dataset, rows))
+
+
+def scaffold_bucket(dataset, name, stream, about=""):
+    """One bucket's folder, brief and `skills/`, written once.
+
+    Never overwrites: adding a bucket that already has a brief is somebody
+    re-adding a heading they deleted, and their brief is the thing worth
+    keeping.
+    """
+    folder = os.path.join(buckets_dir(dataset), stream)
+    os.makedirs(os.path.join(folder, "skills"), exist_ok=True)
+    path = os.path.join(folder, "%s.md" % stream)
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8", newline="") as fh:
+            fh.write(brief_text(name, about))
+    return path
+
+
+def readme_rows(dataset=None):
+    """The table in a dataset's buckets/README.md, as (heading, stream) pairs.
+
+    Read and written here rather than only parsed in plan.py, because the board
+    is what keeps it in step: adding a bucket writes a row, renaming one
+    rewrites its heading, and nothing else on the machine touches the file.
+    """
+    path = os.path.join(buckets_dir(dataset), "README.md")
+    rows = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+    except OSError:
+        return rows, ""
+    for line in body.splitlines():
+        m = re.match(r"^\|\s*`?([^|`]+)`?\s*\|\s*`?([a-z0-9-]+)`?\s*\|", line.strip())
+        if m and m.group(1).strip() not in ("Heading in `todo.md`", "---"):
+            rows.append((m.group(1).strip(), m.group(2).strip()))
+    return rows, body
+
+
+def bucket_heading_key(heading):
+    """A heading as plan.bucket_slug() would read it, so the board and the
+    planner agree on which row belongs to which bucket."""
+    key = re.sub(r"^#+\s*", "", heading or "")
+    key = re.sub(r"^\d+[.)]\s*", "", key).strip().lower()
+    return re.sub(r"[^a-z0-9]+", "-", key).strip("-")
+
+
+def readme_note_bucket(dataset, heading, stream, was=None):
+    """Add a bucket's row to the README, or move an existing one to a new heading.
+
+    A rename is the case this exists for. The stream is fixed when the bucket is
+    created, so renaming `Personal Tasks` to `Family stuff` must keep the
+    `personal-tasks` folder, brief and planner — and the only thing that can say
+    so is this row, since the new heading slugifies to something else entirely.
+    """
+    rows, body = readme_rows(dataset)
+    path = os.path.join(buckets_dir(dataset), "README.md")
+    want = "## %s" % heading.lstrip("# ").strip()
+    keep = []
+    replaced = False
+    for h, st in rows:
+        if was is not None and bucket_heading_key(h) == bucket_heading_key(was):
+            keep.append((want, stream))
+            replaced = True
+            continue
+        if bucket_heading_key(h) == bucket_heading_key(heading):
+            keep.append((want, stream))
+            replaced = True
+            continue
+        keep.append((h, st))
+    if not replaced:
+        keep.append((want, stream))
+    table = "".join("| `%s` | `%s` | `%s/%s.md` |\n" % (h, st, st, st) for h, st in keep)
+    head = "| Heading in `todo.md` | Stream | Brief |\n| --- | --- | --- |\n"
+    if body:
+        # Replace the table where it stands, so whatever prose is around it
+        # survives — his own notes about the list live in this file too.
+        new = re.sub(r"\| Heading in `todo\.md`.*?(?=\n\n|\Z)", (head + table).rstrip("\n"),
+                     body, count=1, flags=re.S)
+        if new == body:
+            new = body.rstrip("\n") + "\n\n" + head + table
+    else:
+        new = buckets_readme(dataset or current_dataset(), [])
+        new = new.replace(head, head + table)
+    os.makedirs(buckets_dir(dataset), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write(new)
+    return stream
+
+
+def create_dataset(name, buckets=None):
+    """A new list, with everything that makes it work rather than only a todo.md.
+
+    It wrote one file until 17 Sep 2026 — `todo.md` holding one bucket and the
+    four columns — and everything else was left unmade: no brief per bucket, no
+    `buckets/README.md` saying which buckets the list has, so every task in it
+    planned against the fallback. `personal` behaved that way from the day it
+    was made.
+
+    `buckets` is a list of {name, about}. Nothing passed is the old behaviour,
+    one bucket called Tasks, which is what an older board still posts.
+    """
     path = dataset_dir(name)
     if os.path.exists(path):
         return False
     os.makedirs(path)
+    buckets = [b for b in (buckets or []) if (b.get("name") or "").strip()] or [{"name": "Tasks"}]
+    for b in buckets:
+        b["name"] = " ".join(str(b["name"]).split())
+        b["stream"] = slugify(b["name"]) or "general"
+    lines = ["# To-do", ""]
+    for i, b in enumerate(buckets):
+        lines.append("## %d. %s" % (i + 1, b["name"]))
+        lines.append("")
+        for col in NEW_DATASET_COLUMNS:
+            lines += ["### %s" % col, ""]
     with open(os.path.join(path, "todo.md"), "w", encoding="utf-8", newline="") as fh:
-        fh.write(NEW_DATASET_TEMPLATE)
+        fh.write("\n".join(lines))
+    os.makedirs(buckets_dir(name), exist_ok=True)
+    with open(os.path.join(buckets_dir(name), "README.md"), "w",
+              encoding="utf-8", newline="") as fh:
+        fh.write(buckets_readme(name, buckets))
+    for b in buckets:
+        scaffold_bucket(name, b["name"], b["stream"], b.get("about", ""))
     return True
 
 
@@ -969,6 +1142,14 @@ def owner_now(owner):
     return _owner_alias.get(owner, owner)
 
 
+# The three the board writes, as against the two plan.py writes — see
+# BOARD_HISTORY in agents/planning_agent/stream.py. "after a conversation" is
+# the marker saying the quote is a chat he had about the plan rather than a
+# sentence he typed, which is the one thing the modal shows differently.
+BOARD_HISTORY_RE = re.compile(
+    r"^(Accepted|Sent back|Turned down) by `([^`]*)`( after a conversation)?\.\s*(.*)$")
+
+
 def history_entry(date, revision, rest):
     """One line of a plan's History section, split into what the modal draws.
 
@@ -978,19 +1159,31 @@ def history_entry(date, revision, rest):
     and the revision that answered it, so the reason comes back on its own
     rather than left inside the note for the board to cut out again. The line
     carries one date, so the send-back is dated the day the answer was written.
+
+    Since 17 Sep 2026 the board writes three more — accepted, sent back, turned
+    down — each carrying what he said about the plan, and each saying whether
+    that was a sentence or a conversation. A line in none of the five shapes
+    comes back whole, which is how a plan written by hand still reads.
     """
     rest = rest.strip()
     sent_back = ""
+    conversation = False
     m = re.match(r"^Re-planned by `([^`]*)` after revision \d+ was sent back:\s*(.*)$", rest)
     if m:
         agent, sent_back = m.group(1), m.group(2).strip()
         note = "Re-planned by `%s`." % agent
-    else:
-        m = re.match(r"^Planned by `([^`]*)`", rest)
-        agent = m.group(1) if m else ""
-        note = rest
+        return {"date": date, "revision": revision, "agent": agent,
+                "note": note, "sent_back": sent_back, "conversation": False}
+    m = BOARD_HISTORY_RE.match(rest)
+    if m:
+        verb, agent, chat, said = m.group(1), m.group(2), m.group(3), m.group(4).strip()
+        return {"date": date, "revision": revision, "agent": agent,
+                "note": "%s by `%s`." % (verb, agent), "sent_back": said,
+                "conversation": bool(chat)}
+    m = re.match(r"^Planned by `([^`]*)`", rest)
+    agent = m.group(1) if m else ""
     return {"date": date, "revision": revision, "agent": agent,
-            "note": note, "sent_back": sent_back}
+            "note": rest, "sent_back": sent_back, "conversation": conversation}
 
 
 def plan_meta(path, name):
@@ -1177,7 +1370,7 @@ def queue_listing():
             text = fh.read()
     except OSError:
         return {"queue": [], "held": [], "skipped": [], "order": [], "hold": [],
-                "error": "no todo.md to read"}
+                "force": [], "error": "no todo.md to read"}
 
     order = planning_agent_pick.load_order(queue_order_path())
     try:
@@ -1201,28 +1394,39 @@ def queue_listing():
     return {
         "queue": rows, "held": held, "skipped": other,
         "order": order.get("order") or [], "hold": order.get("hold") or [],
+        "force": order.get("force") or [],
     }
 
 
-def set_queue_order(order, hold):
+def set_queue_order(order, hold, force=None):
     """Write the board's ordering. The second write either surface makes.
 
-    It writes a file the planning agent owns and nothing else reads. Both lists
-    are taken as given rather than validated against the current queue: a title
-    in here that no longer exists is never matched and costs nothing, whereas
-    dropping unknown titles would quietly lose the ordering of a task that is
-    merely Blocked this week and back next.
+    It writes a file the planning agent owns and nothing else reads. All three
+    lists are taken as given rather than validated against the current queue: a
+    title in here that no longer exists is never matched and costs nothing,
+    whereas dropping unknown titles would quietly lose the ordering of a task
+    that is merely Blocked this week and back next.
+
+    `force` is the third list, added 17 Sep 2026: the cards he has dragged out
+    of Backlog and into To do, overruling one of pick.py's three exclusions. An
+    older board posts nothing for it, and an absent list reads the same as an
+    empty one rather than clearing what is stored.
     """
     if planning_agent_pick is None:
         return None, {"error": "no planning agent in this checkout"}
     if not isinstance(order, list) or not isinstance(hold, list):
         return None, {"error": "order and hold must both be lists"}
-    if len(order) + len(hold) > 500:
+    if force is not None and not isinstance(force, list):
+        return None, {"error": "force must be a list"}
+    if len(order) + len(hold) + len(force or []) > 500:
         return None, {"error": "too many titles"}
-    body = planning_agent_pick.save_order({"order": order, "hold": hold},
-                                   queue_order_path())
+    stored = planning_agent_pick.load_order(queue_order_path())
+    body = planning_agent_pick.save_order(
+        {"order": order, "hold": hold,
+         "force": stored.get("force") or [] if force is None else force},
+        queue_order_path())
     return {"ok": True, "order": body["order"], "hold": body["hold"],
-            "saved": body["saved"]}, None
+            "force": body["force"], "saved": body["saved"]}, None
 
 
 # The log lines plan.py writes, and which of them mean what. Matched here rather
@@ -1951,7 +2155,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # rather than letting an untouched template read as written.
                 "filled": exists and marker not in text,
                 "marker": marker,
-                "fallback": stream == planning_agent_plan.FALLBACK_STREAM,
+                # A heading always resolves to a stream of its own since 17 Sep
+                # 2026, so "fallback" no longer means "nothing matched" — it
+                # means no planner of that name exists on disk yet, which is the
+                # thing worth saying: the bucket has a brief nobody is pointed
+                # at until somebody writes agents/planning_agent/planning-<stream>.md.
+                "fallback": not planning_agent_plan.agent_on_disk(
+                    planning_agent_plan.bucket_agent(bucket)),
             })
         if path == "/reports.json":
             return self._json(200, {"reports": report_listing()})
@@ -2094,7 +2304,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "that name has nothing usable in it"})
             if name in list_datasets():
                 return self._json(409, {"error": "there is already a list called “%s”" % name})
-            create_dataset(name)
+            # The wizard posts the buckets it collected, each with the one-line
+            # description that becomes its brief's opening. An older board posts
+            # a name and nothing else, which create_dataset() still answers.
+            buckets = payload.get("buckets")
+            create_dataset(name, buckets if isinstance(buckets, list) else None)
             set_current_dataset(name)
             return self._json(200, {"ok": True, "name": name,
                                     "datasets": list_datasets(), "current": name})
@@ -2160,6 +2374,45 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 os.fsync(fh.fileno())
             os.replace(tmp, path_out)
             return self._json(200, {"ok": True})
+        if path == "/bucket/scaffold":
+            """A bucket added or renamed on the board, given what a bucket needs.
+
+            Adding one was free text with nothing behind it until 17 Sep 2026 —
+            no brief, no folder, no row in the README — so a bucket created here
+            behaved exactly like a bucket in a brand new list: planned against
+            the fallback, with nothing for the agent to read. It is the same
+            action as naming one at list creation, so it writes the same things.
+
+            A rename is the other half and it is deliberately not the same
+            thing: the stream is fixed when the bucket is created, so renaming
+            moves the README row and nothing else. Nothing on disk is renamed,
+            which is the point.
+            """
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            name = " ".join(str(payload.get("name") or "").split())
+            was = payload.get("was")
+            if not name or len(name) > 200:
+                return self._json(400, {"error": "a bucket needs a name"})
+            rows, _ = readme_rows()
+            pinned = dict((bucket_heading_key(h), st) for h, st in rows)
+            # A rename keeps whatever stream the old heading was pinned to; an
+            # add takes the new heading's own slug.
+            stream = (pinned.get(bucket_heading_key(was)) if was else None) \
+                or pinned.get(bucket_heading_key(name)) \
+                or slugify(name)
+            if not stream:
+                return self._json(400, {"error": "that name has nothing usable in it"})
+            readme_note_bucket(None, name, stream, was)
+            brief = scaffold_bucket(None, name, stream, payload.get("about") or "")
+            return self._json(200, {"ok": True, "stream": stream,
+                                    "brief": os.path.relpath(brief, ROOT),
+                                    "renamed": bool(was)})
         if path == "/bucket-colors":
             # Same guard, same shape as /chat-viewed: the whole map is sent and
             # written back whole, and nothing here is dangerous to get wrong —
@@ -2328,7 +2581,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             except (UnicodeDecodeError, ValueError):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = set_queue_order(payload.get("order") or [],
-                                       payload.get("hold") or [])
+                                       payload.get("hold") or [],
+                                       payload.get("force"))
             return self._json(400 if err else 200, err or got)
         if path == "/agenda-history":
             data = self._body()

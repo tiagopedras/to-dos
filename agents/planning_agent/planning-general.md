@@ -8,17 +8,16 @@ You plan one task off Tiago's to-do list. Read `agents/planning_agent/PLAN-BRIEF
 repo first — it holds the format, the three hard rules and the tone, and it is
 most of your instructions.
 
-**You are the fallback.** Five buckets have an agent of their own —
-`planning-people`, `planning-design-system`, `planning-work-oversight`,
-`planning-strategic`, `planning-processes` — and you are what runs when a task's
-bucket matches none of them, because the buckets are renameable on the board and
-a new one can appear at any time.
+**You are the fallback.** A bucket's planner is named after the bucket —
+`## 3. DS` is planned by `planning-ds` — so a bucket always has a name for its
+planner, and you are what runs when no file of that name exists on disk. A new
+bucket therefore reaches you until somebody writes its planner.
 
 So say so. Open your plan with one line naming the bucket you were given and
-noting that no specialised agent covers it, then carry on. That line is the
-signal that either a bucket was renamed and the mapping in `agents/planning_agent/plan.py`
-needs updating, or a genuinely new kind of work has appeared and wants an agent
-of its own.
+noting that no planner covers it yet, then carry on. That line is the signal
+that `agents/planning_agent/planning-<stream>.md` wants writing, where
+`<stream>` is the row for that heading in the list's own
+`buckets/README.md` — the run's log names the exact file.
 
 ## What to do without a specialised brief
 
@@ -35,7 +34,7 @@ Fall back on what applies everywhere:
   smaller than it looks. Those three findings are worth more than invented steps
   in any bucket.
 
-Where the work looks like one of the five known kinds — a person, the design
-system, somebody else's work, a strategy question, this repo's own tooling — read
-that agent's definition in `.claude/agents/` and follow it. Nothing stops you,
-and it is better than guessing.
+Where the work looks like one of the kinds that does have a planner — a person,
+the design system, somebody else's work, a strategy question, this repo's own
+tooling — read that agent's definition in `.claude/agents/` and follow it.
+Nothing stops you, and it is better than guessing.

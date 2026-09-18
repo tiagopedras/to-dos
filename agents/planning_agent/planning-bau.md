@@ -1,5 +1,5 @@
 ---
-name: planning-work-oversight
+name: planning-bau
 description: Researches one Work oversight task off Tiago's to-do list overnight and writes a plan proposing what should happen to it. Aligning designers and stakeholders, unblocking, reviewing others' work, project planning. Invoked by the planning agent, one run per task. Never executes anything and never writes todo.md.
 tools: Read, Grep, Glob, WebFetch, WebSearch
 ---

@@ -44,6 +44,8 @@ async function loadDatasets(){
     state.datasets = true;
     setDataMenuLabel(data.current);
     if (!state.locked) $('#datasetMenu').classList.remove('hidden');
+    // A server that answers with no lists at all, which is a fresh checkout.
+    welcomeIfEmpty(data);
   } catch (err) {
     // No /datasets.json — an older server, or none at all. One list, no
     // picker, exactly as the board behaved before this existed.
@@ -63,16 +65,138 @@ async function switchDataset(name){
   }
 }
 
-async function createDataset(){
-  const raw = prompt('Name the new list:');
-  if (raw === null || !raw.trim()) { loadDatasets(); return; }
+/* ---- Making a list ------------------------------------------------------
+   One `prompt()` for a name until 17 Sep 2026, which produced a shell: a
+   todo.md with one bucket called Tasks and nothing else. Everything that makes
+   a list actually work — a brief per bucket, and the README saying which
+   buckets the list has — was left unmade, so every task in a new list planned
+   against the fallback agent with nothing to read. `personal` behaved that way
+   from the day it was made.
+
+   So it is a wizard: the name, then the buckets, then a line about each saying
+   what kind of work lands in it. That last one is the part worth collecting —
+   it becomes the opening of the bucket's own brief rather than boilerplate
+   under a "not filled in yet" marker, which is the difference between a brief
+   an agent is pointed at and one it is not. Everything else is scaffolded from
+   it by create_dataset() in kanban/server.py. */
+
+const WIZARD_BUCKETS = ['People', 'Work oversight', 'Design System', 'Strategic'];
+
+let wizard = null;
+
+function wizardHTML(){
+  if (wizard.step === 0) {
+    return '<div class="repdoc">' +
+      '<p>What is this list called? It becomes a folder under <code>data/</code>, ' +
+      'and the name on the switcher.</p>' +
+      '<input id="wizName" class="field" type="text" placeholder="Personal" ' +
+        'value="' + esc(wizard.name) + '">' +
+    '</div>';
+  }
+  if (wizard.step === 1) {
+    return '<div class="repdoc">' +
+      '<p>Which buckets? One per line, in the order they should read on the board. ' +
+      'Each gets its own folder, its own brief and its own planner.</p>' +
+      '<textarea id="wizBuckets" class="redowhy" rows="6" ' +
+        'placeholder="' + esc(WIZARD_BUCKETS.join('\n')) + '">' +
+        esc(wizard.buckets.map(b => b.name).join('\n')) + '</textarea>' +
+    '</div>';
+  }
+  const b = wizard.buckets[wizard.step - 2];
+  return '<div class="repdoc">' +
+    '<p>What kind of work lands in <strong>' + esc(b.name) + '</strong>? One line. ' +
+    'It opens the bucket\u2019s brief, which is what the planning agent reads ' +
+    'before it plans anything in here.</p>' +
+    '<textarea id="wizAbout" class="redowhy" rows="3" ' +
+      'placeholder="Probation reviews, performance, hiring, objectives, growth conversations.">' +
+      esc(b.about || '') + '</textarea>' +
+    '<p class="qwhy">You can leave it blank and write the brief later \u2014 while it is ' +
+    'empty, no agent is pointed at it.</p>' +
+  '</div>';
+}
+
+function wizardRead(){
+  if (wizard.step === 0) {
+    const el = $('#wizName');
+    if (el) wizard.name = el.value.trim();
+    return !!wizard.name;
+  }
+  if (wizard.step === 1) {
+    const el = $('#wizBuckets');
+    const was = wizard.buckets;
+    if (el) {
+      const names = el.value.split('\n').map(n => n.trim()).filter(Boolean);
+      // Keep a description already typed against a bucket whose name has not
+      // changed, so stepping back and forward does not lose it.
+      wizard.buckets = names.map(name => ({
+        name, about: (was.find(b => b.name === name) || {}).about || ''
+      }));
+    }
+    return wizard.buckets.length > 0;
+  }
+  const el = $('#wizAbout');
+  if (el) wizard.buckets[wizard.step - 2].about = el.value.trim();
+  return true;
+}
+
+function wizardSteps(){ return 2 + wizard.buckets.length; }
+
+function showWizard(){
+  const last = wizard.step === wizardSteps() - 1;
+  const buttons = [];
+  if (wizard.step > 0) buttons.push({ label:'Back', run: () => { wizard.step--; showWizard(); } });
+  buttons.push({ label: last ? 'Make the list' : 'Next', primary:true, run: () => {
+    if (!wizardRead()) {
+      showToast(wizard.step === 0 ? 'A list needs a name.' : 'A list needs at least one bucket.', 'bad');
+      showWizard();
+      return;
+    }
+    // Read again after the buckets step, since the count it just set is what
+    // says how many steps there are.
+    if (wizard.step >= wizardSteps() - 1) { finishWizard(); return; }
+    wizard.step++;
+    showWizard();
+  } });
+  buttons.push({ label:'Cancel', run: () => { wizard = null; loadDatasets(); } });
+  const sub = wizard.step === 0 ? 'Step 1 of 2, at least'
+    : 'Step ' + (wizard.step + 1) + ' of ' + wizardSteps();
+  showModal('A new list', esc(sub), wizardHTML(), buttons, { cls:'wizard' });
+  const first = $('#wizName') || $('#wizBuckets') || $('#wizAbout');
+  if (first) { first.focus(); if (first.select) first.select(); }
+}
+
+async function finishWizard(){
+  const body = { name: wizard.name, buckets: wizard.buckets };
+  wizard = null;
   try {
-    await postJSON('/datasets', { name: raw });
+    await postJSON('/datasets', body);
     location.reload();
   } catch (err) {
     alert('Could not create that list.\n\n' + (err.message || err));
     loadDatasets();
   }
+}
+
+function createDataset(){
+  wizard = { step: 0, name: '', buckets: WIZARD_BUCKETS.map(name => ({ name, about: '' })) };
+  showWizard();
+}
+
+/* Nothing to switch into, which is what a fresh clone looks like: `data/` is
+   gitignored, so the first time the board is opened on a new machine there is
+   no list at all and every route past current_dataset() resolves a path
+   through None. A board with no lists drew a bare, broken board and said
+   nothing; it opens the wizard instead. */
+function welcomeIfEmpty(data){
+  if ((data.datasets || []).length) return false;
+  showModal('Nothing here yet', 'No list on this machine',
+    '<div class="repdoc">' +
+      '<p>There is no list in <code>data/</code> yet \u2014 which is what a fresh ' +
+      'checkout looks like, since that folder is never committed.</p>' +
+      '<p>Make one now and the board has something to draw.</p>' +
+    '</div>',
+    [{ label:'Make a list', primary:true, run: () => createDataset() }], {});
+  return true;
 }
 
 $('#datasetSelect').onchange = e => {

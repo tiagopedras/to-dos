@@ -44,8 +44,26 @@ function renameBucket(b, name){
   b.raw = null;
   // bucketFilter is held by name, so a toggled-on tab has to follow it.
   if (state.bucketFilter.has(was)) { state.bucketFilter.delete(was); state.bucketFilter.add(clean); }
+  /* A rename must not move the bucket's brief, its folder or its planner. The
+     stream is fixed when a bucket is created and pinned in buckets/README.md,
+     so this moves that row onto the new heading and changes nothing else on
+     disk — without it, `bucket_stream()` would slugify the new heading and the
+     bucket would silently acquire a stream with no brief behind it. */
+  scaffoldBucket(clean, { was });
   markDirty(); refreshView();
   return '';
+}
+
+/* Tell the server a bucket exists, so it has somewhere for its brief to live.
+   Fire and forget: the bucket is already in the document either way, and a
+   server one version behind answers 404 rather than failing the rename. */
+async function scaffoldBucket(name, opts){
+  try {
+    await postJSON('/bucket/scaffold', Object.assign({ name }, opts || {}));
+  } catch (err) {
+    showToast('The bucket is there, but its brief could not be set up: ' +
+              (err.message || err), 'bad');
+  }
 }
 
 function addBucket(name){
@@ -66,6 +84,10 @@ function addBucket(name){
   state.doc.buckets.push({ num: String(state.doc.buckets.length + 1), name: clean, raw: null,
                            intro: [''], tiers, tail: ['---', ''] });
   renumberBuckets();
+  /* Same action as naming a bucket when the list was created, so it writes the
+     same things: the folder, the brief from BUCKETS.md's template, and the row
+     in buckets/README.md that pins the stream. */
+  scaffoldBucket(clean);
   markDirty(); refreshView();
   return '';
 }

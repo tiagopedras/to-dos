@@ -308,8 +308,8 @@ adds what its bucket needs.
 | Bucket | Agent |
 | --- | --- |
 | People | `planning-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
-| Design System | `planning-design-system` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
-| Work oversight | `planning-work-oversight` — who holds it, and what would move it |
+| DS | `planning-ds` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
+| BAU | `planning-bau` — who holds it, and what would move it |
 | Strategic | `planning-strategic` — usually a decision wearing a task's clothes |
 | Processes | `planning-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
 | anything else | `planning-general` — the fallback, which says so in its output |
@@ -458,13 +458,13 @@ launchctl load   ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.pli
 
 **Does Design System want splitting into its five streams?** It is much the
 biggest bucket: 14 of the 19 plans written on the first real night came from
-`planning-design-system`. The split, if it happens, is along the streams the
+`planning-ds`. The split, if it happens, is along the streams the
 bucket already has — ways of working, audits, improvements, documentation,
 enablement — which each task's first note line names, and which
-`planning-design-system.md` already describes in one place. It is not a small
+`planning-ds.md` already describes in one place. It is not a small
 edit: `STREAMS` in `plan.py` names both the agent and the brief, so five
 streams means five agent definitions and five brief files. The cheaper
-experiment is to fill in `data/twinkl/buckets/design-system/design-system.md` first and see
+experiment is to fill in `data/twinkl/buckets/ds/ds.md` first and see
 whether it
 reads as one remit or five.
 

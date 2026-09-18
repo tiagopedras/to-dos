@@ -694,25 +694,56 @@ def test_harvest_usage():
 # --- the bucket mapping ------------------------------------------------------
 
 def test_agents():
+    # The heading is the stream, as of 17 Sep 2026. `STREAMS` is gone, so a
+    # bucket nobody has written down still resolves to a name of its own rather
+    # than falling into `general` — the empty heading is the only thing left
+    # that reaches the fallback.
     for bucket, want in [
         ("People", "planning-people"),
         ("1. People", "planning-people"),
-        ("Design System", "planning-design-system"),
-        ("DS", "planning-design-system"),
-        ("3. DS", "planning-design-system"),
-        ("BAU", "planning-work-oversight"),
-        ("Work oversight", "planning-work-oversight"),
+        ("## 1. People", "planning-people"),
+        ("DS", "planning-ds"),
+        ("3. DS", "planning-ds"),
+        ("BAU", "planning-bau"),
         ("Strategic", "planning-strategic"),
         ("Processes", "planning-processes"),
-        ("Something new", "planning-general"),
+        ("Something new", "planning-something-new"),
+        ("Personal Tasks", "planning-personal-tasks"),
         ("", "planning-general"),
     ]:
         check("bucket %r maps" % bucket, plan.bucket_agent(bucket), want)
 
-    for bucket in list(plan.STREAMS) + ["x"]:
-        agent = plan.bucket_agent(bucket)
-        path = os.path.join(ROOT, "agents", "planning_agent", agent + ".md")
-        check("%s exists on disk" % agent, os.path.exists(path), True)
+    # And the README is what pins a slug so a rename does not move a bucket's
+    # brief. Built against a temporary tree for the same reason the brief checks
+    # below are: the real one lives in gitignored `data/`.
+    tmp = tempfile.mkdtemp()
+    real_root = paths.ROOT
+    try:
+        paths.ROOT = tmp
+        d = os.path.join(tmp, "data", "alpha", "buckets")
+        os.makedirs(d)
+        io.open(os.path.join(tmp, "data", ".current"), "w",
+                encoding="utf-8").write("alpha\n")
+        io.open(os.path.join(d, "README.md"), "w", encoding="utf-8").write(
+            "| Heading in `todo.md` | Stream | Brief |\n"
+            "| --- | --- | --- |\n"
+            "| `## 1. Family stuff` | `personal-tasks` | `personal-tasks/personal-tasks.md` |\n")
+        check("a renamed bucket keeps the stream the README pins",
+              plan.bucket_stream("## 1. Family stuff"), "personal-tasks")
+        check("and a heading with no row still slugifies",
+              plan.bucket_stream("2. Something else"), "something-else")
+    finally:
+        paths.ROOT = real_root
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # Every planner this repo's own list needs, on disk and symlinked where
+    # Claude Code reads them from.
+    for stream in ("people", "bau", "ds", "strategic", "processes", "general"):
+        agent = "planning-%s" % stream
+        check("%s exists on disk" % agent,
+              plan.agent_on_disk(agent), True)
+        check("%s is symlinked for Claude Code" % agent,
+              os.path.exists(os.path.join(ROOT, ".claude", "agents", agent + ".md")), True)
 
     # The acting half. One agent, not one per bucket — see the note at the top
     # of its own definition for why.
@@ -739,7 +770,7 @@ def test_agents():
         io.open(os.path.join(tmp, "data", ".current"), "w",
                 encoding="utf-8").write("alpha\n")
         for stream, body in (("people", "# People\n\nwritten out properly.\n"),
-                             ("design-system", "# DS\n\n%s\n" % plan.BRIEF_EMPTY)):
+                             ("ds", "# DS\n\n%s\n" % plan.BRIEF_EMPTY)):
             d = os.path.join(tmp, "data", "alpha", "buckets", stream)
             os.makedirs(d)
             io.open(os.path.join(d, "%s.md" % stream), "w", encoding="utf-8").write(body)
@@ -767,9 +798,12 @@ def test_agents():
         paths.ROOT = real_root
         shutil.rmtree(tmp, ignore_errors=True)
 
-    # Every stream still resolves to a name, whether or not a brief is on disk.
-    for stream in set(plan.STREAMS.values()) | {plan.FALLBACK_STREAM}:
-        check("%s is a stream name" % stream, isinstance(stream, str) and bool(stream), True)
+    # The slug is the whole rule, so what is worth checking is that it always
+    # produces something usable as a folder and a filename.
+    for heading, want in [("## 3. DS", "ds"), ("4) Strategic", "strategic"),
+                          ("Personal Tasks", "personal-tasks"),
+                          ("Bits & pieces", "bits-pieces"), ("  ", "")]:
+        check("%r slugifies" % heading, plan.bucket_slug(heading), want)
 
     check("a limit message is recognised",
           plan.is_limit("Claude usage limit reached, resets at 3:00pm"), True)
