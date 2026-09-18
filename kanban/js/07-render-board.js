@@ -77,15 +77,32 @@ function bucketFilterFromSlugs(raw){
    cached, so it tracks the drawer rather than surviving past it — see the
    fragment note in 02-state.js. `!chat=` still gets dropped the moment it's
    acted on; only the task panel is "open" in a sense worth remembering.
-   replaceState, not the hash setter: no history entry, no hashchange, so this
-   can't loop with the listener in boot.js. */
-function syncHash(){
+   Never the hash setter, which fires hashchange and would loop with the
+   listener in 25-archiving.js. */
+
+/* True while that listener is putting the board back where Back asked for it.
+   A restore re-opens a card and re-draws the view, and both of those are calls
+   that would otherwise push an entry of their own — so the one press would
+   leave two entries behind and Back would stop going anywhere. */
+let restoringHash = false;
+
+/* `push` is what leaves an entry in the browser's history rather than
+   overwriting the one there, and only the moves that are really a new place
+   pass it: switching view, opening a card, opening a project. Closing the
+   drawer is that same navigation backwards rather than a new place, and a
+   bucket-filter chip would leave an entry per press, so both overwrite.
+
+   pushState fires no hashchange either, so the loop replaceState was picked to
+   avoid is no argument against it. */
+function syncHash(push){
   const withBucket = !!state.doc;
   const openLoc = state.openTask && state.doc && locate(state.openTask);
   const hash = '#' + state.view +
     (withBucket ? '/' + bucketNamesToSlug(state.bucketFilter) : '') +
     (openLoc ? '!task=' + encodeTaskKey(taskKey(openLoc.task)) : '');
-  if (location.hash !== hash) history.replaceState(null, '', hash);
+  if (location.hash === hash) return;
+  if (push && !restoringHash) history.pushState(null, '', hash);
+  else history.replaceState(null, '', hash);
 }
 /* Which buckets the board draws. The AI filter cuts across every bucket, and so
    do the urgent/due filter, an empty bucket filter (nothing toggled on means

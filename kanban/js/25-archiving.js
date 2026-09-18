@@ -506,23 +506,35 @@ window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefau
 window.addEventListener('hashchange', () => {
   const h = parseHash();
   let changed = false;
-  if (isKnownView(h.view) && h.view !== state.view) { state.view = h.view; changed = true; }
-  if (h.bucketSlug && state.doc) {
-    const names = bucketFilterFromSlugs(h.bucketSlug);
-    const same = names.size === state.bucketFilter.size && [...names].every(n => state.bucketFilter.has(n));
-    if (!same) { state.bucketFilter = names; changed = true; }
-  }
-  if (changed) renderView();
-  /* A second link arriving at a tab that is already up — which is what the
-     companion's menu sends. If the file is still loading it waits for load(). */
-  if (h.task) {
-    if (state.doc) openTaskByKey(h.task);
-    else state.pendingTask = h.task;
-  }
-  if (h.chat) {
-    // The sessions index arrives with the engine's status rather than with the
-    // file, so a link that beats it waits for the next onSessionsChanged.
-    if (Object.keys(state.chats || {}).length) openChatByKey(h.chat);
-    else state.pendingChat = h.chat;
-  }
+  /* Everything below is putting the board back where Back asked for it, and
+     opening a card or switching a view pushes an entry of its own — so the one
+     press would leave two behind and Back would stop moving. */
+  restoringHash = true;
+  try {
+    if (isKnownView(h.view) && h.view !== state.view) { state.view = h.view; changed = true; }
+    if (h.bucketSlug && state.doc) {
+      const names = bucketFilterFromSlugs(h.bucketSlug);
+      const same = names.size === state.bucketFilter.size && [...names].every(n => state.bucketFilter.has(n));
+      if (!same) { state.bucketFilter = names; changed = true; }
+    }
+    if (changed) renderView();
+    /* A second link arriving at a tab that is already up — which is what the
+       companion's menu sends. If the file is still loading it waits for load(). */
+    if (h.task) {
+      if (state.doc) openTaskByKey(h.task);
+      else state.pendingTask = h.task;
+    } else if (state.openTask || state.openProject) {
+      /* Back out of a card. The fragment has no `!task=` any more, so the panel
+         still on screen is exactly what the press was asking to leave — without
+         this, Back changed the URL and nothing else. */
+      state.pendingTask = null;
+      closeDrawer();
+    }
+    if (h.chat) {
+      // The sessions index arrives with the engine's status rather than with the
+      // file, so a link that beats it waits for the next onSessionsChanged.
+      if (Object.keys(state.chats || {}).length) openChatByKey(h.chat);
+      else state.pendingChat = h.chat;
+    }
+  } finally { restoringHash = false; }
 });

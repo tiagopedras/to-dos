@@ -2955,3 +2955,49 @@
   }
   .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
   .cvclose:hover{background:var(--red-bg); color:var(--red)}
+
+/* ---- Board and Plans as one tall surface --------------------------------
+   The tab strip switches views by swapping one node for another, instantly.
+   These two are the pair it is worth treating as one canvas instead: a task
+   on the board and the plan about it are the same piece of work seen twice,
+   and the flip says so by moving between them rather than cutting.
+
+   The incoming view slides in from the direction it lives in — Plans from
+   below, the board from above — and the outgoing one is simply gone, because
+   renderView() draws one view at a time and the whole point of not
+   restructuring it is that every other tab carries on untouched. A slide in
+   with nothing sliding out reads as the surface moving, which is the thing
+   being described, and costs no change to the repaint model.
+
+   The tab strip is untouched: every tab stays where it is, Plans included,
+   and this is a second route to the same two views rather than the only one. */
+  .viewflip{
+    position:fixed; right:22px; bottom:22px; z-index:35;
+    width:44px; height:44px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:var(--card);
+    box-shadow:0 2px 10px rgba(16,20,28,.16);
+    color:var(--ink-soft); font-size:17px; line-height:42px; text-align:center;
+    cursor:pointer; transition:transform .16s, box-shadow .16s, color .16s;
+  }
+  .viewflip:hover{ color:var(--ink); box-shadow:0 4px 14px rgba(16,20,28,.22) }
+  .viewflip:active{ transform:scale(.94) }
+  .viewflip::after{ content:"\2193" }
+  .viewflip.up::after{ content:"\2191" }
+
+  @keyframes flipup   { from{ transform:translateY(7vh); opacity:.25 } to{ transform:none; opacity:1 } }
+  @keyframes flipdown { from{ transform:translateY(-7vh); opacity:.25 } to{ transform:none; opacity:1 } }
+  .flipping-up   > #board, .flipping-up   > #lists{ animation:flipup   .22s ease-out }
+  .flipping-down > #board, .flipping-down > #lists{ animation:flipdown .22s ease-out }
+
+  /* A phone gets one column at a time and the FAB sits over it, so it moves up
+     out of the way of the last card rather than covering it. */
+  @media (max-width:640px){
+    .viewflip{ right:14px; bottom:14px; width:40px; height:40px; line-height:38px }
+  }
+
+  /* Nobody who has asked for less movement wants a 7vh slide on every switch. */
+  @media (prefers-reduced-motion:reduce){
+    .flipping-up > #board, .flipping-up > #lists,
+    .flipping-down > #board, .flipping-down > #lists{ animation:none }
+    .viewflip{ transition:none }
+  }

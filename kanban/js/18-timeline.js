@@ -742,7 +742,12 @@ function renderViewTabs(defs){
   // One selector for both, since a panel item and a tab mean the same thing.
   // Picking one re-draws the strip, which is what closes the panel.
   $('#viewToggle').querySelectorAll('[data-view]').forEach(b => {
-    b.onclick = () => { state.view = b.dataset.view; renderView(); };
+    /* syncHash() before the render rather than after it: the write it makes
+       has to land while location.hash still names the view being left, or
+       there is nothing for Back to return to. renderView() reaches syncHash()
+       again through renderTabs(), finds the URL already right and does
+       nothing. */
+    b.onclick = () => { state.view = b.dataset.view; syncHash(true); renderView(); };
   });
   const chev = $('#viewMenuChev');
   if (chev) chev.onclick = () => {
@@ -784,6 +789,7 @@ function renderView(){
   // syncs the URL to the right value.
 
   renderViewTabs(defs);
+  renderViewFlip();
   if (def.id !== 'plans') refreshPlansBadge();
 
   $('#board').classList.toggle('hidden', !isBoard);
@@ -805,6 +811,54 @@ function renderView(){
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
 }
+
+/* ---- The flip, between Board and Plans -----------------------------------
+   Two stacked surfaces rather than two tabs: the board on top, Plans below it,
+   and this moves between them. It is a second route to the same two views —
+   the tab strip is untouched, every tab stays where it is, Plans included — so
+   a route that turns out not to be used costs a button.
+
+   It leaves a history entry, the same as picking a tab does, because it is the
+   same navigation by another gesture. `renderView()` is not restructured for
+   it: the animation is on the view that arrives, which is what lets every
+   other tab carry on being drawn exactly as it was. */
+const FLIP_PAIR = { board:'plans', plans:'board' };
+
+function flipView(){
+  const to = FLIP_PAIR[state.view];
+  if (!to) return;
+  const main = $('#main');
+  main.classList.remove('flipping-up', 'flipping-down');
+  // Board is above Plans, so going to Plans moves the surface up past it and
+  // the arriving view enters from below.
+  main.classList.add(to === 'plans' ? 'flipping-up' : 'flipping-down');
+  state.view = to;
+  syncHash(true);
+  renderView();
+}
+
+/* Shown on the two views it moves between and nowhere else — on Reports or the
+   Timeline there is no pair for it to be half of, and a control that means
+   nothing where it is standing is worse than no control. */
+function renderViewFlip(){
+  const btn = $('#viewFlip');
+  if (!btn) return;
+  const on = !!FLIP_PAIR[state.view];
+  btn.classList.toggle('hidden', !on);
+  if (!on) return;
+  const to = FLIP_PAIR[state.view];
+  btn.classList.toggle('up', to === 'board');
+  btn.title = 'Go to ' + (to === 'board' ? 'the board' : 'Plans');
+}
+
+$('#viewFlip').onclick = flipView;
+/* Taken off the moment it has played, so the next ordinary render of the same
+   view — a card ticked, a filter toggled — does not replay the slide. */
+$('#main').addEventListener('animationend', e => {
+  if (e.target === $('#board') || e.target === $('#lists')) {
+    $('#main').classList.remove('flipping-up', 'flipping-down');
+  }
+});
 
 /* Re-draw whichever view is on screen. The drawer opens from the lists as well
    as the board now, so an edit has to show up where it was made — renderBoard

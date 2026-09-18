@@ -1249,9 +1249,10 @@ function openDrawer(id, focusTitle){
   $('#scrim').classList.add('open');
   if (focusTitle) { const el = $('#f-title'); el.focus(); el.select(); }
   // Written into the URL now rather than left for the next full render —
-  // opening the drawer alone doesn't otherwise touch the hash. See syncHash()
+  // opening the drawer alone doesn't otherwise touch the hash. It pushes: a
+  // card is somewhere he went, and Back is the way out of it. See syncHash()
   // in 07-render-board.js.
-  syncHash();
+  syncHash(true);
 }
 
 function closeDrawer(){
@@ -1275,8 +1276,9 @@ function openProjectDrawer(name){
   state.openProject = name;
   // Drops a `!task=` a click through from the task drawer left behind — see
   // syncHash() in 07-render-board.js — rather than leaving it stale until
-  // whatever renders next happens to call syncHash() itself.
-  syncHash();
+  // whatever renders next happens to call syncHash() itself. Pushes, for the
+  // same reason opening a card does.
+  syncHash(true);
 
   $('#drawer').classList.add('projectview');
   $('#drawer').classList.toggle('readonly', state.locked);
