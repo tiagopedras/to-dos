@@ -766,6 +766,13 @@ function onSessionsChanged(index){
    click that opens the modal, because opening one and closing it again must
    leave the prompt on the task. */
 function onPromptRunSend(payload){
+  /* A conversation about a plan rather than about a task. Its owner names the
+     plan, nothing on the board ever set a pendingPromptRun for it, and what it
+     wants recording is what he said — see notePlanChat() in 13-plans.js. */
+  if (String(payload.owner || '').startsWith('plan:')) {
+    notePlanChat(payload.owner, payload.ask);
+    return;
+  }
   const p = state.pendingPromptRun;
   if (!p || payload.session || payload.key !== p.key) return;
   const task = tasksByChatKey()[p.key];
@@ -783,7 +790,13 @@ function onChatStatusChanged(cfg){
 }
 
 const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
-  ownerLabel: taskId => { const loc = locate(taskId); return loc ? loc.task.title : ''; },
+  ownerLabel: taskId => {
+    // A plan's own conversation, whose owner is the plan file rather than a
+    // task id. Its title is the plan's, which is the task's.
+    if (String(taskId || '').startsWith('plan:')) return planTitleFor(taskId);
+    const loc = locate(taskId);
+    return loc ? loc.task.title : '';
+  },
   // Worth explaining once, on the button that starts a chat, not on every
   // task's Chats section — see the Ask Claude / New chat tooltips.
   readOnlyHelp: '',
@@ -797,7 +810,31 @@ const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   forget: () => Promise.resolve(),
   loadSessions: () => Promise.resolve(),
   loadStatus: () => {},
+  /* Both of these are the board's, not the module's: the listener below calls
+     them on every click, and a board loaded without ai_chat_engine would throw
+     on the first one otherwise. */
+  isOpen: () => false,
+  closeChat: () => {},
 };
+
+/* A board link posted in a chat opens its card in this tab. The href differs
+   from this page only after the `#`, which is what the hashchange listener in
+   25-archiving.js already wakes on and what parseHash() already reads — so the
+   opening is done, and all that is left is getting the chat window out of the
+   way of the drawer underneath it.
+
+   On document rather than on the chat window, which the module owns and
+   replaces. A link to another page, or to this one's `#board`, is left alone:
+   only a fragment naming a card or a session is a reason to close. */
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || !chat.isOpen()) return;
+  let url;
+  try { url = new URL(a.getAttribute('href'), location.href); } catch (_) { return; }
+  if (url.origin !== location.origin || url.pathname !== location.pathname) return;
+  if (!/!(task|chat)=/.test(url.hash)) return;
+  chat.closeChat();
+});
 
 function claudeOn(){ return chat.available() && !state.locked; }
 

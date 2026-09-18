@@ -48,9 +48,20 @@ than being replaced overnight by a second opinion.
 
 Read `data/.current` for the dataset, then look through
 `data/<dataset>/plans/*/*.md` for frontmatter with `state: accepted` and
-`production: none`. Ignore `index.md`. A plan carrying a `feedback:` line is one
-he sent back — that line says what was wrong last time, and it is the first thing
-the agent needs.
+`production: none`. Ignore `index.md`. A plan carrying a `feedback:` line has
+something he said about it, and it is the first thing the agent needs. What it
+says depends on the plan's state, and getting that the wrong way round is how a
+plan he agreed with gets carried out as though it had been rejected:
+
+- On an **accepted** plan it is what he wants kept in mind while it is built.
+  He agreed with the plan; this is a note on top of it, not a complaint about
+  it. It is the only kind a `/do` run ever sees, since `/do` only reads
+  accepted plans.
+- On a plan **sent back** (`state: ready`, owned by the planning agent) it is
+  what was wrong last time, written for the night that rewrites it.
+
+Either way it may be one sentence he typed or a whole conversation he had about
+the plan in the board's chat window — both arrive on the same line.
 
 Report the count and list them: the task title, its bucket, and its `summary:`
 line. If there are none, say so and stop. Do not go looking for plans he might
@@ -72,7 +83,8 @@ One `implementing-agent` run per plan. Give it:
 
 - The full path to the plan file. It is both the instruction and, since the
   fold, the document the report goes onto — there is no second file.
-- Its `feedback:` line, if it has one — that is him having sent this back.
+- Its `feedback:` line, if it has one. On an accepted plan that is what he
+  wants kept in mind while building it, not a rejection — see Move 1.
 - The task's title, bucket and column, and its `Project:` note if it has one.
 - The path to the bucket's brief, `data/<dataset>/buckets/<stream>/<stream>.md`, worked out the
   way `bucket_stream()` in `agents/planning_agent/plan.py` does it.

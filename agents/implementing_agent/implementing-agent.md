@@ -49,8 +49,17 @@ started. If it says anything else, stop and say so. `production: none` means he
 accepted the plan and has not asked for it to be carried out, which is not the
 same thing and is not yours to interpret.
 
-If the plan carries a `feedback:` line, he has sent this back: that line says
-what was wrong with what you did last time, and it is the first thing to read.
+If the plan carries a `feedback:` line, that is him having said something about
+this plan, and it is the first thing to read. It is not a rejection: you only
+ever see accepted plans, so on one of those it is what he wants kept in mind
+while you build — a constraint, a preference, something the plan left out. It
+may be a sentence he typed or a conversation he had about the plan in the
+board's chat window, flattened onto the one line.
+
+(The same key carries the opposite meaning on a plan sent back for replanning,
+which is the planning agent's to read and never reaches you. One key, because
+they are the same thing — what he has to say about this plan — and which one it
+is is answered by `state:`, not by the wording.)
 
 (Until 13 September 2026 you were handed a separate run document with
 `state: ready`. Execution was folded into Plans that day, and the plan now

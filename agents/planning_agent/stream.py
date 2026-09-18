@@ -18,6 +18,7 @@ of every future night's queue and it was never planned again.
 Both halves are written here, together, or neither is.
 """
 
+import datetime as dt
 import json
 import os
 import re
@@ -108,6 +109,38 @@ def _set(text, key, value):
     return text.replace("---\n", "---\n" + line, 1)
 
 
+# The shape of a History line the board writes, as against the two plan.py
+# writes. One date, one revision, and the rest is prose — the same grammar
+# history_entry() in kanban/server.py parses, so a line written here reads in
+# the modal exactly as a line written by the runner does.
+#
+# The board is a second writer of this section as of 17 Sep 2026, and that is a
+# real change: History belonged to the runner because it spans revisions and an
+# agent only ever sees one. What the board adds is not a revision — it is what
+# he said about one, which the runner cannot know, and it carries the revision
+# number the plan already holds rather than minting a new one.
+BOARD_HISTORY = {
+    "accepted": "Accepted by `me`%s.",
+    "ready": "Sent back by `me`%s.",
+    "done": "Turned down by `me`%s.",
+}
+
+
+def _append_history(text, line):
+    """Put one line at the end of the plan's own History section.
+
+    At the end of the file when the section is last, which it is in every plan
+    the runner writes. A plan with no History section at all gets one, so a
+    hand-written plan is not a special case.
+    """
+    if "\n## History" not in text:
+        return text.rstrip("\n") + "\n\n## History\n\n" + line + "\n"
+    head, _, rest = text.partition("\n## History")
+    body, nl, after = rest.partition("\n## ")
+    body = body.rstrip("\n") + "\n" + line + "\n"
+    return head + "\n## History" + body + (nl + after if nl else "")
+
+
 def apply(req):
     m = _manifest()
     item = req.get("item") or {}
@@ -117,7 +150,18 @@ def apply(req):
                                  else "me" if state in ("review", "done", "backlog") else None)
     seen = req.get("seen")
     resolution = req.get("resolution", "")
-    reason = " ".join((req.get("reason") or "").split())[:500]
+    # What he has to say about the plan. It was a sentence typed into a box and
+    # 500 characters was plenty; since 17 Sep 2026 it can also be a whole
+    # conversation he had about the plan in the board's chat window, which is
+    # the same thing at a different length — see the Chat button in
+    # kanban/js/13-plans.js. So the cap is 4000 rather than 500.
+    #
+    # Still one flattened line. `feedback:` is read back by a regex on a single
+    # frontmatter line in three places (plan_meta() in kanban/server.py, the
+    # /do skill, implementing-agent.md), and a block scalar would be a format
+    # change all three would have to learn at once for no gain a reader can
+    # see.
+    reason = " ".join((req.get("reason") or "").split())[:4000]
     # Absent means "leave it as it is", which is not the same as "none" — a move
     # that is not about production must not reset it.
     production = req.get("production")
@@ -169,6 +213,15 @@ def apply(req):
               ("seen", "yes" if (seen if seen is not None else True) else "no"),
               ("resolution", resolution),
               ("feedback", reason)]
+    # What he said about this plan, on the record beside the revisions rather
+    # than only in the frontmatter — the frontmatter holds the latest one, and
+    # History is what makes a plan on its third revision readable.
+    said = ""
+    if reason and state in BOARD_HISTORY:
+        rev = (re.search(r"^revision:\s*(\d+)$", text, re.M) or [None, "1"])[1]
+        kind = " after a conversation" if len(reason) > 240 else ""
+        said = "- **%s, revision %s.** %s %s" % (
+            dt.date.today().isoformat(), rev, BOARD_HISTORY[state] % kind, reason)
     # Newly accepted with nothing said about production is the start of the
     # agent's half, so it starts at `none` rather than at whatever the field
     # happened to hold before.
@@ -178,6 +231,8 @@ def apply(req):
         writes.append(("production", production))
     for key, value in writes:
         text = _set(text, key, value)
+    if said:
+        text = _append_history(text, said)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="") as fh:
         fh.write(text)
