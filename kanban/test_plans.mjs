@@ -1398,16 +1398,55 @@ check('the queue writes only its own ordering', await evalJS(`
 
 /* Last, because it opens a modal and shuts it again — anything after it that
    expected one already open would find none. */
-check('the modal offers three moves and no more', await evalJS(`
+/* Four in Waiting for review since 17 Sep 2026: Chat about it first, because
+   talking a plan through is what happens before a verdict rather than being a
+   fourth one, then the three moves. Every column has its own set now — see
+   planButtons() — and this is the one this fixture's plan is in. */
+check('Waiting for review offers the chat and the three moves', await evalJS(`
   (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();
     return labels.join('|') })()
-`) === 'Accept it|Plan it again|Turn it down', await evalJS(`
+`) === 'Chat about it|Accept it|Plan it again|Turn it down', await evalJS(`
   (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));
     const labels = [...document.querySelectorAll('.mscrim .foot .btn')].map(b => b.textContent);
     closeModal();
     return labels.join('|') })()`))
+
+/* Every column's own set, 17 Sep 2026. One test split these until then —
+   Ready to be produced against everything else — which is how a plan already
+   being built, and one finished a fortnight ago, both went on offering Accept
+   it, and pressing it on a declined plan reopened it. planButtons() is a pure
+   function of the plan, so this asks it directly rather than opening seven
+   modals. */
+const buttonSets = await evalJS(`
+  (() => {
+    const at = p => planButtons(p).map(b => b.label).join('|');
+    return [
+      'backlog:'   + at({ state:'backlog' }),
+      'todo:'      + at({ state:'ready', owner:'planning-agent' }),
+      'doing:'     + at({ state:'doing' }),
+      'review:'    + at({ state:'review' }),
+      'produced:'  + at({ state:'accepted', production:'none' }),
+      'producing:' + at({ state:'accepted', production:'doing' }),
+      'done:'      + at({ state:'done', resolution:'completed' }),
+      'declined:'  + at({ state:'done', resolution:'declined' })
+    ].join('\\n') })()`)
+check('each column offers its own moves', buttonSets === [
+  'backlog:Chat about it|Accept it|Move to To do|Turn it down',
+  'todo:Chat about it|Accept it|Plan it again|Turn it down',
+  'doing:Turn it down',
+  'review:Chat about it|Accept it|Plan it again|Turn it down',
+  'produced:Chat about it|Plan it again|Turn it down|It is finished',
+  'producing:Chat about it|It is finished|Turn it down',
+  'done:Plan it again',
+  'declined:Plan it again'
+].join('\n'), buttonSets)
+// The two that caused this: neither offers accepting any more.
+check('a plan being built cannot be accepted again',
+  !buttonSets.split('\n')[5].includes('Accept it'))
+check('and a declined one cannot be reopened by pressing Accept',
+  !buttonSets.split('\n')[7].includes('Accept it'))
 
 /* An accepted plan must never offer finishing where every other column offers
    Accept it: first, green, and focused. Its sub-line names the column too. */
@@ -1418,12 +1457,12 @@ const producedModal = await evalJS(`
     const btns = [...document.querySelectorAll('.mscrim .foot .btn')];
     const out = btns.map(b => b.textContent).join('|') +
       ' / first-is-agree:' + btns[0].classList.contains('agree') +
-      ' / finish-is-agree:' + btns[2].classList.contains('agree') +
+      ' / finish-is-agree:' + btns[btns.length - 1].classList.contains('agree') +
       ' / sub:' + document.querySelector('.mscrim .msub').textContent.startsWith('In Ready to be produced');
     closeModal();
     return out })()`)
 check('an accepted plan puts finishing last, plain, and says which column it is in',
-  producedModal === 'Plan it again|Turn it down|It is finished / first-is-agree:false / finish-is-agree:false / sub:true',
+  producedModal === 'Chat about it|Plan it again|Turn it down|It is finished / first-is-agree:false / finish-is-agree:false / sub:true',
   producedModal)
 const reviewSub = await evalJS(`
   (() => { openPlanModal(window.__plans.find(x => x.name === 'add-caveat.md'));

@@ -134,6 +134,32 @@ def test_pick():
     check("and says why", why.get("Only half of it"), "tagged ai:partial, and only ai:full is planned")
     check("ai:none is dropped quietly", "Not for Claude" in why, False)
 
+    # One task, one plan, 17 Sep 2026. The three rules below used to drop a task
+    # tagged ai:full without a word, so the board drew it in Handed to AI and
+    # Plans drew nothing — the two never agreed on a count. Each one names
+    # itself now, and the card it produces sits in Plans' Backlog.
+    check("parked says where it is sitting", why.get("Sitting with someone"),
+          "sitting in Waiting for review")
+    check("and Blocked the same", why.get("Stuck"), "sitting in Blocked")
+    check("an unticked blocked-by says so", why.get("Waits on another"),
+          "blocked by something unfinished")
+    check("a future start: names the date", why.get("Not yet startable"),
+          "not startable until 2099-01-01")
+    check("a done task is still dropped quietly", "Already done" in why, False)
+
+    # And the override: dragging one of those cards into To do writes `force`,
+    # which plans it tonight whatever the rule said. A held title beats it,
+    # since holding is him saying leave it alone in as many words.
+    order = {"order": [], "hold": [], "force": ["Not yet startable", "Stuck"]}
+    pf, sf = pick.select(DOC, day=dt.date(2026, 9, 5), use_ledger=False, order=order)
+    check("a forced task is planned", titles(pf),
+          ["Not yet startable", "Plain and plannable", "Startable now", "Stuck"])
+    check("and stops saying why it was not", "Stuck" in {t.title: w for t, w in sf}, False)
+
+    order = {"order": [], "hold": ["Stuck"], "force": ["Stuck"]}
+    ph, _ = pick.select(DOC, day=dt.date(2026, 9, 5), use_ledger=False, order=order)
+    check("held beats forced", "Stuck" in titles(ph), False)
+
     # The ledger: unchanged is skipped, changed is planned again, and an accepted
     # plan is left alone — since 12 Sep 2026 `done` is the end of the planning
     # half rather than a reason to start it over.
@@ -269,21 +295,33 @@ def test_order():
     # losing it should cost an ordering and nothing else.
     import json
     import tempfile
+    empty = {"order": [], "hold": [], "force": []}
     check("a missing order file reads as empty",
-          pick.load_order("/nowhere/at/all.json"), {"order": [], "hold": []})
+          pick.load_order("/nowhere/at/all.json"), empty)
     tmp = tempfile.mkdtemp(prefix="order-test-")
     try:
         path = os.path.join(tmp, "queue-order.json")
         for junk in ('not json at all', '[]', '{"order": "a string"}', '{"hold": null}'):
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(junk)
-            check("%s reads as empty" % junk[:22],
-                  pick.load_order(path), {"order": [], "hold": []})
+            check("%s reads as empty" % junk[:22], pick.load_order(path), empty)
         pick.save_order({"order": ["One", "  "], "hold": ["Two"]}, path)
         check("saving drops blank titles", pick.load_order(path),
-              {"order": ["One"], "hold": ["Two"]})
+              {"order": ["One"], "hold": ["Two"], "force": []})
         with open(path, encoding="utf-8") as fh:
             check("and stamps when it was saved", "saved" in json.load(fh), True)
+        # Held and forced are two columns saying opposite things about one task,
+        # so save_order() will not write a title into both. Hold wins, because
+        # hold is the one that means leave it alone.
+        pick.save_order({"order": [], "hold": ["Two"], "force": ["two", "Three"]}, path)
+        check("a held title cannot also be forced", pick.load_order(path),
+              {"order": [], "hold": ["Two"], "force": ["Three"]})
+        # A file written before 17 Sep 2026 has no force list at all, and reads
+        # the same as one that has never been overruled.
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"order": ["One"], "hold": []}')
+        check("an older file reads as nothing forced", pick.load_order(path),
+              {"order": ["One"], "hold": [], "force": []})
     finally:
         __import__("shutil").rmtree(tmp, ignore_errors=True)
 

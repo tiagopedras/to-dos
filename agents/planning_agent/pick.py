@@ -13,6 +13,13 @@ either answer on its own.
   - An unticked `blocked-by:`. The blocker is the real task.
   - A `start:` that has not arrived. It cannot begin yet.
 
+Since 17 Sep 2026 the three are advice rather than a gate. Every task tagged
+`[ai:: full]` has one card on Plans — one task, one plan — so an excluded task
+is not missing from the view, it is a card in Backlog wearing the reason. Where
+the card sits is the instruction, and dragging it into To do plans it tonight
+regardless: that is the `force` list in `plans/queue-order.json`, which this
+reads back below.
+
 `due:` is deliberately not consulted. A deadline says when something must be
 finished, not whether it is worth thinking about tonight, and CONVENTIONS.md is
 explicit that a deadline never hides anything.
@@ -68,6 +75,18 @@ PLANNABLE = {"full"}
 NEARLY = {"partial"}
 NOT_PLANNABLE_WHY = "tagged ai:%s, and only ai:full is planned"
 
+# The three reasons a task in Handed to AI starts its life on Plans in Backlog
+# rather than in tonight's queue. They read on the card, so each one says what
+# is true of the task rather than what this file did about it.
+#
+# They are advice now, not a gate. Every task tagged `ai:: full` has a card on
+# Plans — one task, one plan — and where that card sits is the instruction, so
+# dragging it into To do plans it tonight whatever these say. That is the
+# `force` list below, and it is why nothing here removes a task any more.
+PARKED_WHY = "sitting in %s"
+BLOCKED_WHY = "blocked by something unfinished"
+STARTS_WHY = "not startable until %s"
+
 
 # Tokens that say which task this is, not what it says. A fingerprint answers
 # "has this changed since I last looked", so identity has no business in it:
@@ -97,10 +116,11 @@ def fingerprint(task):
 def eligible(tasks, day, slugs=None, drops=None):
     """The tasks worth planning, before the ledger has its say.
 
-    `drops`, when given, collects (task, why) for the one exclusion worth
-    showing on the board: an open task that clears every other rule and is held
-    out only by its delegation tag. Everything else dropped here says why by
-    where it sits, so listing it would be noise in the "not eligible" fold.
+    `drops`, when given, collects (task, why) for every exclusion the board has
+    to draw: an `ai:: partial` task, which is the one worth naming in the "not
+    eligible" fold, and the three below, each of which is a card in Backlog
+    rather than a task off the view. A done task and an `ai:: none` one are
+    neither — they are not handed over, so there is nothing on Plans to place.
     """
     slugs = slugs if slugs is not None else todo.slug_states(tasks)
     out = []
@@ -113,13 +133,23 @@ def eligible(tasks, day, slugs=None, drops=None):
                     and not todo.is_blocked(t, slugs)):
                 drops.append((t, NOT_PLANNABLE_WHY % t.ai))
             continue
+        # Past this line the task is in Handed to AI on the board, so it has a
+        # card on Plans whatever happens next. Each exclusion below says why the
+        # card starts in Backlog instead of in tonight's queue; none of them
+        # takes the task off the view.
         if t.column.strip().lower() in PARKED:
+            if drops is not None:
+                drops.append((t, PARKED_WHY % t.column))
             continue
         if todo.is_blocked(t, slugs):
+            if drops is not None:
+                drops.append((t, BLOCKED_WHY))
             continue
         if t.start:
             start = todo.parse_date(t.start)
             if start and start > day:
+                if drops is not None:
+                    drops.append((t, STARTS_WHY % t.start))
                 continue
         out.append(t)
     return out
@@ -182,18 +212,27 @@ def load_order(path=None):
         with open(path or paths.order_path(), encoding="utf-8") as fh:
             got = json.load(fh)
     except (OSError, ValueError):
-        return {"order": [], "hold": []}
+        return {"order": [], "hold": [], "force": []}
     if not isinstance(got, dict):
-        return {"order": [], "hold": []}
-    return {"order": titles(got.get("order")), "hold": titles(got.get("hold"))}
+        return {"order": [], "hold": [], "force": []}
+    # `force` is him having dragged a card the rules put in Backlog back into To
+    # do. Absent from every file written before 17 Sep 2026, and an empty list
+    # reads the same as the rules never having been overruled.
+    return {"order": titles(got.get("order")), "hold": titles(got.get("hold")),
+            "force": titles(got.get("force"))}
 
 
 def save_order(order, path=None):
     path = path or paths.order_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # Held and forced are the two columns, so a title cannot be in both: the
+    # later write wins, and hold is the one that means leave it alone.
+    hold = titles(order.get("hold"))
+    held = {key(t) for t in hold}
     body = {
         "order": titles(order.get("order")),
-        "hold": titles(order.get("hold")),
+        "hold": hold,
+        "force": [t for t in titles(order.get("force")) if key(t) not in held],
         "saved": dt.datetime.now().astimezone().isoformat(timespec="minutes"),
     }
     tmp = path + ".tmp"
@@ -368,6 +407,18 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
 
     order = order if order is not None else load_order()
     held = {key(t) for t in order.get("hold") or []}
+    forced = {key(t) for t in order.get("force") or []}
+
+    # A card he dragged out of Backlog and into To do. The three rules in
+    # eligible() are advice about where a card starts, so overruling one is him
+    # saying plan it anyway — which is the whole of what the column means. Held
+    # still wins, since save_order() will not write a title into both.
+    rescued = [t for t, _ in drops
+               if key(key_of(t)) in forced and key(key_of(t)) not in held
+               and t.ai in PLANNABLE]
+    rescued_keys = {key(key_of(t)) for t in rescued}
+    drops = [(t, why) for t, why in drops if key(key_of(t)) not in rescued_keys]
+    cand = rescued + cand
     ledger = ledger if ledger is not None else (load_ledger() if use_ledger else {})
     plan, skip = [], []
     for t in cand:

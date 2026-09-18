@@ -289,36 +289,206 @@ function wirePlanModalSize(){
 /* Opening one marks it read, on the grounds that having it open is what being
    read means. Actioned stays a deliberate press, because that is a claim about
    the work rather than about him, and it is the one the runner acts on. */
+/* The board's half of one task, one plan: a task ticked off takes its plan card
+   to Done with it. Called from setDone() (04-tier-two-the-one-thing.js).
+
+   Three guards, and they are the whole of what makes a write from the board's
+   tick path safe. It writes only when this tab has already loaded the plans, so
+   a tick on a board whose Plans view has never been opened fetches nothing and
+   posts nothing. It writes only for a plan that is not already in Done. And it
+   goes through movePlan() like every other move on this view, so the stream is
+   still the only thing that changes a plan's state. */
+function planFinishedWithTask(task){
+  if (!planList || !planList.length) return;
+  const key = k => String(k || '').trim().toLowerCase();
+  const want = new Set([key(task.slug), key(task.title)].filter(Boolean));
+  planList
+    .filter(p => want.has(key(planTaskKey(p))) && planColumn(p) !== PLAN_COL.done)
+    .forEach(p => movePlan(p, 'done', 'me', { resolution:'completed', quiet:true }));
+}
+
+/* The modal for a card with no plan written yet — a task queued for tonight, a
+   task held back, or one of pick.py's three rules. Clicking one of these did
+   nothing at all until 17 Sep 2026, which is the last place the view still
+   treated a queue row as a lesser thing than a plan: every card on Plans is a
+   plan card, and a plan card opens.
+
+   What it shows is the task, since that is all there is: where it sits on the
+   board, its own description, and one line saying what this view is going to
+   do with it. One button, and it is the move the card's own action makes, so
+   the modal and the card never offer different things.
+
+   `row` is a /queue.json row rather than a plan — there is no file to load and
+   no History to draw, which is why this is its own modal rather than a branch
+   inside openPlanModal(). */
+function openQueuedModal(row, where){
+  const key = row.slug || row.title;
+  const task = key && findTaskByKey(key);
+  const sub = ['In ' + where, row.bucket, row.column, row.agent]
+    .filter(Boolean).map(esc).join(' \u00b7 ');
+  const why = where === PLAN_COL_LABEL.todo
+    ? 'Queued for tonight\u2019s run. The planning agent writes the plan, and it ' +
+      'comes back in Waiting for review.'
+    : (row.why ? esc(row.why) + ' \u2014 so nothing is planned for it tonight.'
+               : 'Held back, so nothing is planned for it tonight.');
+  const notes = task ? dedent(bodyParts(task).notes) : '';
+  const buttons = where === PLAN_COL_LABEL.todo
+    ? [{ label:'Move to backlog', reject:true, run: () => holdTask(row.title) }]
+    : [{ label:'Move to To do', run: () =>
+          (row.state === 'held' ? releaseHeld(row.title) : forceSkipped(row.title)) }];
+  showModal(row.title, sub,
+    '<div class="planmain">' +
+      '<p class="qwhy">' + why + '</p>' +
+      (notes ? mdBlocks(notes) : '<p class="empty">No description on the task yet.</p>') +
+    '</div>',
+    buttons, { wide:true, cls:'planmodal' });
+}
+
+/* ---- Talking a plan through before deciding on it ------------------------
+   Decided 15 Sep 2026, and built here 17 Sep. Until then the only thing he
+   could say about a plan was the one sentence replanPlan() collects, and an
+   accepted plan carried nothing at all — so whatever he wanted the
+   implementing agent to keep in mind had nowhere to go.
+
+   It is the same embedded chat the drawer's New chat opens, not a Terminal
+   window. The box opens empty and nothing starts until he sends. His first
+   message goes out with the plan in front of it, which is what `preface`
+   below is for: the window shows the sentence he typed, and Claude gets the
+   sentence with the plan above it. That differs from newChat(), which drops
+   the seed into the box unsent — here the plan is far too long to ask him to
+   scroll past.
+
+   Afterwards he closes it and presses one of the modal's own buttons. The
+   conversation goes with whichever he presses, as `feedback`, which is why
+   neither button needs a typed reason once a chat is attached. */
+const PLAN_CHAT_LEAD =
+  'Here\u2019s a plan another session has been working on, including the goal ' +
+  'we\u2019re trying to solve and what it suggested so far.';
+const PLAN_CHAT_TURN = 'Here\u2019s what the user has to say about that.';
+
+/* The plan as the conversation should see it: the task, the summary, the
+   findings and the proposal. Context and History are left out for the same
+   reason the modal leaves them out — they are the night\u2019s own trail, and
+   feeding them back in is asking the conversation to re-read its own notes. */
+function planForChat(p){
+  const text = planTexts[p.url];
+  const s = text ? planSections(text) : {};
+  const part = (label, md) => md ? '## ' + label + '\n\n' + md.trim() + '\n' : '';
+  return [
+    '# ' + p.title,
+    part('Summary', s.summary || p.summary || ''),
+    part('Findings', s.findings || ''),
+    part('Proposed plan', s['proposed plan'] || '')
+  ].filter(Boolean).join('\n');
+}
+
+/* Everything said in the chat this plan opened, kept in the tab rather than on
+   disk until one of the modal\u2019s buttons carries it into the plan\u2019s own
+   frontmatter. Keyed by plan url, so two plans open in one sitting do not mix. */
+let planChatLog = {};
+
+function openPlanChat(p){
+  if (!chat.available || !chat.available()) {
+    showToast('No Claude here to talk to about it.', 'bad');
+    return;
+  }
+  const doc = planForChat(p);
+  closeModal();
+  planChatLog[p.url] = planChatLog[p.url] || [];
+  chat.openNew('plan:' + p.url, chat.newOwnerKey(), '', {
+    preface: ask => PLAN_CHAT_LEAD + '\n\n' + doc + '\n\n' + PLAN_CHAT_TURN + '\n\n' + ask
+  });
+}
+
+/* What the board records when he types into a plan\u2019s chat. Called from
+   onPromptRunSend() (10-reference-sections.js) for any conversation whose
+   owner names a plan. Only his own words: the preface is the plan, which the
+   plan already holds. */
+/* The header the chat window shows for a plan's conversation. */
+function planTitleFor(owner){
+  const url = String(owner || '').slice('plan:'.length);
+  const p = planList.find(x => x.url === url);
+  return p ? p.title : 'A plan';
+}
+
+function notePlanChat(owner, ask){
+  const url = String(owner || '').slice('plan:'.length);
+  if (!url) return;
+  (planChatLog[url] = planChatLog[url] || []).push(ask);
+}
+
+/* The conversation as one block of feedback, for whichever button he presses
+   next. Empty when he never said anything, which reads the same as never
+   having opened the chat. */
+function planChatFeedback(p){
+  const said = planChatLog[p.url] || [];
+  return said.length ? said.join('\n\n') : '';
+}
+
+/* What the modal offers, and it is a different answer in every column.
+
+   One test split these until 17 Sep 2026 — Ready to be produced against
+   everything else — which is how a plan already being built, and one finished
+   a fortnight ago, both went on offering Accept it. Pressing it on a declined
+   plan reopened it. The set is per column now, agreed column by column, and
+   the rule behind every one of them is the same: offer the moves that are
+   real from where the card is sitting, and nothing else.
+
+   Three things hold across all seven. Back is always a replan rather than a
+   literal step, decided 13 Sep 2026 — stepping a plan in Ready to be produced
+   back into Waiting for review says nothing, while sending the task round to
+   be written again tonight is what he wants from there. Turn it down ends the
+   idea rather than the plan of it. And the modal's own × is the dismissal, so
+   no column carries a Close button to press by reflex.
+
+   Leave it alone was a fourth button until 13 Sep 2026 and is not coming back:
+   four options read as four verdicts to weigh. Parking is a drag into Backlog,
+   which calls the same parkPlan(), and Backlog's own Move to To do below is
+   the reverse of it. */
+function planButtons(p){
+  const col = planColumn(p);
+  /* Talk it through. Not a verdict, which is why it sits ahead of the three
+     that are and carries neither the agree nor the reject colour. Left out of
+     the columns where there is no plan to talk about — Doing has not written
+     one yet — and out of Done, where the conversation could not change
+     anything. */
+  const talk = { label:'Chat about it', run: () => openPlanChat(p) };
+  const accept = { label:'Accept it', agree:true, run: () => acceptPlan(p) };
+  const replan = { label:'Plan it again', reject:true, run: () => replanPlan(p) };
+  const decline = { label:'Turn it down', reject:true, run: () => declinePlan(p) };
+  const finish = { label:'It is finished', run: () => finishPlan(p) };
+  /* Backlog is a holding pen rather than a stage, so its forward move is back
+     into the queue rather than on to the next column. A plan parked here has a
+     body he can already agree with, which is why Accept it stays: making him
+     put it back in the queue first would be a detour through a night that has
+     nothing left to work out. */
+  if (col === PLAN_COL.backlog)
+    return [talk, accept, { label:'Move to To do', run: () => unparkPlan(p) }, decline];
+  /* Doing is the night writing this one right now. There is no plan yet to
+     accept or send back, and the only real move is to stop wanting it. */
+  if (col === PLAN_COL.doing) return [decline];
+  /* In Ready to be produced, finishing goes last and plain rather than first
+     and green, so it never sits where Accept it does in every other column. */
+  if (col === PLAN_COL.produced) return [talk, replan, decline, finish];
+  /* Producing is the implementing agent on it. Accepting it again means
+     nothing and replanning mid-build would leave the run writing against a
+     plan that no longer exists, so the two moves are: it landed, or stop. */
+  if (col === PLAN_COL.producing) return [talk, finish, decline];
+  /* Done, whether it finished, was declined or was superseded. One way out of
+     history, which is to put the task round again. */
+  if (col === PLAN_COL.done) return [replan];
+  /* To do and Waiting for review. The first is a plan sent back sitting under
+     tonight's queue, the second is the one column this whole view exists for. */
+  return [talk, accept, replan, decline];
+}
+
 function openPlanModal(p){
   /* The column leads the sub-line, since the buttons below change with it: an
      accepted plan opened in the belief it was still waiting for review got
      marked finished by two clicks in the usual places, 17 Sep 2026. */
   const sub = ['In ' + PLAN_COL_LABEL[planColumn(p)], p.bucket, p.column, planGeneratedLabel(p), p.agent]
     .filter(Boolean).map(esc).join(' · ');
-  /* Three buttons and only three: the move forward, the move back, and the way
-     out. Forward is named after the column it lands in, which is the one that
-     changes with where the card already is. Back is always a replan rather
-     than a literal step, decided 13 Sep 2026: stepping a plan in Ready to be
-     produced back into Waiting for review says nothing, while sending the task
-     round to be written again tonight is the thing he wants from there, so one
-     button means the same move from every column. Turn it down ends the idea
-     rather than the plan of it. The modal's own × in the corner is the
-     dismissal, so there is no Close button left to press by reflex.
-
-     Leave it alone was the fourth until the same date. Four options read as
-     four verdicts to weigh rather than three moves and an exit, and weighing
-     them is what a plan modal least needs. Parking is still reachable, by
-     dragging the card into Backlog, which calls the same parkPlan() the button
-     called. */
-  /* In Ready to be produced, finishing goes last and plain rather than first
-     and green, so it never sits where Accept it does in every other column. */
-  const buttons = planColumn(p) === PLAN_COL.produced
-      ? [{ label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) },
-         { label:'It is finished', run: () => finishPlan(p) }]
-      : [{ label:'Accept it', agree:true, run: () => acceptPlan(p) },
-         { label:'Plan it again', reject:true, run: () => replanPlan(p) },
-         { label:'Turn it down', reject:true, run: () => declinePlan(p) }];
+  const buttons = planButtons(p);
   planModalTab = 'plan';
   showModal(p.title, sub,
     planHistoryHTML(p) +
@@ -352,14 +522,24 @@ function openPlanModal(p){
    closed yet, so there is no resolution to give, and the implementing agent owns it
    from here because what happens next is a run rather than a decision. */
 function acceptPlan(p){
+  /* A conversation he had about this plan goes with the acceptance, as
+     `feedback` — the same key a replan's one-sentence reason uses, because
+     they are the same thing at two lengths: what he has to say about the plan.
+     On an accepted plan it is what he wants kept in mind while it is built,
+     which is what /do and implementing-agent.md now read it as. */
+  const said = planChatFeedback(p);
   showModal('Accept this plan?', esc(p.title),
     '<div class="repdoc">' +
       '<p>It moves to <strong>Ready to be produced</strong>, and the planning agent ' +
       'leaves the task alone from here rather than writing a second opinion over it.</p>' +
       '<p>Nothing runs now. It lands in the execution board\'s Backlog, and the ' +
       'implementing agent only picks it up once you move it to To do there.</p>' +
+      (said ? '<p>What you said in the chat goes with it, as notes for the build.</p>' : '') +
     '</div>',
-    [{ label:'Move to Ready to be produced', primary:true, run: () => movePlan(p, 'accepted', 'implementing-agent') },
+    [{ label:'Move to Ready to be produced', primary:true, run: () => {
+        movePlan(p, 'accepted', 'implementing-agent', said ? { reason: said } : {});
+        delete planChatLog[p.url];
+      } },
      { label:'Cancel' }]);
 }
 
@@ -468,14 +648,20 @@ function replanPlan(p){
   showModal('Plan it again?', esc(p.title),
     '<div class="repdoc">' +
       '<p>It goes back to <strong>To do</strong>, and tonight\'s run plans the task ' +
-      'again with this one told to it. Say what this plan got wrong, in a sentence.</p>' +
+      'again with this one told to it. Say what this plan got wrong, in a sentence' +
+      (planChatFeedback(p) ? ' \u2014 or leave it blank and the chat goes instead' : '') +
+      '.</p>' +
       '<textarea id="redoWhy" class="redowhy" rows="3" ' +
         'placeholder="Wrong scope: this is about the Foundations file, not the whole library."></textarea>' +
     '</div>',
     [{ label:'Yes, plan it again', primary:true, run: () => {
-        const why = redoText.trim();
+        /* A chat stands in for the typed sentence: it is the same thing said
+           at greater length, and asking for both would be asking him to
+           summarise a conversation he just had. */
+        const why = redoText.trim() || planChatFeedback(p);
         if (!why) return showToast('A plan going back needs a reason.', 'bad');
         movePlan(p, 'ready', 'planning-agent', { reason: why, release: true });
+        delete planChatLog[p.url];
       } },
      { label:'Cancel' }]);
   const box = $('#redoWhy');
@@ -498,6 +684,15 @@ function replanPlan(p){
    modal of its own, and either kind is one drag back out if it lands wrong. */
 function parkPlan(p){
   movePlan(p, 'backlog', 'me', { hold: true });
+}
+
+/* The reverse of it, and deliberately not replanPlan(): both land the plan in
+   To do, but a replan is him saying this plan is wrong and needs writing again,
+   which is why it insists on a reason. Taking a parked plan out of Backlog says
+   nothing about the plan — it says the task is live again. So no reason, no
+   sheet, and the hold comes off the task with it. */
+function unparkPlan(p){
+  movePlan(p, 'ready', 'planning-agent', { release: true });
 }
 
 /* The two sections of a plan that are not for him. `Context` is the night's
@@ -627,7 +822,15 @@ function planHistoryItems(p){
     const current = i === 0 && !pending;
     items.push({ kind: current ? 'current' : 'old', title:'Revision ' + r.revision,
                  when: current && iso ? backupWhen(iso) : reportDay(r.date), note: r.note || '' });
-    if (r.sent_back) items.push({ kind:'sent', title:'Sent back', when: reportDay(r.date), quote: r.sent_back });
+    /* What he said about that revision, which is either the send-back the
+       night answered or one of the three the board writes. `conversation`
+       says it was a chat he had about the plan rather than a sentence he
+       typed, which is worth marking: a quote that long reads as a paste
+       otherwise. */
+    if (r.sent_back) items.push({
+      kind:'sent',
+      title: r.conversation ? 'What you said, in a chat' : 'Sent back',
+      when: reportDay(r.date), quote: r.sent_back });
   });
   return items;
 }
@@ -1246,7 +1449,17 @@ function renderPlanDone(){
 
 let queueRows = [];      // what tonight would plan, in order
 let queueHeld = [];      // deliberately held back — lives in the Backlog column
+/* What pick.py's three rules put in Backlog rather than in tonight's queue:
+   parked, blocked by something unfinished, or waiting on a `start:` date. They
+   were not drawn at all until 17 Sep 2026, which is what broke one task, one
+   plan — a task handed to AI was on the board and nowhere on this view. Each
+   one carries the rule's own words in `why`, and dragging it into To do
+   overrules the rule. */
+let queueSkipped = [];
 let queueOrder = [];      // the stored ordering, so held ranks survive a save
+/* The titles he has overruled, as the file holds them, for the same reason the
+   hold list below is kept as the file holds it. */
+let queueForceTitles = [];
 /* The hold list as the file holds it, rather than rebuilt from whatever rows
    happen to be on screen. A task can be held and not drawn — its plan is out
    for review, or it went Blocked this week — and rebuilding from the rows
@@ -1360,9 +1573,13 @@ function queueRowNode(r){
     gotoLabel: r.title,
     where: [r.bucket, r.column, r.agent],
     summaryHTML: why ? esc(why) : '',
+    onOpen: () => openQueuedModal(r, PLAN_COL_LABEL.todo),
+    /* "Move to backlog" rather than "Hold", since 17 Sep 2026: the button and
+       a drag into Backlog make the same move, and two names for one move is
+       how the two came to read as different things. */
     action: BoardUI.h('button', { className: 'btn outline small qhold',
       title: 'Hold it back from tonight',
-      onClick: e => { e.stopPropagation(); holdTask(r.title); } }, 'Hold'),
+      onClick: e => { e.stopPropagation(); holdTask(r.title); } }, 'Move to backlog'),
     onGoto: () => goToPlanTask(r.slug || r.title),
     /* Through `attrs` rather than as props: a queue row is a drop target as
        well as a drag source, and the four handlers that make it one are no
@@ -1499,6 +1716,19 @@ function dropOnQueue(toIndex){
     row.why = '';
     unhold(title);
     queueRows.splice(toIndex, 0, row);
+  } else if (from === 'skipped') {
+    /* One of pick.py's three rules put this card in Backlog, and dropping it
+       here overrules the rule for tonight — the same write the card's own
+       button makes, landing at the rank it was let go on rather than at the
+       end. */
+    const at = queueSkipped.findIndex(r => r.title === title);
+    if (at < 0) return;
+    const [row] = queueSkipped.splice(at, 1);
+    row.state = 'queued';
+    row.why = '';
+    force(title);
+    unhold(title);
+    queueRows.splice(toIndex, 0, row);
   } else {
     return;
   }
@@ -1510,11 +1740,24 @@ function dropOnQueue(toIndex){
 }
 
 const sameTitle = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+/* Held and forced are the two Plans columns saying opposite things about one
+   task, so nothing is ever in both: holding a card drops whatever override put
+   it in the queue, and forcing one drops the hold. save_order() in pick.py
+   enforces the same rule on the file, since the board is not the only writer
+   of it. */
 function hold(title){
   if (!queueHoldTitles.some(t => sameTitle(t, title))) queueHoldTitles.push(title);
+  unforce(title);
 }
 function unhold(title){
   queueHoldTitles = queueHoldTitles.filter(t => !sameTitle(t, title));
+}
+function force(title){
+  if (!queueForceTitles.some(t => sameTitle(t, title))) queueForceTitles.push(title);
+  unhold(title);
+}
+function unforce(title){
+  queueForceTitles = queueForceTitles.filter(t => !sameTitle(t, title));
 }
 
 function holdTask(title){
@@ -1548,16 +1791,17 @@ function releaseHeld(title){
 }
 
 /* -------------------------------------------------------------------------
-   Backlog — everything the agent is to leave alone: a task held back from
-   the board, or a plan already parked. Both drag; a held task drags back
-   into the queue, exactly the reverse of the Hold button.
+   Backlog — everything the agent is to leave alone: a task moved out of
+   tonight's queue by hand, a task pick.py's own rules put here, or a plan
+   already parked. All three drag back into To do.
 
-   What agents/planning_agent/pick.py excludes for its own reasons — blocked, tagged short
-   of ai:full, waiting on a `start:` date — is not drawn here at all. Nothing
-   about dragging could fix any of that, and a card offering a gesture that
-   does nothing is worse than no card; see the comment above pick.eligible()
-   and pick.select() for why the order and hold files were deliberately
-   never given a say over what the queue contains.
+   The middle kind arrived 17 Sep 2026 with one task, one plan. A task tagged
+   `ai:: full` that is blocked, parked or waiting on a `start:` date used to be
+   dropped by pick.py and drawn nowhere, so the board showed it in Handed to AI
+   and this view showed nothing — the two never agreed on a count. It is a card
+   here now, wearing the rule's own words, and dragging it into To do writes the
+   `force` list pick.select() reads: the rules say where a card starts, and the
+   column says what happens to it.
    ------------------------------------------------------------------------- */
 
 /* A held task has no plan written about it yet, but Backlog is meant to read
@@ -1578,6 +1822,7 @@ function heldPlanCardNode(r){
     gotoKey: key,
     gotoLabel: r.title,
     where: [r.bucket, r.column],
+    onOpen: () => openQueuedModal(r, PLAN_COL_LABEL.backlog),
     action: BoardUI.h('button', { className: 'btn outline small release',
       title: 'Put it back in the queue',
       onClick: e => { e.stopPropagation(); releaseHeld(r.title); } }, 'Release'),
@@ -1592,8 +1837,62 @@ function heldPlanCardNode(r){
   });
 }
 
+/* The same shell again, for a task one of pick.py's three rules put here. It
+   differs from a held card in one way only, and it is the important one: the
+   eyebrow carries the rule rather than the word "held", because what he needs
+   to read is why this is not being planned tonight. The button overrules the
+   rule rather than releasing a hold, so it says so. */
+function skippedPlanCardNode(r){
+  const key = r.slug || r.title;
+  return BoardUI.h(BoardUI.PlanCard, {
+    key: 'skip:' + r.title,
+    url: 'skip:' + r.title,
+    title: r.title,
+    variant: ' parked',
+    word: 'not queued',
+    gotoKey: key,
+    gotoLabel: r.title,
+    where: [r.bucket, r.column],
+    summaryHTML: r.why ? esc(r.why) : '',
+    onOpen: () => openQueuedModal(r, PLAN_COL_LABEL.backlog),
+    action: BoardUI.h('button', { className: 'btn outline small release',
+      title: 'Plan it tonight anyway',
+      onClick: e => { e.stopPropagation(); forceSkipped(r.title); } }, 'Move to To do'),
+    onGoto: () => goToPlanTask(key),
+    onDragStart: e => {
+      drag = { kind:'task', title: r.title, from:'skipped' };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', r.title);
+      e.currentTarget.classList.add('dragging');
+    },
+    onDragEnd: e => { drag = null; e.currentTarget.classList.remove('dragging'); }
+  });
+}
+
+/* Which tasks already have a plan card somewhere else on this view. A skipped
+   row whose task has been planned is that plan — drawing the row as well would
+   be the same task twice, which is the thing one task, one plan is for. */
+function plannedTaskKeys(){
+  const out = new Set();
+  planList.forEach(p => {
+    const k = planTaskKey(p);
+    if (k) out.add(String(k).trim().toLowerCase());
+  });
+  return out;
+}
+
 function renderBacklogList(){
   const held = plansShown(queueHeld);
+  const planned = plannedTaskKeys();
+  /* Two filters, and both are what keeps the count honest in one direction or
+     the other. `ai === 'full'` is the set the board draws in Handed to AI, and
+     pick.py's skipped list is wider than that — it names every `ai:: partial`
+     task too, which is 30 of them on the twinkl list and none of which has been
+     handed over at all. And a row whose task already has a plan card somewhere
+     on this view is that plan; drawing the row as well would be the same task
+     twice. */
+  const skipped = plansShown(queueSkipped).filter(r =>
+    r.ai === 'full' && !planned.has(String(r.slug || r.title).trim().toLowerCase()));
   const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
   /* A parked plan is the written half of the same instruction the held cards
      carry: the task is held, and this is what the agent had already worked
@@ -1601,10 +1900,31 @@ function renderBacklogList(){
      of Backlog later is a decision better made having read it. Every card
      here is the same instruction — leave it alone — so nothing separates
      the two kinds beyond their own eyebrow. */
-  const body = held.map(heldPlanCardNode).concat(planCardNodes(parked));
+  const body = held.map(heldPlanCardNode)
+    .concat(skipped.map(skippedPlanCardNode))
+    .concat(planCardNodes(parked));
   plansProps.backlog = body.length ? body
     : [BoardUI.h('div', { className: 'empty', key: 'none' }, 'Nothing held back right now.')];
-  plansProps.backlogCount = held.length + parked.length;
+  plansProps.backlogCount = held.length + skipped.length + parked.length;
+}
+
+/* Overrule the rule that put a card here: the task goes into tonight's queue
+   and its title into `force`, which is what makes that survive a reload. The
+   row is moved on screen first so the drag lands where it was let go rather
+   than waiting on the next /queue.json. */
+function forceSkipped(title){
+  const at = queueSkipped.findIndex(r => r.title === title);
+  if (at < 0) return;
+  const [row] = queueSkipped.splice(at, 1);
+  row.state = 'queued';
+  row.why = '';
+  force(title);
+  queueRows.push(row);
+  queueRows.forEach((r, i) => { r.position = i + 1; });
+  renderQueueList();
+  renderBacklogList();
+  paintPlans();
+  saveQueueOrder(false);
 }
 
 /* `ranked` says whether this save is him ordering the queue, and only a drag
@@ -1633,8 +1953,12 @@ async function saveQueueOrder(ranked){
      its plan is out for review, or it went Blocked this week — and rebuilding
      this from the rows released every one of those on the next save. */
   const hold = queueHoldTitles;
+  /* Same reasoning as the hold list: a forced title can be off screen — its
+     plan came back overnight and the card is in Waiting for review now — and
+     rebuilding this from the rows would quietly un-force it on the next save. */
+  const force = queueForceTitles;
   try {
-    await postJSON('/queue/order', { order, hold });
+    await postJSON('/queue/order', { order, hold, force });
     queueOrder = order;
   } catch (err) {
     showToast('Could not save the queue order: ' + (err.message || err), 'bad');
@@ -1669,8 +1993,10 @@ async function renderQueue(){
     const q = await res.json();
     queueRows = q.queue || [];
     queueHeld = q.held || [];
+    queueSkipped = q.skipped || [];
     queueOrder = q.order || [];
     queueHoldTitles = q.hold || [];
+    queueForceTitles = q.force || [];
     renderQueueList();
     renderBacklogList();
     paintPlans();
@@ -2045,13 +2371,16 @@ function paintPlans(){
       if (p) replanPlan(p);
     }),
 
-    /* Ready to be produced takes plans and nothing else: there is nothing to
-       accept about a task nobody has planned. */
+    /* Ready to be produced takes a plan with a body and nothing else. Since
+       every card on this view is a plan card, the refusal is about whether a
+       plan has been written rather than about what kind of card was picked
+       up — which is what `kind:'task'` means here now: a card standing for a
+       task the night has not got to yet. */
     producedDrop: columnDropProps(d => {
       const p = draggedPlan(d);
       if (p) acceptPlan(p);
     }, d => d.kind === 'plan',
-       'Nothing has been planned for that yet, so there is nothing to accept.'),
+       'No plan has been written for that yet, so there is nothing to accept.'),
 
     /* Producing takes a plan from Ready to be produced and gives none back:
        there is no drag out of it, so this is the only way a card gets in or
@@ -2060,7 +2389,7 @@ function paintPlans(){
       const p = draggedPlan(d);
       if (p) producePlan(p);
     }, d => d.kind === 'plan',
-       'Nothing has been planned for that yet, so there is nothing to make.'),
+       'No plan has been written for that yet, so there is nothing to make.'),
 
     /* Done takes them from the column before it, so a plan whose work has
        landed can be dragged across rather than only closed from inside the
@@ -2069,7 +2398,7 @@ function paintPlans(){
       const p = draggedPlan(d);
       if (p) finishPlan(p);
     }, d => d.kind === 'plan',
-       'Nothing has been planned for that yet, so there is nothing to finish.')
+       'No plan has been written for that yet, so there is nothing to finish.')
   })));
   return true;
 }
