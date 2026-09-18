@@ -18,8 +18,38 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **Nothing the board puts in the URL ever reaches the browser's history, so
-  Back never returns to the view or the card you just left.** `syncHash()` at
+- **Opening a task from a plan throws away the Plans view to do it.**
+  `goToPlanTask()` (`kanban/js/13-plans.js:987`) sets `state.view = 'board'`
+  before calling `openTaskByKey()`, so every one of its six callers — the plan
+  card's Go to task, the queue and Backlog rows, the Doing and Producing cards —
+  leaves him on the board with the drawer over it, and getting back to the plan
+  he was reading is a tab click and a scroll. The drawer itself does not need
+  the board: `openDrawer()` (`kanban/js/19-drawer.js:738`) only reads `locate()`
+  and paints the panel, which sits above whatever view is up. What is tied to
+  the board is the rest of `openTaskByKey()` (`kanban/js/02-state.js:218`) —
+  it narrows `state.bucketFilter` to the card's own bucket and calls
+  `renderView()`, both so the card is visible behind the panel rather than
+  filtered out. Staying on Plans means skipping both, since neither means
+  anything with the plan columns underneath, and silently rewriting his bucket
+  filter from a view that does not use it is the worse half of the two.
+
+- **Nine checks in `kanban/test_projects.mjs` have been failing silently since
+  the Projects view was ported to React on 13 Sep 2026.** The suite queries
+  `#projectsOut` in sixteen places; `renderProjectsView()`
+  (`kanban/js/26-projects.js:88-93`) makes and mounts into `#projectsRoot`, and
+  has since the port. So every check that reads the rendered list finds nothing
+  — the folder listing, the Live/Orphaned/Completed tags, the file count, the
+  missing-CLAUDE.md line and the edited date — while the seven that check the
+  load, the lock and the write guard still pass, which is why the run ends
+  "9 failed" rather than looking broken. It is the one suite in the repo
+  currently red, and it has been red for five days, so the port's own evidence
+  ("44 checks that passed through the port unchanged", per `CLAUDE.md`) is not
+  true of the run today. Renaming the selector is the whole fix, unless one of
+  the nine turns out to be asserting markup the port deliberately changed — in
+  which case that one is the finding and the rest is a rename.
+
+- ~~**Nothing the board puts in the URL ever reaches the browser's history, so
+  Back never returns to the view or the card you just left.**~~ **Done, 18 Sep 2026.** `syncHash()` (`kanban/js/07-render-board.js:82`) takes a `push` argument, and the three moves that are a new place pass it: a view switch (`18-timeline.js`), opening a card and opening a project (`19-drawer.js`). The hashchange listener (`kanban/js/25-archiving.js:506`) closes the drawer when the fragment comes back without a `!task=`, which is what Back out of a card now means, and sets `restoringHash` while it works so a restore pushes nothing of its own. `syncHash()` at
   `kanban/js/07-render-board.js:82` builds the whole fragment —
   `#<view>/<bucket-slug>!task=<key>` — and writes it with
   `history.replaceState()`, which overwrites the current entry rather than
@@ -40,7 +70,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `kanban/js/19-drawer.js:1254`, `:1263` and `:1279`, rather than something it
   can work out from `state`.
 
-- **A note block written after a task's sub-steps disappears from the drawer.**
+- ~~**A note block written after a task's sub-steps disappears from the drawer.**~~ **Done, 18 Sep 2026.** A line back at the step indent or shallower ends the run of step notes and hands the rest of the body back to the task, in `splitBody()` (`core/todo.js`) and `split_body()` (`core/todo.py`) both. The Python half had no indent test at all, so the two were wrong in different ways. `core/fixtures/messages.json` carries the case.
   `splitBody()` at `core/todo.js:405` gives any indented line deeper than the
   step indent to `steps[steps.length - 1].notes`, from the first sub-step
   onwards, so an `Agenda:` heading and its children placed below the steps are
@@ -56,7 +86,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   kind of thing that reads as correct in the file and shows up as an empty
   section on the card.
 
-- **A board link posted in the chat modal should open its card in this tab.**
+- ~~**A board link posted in the chat modal should open its card in this tab.**~~ **Done, 18 Sep 2026.** `mdInline()` linkifies URLs (`PACKAGES/ai_chat_engine/interface/chat.js`), splitting on backticks so a URL quoted as code stays text, and a delegated listener in `kanban/js/10-reference-sections.js` closes the window when the click lands on a link to this page carrying a `!task=` or `!chat=`.
   Once `mdInline()` in `PACKAGES/ai_chat_engine/interface/chat.js:87` turns URLs
   into links, clicking a `#!task=<id>` one changes nothing but the part after
   the `#`, which is already what the listener at `kanban/js/25-archiving.js:506`
@@ -443,33 +473,77 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **The Plans view needs one review of its whole lifecycle: what a card is,
+- ~~**The Plans view needs one review of its whole lifecycle: what a card is,
   how a task becomes one, what each drag does, and what the plan modal
-  offers in each column.** Today the pieces were decided one at a time and no
-  longer add up. Backlog and To do draw task rows (`queueRowNode()`,
-  `kanban/js/13-plans.js:1338`) rather than plan cards. The plan modal
-  (`openPlanModal()`, `:292`) has only two button sets, split on
-  `planColumn() === PLAN_COL.produced`, so a plan in Producing or Done still
-  offers Accept it, and pressing it on a declined plan reopens it. The drop
-  rules live in the `columnDropProps()` calls inside `paintPlans()` (around
-  `:2025`), and a task reaches Plans by being dropped on the board's Handed to
-  AI column (`AI_COL`, `kanban/js/02-state.js:288`). Four requirements from
-  the owner, to be discussed with him before anything is built:
+  offers in each column.**~~ **Done, 18 Sep 2026.** All four requirements, as written above. `pick.py`'s three exclusions place a card in Backlog with the reason on it rather than dropping the task, and a drag into To do writes the `force` list that overrules them; every task in Handed to AI now has exactly one card. `planButtons()` (`kanban/js/13-plans.js`) gives each of the seven columns its own set, `openQueuedModal()` opens a card with no plan yet, and Hold is Move to backlog. Today the pieces were decided one at a time and no
+  longer add up. Backlog and To do draw cards for tasks that have no plan file
+  (`queueRowNode()`, `kanban/js/13-plans.js:1348`), the modal has two button
+  sets split on one test (`planColumn(p) === PLAN_COL.produced`, `:315`), so a
+  plan in Producing or Done still offers Accept it, and the set of tasks on
+  Plans is not the set in Handed to AI: the board draws every open task tagged
+  `ai: full` (`kanban/js/18-timeline.js:991`) while the queue drops four of
+  them silently (`eligible()` and `select()`, `agents/planning_agent/pick.py:97`
+  and `:346`). Settled with the owner 17 Sep 2026, in the order below.
 
-  1. Everything on the Plans view is a plan card, including a task that has
-     not been planned yet and has nothing to show but the task it came from.
-     That bare card is only for new plans. A task that has been planned and
-     sent back to be replanned keeps its existing plan card, with its history.
-  2. Tasks and plans need better parity. Rethink how dropping a task onto
-     Handed to AI creates a new plan in Backlog or To do, and agree how the
-     board and Plans interact as two views of one piece of work.
-  3. Moving a plan between columns must say plainly what it does. Write the
-     whole behaviour down as a sequence, column by column, including which
-     drags are allowed, which are refused, and why.
-  4. The plan review modal is the most important part to get right. Review
-     every button label and every confirm sheet. If the buttons differ by
-     column, each column's set must be deliberate and its meaning obvious,
-     agreed with the owner column by column.
+  **One task, one plan, and the two views agree on the count.** A task dropped
+  on Handed to AI gets a card on Plans immediately, and the only way a card
+  leaves the queue is him moving it to Backlog. So the four exclusions
+  `pick.py` applies stop hiding a card and start placing one: a task that is
+  blocked by another, or has a `start:` date still ahead, or sits in Waiting
+  for review or Blocked, or was held, draws its card in Backlog with that
+  reason on it rather than not drawing at all. Dragging it to To do overrides
+  the reason, which is what makes the exclusions advice rather than a gate.
+  Ticking a task off the board moves its card to Plans' Done, whatever state
+  the plan was in, since the task being finished ends the plan about it.
+
+  **Every card is a plan card in every column**, including one with nothing
+  written yet. `queueRowNode()` already renders through `PlanCard` with "no
+  plan yet" as its eyebrow, so what is left is the object underneath: a queue
+  card is keyed `queued:<title>` with no file, which is why clicking it does
+  nothing and why the three plans-only columns refuse it. The night still
+  writes the plan — nothing mints an empty file on the drop — so the card has
+  to be able to stand for a task with no document behind it everywhere on the
+  view.
+
+  **What each column does with a card let go on it**, which is the sequence
+  requirement 3 asked for:
+
+  1. **Backlog** takes any card, from any column, and holds it. A card with a
+     plan is parked; a card without one leaves tonight's queue. It gives cards
+     to To do and nowhere else.
+  2. **To do** takes a card back from Backlog, which queues it for tonight at
+     the rank it lands on, and takes a plan from Waiting for review, Ready to
+     be produced or Done, which sends it round to be written again. Dragging
+     within the column edits the rank.
+  3. **Doing** takes no drops. The agent is writing; dashed edge.
+  4. **Waiting for review** takes no drops. The agent's own column; dashed
+     edge.
+  5. **Ready to be produced** takes a plan and accepts it. Its refusal changes
+     with the first decision above: today it turns away a card because it is a
+     task (`d.kind === 'plan'`), and once every card is a plan the test is
+     whether a plan has been written yet — so the toast becomes "that has no
+     plan written yet", and the same goes for Producing's and Done's.
+  6. **Producing** takes a plan from Ready to be produced, opens the session
+     carrying it out, and gives no card back by hand.
+  7. **Done** takes a plan from Ready to be produced or Producing.
+
+  **What the modal offers, column by column.** Four of the seven change:
+
+  - Backlog: Accept it, Move to To do, Turn it down.
+  - To do: the task rather than a plan — title, bucket, column and its
+    description off the board, plus a line saying it is queued for tonight —
+    and one button, Move to backlog.
+  - Doing: Turn it down, and nothing else. There is no plan yet to accept or
+    send back.
+  - Waiting for review: Accept it, Plan it again, Turn it down. Unchanged.
+  - Ready to be produced: Plan it again, Turn it down, It is finished.
+    Unchanged.
+  - Producing: It is finished, Turn it down.
+  - Done: Plan it again.
+
+  The Hold button on a queue card becomes **Move to backlog**, since that is
+  the move it makes and dragging to Backlog is the same instruction. What it
+  writes does not change (`plans/queue-order.json`), only its label.
 
 - ~~**On a phone the header and the filter strip take half the screen before any
   task, and both stay pinned while scrolling.**~~ **Done, 15 Sep 2026**, as
@@ -484,8 +558,8 @@ they settled is written up in the README rather than left here:
   answer. Covered by `kanban/test_phone.mjs`, at both widths, since the whole
   point is the breakpoint.
 
-- **The plan modal has no way to talk a plan through before deciding on it,
-  and accepting one carries no instructions at all.** `openPlanModal()`
+- ~~**The plan modal has no way to talk a plan through before deciding on it,
+  and accepting one carries no instructions at all.**~~ **Done, 18 Sep 2026.** A Chat button in every column that has a plan to talk about, opening the embedded chat seeded with nothing and wrapping his first message with the plan (`openPlanChat()`, `kanban/js/13-plans.js`). The engine grew `openNew(..., {preface})`, which is what keeps the window showing his sentence while Claude gets the document above it. The conversation lands as `feedback` on whichever button he presses, `stream.py`'s cut is 4000 rather than 500, both readers know what `feedback:` means on an accepted plan, and `stream.py` writes a History line that says when the quote came from a chat. `openPlanModal()`
   (`kanban/js/13-plans.js:239`) offers Accept it, Plan it again and Turn it
   down, and the only place he can say anything is the one-sentence textarea
   `replanPlan()` (`:367`) collects into `reason`, which `stream.py` (`:120`)
@@ -613,8 +687,8 @@ they settled is written up in the README rather than left here:
   creation — this is the same file reachable afterwards, which that entry
   doesn't cover either.
 
-- **Creating a list is one `prompt()` for a name, and a zero-dataset board is
-  a state nothing renders.** `createDataset()` (`kanban/js/21-datasets.js:63-71`)
+- ~~**Creating a list is one `prompt()` for a name, and a zero-dataset board is
+  a state nothing renders.**~~ **Done, 18 Sep 2026.** A three-part wizard in `kanban/js/21-datasets.js` — name, buckets, then a line about each — and a welcome screen when `/datasets.json` comes back empty. The line he types opens that bucket's brief rather than boilerplate under the empty marker, which is the difference between a brief an agent is pointed at and one it is not. `createDataset()` (`kanban/js/21-datasets.js:63-71`)
   asks only for a name before reloading, and `current_dataset()`
   (`kanban/server.py:103-112`) returns `None` once `list_datasets()` comes back
   empty — nothing downstream handles that: every route past it resolves a path
@@ -644,10 +718,10 @@ they settled is written up in the README rather than left here:
   columns is that one card now. `PlansView.tsx`'s own header comment says so
   rather than saying two columns do not hold only plans.
 
-- **Switching from Board to Plans is a flat tab click, and he has a Figma
+- ~~**Switching from Board to Plans is a flat tab click, and he has a Figma
   prototype exploring it as one continuous vertical transition between two
   stacked surfaces instead, reached by a flip control rather than the tab
-  strip.** `viewDefs()` (`kanban/js/11-chat-cards.js:398-412`) has `board`
+  strip.**~~ **Done, 18 Sep 2026.** A FAB, bottom right, on those two views only, flipping between them with the arriving view sliding in from the direction it lives in. `renderView()` is untouched: the animation is on the view that arrives, which is what lets every other tab carry on being drawn exactly as it was. `viewDefs()` (`kanban/js/11-chat-cards.js:398-412`) has `board`
   inside the `group:'draw'` dropdown with Matrix and Timeline and `plans` as a
   tab beside it, and the click handler `renderViewTabs()` wires up
   (`kanban/js/18-timeline.js:741-743`) just sets `state.view` and calls
@@ -1938,8 +2012,8 @@ they settled is written up in the README rather than left here:
   writing only into `reports/`. `todo.md` is not in reach for it, same as
   everything else that runs while he is asleep.
 
-- **Creating a list already works; what it produces is a shell nothing else on
-  the board knows how to use.** `createDataset()`
+- ~~**Creating a list already works; what it produces is a shell nothing else on
+  the board knows how to use.**~~ **Done, 18 Sep 2026.** `STREAMS` is gone. The heading is the stream — `bucket_slug()` in `agents/planning_agent/plan.py` — pinned per bucket in the dataset's own `buckets/README.md`, which `stream_map()` reads first so a rename moves the row and nothing on disk. `planning-design-system` and `planning-work-oversight` are `planning-ds` and `planning-bau`, with their folders and symlinks; `personal`'s bucket is a real `personal-tasks` with its own brief and planner. `create_dataset()` and the bucket editor both scaffold as they go, through `/bucket/scaffold`, and the loud log is now a missing planner file rather than a missing table row. `createDataset()`
   (`kanban/js/21-datasets.js:48-58`) prompts for a name, posts it to
   `/datasets`, and `create_dataset()` (`kanban/server.py:394`) writes one file:
   a `todo.md` holding `NEW_DATASET_TEMPLATE` (`kanban/server.py:384-391`), which
