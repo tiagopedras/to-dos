@@ -485,6 +485,26 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A task with no project folder can only be given one by hand, and a folder
+  the board knows about cannot be opened.** `projectSection()`
+  (`kanban/js/19-drawer.js:435`) draws an empty state telling him to type
+  `data/projects/<folder>` into Description himself, which means creating a
+  project is three steps in two places: make the folder on disk, write its
+  `CLAUDE.md`, then edit the note. A Start a project button in that section
+  would need a route beside `/project.json` (`kanban/server.py:2200`) that
+  makes the folder under `projects_dir()` and seeds a `CLAUDE.md` with the H1
+  and lead paragraph `project_meta()` already reads back out of it, then the
+  same write that puts the `Project:` note onto the task — and that last half
+  is the decision, since the drawer's Description is the only writer of a
+  task's notes and the note has to land above the stream line where
+  `taskProject()` expects it. Opening the folder afterwards is a second, smaller
+  route: `_open_terminal()` (`kanban/server.py:1478`) already shows the shape
+  for shelling out from the server, and revealing a folder is
+  `subprocess.Popen(["open", path])` against a path checked to sit inside
+  `projects_dir()` the way `/project.json` already checks its `name`. It only
+  works on the machine the server runs on, so the button has to be absent or
+  refused on the Vercel copy rather than failing silently.
+
 - **The Attach a session picker is sixty unsearchable rows and says nothing about
   whether a session is still going.** `openAttachPicker()`
   (`kanban/js/10-reference-sections.js:945`) draws one `.attachpick-row` per
