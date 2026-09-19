@@ -1,7 +1,9 @@
-/* The four report shapes on the counted half — `countedLeadHTML()`,
- * `completedByCategoryReport()`, `recentAccomplishmentsReport()` and
- * `weeklyTrendReport()` in `kanban/js/12-reports.js`, until 13 Sep 2026 — as
- * components rather than HTML strings handed to `dangerouslySetInnerHTML`.
+/* The report shapes on the counted half — `completedByCategoryReport()`,
+ * `recentAccomplishmentsReport()` and `weeklyTrendReport()` in
+ * `kanban/js/12-reports.js`, until 13 Sep 2026 — as components rather than
+ * HTML strings handed to `dangerouslySetInnerHTML`. There was a fourth,
+ * `CountedLead`, drawing two grey paragraphs above the first report; it went
+ * on 19 Sep 2026 with the paragraphs.
  *
  * The split follows `PlanCard`'s: the business of what counts as what —
  * which window, which bucket, how many effort points, which weeks a trend
@@ -54,40 +56,6 @@ function DoneRow({ color, dateLabel, titleHTML, taskId, chip, chipClass }: DoneR
             dangerouslySetInnerHTML={{ __html: titleHTML }} />}
       <span className={'where' + (chipClass ? ' ' + chipClass : '')}>{chip}</span>
     </li>
-  )
-}
-
-/* ---- the lead note above both counted reports ---- */
-
-export interface CountedLeadProps {
-  archiveDays: number
-  /** Which of the four things the note about the archive says. See
-   *  `countedLeadHTML` in `12-reports.js` for what decides which. */
-  archiveStatus: 'inside' | 'error' | 'loading' | 'merged'
-}
-
-export function CountedLead({ archiveDays, archiveStatus }: CountedLeadProps) {
-  let archiveNote: string
-  if (archiveStatus === 'inside') {
-    archiveNote = 'Finished work older than ' + archiveDays + ' days can be archived out of todo.md. ' +
-      'This window stays inside that, so every count below is the whole story for the period.'
-  } else if (archiveStatus === 'error') {
-    archiveNote = 'This window reaches past the ' + archiveDays + '-day point where finished work moves to ' +
-      'the archive, and that file could not be read — so the older end of these counts may be incomplete.'
-  } else if (archiveStatus === 'loading') {
-    archiveNote = 'Reading the archive for finished work older than ' + archiveDays + ' days…'
-  } else {
-    archiveNote = 'This window reaches past the ' + archiveDays + '-day point where finished work moves to ' +
-      '`data/backups/done-archive.md` — counted below too, so these counts still cover the whole period.'
-  }
-  return (
-    <>
-      <p className="help listlead">
-        Only tasks carrying a `done:` date are counted. The board writes that date when a task is
-        ticked, so anything ticked before that was added is invisible below.
-      </p>
-      <p className="help listlead">{archiveNote}</p>
-    </>
   )
 }
 

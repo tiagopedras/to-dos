@@ -496,6 +496,27 @@ they settled is written up in the README rather than left here:
   reload, a dirty-check on send, or `pa` posting its changes back through the
   board rather than to disk. That decision is what this entry is holding.
 
+- ~~**Reading what got done means leaving the page that says what is next.**~~
+  **Done.** Reports is not a tab any more: Tasks finished leads Overview's row
+  and Written reports closes it, `TasksFinishedColumn` and
+  `WrittenReportsColumn` in `kanban/ui/ReportsColumns.tsx`, listed by
+  `OverviewView` (`kanban/ui/SectionsView.tsx`). Both fold, under
+  `ov:Tasks finished` and `ov:Written reports` in the same key Overview's own
+  five use, and both heads carry a count and a description like every column
+  beside them — which took two grey paragraphs out of the counted body, along
+  with `CountedLead` and `buildCountedLead()`. Tasks finished is
+  `minmax(774px,2fr)`, two reference columns and the gap between them, which is
+  why every track in that grid now carries its own floor rather than the row
+  multiplying one width by a count — the row is about 3,350px wide at its floor
+  and scrolls sideways, the same as every other row of columns here.
+  `/reports.json`
+  is read once per arrival at Overview rather than once per render of it
+  (`lastRenderedView` in `kanban/js/18-timeline.js`, `ensureWrittenReports()` in
+  `kanban/js/12-reports.js`), and `#reports` still resolves — `isKnownView()`
+  keeps the id and `renderView()` sends it to Overview, the same way `#quick`
+  and `#delegate` already went there. Every check in `kanban/test_reports.mjs`
+  but two came across untouched.
+
 - **Done is not a column, it is the tick read sideways, and that makes the tick
   carry two facts at once.** `DONE_COL` (`kanban/js/02-state.js:283`) is
   synthesised onto the end of the column list by `boardColumns()` (`:344`) and

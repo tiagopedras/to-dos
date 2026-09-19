@@ -826,7 +826,16 @@ function renderSections(viewId){
       // The only section with nothing to count — it is standing prose, not a
       // list of anything — so it is left out entirely rather than drawn empty.
       context: ctx ? { bodyHTML: ctx, open: overviewOpen('ov:Context') } : null,
+      // Tasks finished and Written reports, the two columns that were the
+      // Reports tab until 19 Sep 2026. Everything they draw from is built in
+      // 12-reports.js, this file's only dealing with them (see
+      // reportsColumnProps there).
+      reports: reportsColumnProps(),
     }));
+    // After the mount, not before it: the counted half needs nothing fetched,
+    // so the row paints now and the written column fills in when /reports.json
+    // lands. It is a no-op on every render but the first of a visit.
+    ensureWrittenReports();
   } else if (viewId === 'matrix') {
     // The chain sits beside the matrix: both answer "what can I actually start",
     // one by score and one by what is still waiting on something else.
@@ -924,6 +933,11 @@ function closeViewMenu(){
 document.addEventListener('click', e => { if (!e.target.closest('#viewMenu')) closeViewMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewMenu(); });
 
+/* Which view the last renderView() drew, so arriving somewhere can be told
+   from redrawing where you already are. Only the report list cares: it is
+   re-read on arrival at Overview and not on every filter change there. */
+let lastRenderedView = null;
+
 /* Two views: the board, and the hand-written summaries from the end of the file.
    The bucket tabs, the AI filter and search only make sense on the board. */
 function renderView(){
@@ -931,9 +945,12 @@ function renderView(){
   // to the header rather than to any one view.
   updateArchiveChip();
   const defs = viewDefs();
-  // Quick wins and Delegate to Claude are columns of Overview now, so an old
-  // #quick or #delegate link lands where its content actually lives.
-  if (state.view === 'quick' || state.view === 'delegate') state.view = 'overview';
+  // Quick wins and Delegate to Claude are columns of Overview, and since
+  // 19 Sep 2026 so are the two halves of Reports, so an old #quick, #delegate
+  // or #reports link lands where its content actually lives.
+  if (state.view === 'quick' || state.view === 'delegate' || state.view === 'reports') {
+    state.view = 'overview';
+  }
   const isBackups = state.view === 'backups';
   if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
   const def = isBackups ? { id:'backups', label:'Backups' }
@@ -945,6 +962,13 @@ function renderView(){
   // reaches it, via renderBoard() or renderFilterBar() calling renderTabs().
   // state.view is finalised above this point, so whichever branch runs next
   // syncs the URL to the right value.
+
+  // Arriving at Overview, rather than redrawing it: ask for the report list
+  // again, since a report Claude wrote while another tab was up would
+  // otherwise never show. forgetWrittenReports() only clears the cache — the
+  // fetch itself is ensureWrittenReports(), from renderSections().
+  if (def.id === 'overview' && lastRenderedView !== 'overview') forgetWrittenReports();
+  lastRenderedView = def.id;
 
   renderViewTabs(defs);
   renderViewFlip();
@@ -963,7 +987,6 @@ function renderView(){
   // urgent, search) applies the same way wherever it's shown, so it stays up
   // on every tab rather than popping in and out as he switches between them.
   $('#headline').classList.add('hidden');
-  if (def.id === 'reports') { renderFilterBar(); renderReportsView(); return; }
   if (def.id === 'projects') { renderFilterBar(); renderProjectsView(); return; }
   if (def.id === 'plans') { renderFilterBar(); renderPlansView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
@@ -1023,7 +1046,6 @@ $('#main').addEventListener('animationend', e => {
    alone does nothing when a list view is up. */
 function refreshView(){
   if (state.view === 'board') renderBoard();
-  else if (state.view === 'reports') renderReportsView();
   else if (state.view === 'projects') renderProjectsView();
   else if (state.view === 'plans') renderPlansView();
   else if (state.view === 'backups') renderBackupsView();

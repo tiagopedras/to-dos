@@ -7,11 +7,11 @@
  * lets one be ported while the other nine carry on untouched — and what lets
  * this work stop at any stage with a working board.
  *
- * Projects, Backups and Reports are ported whole. Plans is the one that is
- * half done on purpose: its six columns and the four that hold nothing but
- * plans are components, and the bodies four independent fetches fill are still
- * markup the board builds. PlansView's own header says why, and what would
- * have to change for the other two columns to follow.
+ * Projects, Backups and the two report columns are ported whole. Plans is the
+ * one that is half done on purpose: its six columns and the four that hold
+ * nothing but plans are components, and the bodies four independent fetches
+ * fill are still markup the board builds. PlansView's own header says why,
+ * and what would have to change for the other two columns to follow.
  *
  * There were two mount functions until 13 Sep 2026, and there are two again
  * since the Overview/Matrix/Timeline port on the 14th, for a different reason
@@ -51,15 +51,15 @@ export { PlanCard } from './PlanCard'
 export type { PlanCardProps } from './PlanCard'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
-export { ReportsView, ReportsEmpty } from './ReportsView'
+export { TasksFinishedColumn, WrittenReportsColumn } from './ReportsColumns'
 export { PlansView } from './PlansView'
 export type { PlansViewProps, DropZone } from './PlansView'
-export type { ReportsViewProps, WrittenReport, ReportWindow } from './ReportsView'
+export type { ReportsColumnsProps, WrittenReport, ReportWindow } from './ReportsColumns'
 export {
-  CountedLead, CompletedByCategory, RecentAccomplishments, WeeklyTrend,
+  CompletedByCategory, RecentAccomplishments, WeeklyTrend,
 } from './ReportsBlocks'
 export type {
-  CountedLeadProps, CompletedByCategoryData, CategoryRowData, EffortCell,
+  CompletedByCategoryData, CategoryRowData, EffortCell,
   RecentAccomplishmentsData, DoneRowData, WeeklyTrendProps, TrendSeriesData, TrendWeekData,
 } from './ReportsBlocks'
 export { OverviewView, MatrixView, TimelineView } from './SectionsView'

@@ -1,17 +1,24 @@
 #!/usr/bin/env node
-/* Reports — the counted half and the written half.
+/* Reports — the counted half and the written half, now the last two columns of
+ * Overview.
  *
  *   python3 kanban/server.py &          # or BOARD_PORT=... at one already up
  *   node kanban/test_reports.mjs
  *
  * Written 13 Sep 2026, before porting the view to components, for the same
  * reason the Backups suite was: a port can only be trusted if checks written
- * against the old markup pass against the new.
+ * against the old markup pass against the new. It moved onto Overview on
+ * 19 Sep 2026 with the columns themselves, and every check below but two
+ * carried across untouched — which is the evidence the two columns are the
+ * same two columns. The two that went were about the tab: the pair had a grid
+ * of their own, `.lists.rview`, and the view had an empty state for a board
+ * with no document loaded. Overview's own five columns never had one, and a
+ * sixth cannot be reached without a document either.
  *
  * The window picker is the thing to pin hardest. It governs every report in the
- * left column — the counts, the lead note and the pace chart alike — and it has
- * its own render path on purpose, so that changing the window redraws the
- * counted card and leaves the written one alone rather than re-fetching
+ * counted column — the counts, the lead note and the pace chart alike — and it
+ * has its own render path on purpose, so that changing the window redraws the
+ * row and leaves the written column's list alone rather than re-fetching
  * /reports.json for no reason. That separation is invisible on screen and easy
  * to lose, so it is asserted directly by counting fetches.
  *
@@ -68,7 +75,7 @@ async function evalJS (expr) {
 }
 
 await new Promise(r => setTimeout(r, 2500))
-check('the board loaded', await evalJS(`typeof renderReportsView === 'function'`))
+check('the board loaded', await evalJS(`typeof reportsColumnProps === 'function'`))
 
 // LOCK FIRST, then fixtures. Nothing below can write anything.
 await evalJS(`(() => {
@@ -137,22 +144,50 @@ await evalJS(`(() => {
   state.locked = true;
   reportWindow = '30';
   invalidateArchiveEntries();
+  /* The page opens on Overview, so the real /reports.json was already read
+     before the stub above went in. Clearing the cache is what makes the next
+     render ask again, and ask the stub. */
+  forgetWrittenReports();
 })()`)
 check('the tab is locked', await evalJS(`state.locked === true`))
 
-await evalJS(`renderReportsView()`)
+await evalJS(`state.view = 'overview'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
 
-/* ---- the two columns ---- */
+/* ---- the two columns, at the end of Overview's own row ---- */
 
-check('both columns are drawn, counted then written', await evalJS(`
-  [...document.querySelectorAll('.rview .col .colhead h3')].map(h => h.textContent).join('|')
-`) === 'Tasks finished|Written reports')
+check('counted leads the row and written closes it', await evalJS(`(() => {
+  const t = [...document.querySelectorAll('.lists.split .col .colhead h3')].map(h => h.textContent);
+  return t[0] + '|' + t[t.length - 1];
+})()`) === 'Tasks finished|Written reports', await evalJS(`
+  [...document.querySelectorAll('.lists.split .col .colhead h3')].map(h => h.textContent).join('|')`))
+
+check('the counted head says how many the window holds', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.colhead-right .count')?.textContent;
+})()`) === '3', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.colhead-right .count')?.textContent;
+})()`))
+
+const countedCol = `[...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished')`
 
 check('the window picker is in the counted column’s head, not its body', await evalJS(`
-  !!document.querySelector('.rview .col:first-child .colhead #reportWindow') &&
-  !document.querySelector('.rview .col:first-child .colbody #reportWindow')
+  !!${countedCol}.querySelector('.colhead #reportWindow') &&
+  !${countedCol}.querySelector('.colbody #reportWindow')
 `))
+
+/* Every column on Overview folds, these two included — and a <summary> folds
+   on any click inside it that nothing cancels, which is what the delegated
+   guard in 09-columns.js is for. */
+check('picking a window does not fold the column it is in', await evalJS(`(() => {
+  const col = ${countedCol};
+  document.querySelector('#reportWindow button[data-window="15"]').click();
+  return col.open === true;
+})()`))
+await new Promise(r => setTimeout(r, 400))
+await evalJS(`document.querySelector('#reportWindow button[data-window="30"]').click()`)
+await new Promise(r => setTimeout(r, 400))
 
 check('it is the shared tab object at its small size', await evalJS(`
   document.querySelector('#reportWindow').className
@@ -294,13 +329,13 @@ await evalJS(`closeModal ? closeModal() : document.querySelector('dialog[open]')
 
 /* ---- the two ways the written half can fail ---- */
 
-await evalJS(`window.__reports = []; renderWrittenReports()`)
+await evalJS(`window.__reports = []; forgetWrittenReports(); ensureWrittenReports()`)
 await new Promise(r => setTimeout(r, 400))
 check('an empty folder says how a report gets there', await evalJS(`
   /asking Claude for one/.test(document.querySelector('#writtenOut .empty')?.textContent || '')
 `))
 
-await evalJS(`window.__reportsStatus = 404; renderWrittenReports()`)
+await evalJS(`window.__reportsStatus = 404; forgetWrittenReports(); ensureWrittenReports()`)
 await new Promise(r => setTimeout(r, 400))
 check('an older helper is named as the cause', await evalJS(`
   /board helper needs restarting/.test(document.querySelector('#writtenOut .err')?.textContent || '')
@@ -308,14 +343,7 @@ check('an older helper is named as the cause', await evalJS(`
 await evalJS(`window.__reportsStatus = 0; window.__reports = [
   { title:'Back again', date:'', covers:'', topic:'', summary:'', url:'/data/reports/x.md' }]`)
 
-/* ---- no document at all ---- */
-
-await evalJS(`(() => { const d = state.doc; state.doc = null; renderReportsView(); state.__doc = d; })()`)
-await new Promise(r => setTimeout(r, 300))
-check('with no file loaded it says so rather than drawing empty reports', await evalJS(`
-  /No file loaded yet/.test(document.querySelector('.rview .empty')?.textContent || '')
-`))
-await evalJS(`state.doc = state.__doc; renderReportsView()`)
+await evalJS(`forgetWrittenReports(); ensureWrittenReports()`)
 await new Promise(r => setTimeout(r, 500))
 
 /* ---- cancelled work is not finished work ---- */
@@ -350,12 +378,12 @@ check('the counted lead counts the three real ones and leaves the two out', awai
 `), await evalJS(`(document.body.innerText.replace(/\\s+/g,' ').match(/\\d+ tasks? finished across \\d+ categor\\w+/) || ['—'])[0]`))
 
 check('and neither shows up in the list of what was finished', await evalJS(`
-  !/Called off|No longer relevant/.test(document.querySelector('.rview')?.innerText || '')
+  !/Called off|No longer relevant/.test(document.querySelector('.lists.split')?.innerText || '')
 `))
 
 /* ---- the point of the second guard ---- */
 
-check('the reports view wrote nothing, which is all it should ever do',
+check('the report columns wrote nothing, which is all they should ever do',
   await evalJS(`window.__blocked.length === 0`), await evalJS(`window.__blocked.join(' | ')`))
 
 ws.close()
