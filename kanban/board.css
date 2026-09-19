@@ -168,10 +168,8 @@
   /* The number badge (numberBadgeHTML / NumberBadge): filled in the accent,
      so it reads as waiting on you where `.n` beside it only counts. */
   .tenon-badge{
-    display:inline-flex; align-items:center; justify-content:center;
-    min-width:18px; height:18px; padding:0 5px; box-sizing:border-box;
-    border-radius:var(--tenon-radius-full); background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
-    font-size:11px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;
+    min-width:18px; height:18px; padding:0 5px; font-size:11px; font-weight:700;
+    background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
   }
   .tab .tenon-badge{margin:-2px -4px -2px -2px}
   /* The grouped view tab — Board, Matrix, Timeline. Two buttons, one pill: the
@@ -924,26 +922,17 @@
      the first thing in the body rather than part of the head. Standardising
      on the board's shape was the smaller change: it has six columns and
      thirty-odd cards against four columns of prose. */
-  .tenon-column{background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:12px; box-shadow:var(--tenon-elevation-overlay); display:flex; flex-direction:column; min-height:120px}
-  /* The Style=Agent variant, and the only dashed thing in the app, so the dash
-     means one thing: an agent owns this column and you do not drag into it.
-     Handed to AI on the board, Waiting for review on Plans and on Execution.
-     One rule rather than the three it was until 12 Sep 2026 — `.tenon-column.aicol` for
-     the board and `.lists.pview .tenon-column.agentcol` for the other two, which left
-     Execution's dash riding a selector scoped to Plans. Waiting for review and
-     Done used to be transparent as well as (for Done) dashed, which was the
-     same meaning carried twice — once by the fill and once by the border — so
-     the fill went and Done's dash went with it. */
-  .tenon-column--dashed{border-style:dashed}
+  .tenon-column{border-radius:12px; box-shadow:var(--tenon-elevation-overlay); min-height:120px}
+  /* What the dash means here, which Tenon draws but deliberately does not
+     define: an agent owns this column and you do not drag into it. Handed to
+     AI on the board, Waiting for review on Plans and on Execution. Keep it to
+     the one meaning and the dash keeps reading. */
   .tenon-column.aicol .tenon-column__head{color:var(--tenon-text-subtle)}
-  /* Hot columns: running queues worked by AI (Doing and Producing on Plans,
-     Handed to AI on the board). Orange rather than amber, which already means
-     a warning. The gear turns for now; add .idle to stop it once the board
-     knows whether anything is actually running. */
-  .tenon-column--running{
-    background:color-mix(in srgb, var(--tenon-text-running) 6%, var(--tenon-background-raised));
-    border-color:color-mix(in srgb, var(--tenon-text-running) 35%, var(--tenon-stroke-default));
-  }
+  /* Running queues worked by AI: Doing and Producing on Plans, Handed to AI on
+     the board. The tint and the border come from Tenon's `running` tone now;
+     the head stays here, because a head that is uppercase and 13px is this
+     board's rather than Tenon's. The gear turns for now; add .idle to stop it
+     once the board knows whether anything is actually running. */
   .tenon-column--running .tenon-column__head{color:var(--tenon-text-running); border-bottom-color:color-mix(in srgb, var(--tenon-text-running) 20%, var(--tenon-stroke-subtle))}
   .colgear{
     flex:none; width:14px; height:14px; background:var(--tenon-background-running);
@@ -962,19 +951,18 @@
      and a row of columns whose first lines sit at different heights reads as
      a mistake rather than as a difference. */
   .tenon-column__head{
-    margin:0; padding:11px 13px 9px; font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
-    color:var(--tenon-text-subtle); border-bottom:1px solid var(--tenon-stroke-subtle); min-height:41px; box-sizing:border-box;
-    display:flex; flex-direction:column; gap:8px;
+    padding:11px 13px 9px; min-height:41px; gap:8px;
+    font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
   }
   /* Pushed apart rather than floated right — see colHTML(). The left group is
      what the column is called, the right group is what you do to it, and
      neither is allowed to shrink the other away. */
-  .tenon-column__head-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:20px}
-  .tenon-column__head-start{display:flex; align-items:center; gap:8px; min-width:0}
+  .tenon-column__head-row{gap:8px; min-height:20px}
+  .tenon-column__head-start{gap:8px}
   /* Wraps because two heads carry a control wider than a button — Reports'
      seven windows and Projects' order select. Nothing else ever reaches the
      width to wrap, so the board and Plans read exactly as they did. */
-  .tenon-column__head-end{display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; min-width:0}
+  .tenon-column__head-end{gap:8px}
   .tenon-column__head h2, .tenon-column__head h3{
     margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
     text-transform:inherit; color:inherit; min-width:0;
@@ -1000,10 +988,7 @@
      Plans carries one on every column; the board carries none. Not uppercase
      and not the head's weight — it is a sentence, and the heading above it has
      already had its say. */
-  .tenon-column__desc{
-    margin:0; font-size:11px; font-weight:500; line-height:1.45;
-    text-transform:none; letter-spacing:0; color:var(--tenon-text-faint);
-  }
+  .tenon-column__desc{font-size:11px; font-weight:500; line-height:1.45; text-transform:none; letter-spacing:0}
   /* Says which order the column is in, and changes it. Quiet until it is on,
      because "your order" is the normal state and needs no announcing. */
   .sortbtn{
@@ -1029,7 +1014,7 @@
   .tenon-column > summary{cursor:pointer; list-style:none}
   .tenon-column > summary::-webkit-details-marker{display:none}
   .tenon-column > summary::marker{content:''}
-  .tenon-column__chevron{flex:none; font-size:10px; color:var(--tenon-text-faint); line-height:1}
+  .tenon-column__chevron{font-size:10px}
   .tenon-column__chevron::before{content:'\25b8'}
   .tenon-column[open] .tenon-column__chevron::before{content:'\25be'}
   /* Shut, the head is the whole column, so the divider under it would be a
@@ -1039,7 +1024,7 @@
      every column in the app. */
   .tenon-column[data-column-collapse]:not([open]) > summary{border-bottom:0}
   .tenon-column[data-column-collapse]:not([open]) > .tenon-column__body{display:none}
-  .tenon-column__body{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
+  .tenon-column__body{padding:9px; gap:8px}
   .drop.over{background:color-mix(in srgb, var(--tenon-background-accent) 7%, transparent)}
   /* Where the card being dragged will land. Sits in the gap between two cards,
      so the line is the answer to "in front of which one?". */
@@ -1177,9 +1162,9 @@
 
      Unscoped, and named for what it is rather than for Completed, because
      Reports is not the only view with a headline figure in it — see
-     kanban/ui/StatCard.tsx, which is the only thing that draws one. */
+     Tenon's Stat, which is the only thing that draws one. */
   .tenon-stat{
-    background:var(--tenon-background-default); border:1px solid var(--tenon-stroke-default); border-radius:10px;
+    background:var(--tenon-background-default); border-radius:10px;
     padding:18px 20px 16px; margin-bottom:16px; width:max-content; max-width:100%;
   }
   /* Inside the box rather than over it, so the name of the figure and the
@@ -1190,10 +1175,10 @@
     text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;
   }
   .tenon-stat__value{
-    display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--tenon-text-default);
-    letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+    display:block; font-size:56px; font-weight:700; line-height:.95;
+    color:var(--tenon-text-default); letter-spacing:-.03em;
   }
-  .tenon-stat__caption{display:block; font-size:13px; color:var(--tenon-text-subtle); margin-top:7px}
+  .tenon-stat__caption{display:block; font-size:13px; margin-top:7px}
   /* The gap the h2 above it used to carry, kept where it belongs: this is the
      Reports layout's spacing, not the card's, and a statcard elsewhere sets
      its own. */
@@ -2074,8 +2059,14 @@
     cursor:default; border-style:dashed; border-left-color:var(--tenon-text-error);
     background:var(--tenon-background-error-subtle);
   }
+  /* Waiting on a person rather than a task. Dashed like .missing, because in
+     both cases there is nothing on the board to open — but quiet rather than
+     red: a sentence naming who you are waiting on is the answer, where a slug
+     that resolves to nothing is a mistake. */
+  .chaincard.depnote{cursor:default; border-style:dashed}
   .chaintitle{display:block; color:var(--tenon-text-default); overflow-wrap:anywhere}
   .chaincard.missing .chaintitle{color:var(--tenon-text-error)}
+  .chaincard.depnote .chaintitle{color:var(--tenon-text-subtle)}
   .chainwhere{margin:2px 0 0; font-size:11px; color:var(--tenon-text-faint)}
   .chainholds{margin:6px 0 0; font-size:11.5px; color:var(--tenon-text-warning)}
   .empty{font-size:13px; color:var(--tenon-text-faint)}
@@ -2155,7 +2146,6 @@
   }
   .tenon-card .tenon-card__summary, .repitem .tenon-card__summary{margin-top:11px; font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
   .tenon-card__eyebrow + .tenon-card__head{margin-top:5px}
-  .tenon-card:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
   .tenon-card.dragging{opacity:.4}
   /* Same as any other card — same width, radius, padding, shadow, left
      bucket-colour stripe — except the border colour and a faint accent tint
@@ -2274,7 +2264,7 @@
   .prog{display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--tenon-text-faint)}
   .bar{flex:1; height:3px; border-radius:2px; background:var(--tenon-stroke-subtle); overflow:hidden}
   .bar i{display:block; height:100%; background:var(--tenon-background-success)}
-  .tenon-card__footer{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
+  .tenon-card__footer{font-size:11px; margin-top:6px}
 
   /* ---------- drawer ---------- */
   .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}
