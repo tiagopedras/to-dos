@@ -241,7 +241,7 @@ def state():
     return {
         "id": "planning-agent",
         "name": "to-dos planning agent",
-        "blurb": "one card per list, each with its own log",
+        "blurb": "works out overnight what each task on the list would take, and writes a plan for each — nothing it produces has been done",
         "summary": _summary(all_schedules),
         "job": launchd(PLIST),
         # No `window`. The contract still carries the field, and nothing here
