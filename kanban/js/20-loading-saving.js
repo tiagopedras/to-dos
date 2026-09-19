@@ -17,7 +17,7 @@ function load(text, name, opts){
      would show dates that are nowhere on disk — the demo would also silently
      lose its example agenda to a Previous agenda note. `state.locked` is set by
      the caller after this returns, so it cannot be the guard here. */
-  const rolled = opts.readOnly ? { n:0, carried:0, archived:[] } : rollRecurring(state.doc);
+  const rolled = opts.readOnly ? { n:0, carried:0, moved:0, archived:[] } : rollRecurring(state.doc);
   state.originalText = text;
   state.fileName = name || 'todo.md';
   $('#start').classList.add('hidden');
@@ -52,6 +52,15 @@ function load(text, name, opts){
   /* Said out loud, because this one moved a date and cleared a tick on a task he
      did not touch. Last, so it is the message left standing when more than one
      fixup ran: it is the only one of the three that changes what a card says. */
+  /* `moved` on its own is the pass that brings a recurring card back into To do
+     as its day arrives, with nothing rolled — a load in the middle of a cycle
+     rather than the one just after it turned over. It changes which column a
+     card is in, so it is a save to make and a thing to say either way. */
+  if (!rolled.n && rolled.moved) {
+    markDirty();
+    $('#status').textContent = 'moved ' + rolled.moved + ' recurring task' + (rolled.moved === 1 ? '' : 's') +
+      ' into To do — save to apply';
+  }
   if (rolled.n) {
     markDirty();
     $('#status').textContent = 'rolled ' + rolled.n + ' recurring task' + (rolled.n === 1 ? '' : 's') +
@@ -78,7 +87,7 @@ function load(text, name, opts){
   // document is what "nothing to undo yet" means.
   resetUndo();
   // Set last: markDirty clears it, and both migrations go through markDirty.
-  state.migratedOnly = !!(renamed || stamped || rolled.n);
+  state.migratedOnly = !!(renamed || stamped || rolled.n || rolled.moved);
 }
 
 /* A link naming a task arrives before there is a document to find it in, so it

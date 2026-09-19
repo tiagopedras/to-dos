@@ -473,6 +473,29 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Done is not a column, it is the tick read sideways, and that makes the tick
+  carry two facts at once.** `DONE_COL` (`kanban/js/02-state.js:283`) is
+  synthesised onto the end of the column list by `boardColumns()` (`:344`) and
+  kept out of `tierOrder()` entirely, so a card is "in Done" only because
+  `t.done` is true. That works everywhere a tick means finished and breaks where
+  it means something else: on a recurring task the tick means "prepared for this
+  occurrence", so `rollRecurring()`
+  (`kanban/js/04-tier-two-the-one-thing.js:224`) cannot leave a rolled card in
+  Done without also claiming it is prepared for the occurrence coming, and has
+  to untick it and park it in Backlog or To do instead. Holding a rolled card in
+  Done costs a second pass that reads `[done:: ]` against the previous
+  occurrence to tell a stale tick from prep he has just done, which is a fact
+  about the card the file never states.
+
+  A real Done heading would make the column a place and leave the tick to mean
+  one thing, and the roll could then untick and stay put. What it buys has to be
+  weighed against a second writer on the same fact: it needs a rule for a card
+  ticked but sitting in To do, and one for a card in Done but unticked, and it
+  reaches `RESERVED_TIERS` (`kanban/js/02-state.js:315`, which exists partly to
+  stop that heading being typed by hand today), both `core/todo.js` and
+  `core/todo.py`, the fixtures under `core/fixtures/`, the reports, archiving,
+  the timeline, the matrix and the drawer's Column field.
+
 - ~~**The Plans view needs one review of its whole lifecycle: what a card is,
   how a task becomes one, what each drag does, and what the plan modal
   offers in each column.**~~ **Done, 18 Sep 2026.** All four requirements, as written above. `pick.py`'s three exclusions place a card in Backlog with the reason on it rather than dropping the task, and a drag into To do writes the `force` list that overrules them; every task in Handed to AI now has exactly one card. `planButtons()` (`kanban/js/13-plans.js`) gives each of the seven columns its own set, `openQueuedModal()` opens a card with no plan yet, and Hold is Move to backlog. Today the pieces were decided one at a time and no

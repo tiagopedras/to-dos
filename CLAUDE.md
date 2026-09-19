@@ -527,6 +527,7 @@ node kanban/test_phone.mjs         # the 640px breakpoint, from both sides
 node kanban/test_overview.mjs      # capMsgCards() against real, painted layout
 node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted tray card
 node kanban/test_reports.mjs       # both halves, and the window picker over them
+node kanban/test_recurring_roll.mjs # where a recurring card lands when its date turns over
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
 node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md
 node kanban/test_bucket_brief.mjs  # the Brief button, and the sheet behind it

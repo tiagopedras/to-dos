@@ -107,16 +107,43 @@ function stampDoneDates(doc){
       last time the board was open can be longer than one cycle.
    4. A task that was ticked gets parked somewhere that says how soon it matters
       again, rather than sitting wherever it happened to be finished from. Under
-      a week to the next occurrence and it goes to To do, where the rest of the
-      week's work is; a week or more and it goes to Backlog, out of the way
-      until it is worth thinking about again. An occurrence that was never
-      prepared for — still unticked when its date passed — has nothing to move
-      on from, so it is left exactly where it was; only a "done" carries an
-      opinion about what comes next.
+      two days to the next occurrence and it goes to To do, which is the window
+      in which preparing for a meeting is actually this session's work; two days
+      or more and it goes to Backlog, out of the way until it is worth thinking
+      about again. An occurrence that was never prepared for — still unticked
+      when its date passed — has nothing to move on from, so it is left exactly
+      where it was; only a "done" carries an opinion about what comes next.
+
+   None of that happens at all while the next occurrence is still a week or more
+   off and the card was ticked. A monthly meeting prepared for and delivered has
+   nothing waiting on it for weeks, so it is held exactly as it is — ticked, in
+   Done, with the agenda and the date it was prepared for still on it — and the
+   roll simply does not fire. It fires on a later load, once that week has
+   closed, because the date it is holding is still in the past and so the roll
+   keeps being offered the card every time the board opens.
+
+   The cost of holding it is that the card carries a date that has gone until
+   the roll finally fires, and reads as prepared for an occurrence that is over.
+   That is the trade that was taken deliberately: see the Done-is-not-a-column
+   entry in IMPROVEMENTS.md, which is the change that would remove the need for
+   it.
+
+   Parking once is not enough on its own. The roll fires the day after an
+   occurrence passes, which for a weekly meeting is six days out — Backlog, under
+   the rule above — and nothing would ever move it to To do as the day came
+   round. So a second pass runs on every load and walks recurring cards sitting
+   in Backlog with an occurrence under two days away, moving those to To do. It
+   only ever moves that one way: a card he has dragged somewhere himself stays
+   dragged.
 
    Nothing is rolled while the board is showing a backup: that document is a
    record of a past state and rewriting the dates in it would be a lie about
    what was on disk that day. */
+/* The two lines the placement rules above are drawn at, in days to the next
+   occurrence. Named rather than typed at each of the three places that ask,
+   since the two answers have to agree about where To do stops. */
+const RECUR_TODO_DAYS = 2;
+const RECUR_HOLD_DAYS = 7;
 /* How many lines a block-shaped note occupies, counting its heading. Used to cut
    one out without disturbing anything at or above its own indent. */
 function blockLength(lines, at){
@@ -170,6 +197,16 @@ function rollRecurring(doc){
     let next = occurrenceAfter(rep, cur);
     while (next < now) next = occurrenceAfter(rep, next);
     const shift = Math.round((next - cur) / 86400000);
+    const gap = Math.round((next - now) / 86400000);
+
+    /* Held rather than rolled: a ticked card with a week or more before it comes
+       round again keeps everything it has — its date, its tick, its agenda and
+       its place in Done — because nothing about it is waiting on him yet. The
+       roll is not skipped for good, only not now: the date it is holding is
+       still in the past, so the next load offers the card again, and the one
+       after the week closes rolls it properly. Checked before anything below
+       writes, since holding means nothing below runs at all. */
+    if (t.done && gap >= RECUR_HOLD_DAYS) return;
 
     /* Edited on `t.body` in place, line by line, rather than through
        bodyParts/rebuildBody. Those two split every sub-step line away from every
@@ -214,14 +251,14 @@ function rollRecurring(doc){
     }
 
     /* Checked before setDone() clears it below — this is the state the task
-       is rolling out of, not the one it's rolling into. A gap of a week
-       reads on the calendar the same way a working week does, which is the
-       only reason 7 is the line: less than that and it's still this week's
-       business, so it goes to To do; a week or more and it's next week's
-       problem at the earliest, so it's parked in Backlog instead. */
+       is rolling out of, not the one it's rolling into. Two days is the line
+       because preparing for a meeting is work for the day before it at the
+       earliest: inside that, it is this session's business and goes to To do;
+       outside it, there is nothing to do about it yet and it is parked in
+       Backlog. The pass at the bottom of this function is what brings it back
+       across when the day does come round. */
     if (t.done) {
-      const gap = Math.round((next - now) / 86400000);
-      parks.push({ bucket: b, from: tier, task: t, to: gap >= 7 ? BACKLOG_TIER : TODO_TIER });
+      parks.push({ bucket: b, from: tier, task: t, to: gap >= RECUR_TODO_DAYS ? BACKLOG_TIER : TODO_TIER });
       moved++;
     }
 
@@ -252,6 +289,33 @@ function rollRecurring(doc){
     n++;
     if (carried) c++;
   })));
+  /* Bringing one back across as its day arrives. The roll above parks a card
+     once, on the load after its occurrence passed, which for a weekly meeting is
+     six days out — Backlog, correctly, and then nothing would ever move it. So
+     this walks every recurring card sitting in Backlog with its occurrence under
+     two days away and moves it to To do, on every load rather than once.
+
+     Backlog to To do and no other direction. Moving one back would overrule a
+     card he dragged somewhere himself, and the board has no way to tell that
+     drag from a card that was never moved. A card still ticked is left alone
+     too: it is either prepared for the occurrence coming or being held by the
+     rule above, and neither wants moving. */
+  doc.buckets.forEach(b => b.tiers.forEach(tier => {
+    if (tier.name !== BACKLOG_TIER) return;
+    tier.tasks.forEach(t => {
+      if (t.done || !readRepeat(t.repeat)) return;
+      /* The roll has already decided about this one and unticked it, and its
+         move has not been applied yet, so it is still sitting in the tier the
+         roll found it in. Deciding again here would push a second move for the
+         same card and the applier would land it in To do twice. */
+      if (parks.some(p => p.task === t)) return;
+      const d = parseDue(t.due);
+      if (!d || d < now) return;
+      if (Math.round((d - now) / 86400000) >= RECUR_TODO_DAYS) return;
+      parks.push({ bucket: b, from: tier, task: t, to: TODO_TIER });
+      moved++;
+    });
+  }));
   // Same move the Column field's own slider makes (see wireStepSlider('f-tier',
   // ...) in 19-drawer.js) — splice out of the tier the roll found it in, push
   // onto the target, skip the write entirely when they're already the same
@@ -261,7 +325,11 @@ function rollRecurring(doc){
     const target = ensureTier(bucket, to);
     if (target === from) return;
     const at = from.tasks.indexOf(task);
-    if (at > -1) from.tasks.splice(at, 1);
+    // Gone from where it was decided about means something else has already
+    // moved it, and pushing it onto the target anyway would put one task in two
+    // columns. Nothing writes that today; the guard is here so nothing can.
+    if (at === -1) return;
+    from.tasks.splice(at, 1);
     target.tasks.push(task);
   });
   return { n, carried: c, moved, archived };

@@ -642,7 +642,8 @@ occurrence the card points at *now* rather than the one it was written for. Odd
 written down, right in use: the only reason to copy a past agenda is that its
 meeting moved, so what is wanted is those topics under the new date.
 
-**A recurring task's sub-steps roll with it.** Its steps are the work of one
+**A recurring task's sub-steps roll with it**, on the loads where it rolls at
+all. Its steps are the work of one
 occurrence — send the nudge, review what came back — so a step still ticked from
 last time would read as already done for a cycle it has never seen. They are
 unticked, their `done:` dates cleared, and any `[due:: ]` or `start:` on them
@@ -676,6 +677,44 @@ That is why there is no "agenda ready" chip: the card is the prep, so ticking it
 is the status, and a chip saying the same thing a second way would be a second
 thing to keep in step. Tick it when the agenda is written, it leaves Quick wins,
 and it comes back unticked after the meeting.
+
+### Where the card lands when it rolls
+
+Rolling a card changes what it says, so it also has to change where it sits, or
+a meeting prepared for last week stays in To do saying it is this week's work.
+Three rules do that, and the only thing they have to agree about is where To do
+stops.
+
+**Under two days to the next occurrence, To do.** Preparing for a meeting is
+work for the day before it at the earliest, so that is the window in which the
+card is actually this session's business.
+
+**Two days or more, Backlog.** There is nothing to do about it yet, and a column
+full of meetings nobody is preparing for this week is a column he stops reading.
+
+**A week or more, and the card was ticked: nothing at all.** The roll does not
+fire. The card keeps its date, its tick, its agenda and its place in Done,
+because a monthly meeting already prepared for and delivered has nothing waiting
+on it for weeks and no useful column to sit in. It is not skipped for good — the
+date it is holding is still in the past, so every later load offers the card
+again, and the one after that week closes rolls it properly.
+
+The cost of that third rule is real and was taken deliberately: until the roll
+fires, the card carries a date that has gone and reads as prepared for an
+occurrence that is over. It is there because Done is not a column, it is the
+tick read sideways, so there is no way to say "finished with that one, nothing
+due yet" without also saying "prepared for the one coming". Making Done a real
+column is the change that removes the need for it, and it is written up in
+`IMPROVEMENTS.md`.
+
+Parking once is not enough on its own, which is the part that is easy to miss.
+The roll fires the day *after* an occurrence passes, and for a weekly meeting
+that is six days out — Backlog, by the rule above, and then nothing would ever
+bring it back as the day came round. So a second pass runs on every load and
+moves any recurring card sitting in Backlog with its occurrence under two days
+away into To do. It only goes that way: moving one back would overrule a card he
+dragged somewhere himself, and the board cannot tell that drag from a card that
+was never touched.
 
 ### The agenda for a recurring meeting
 
