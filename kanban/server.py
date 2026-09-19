@@ -1330,7 +1330,14 @@ def queue_order_path():
     return os.path.join(plans_dir(), "queue-order.json")
 
 
-PLANNING_LOCK = os.path.join(ROOT, DATA, ".planning-agent.lock")
+def planning_lock():
+    """The lock for the list the board is showing.
+
+    One lock per list since 19 Sep 2026, because one wake can now plan several
+    and a shared lock would have the second wait on the first. The board only
+    ever shows one list, so it only ever asks about that one's.
+    """
+    return os.path.join(ROOT, DATA, ".planning-agent-%s.lock" % current_dataset())
 
 
 def _queue_row(task, ledger, position=0, state="queued", why=""):
@@ -1587,11 +1594,13 @@ def start_planning_agent_run():
     script = os.path.join(ROOT, "agents", "planning_agent", "run.sh")
     if not os.path.isfile(script):
         return None, {"error": "agents/planning_agent/run.sh is not here"}
-    if os.path.isdir(PLANNING_LOCK):
+    if os.path.isdir(planning_lock()):
         return None, {"error": "a run is already going"}
     try:
         subprocess.Popen(
-            [script, "--force"], cwd=ROOT,
+            # Named, rather than letting run.sh take every armed list: the
+            # button sits on a board showing one list and means that one.
+            [script, "--force", "--dataset", current_dataset()], cwd=ROOT,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError as exc:
@@ -1613,12 +1622,13 @@ def planning_agent_run():
     Only ever one task is in flight: plan.py runs its agents one at a time, on
     purpose, so this is a single card rather than a list of them.
     """
-    live = os.path.isdir(PLANNING_LOCK)
+    lock = planning_lock()
+    live = os.path.isdir(lock)
     since = ""
     if live:
         try:
             since = datetime.datetime.fromtimestamp(
-                os.path.getmtime(PLANNING_LOCK)).isoformat(timespec="minutes")
+                os.path.getmtime(lock)).isoformat(timespec="minutes")
         except OSError:
             live = False
 

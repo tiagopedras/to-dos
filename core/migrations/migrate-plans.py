@@ -33,6 +33,7 @@ import datetime
 import hashlib
 import io
 import json
+import glob
 import os
 import re
 import shutil
@@ -88,8 +89,9 @@ def main():
                           ("pgrep -f 'planning_agent/plan.py'", "the planning agent")):
             if subprocess.run(cmd, shell=True, capture_output=True).returncode == 0:
                 die("%s is running. Stop it first." % what)
-        if os.path.exists(os.path.join(ROOT, "data", ".planning-agent.lock")):
-            die("data/.planning-agent.lock exists, so a run thinks it holds these files.")
+        held = glob.glob(os.path.join(ROOT, "data", ".planning-agent*.lock"))
+        if held:
+            die("%s exists, so a run thinks it holds these files." % os.path.basename(held[0]))
         ok("nothing else is holding the plans")
 
     legacy = ws.load(os.path.join(ROOT, "agents", "planning_agent", "stream.json"))[0]["legacy"]["map"]

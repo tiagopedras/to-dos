@@ -11,9 +11,11 @@ was written twice, in the plist and in `run.sh`, and neither could be changed
 from anywhere but an editor and a `launchctl reload`. `schedule.py` beside this
 is where the hours live now, and this is what lets them be edited.
 
-One target, itself. The improvements agent has one target per repo it serves;
-this one plans against a single list, so it sends a list of one rather than a
-different shape, which is what keeps the page from needing a special case.
+One target per list. The improvements agent has one per repo it serves; this
+one has one per dataset under `data/` with a `todo.md` in it, each with its own
+switch, hours and budget. Until 19 Sep 2026 it sent exactly one, for whichever
+list `data/.current` pointed at, which meant planning the personal list took
+switching the board over and leaving it switched.
 
     python3 agents/planning_agent/dashboard.py --state     what the page should draw
     python3 agents/planning_agent/dashboard.py --apply     one change, on stdin
@@ -115,8 +117,21 @@ def _queue():
     return plan, skip, ledger
 
 
-def target():
-    s = schedule.load()
+def target(name):
+    """One list's card. Every path inside is resolved against that list.
+
+    The name is required, and nothing on this page falls back to
+    `data/.current`. It is the editor for every list at once, and the board
+    rewrites that pointer every time its dropdown moves — so a card that
+    quietly described whichever list was open there would file one list's
+    queue, log and last run under another list's name.
+    """
+    with paths.using(name):
+        return _target(name)
+
+
+def _target(name):
+    s = schedule.load(name)
     plan, skip, ledger = _queue()
 
     unread = [k for k, v in ledger.items() if (v or {}).get("status") == "unread"]
@@ -127,14 +142,15 @@ def target():
         problems.append("Could not read todo.md, so tonight's queue is unknown.")
 
     out = {
-        "id": "planning-agent",
+        # The dataset name, which is what `apply` and `start` are sent back and
+        # what `PLANNING_DATASET` is set to for a run. Until 19 Sep 2026 this
+        # was the agent's own id, because there was only ever one card.
+        "id": name,
         # Named for the list it plans against rather than for the agent. The
-        # agent's own name is already on the band above this card, and repeating
-        # it here read as a stutter; the dataset is also the one thing about
-        # this target that can actually change, since data/.current points the
-        # whole agent at a different list.
-        "name": "%s list" % paths.dataset(),
-        "subtitle": os.path.join(ROOT, "data", paths.dataset()),
+        # agent's own name is already on the band above these cards, and
+        # repeating it here read as a stutter.
+        "name": "%s list" % name,
+        "subtitle": os.path.join(ROOT, "data", name),
         "subtitle_title": paths.todo_path(),
         "note": "writes plans against the to-do list, never code",
         "on": bool(s["on"]),
@@ -173,29 +189,67 @@ def target():
     return out
 
 
-def tail_log(n):
-    try:
-        with open(paths.log_path(), encoding="utf-8") as fh:
-            return fh.read().split("\n")[-n:]
-    except OSError:
-        return []
+def tail_log(n, name):
+    with paths.using(name):
+        try:
+            with open(paths.log_path(), encoding="utf-8") as fh:
+                return fh.read().split("\n")[-n:]
+        except OSError:
+            return []
+
+
+def merged_log(n):
+    """Every list's log, interleaved, one tagged line each.
+
+    One log per list, because paths.log_path() sits inside that list's own
+    plans folder and a night belongs to the list it planned. The card band
+    above them is about the agent, though, so this is where they come back
+    together: lines sort by their own timestamp prefix, which is fixed-width,
+    so lexicographic order is chronological order.
+    """
+    names = paths.datasets()
+    if len(names) == 1:
+        return tail_log(n, names[0])
+    width = max(len(x) for x in names)
+    rows = []
+    for name in names:
+        for line in tail_log(n, name):
+            if not line.strip():
+                continue
+            stamp, _, rest = line.partition("  ")
+            rows.append((stamp, "%s  %-*s  %s" % (stamp, width, name, rest)))
+    rows.sort()
+    return [line for _, line in rows[-n:]]
+
+
+def running():
+    """Whether any list is mid-run. One lock per list since 19 Sep 2026."""
+    return any(os.path.isdir(os.path.join(ROOT, "data", ".planning-agent-%s.lock" % n))
+               for n in paths.datasets())
+
+
+def _summary(all_schedules):
+    on = [(n, s) for n, s in all_schedules.items() if s["on"]]
+    if not on:
+        return "no list is switched on · plans only, nothing is ever executed"
+    spend = " · ".join("%s $%.2f" % (n, s["budget"]) for n, s in on)
+    return "%s a night · plans only, nothing is ever executed" % spend
 
 
 def state():
-    s = schedule.load()
+    all_schedules = schedule.load_all()
     return {
         "id": "planning-agent",
         "name": "to-dos planning agent",
-        "blurb": "one log, in the dataset it plans against",
-        "summary": "$%.2f a night%s · plans only, nothing is ever executed" % (
-            s["budget"], (", %d plans at most" % s["max_plans"]) if s["max_plans"] else ""),
+        "blurb": "one card per list, each with its own log",
+        "summary": _summary(all_schedules),
         "job": launchd(PLIST),
         # No `window`. The contract still carries the field, and nothing here
         # reports one any more: the usage window stopped being a gate on 9 Sep
         # 2026, so an answer about it would be a fact with no consequence on a
         # card about what runs tonight. The schedule below is the whole gate.
-        "running": os.path.isdir(os.path.join(ROOT, "data", ".planning-agent.lock")),
-        "log": tail_log(60),
+        "running": running(),
+        "log": merged_log(60),
         # The floor, which is the one thing on this card the page cannot write.
         # `run.sh` refuses to start inside the working day whatever the schedule
         # file says, so an hour it would refuse should not be an hour the page
@@ -205,7 +259,7 @@ def state():
             {"id": "dry", "label": "Dry run"},
             {"id": "run", "label": "Run now", "primary": True},
         ],
-        "targets": [target()],
+        "targets": [target(n) for n in paths.datasets()],
     }
 
 
@@ -214,9 +268,17 @@ def state():
 
 
 def apply(body):
-    if (body.get("target") or "planning-agent") != "planning-agent":
-        return {"ok": False, "error": "this agent has one target, %r" % "planning-agent"}
-    s = schedule.load()
+    # Refused rather than sent to the live list. Every setting this agent has
+    # belongs to one list, the page sends the card's own id with all four of
+    # its writes, and a change arriving without one is a bug — one that would
+    # otherwise land on whichever list the board happened to be showing.
+    name = body.get("target")
+    if not name:
+        return {"ok": False, "error": "a change has to name the list it is for"}
+    if name not in paths.datasets():
+        return {"ok": False, "error": "no list called %r — this agent plans %s"
+                % (name, ", ".join(paths.datasets()))}
+    s = schedule.load(name)
     for key, value in (body.get("changes") or {}).items():
         if key == "on":
             s["on"] = bool(value)
@@ -246,7 +308,7 @@ def apply(body):
                 return {"ok": False, "error": "max_plans wants a whole number"}
         else:
             return {"ok": False, "error": "nothing here owns %r" % key}
-    schedule.save(s)
+    schedule.save(name, s)
     return {"ok": True}
 
 
@@ -254,10 +316,22 @@ def start(body):
     action = body.get("action")
     if action not in ("run", "dry"):
         return {"ok": False, "error": "no action %r" % action}
+    args = [os.path.join(HERE, "run.sh"),
+            "--force" if action == "run" else "--dry-run"]
+    # A card's own button names its list; the band's button names none, and
+    # run.sh reads that as every list that is switched on. Either way the hours
+    # are skipped and the floor in run.sh is not.
+    name = body.get("target")
+    if name:
+        if name not in paths.datasets():
+            return {"ok": False, "error": "no list called %r" % name}
+        args += ["--dataset", name]
+    elif not schedule.enabled():
+        # run.sh refuses this too, but it is detached by the time it does, so
+        # the page would show a button that did nothing rather than a reason.
+        return {"ok": False, "error": "no list is switched on — arm one, or use a card's own button"}
     # Detached, because a batch is minutes long and the page must not sit on an
     # open socket for it. Progress is the log, which the page polls anyway.
-    args = [os.path.join(HERE, "run.sh"), "--force"] if action == "run" \
-        else [os.path.join(HERE, "run.sh"), "--dry-run"]
     try:
         subprocess.Popen(args, cwd=ROOT, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
@@ -331,6 +405,12 @@ WOKE = ("wake", "a run is already going", "nothing to plan")
 
 
 def _wakes(since):
+    """The minutes this agent was awake in, and the ones it worked in.
+
+    Sets rather than counts since 19 Sep 2026: one wake can now run two lists
+    and write into both their logs, and the caller unions them so that reads as
+    one wake rather than two.
+    """
     try:
         with open(paths.log_path(), encoding="utf-8") as fh:
             lines = fh.read().split("\n")
@@ -353,11 +433,16 @@ def _wakes(since):
         if text.startswith("start:"):
             woke.add(m.group(1))
             worked.add(m.group(1))
-    return {"total": len(woke), "worked": len(worked)}
+    return woke, worked
 
 
-def _day_run(day, since):
-    """One night's folder as an activity run, or None if it falls outside."""
+def _day_run(day, since, name):
+    """One night's folder as an activity run, or None if it falls outside.
+
+    Named by its caller rather than read back out of paths: the caller has it,
+    and a label worked out from the pointer would name the wrong list on every
+    run but one.
+    """
     record = read_run(day)
     if not record:
         return None
@@ -385,7 +470,7 @@ def _day_run(day, since):
         last = when or last
     if not did and not left:
         return None
-    return {"target": "%s list" % paths.dataset(),
+    return {"target": "%s list" % name,
             "started": first or record.get("started"),
             "finished": last or record.get("finished"),
             # The night's own total. Plans are not costed one by one in the
@@ -416,19 +501,29 @@ def activity(body):
     since = _since(body)
     today = dt.date.today()
     runs, spent = [], 0.0
-    for back in range(3, -1, -1):
-        run = _day_run(today - dt.timedelta(days=back), since)
-        if not run:
-            continue
-        spent += run["cost"]
-        runs.append(run)
+    woke, worked = set(), set()
+    # Every list rather than the live one. A night where the personal list was
+    # planned and the board was left on twinkl would otherwise report nothing,
+    # which is the same answer as an agent that never woke.
+    for name in paths.datasets():
+        with paths.using(name):
+            for back in range(3, -1, -1):
+                run = _day_run(today - dt.timedelta(days=back), since, name)
+                if not run:
+                    continue
+                spent += run["cost"]
+                runs.append(run)
+            seen = _wakes(since)
+            if seen:
+                woke |= seen[0]
+                worked |= seen[1]
+    runs.sort(key=lambda r: str(r.get("started") or ""))
     out = {"id": "planning-agent", "name": "to-dos planning agent",
            "since": since.isoformat(), "cost": round(spent, 4), "unit": "$",
            "runs": runs,
            "note": "every one of these is a proposal; nothing here has been carried out"}
-    wakes = _wakes(since)
-    if wakes:
-        out["wakes"] = wakes
+    if woke:
+        out["wakes"] = {"total": len(woke), "worked": len(worked)}
     return out
 
 

@@ -48,7 +48,12 @@ if (!dry) {
   const running = cmd => { try { return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' } }
   if (running('pgrep -f "kanban/server.py"')) die('the board helper is running. Quit To-Do Board.app and kill it first.')
   if (running('pgrep -f "To-Do Companion"')) die('the companion is running. Quit it first.')
-  for (const lock of ['data/.planning-agent.lock', path.join(path.dirname(target), 'companion.lock')])
+  // One planning lock per list since 19 Sep 2026, so the name is matched rather
+  // than spelled out — a lock held for any list is a run that may be writing.
+  const planning = (fs.existsSync(path.join(ROOT, 'data')) ? fs.readdirSync(path.join(ROOT, 'data')) : [])
+    .filter(n => n.startsWith('.planning-agent') && n.endsWith('.lock'))
+    .map(n => path.join('data', n))
+  for (const lock of [...planning, path.join(path.dirname(target), 'companion.lock')])
     if (fs.existsSync(path.join(ROOT, lock))) die(`${lock} exists, so something else thinks it holds this list.`)
   ok('nothing else is holding the list')
 }

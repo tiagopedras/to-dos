@@ -1,30 +1,94 @@
 #!/usr/bin/env python3
 """Where everything the planning agent touches lives.
 
-One module so that the dataset pointer is read in one place. `data/.current`
-names the list the board's dropdown is currently pointed at, and every path
-below hangs off it — the same resolution PA.md describes for the skills.
+One module so that the dataset pointer is read in one place. Every path below
+hangs off a dataset name, and that name comes from one of three places, in
+order: `using()` around the call, `$PLANNING_DATASET` in the environment, then
+`data/.current` — the same pointer PA.md describes for the skills.
+
+The env var is what lets one wake plan more than one list. `run.sh` loops the
+datasets that are due and exports the name for each, so `plan.py`, `brief.py`
+and `report.py` go on calling these functions with no argument and land in the
+right folder. `using()` is the same trick for a process that has to look at
+several in turn, which is the dashboard building one card per list.
 
 Unlike the companion, which pins itself to `twinkl` on purpose, this follows the
-pointer. The companion's reasoning is that switching the board for ten minutes
-should not silently change what gets notified tomorrow morning; here the
-opposite holds, because a plan is written against whichever list is live and
-filed beside it.
+pointer when nothing overrides it. The companion's reasoning is that switching
+the board for ten minutes should not silently change what gets notified tomorrow
+morning; here the opposite holds, because a plan is written against whichever
+list is live and filed beside it.
 """
 
+import contextlib
 import os
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FALLBACK = "twinkl"
 
+# Set by using(), and the first thing dataset() asks. A module global rather
+# than an argument threaded through forty call sites: everything downstream
+# already calls these functions with no argument, and the alternative was
+# editing every one of them to carry a name they would only pass straight back.
+_ACTIVE = None
 
-def dataset():
+
+def pointer():
+    """What `data/.current` says, ignoring both overrides.
+
+    Kept separate from dataset() because two callers need the pointer itself
+    rather than the dataset in force: the board's own idea of which list is
+    open, and schedule.py deciding which list a pre-September schedule file
+    belonged to.
+    """
     try:
         with open(os.path.join(ROOT, "data", ".current"), encoding="utf-8") as fh:
             name = fh.read().strip()
     except OSError:
         return FALLBACK
     return name or FALLBACK
+
+
+def dataset():
+    return _ACTIVE or os.environ.get("PLANNING_DATASET") or pointer()
+
+
+@contextlib.contextmanager
+def using(name):
+    """Point every path below at one dataset for the length of a block.
+
+    Restores whatever was in force rather than clearing it, so a nested use
+    inside a run that already has `$PLANNING_DATASET` set does not leave the
+    process pointed somewhere else.
+    """
+    global _ACTIVE
+    before = _ACTIVE
+    _ACTIVE = name
+    try:
+        yield name
+    finally:
+        _ACTIVE = before
+
+
+def datasets():
+    """Every list this agent could plan against, oldest rule first: it has a todo.md.
+
+    A folder under `data/` with no `todo.md` is not a list — `test2` holds a
+    plans folder and nothing to plan from. A leading underscore is the mark for
+    a fixture rather than a list, which is what keeps `_test` off the dashboard
+    without anything needing to know its name.
+
+    Sorted, so the cards on the page do not reorder themselves between reads.
+    """
+    root = os.path.join(ROOT, "data")
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return [FALLBACK]
+    out = [n for n in sorted(names)
+           if not n.startswith((".", "_"))
+           and os.path.isfile(os.path.join(root, n, "todo.md"))]
+    return out or [FALLBACK]
 
 
 def data_dir():

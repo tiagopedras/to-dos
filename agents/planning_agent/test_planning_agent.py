@@ -1079,11 +1079,14 @@ def test_queue_routes():
             fh.write(DOC)
 
         real = (server.plans_dir, server.current_dataset, server.todo_path,
-                server.PLANNING_LOCK)
+                server.planning_lock)
         server.plans_dir = lambda name=None: plans
         server.current_dataset = lambda: "test"
         server.todo_path = lambda name=None: todo_file
-        server.PLANNING_LOCK = os.path.join(tmp, ".planning-agent.lock")
+        # One lock per list since 19 Sep 2026, and a function rather than a
+        # constant so it can follow the board's dropdown.
+        lock = os.path.join(tmp, ".planning-agent-test.lock")
+        server.planning_lock = lambda: lock
         try:
             q = server.queue_listing()
             check("the queue is what pick would plan",
@@ -1156,7 +1159,7 @@ def test_queue_routes():
             check("and the batch size comes off the start line", n["toPlan"], 3)
             check("so the remainder is arithmetic rather than a guess", n["left"], 1)
 
-            os.makedirs(server.PLANNING_LOCK)
+            os.makedirs(server.planning_lock())
             n = server.planning_agent_run()
             check("the lock is what makes a run live", n["live"], True)
             check("and the task in flight is then a real one",
@@ -1176,7 +1179,7 @@ def test_queue_routes():
             _, err = server.start_planning_agent_run()
             check("it will not start a second run on top of one going",
                   (err or {}).get("error"), "a run is already going")
-            os.rmdir(server.PLANNING_LOCK)
+            os.rmdir(server.planning_lock())
 
             real_root = server.ROOT
             server.ROOT = tmp                 # no agents/planning_agent/run.sh under here
@@ -1187,7 +1190,7 @@ def test_queue_routes():
                 server.ROOT = real_root
         finally:
             (server.plans_dir, server.current_dataset, server.todo_path,
-             server.PLANNING_LOCK) = real
+             server.planning_lock) = real
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -1315,11 +1318,17 @@ def test_runner():
     body = sh.split("# --- 3. the window", 1)[-1]
     check("run.sh does not exec plan.py, or the lock leaks",
           "exec " in body.replace("exec $?", ""), False)
-    trap = sh.split("trap '", 1)[-1].split("'", 1)[0]
-    check("and it does trap the lock off on exit", 'rmdir "$LOCK"' in trap, True)
+    # An EXIT trap until 19 Sep 2026, when one wake started taking one lock per
+    # list: a trap fires once, so releasing is a function the loop calls on its
+    # way out of each list and traps for a signal arriving mid-list.
+    release = sh.split("_release() {", 1)[-1].split("\n", 1)[0]
+    check("and it does clear the lock on the way out", 'rmdir "$LOCK"' in release, True)
     # The PID file lives inside the lock directory, so rmdir fails while it is
     # there and the lock outlives the run that took it.
-    check("clearing the PID file with it", '"$PIDFILE"' in trap, True)
+    check("clearing the PID file with it", '"$PIDFILE"' in release, True)
+    check("and it is called after plan.py returns, not only on a signal",
+          sh.count("_release") >= 3, True)
+    check("with the signal traps still set", "trap '_release' INT TERM" in sh, True)
 
     # Staleness asks whether the holder is alive before it asks how old the
     # lock is. A laptop asleep mid-batch suspends the holder rather than
@@ -1345,6 +1354,26 @@ def test_runner():
         check("%s claims no Bash either" % p, "Bash" in head, False)
 
 
+def fake_data_root(sched, names=("twinkl",), current="twinkl"):
+    """A `data/` tree of this agent's own, so a test never reads the live one.
+
+    Both the pointer in `data/.current` and which lists exist are read off disk
+    every time now, and the board rewrites the pointer whenever its dropdown
+    moves — so a test that left them alone was a test whose result depended on
+    which list happened to be open in another window. Returns the temp root;
+    the caller restores `paths.ROOT`, `sched.ROOT` and `sched.path`.
+    """
+    tmp = tempfile.mkdtemp()
+    for name in names:
+        os.makedirs(os.path.join(tmp, "data", name), exist_ok=True)
+        open(os.path.join(tmp, "data", name, "todo.md"), "w").close()
+    with open(os.path.join(tmp, "data", ".current"), "w", encoding="utf-8") as fh:
+        fh.write(current + "\n")
+    paths.ROOT = sched.ROOT = tmp
+    sched.path = lambda: os.path.join(tmp, "data", "planning-agent-schedule.json")
+    return tmp
+
+
 def test_schedule():
     """The floor under the schedule, and that nothing can write below it.
 
@@ -1364,11 +1393,10 @@ def test_schedule():
     for hour in (19, 23, 0, 6):
         check("%02d:00 is allowed" % hour, hour in sched.ALLOWED, True)
 
-    tmp = tempfile.mkdtemp()
-    real_path = sched.path
+    real_root, real_path = paths.ROOT, sched.path
+    tmp = fake_data_root(sched)
     try:
-        path = os.path.join(tmp, "planning-agent-schedule.json")
-        sched.path = lambda: path
+        path = sched.path()
 
         # A file naming a barred hour — edited by hand, or written before the
         # floor was narrowed. The loader drops it and due() refuses it, so
@@ -1392,6 +1420,7 @@ def test_schedule():
         check("a missing schedule falls back to on", sched.load()["on"], True)
         check("and to the full allowed range", sched.load()["hours"], list(sched.ALLOWED))
     finally:
+        paths.ROOT = sched.ROOT = real_root
         sched.path = real_path
         shutil.rmtree(tmp, ignore_errors=True)
         importlib.reload(sched)
@@ -1412,11 +1441,10 @@ def test_max_plans():
 
     check("0 is the default — no cap beyond the budget", sched.DEFAULTS["max_plans"], 0)
 
-    tmp = tempfile.mkdtemp()
-    real_path = sched.path
+    real_root, real_path = paths.ROOT, sched.path
+    tmp = fake_data_root(sched)
     try:
-        path = os.path.join(tmp, "planning-agent-schedule.json")
-        sched.path = lambda: path
+        path = sched.path()
 
         with open(path, "w", encoding="utf-8") as fh:
             fh.write('{"max_plans": 5}')
@@ -1433,34 +1461,40 @@ def test_max_plans():
               sched.load()["max_plans"], 0)
 
         os.unlink(path)
-        sched.save({"max_plans": 8})
+        sched.save(sched.paths.dataset(), {"max_plans": 8})
         check("save() then load() round-trips it", sched.load()["max_plans"], 8)
     finally:
+        paths.ROOT = sched.ROOT = real_root
         sched.path = real_path
         shutil.rmtree(tmp, ignore_errors=True)
         importlib.reload(sched)
 
     import dashboard
-    real_path = dashboard.schedule.path
-    tmp = tempfile.mkdtemp()
+    real_root, real_path = paths.ROOT, dashboard.schedule.path
+    tmp = fake_data_root(dashboard.schedule)
     try:
-        path = os.path.join(tmp, "planning-agent-schedule.json")
-        dashboard.schedule.path = lambda: path
+        path = dashboard.schedule.path()
         with open(path, "w", encoding="utf-8") as fh:
             fh.write('{"max_plans": 4}')
 
-        fields = {f["key"]: f for f in dashboard.target()["fields"]}
+        fields = {f["key"]: f for f in
+                  dashboard.target(dashboard.paths.dataset())["fields"]}
         check("the dashboard offers a max_plans field", "max_plans" in fields, True)
         check("carrying the schedule's own value", fields["max_plans"]["value"], 4)
         check("with 0 allowed, which is the no-cap sentinel", fields["max_plans"]["min"], 0)
 
-        result = dashboard.apply({"changes": {"max_plans": 12}})
+        # Named, since a change that names no list is refused now — the page
+        # always sends the card's own id and the pointer is no longer a
+        # fallback anything here will take.
+        here = dashboard.paths.dataset()
+        result = dashboard.apply({"target": here, "changes": {"max_plans": 12}})
         check("apply() accepts a change to it", result.get("ok"), True)
         check("and writes it back", dashboard.schedule.load()["max_plans"], 12)
 
-        bad = dashboard.apply({"changes": {"max_plans": "lots"}})
+        bad = dashboard.apply({"target": here, "changes": {"max_plans": "lots"}})
         check("apply() refuses nonsense rather than writing it", bad.get("ok"), False)
     finally:
+        paths.ROOT = dashboard.schedule.ROOT = real_root
         dashboard.schedule.path = real_path
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -1471,7 +1505,8 @@ def test_max_plans():
           "args.max_plans and len(written) >= args.max_plans" in src, True)
 
     sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-    check("run.sh reads the schedule's max_plans", "schedule.load()" in sh and "max_plans" in sh, True)
+    check("run.sh reads the schedule's max_plans, for the list it is running",
+          "schedule.load(sys.argv[2])" in sh and "max_plans" in sh, True)
     check("and passes it to plan.py as --max-plans", "--max-plans" in sh, True)
     # --task plans exactly one and has no batch loop for max_plans to stop, so
     # the schedule-reading block is gated on MANUAL, the same flag --task sets.
@@ -1567,10 +1602,185 @@ def test_carry_over():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+
+
+def test_per_dataset_schedule():
+    """One schedule, one lock and one card per list, added 19 Sep 2026.
+
+    The agent used to follow `data/.current` and so had exactly one set of
+    hours, which meant the only way to plan the personal list was to switch the
+    board over and leave it switched. The checks below are about the three ways
+    that could have gone wrong: a list reading another list's hours, a list
+    nobody armed starting to spend, and one wake's two lists sharing a lock.
+    """
+    import importlib
+    import schedule as sched
+    import dashboard
+
+    tmp = tempfile.mkdtemp()
+    real_root, real_path = paths.ROOT, sched.path
+    try:
+        # Two lists with a todo.md, one fixture folder, one folder with no list
+        # in it. Only the first two are things this agent could ever plan.
+        for name in ("twinkl", "personal", "_test"):
+            os.makedirs(os.path.join(tmp, "data", name), exist_ok=True)
+            open(os.path.join(tmp, "data", name, "todo.md"), "w").close()
+        os.makedirs(os.path.join(tmp, "data", "no-list"), exist_ok=True)
+        with open(os.path.join(tmp, "data", ".current"), "w", encoding="utf-8") as fh:
+            fh.write("twinkl\n")
+        paths.ROOT = sched.ROOT = tmp
+        spath = os.path.join(tmp, "data", "planning-agent-schedule.json")
+        sched.path = lambda: spath
+
+        check("datasets() takes the lists with a todo.md",
+              paths.datasets(), ["personal", "twinkl"])
+        check("and the pointer still names the live one", paths.pointer(), "twinkl")
+
+        # A pre-September file: flat keys, no dataset above them. With nothing
+        # to go on it falls back to the pointer, which is the answer it always
+        # used to give.
+        with open(spath, "w", encoding="utf-8") as fh:
+            fh.write('{"on": true, "hours": [1, 2], "budget": 9.5, "max_plans": 3}')
+        check("an old flat file is read as the pointer list's own schedule",
+              sched.load("twinkl")["budget"], 9.5)
+        check("and is rewritten keyed, so a read cannot answer differently later",
+              sorted(__import__("json").load(open(spath))), ["twinkl"])
+        check("its on stays true, since it was a list he had armed",
+              sched.load("twinkl")["on"], True)
+
+        # The bug this replaced a `.current` lookup to avoid: the pointer moves
+        # every time the board's dropdown does, so a flat file resolved lazily
+        # against it would hand one list's hours to another. A `plans/` folder
+        # only exists under a list this agent has actually planned, and that
+        # does not move.
+        with open(spath, "w", encoding="utf-8") as fh:
+            fh.write('{"on": true, "hours": [4], "budget": 7.0}')
+        os.makedirs(os.path.join(tmp, "data", "twinkl", "plans"), exist_ok=True)
+        with open(os.path.join(tmp, "data", ".current"), "w", encoding="utf-8") as fh:
+            fh.write("personal\n")
+        check("the list with a plans folder owns the old file, not the pointer",
+              sched.load("twinkl")["budget"], 7.0)
+        check("and the list the board happens to be showing is untouched",
+              sched.load("personal")["on"], False)
+        with open(os.path.join(tmp, "data", ".current"), "w", encoding="utf-8") as fh:
+            fh.write("twinkl\n")
+        shutil.rmtree(os.path.join(tmp, "data", "twinkl", "plans"))
+
+        with open(spath, "w", encoding="utf-8") as fh:
+            fh.write('{"on": true, "hours": [1, 2], "budget": 9.5, "max_plans": 3}')
+        check("back to the flat file for the rest of this",
+              sched.load("twinkl")["budget"], 9.5)
+        check("with its hours intact", sched.load("twinkl")["hours"], [1, 2])
+        check("and the other list does not inherit them",
+              sched.load("personal")["hours"], list(sched.ALLOWED))
+        check("nor its budget", sched.load("personal")["budget"], 6.00)
+        # The one that would have cost money: a list he has never armed must
+        # not start planning the night this shipped.
+        check("a list with no entry of its own is off", sched.load("personal")["on"], False)
+
+        # A write of one card leaves the other card's entry alone, since the
+        # page writes them one at a time and both are in the same file.
+        sched.save("personal", dict(sched.DEFAULTS, on=True, hours=[3], budget=2.0))
+        check("saving one list keeps the other's budget", sched.load("twinkl")["budget"], 9.5)
+        check("and stores its own", sched.load("personal")["budget"], 2.0)
+        check("the file is keyed by list once written",
+              sorted(__import__("json").load(open(spath))), ["personal", "twinkl"])
+
+        at = dt.datetime(2026, 9, 19, 3, 0, tzinfo=TZ)
+        check("due() answers per list — personal at 03:00", sched.due(at, "personal"), True)
+        check("and twinkl, whose hours are 01 and 02, is not", sched.due(at, "twinkl"), False)
+        check("due_now() names only the list that wants the hour",
+              sched.due_now(at), ["personal"])
+        check("enabled() ignores the hour and takes both armed lists",
+              sched.enabled(), ["personal", "twinkl"])
+
+        inside = dt.datetime(2026, 9, 19, 14, 0, tzinfo=TZ)
+        check("no list is ever due inside the working day", sched.due_now(inside), [])
+
+        # paths.using() is what lets one process look at both in turn.
+        with paths.using("personal"):
+            check("using() points every path at that list",
+                  paths.todo_path(), os.path.join(tmp, "data", "personal", "todo.md"))
+        check("and puts the old one back on the way out",
+              paths.todo_path(), os.path.join(tmp, "data", "twinkl", "todo.md"))
+
+        # The dashboard's half: one card per list, each routed by its own id.
+        targets = dashboard.state()["targets"]
+        check("the page is sent one card per list", [t["id"] for t in targets],
+              ["personal", "twinkl"])
+        check("each named for its own list", [t["name"] for t in targets],
+              ["personal list", "twinkl list"])
+        check("carrying its own hours",
+              [t["hours"] for t in targets], [[3], [1, 2]])
+        check("and its own budget",
+              [f["value"] for t in targets for f in t["fields"] if f["key"] == "budget"],
+              [2.0, 9.5])
+
+        check("apply() writes the card it was sent",
+              dashboard.apply({"target": "personal", "changes": {"budget": 4.0}}).get("ok"),
+              True)
+        check("and only that card", sched.load("twinkl")["budget"], 9.5)
+        check("with the change landing", sched.load("personal")["budget"], 4.0)
+        check("a card nobody has heard of is refused rather than written",
+              dashboard.apply({"target": "nope", "changes": {"budget": 1.0}}).get("ok"),
+              False)
+        check("the working day is still refused per card",
+              dashboard.apply({"target": "personal", "changes": {"hours": [14]}}).get("ok"),
+              False)
+
+        # The pointer moves whenever the board's dropdown does, and this page is
+        # the editor for every list at once. A change that arrived without a
+        # list named used to land on whichever one was open there.
+        nameless = dashboard.apply({"changes": {"budget": 1.0}})
+        check("a change naming no list is refused rather than sent to the live one",
+              nameless.get("ok"), False)
+        check("and says so", "name the list" in (nameless.get("error") or ""), True)
+        check("with nothing written", sched.load("twinkl")["budget"], 9.5)
+
+        # The band's own Run now means the armed lists, which can be none.
+        for name in paths.datasets():
+            sched.save(name, dict(sched.load(name), on=False))
+        idle = dashboard.start({"action": "run"})
+        check("the band's Run now with nothing armed is refused, not sent somewhere",
+              idle.get("ok"), False)
+    finally:
+        paths.ROOT = sched.ROOT = real_root
+        sched.path = real_path
+        shutil.rmtree(tmp, ignore_errors=True)
+        importlib.reload(sched)
+
+    # Nothing the page can reach may read `data/.current`. Checked against the
+    # source because the failure is silent: the wrong list's card, written
+    # under the right list's name, looks exactly like the right answer.
+    src = open(os.path.join(HERE, "dashboard.py"), encoding="utf-8").read()
+    check("the dashboard never reads the dataset pointer",
+          "paths.dataset()" in src or "paths.pointer()" in src, False)
+    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
+    forced = sh.split("--enabled", 1)[-1].split("else", 1)[0]
+    check("and a forced run with nothing armed stops rather than taking the live list",
+          "paths.dataset()" in forced, False)
+
+    # run.sh's half: one lock per list, and a loop rather than a single run.
+    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
+    check("run.sh locks per list, so one overrunning does not cost the other its night",
+          '.planning-agent-$DS.lock' in sh, True)
+    check("and asks which lists want this hour", "--due-now" in sh, True)
+    check("exporting the name so paths.py resolves to that list",
+          'export PLANNING_DATASET="$DS"' in sh, True)
+    check("a forced run takes the armed lists rather than every list on disk",
+          "--enabled" in sh, True)
+    check("and one card's Run now names its list", "--dataset" in sh, True)
+    # bash 3.2 is what ships with macOS: no mapfile, and an empty array under
+    # `set -u` is an error rather than a length of zero.
+    check("the list of lists avoids mapfile, which macOS bash does not have",
+          "mapfile -t" in sh, False)
+
+
 def main():
     test_windows()
     test_schedule()
     test_max_plans()
+    test_per_dataset_schedule()
     test_pick()
     test_order()
     test_rules()

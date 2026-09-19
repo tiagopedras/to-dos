@@ -32,6 +32,7 @@ Idempotent: a second run finds nothing in `done / actioned` and says so.
 """
 
 import json
+import glob
 import os
 import re
 import shutil
@@ -102,8 +103,9 @@ def main():
                           ("pgrep -f 'planning_agent/plan.py'", "the planning agent")):
             if subprocess.run(cmd, shell=True, capture_output=True).returncode == 0:
                 die("%s is running. Stop it first." % what)
-        if os.path.exists(os.path.join(ROOT, "data", ".planning-agent.lock")):
-            die("data/.planning-agent.lock exists, so a run thinks it holds these files.")
+        held = glob.glob(os.path.join(ROOT, "data", ".planning-agent*.lock"))
+        if held:
+            die("%s exists, so a run thinks it holds these files." % os.path.basename(held[0]))
         ok("nothing else is holding the plans")
 
     moving, superseded = [], []
