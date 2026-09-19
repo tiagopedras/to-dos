@@ -27,6 +27,7 @@
  * being found by selector.
  */
 import type { CSSProperties, ReactNode } from 'react'
+import { StatCard } from './StatCard'
 
 /* ---- shared: one finished task as a row ---- */
 
@@ -147,11 +148,7 @@ function CategoryRow({ row }: { row: CategoryRowData }) {
 export function CompletedByCategory({ total, totalLine, rows, emptyMessage }: CompletedByCategoryData) {
   return (
     <>
-      <h2>Completed</h2>
-      <div className="total">
-        <span className="totaln">{total}</span>
-        <span className="totall">{totalLine}</span>
-      </div>
+      <StatCard eyebrow="Completed" value={total} caption={totalLine} />
       {total
         ? rows.map(r => <CategoryRow key={r.name} row={r} />)
         : <div className="empty">{emptyMessage}</div>}

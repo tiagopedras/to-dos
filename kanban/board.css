@@ -1251,30 +1251,47 @@
   .projsort select{
     border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
   }
-  /* One h2 per report in reportDefs(), Completed and Weekly pace alike — a
-     report's own name, not a section eyebrow, so it carries weight instead of
-     shrinking away. Same bottom margin as the card's own h3 above it, so a
-     .help.listlead sits the same distance under either one. */
+  /* One h2 per report in reportDefs() — a report's own name, not a section
+     eyebrow, so it carries weight instead of shrinking away. Same bottom
+     margin as the card's own h3 above it, so a .help.listlead sits the same
+     distance under either one. Completed is the one report without one: it is
+     a single figure, so its name is the .statcard's own eyebrow and sits in
+     the same box as the number it names. */
   .reportsview h2{
     font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 10px; letter-spacing:-.01em;
   }
-  /* The total is the answer to the question; the buckets underneath say where
-     it came from. It used to sit on one baseline with its label, at a size that
-     read as a subheading — so the thing you came to the view for was the same
-     weight as the words describing it. Stacked and much bigger now: the number
-     first, what it counts underneath, readable from across the desk.
-     `font-variant-numeric` so the digits line up rather than wobbling at size.
-     width:max-content caps the box at its own content rather than the full
-     width of the (now much wider) card around it. */
-  .reportsview .total{
+  /* One headline figure, boxed — the answer to the question the view was
+     opened for, with what it counts underneath. It used to sit on one baseline
+     with its label, at a size that read as a subheading, so the thing you came
+     for was the same weight as the words describing it. Stacked and much
+     bigger now: the number first, what it counts underneath, readable from
+     across the desk. `font-variant-numeric` so the digits line up rather than
+     wobbling at size. width:max-content caps the box at its own content rather
+     than the full width of the (now much wider) card around it.
+
+     Unscoped, and named for what it is rather than for Completed, because
+     Reports is not the only view with a headline figure in it — see
+     kanban/ui/StatCard.tsx, which is the only thing that draws one. */
+  .statcard{
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
     padding:18px 20px 16px; margin-bottom:16px; width:max-content; max-width:100%;
   }
-  .reportsview .totaln{
+  /* Inside the box rather than over it, so the name of the figure and the
+     figure are one object. Quiet and small on purpose: it labels the number,
+     it does not compete with it. */
+  .statcard-eyebrow{
+    display:block; font-size:11px; font-weight:600; color:var(--ink-faint);
+    text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;
+  }
+  .statcard-value{
     display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--ink);
     letter-spacing:-.03em; font-variant-numeric:tabular-nums;
   }
-  .reportsview .totall{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
+  .statcard-caption{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
+  /* The gap the h2 above it used to carry, kept where it belongs: this is the
+     Reports layout's spacing, not the card's, and a statcard elsewhere sets
+     its own. */
+  .reportsview .statcard{margin-top:26px}
   /* One bucket is a group, not a row: the count and the list behind it are the
      same fact, so the rule goes under the pair. With the rule under the row
      instead, an opened list sat below its own divider and read as the next

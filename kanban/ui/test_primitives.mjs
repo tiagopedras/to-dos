@@ -55,7 +55,8 @@ const legacy = vm.runInNewContext(
 const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
 await esbuild.build({
   entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx'),
-    path.join(HERE, 'PlanCard.tsx'), path.join(HERE, 'NumberBadge.tsx')],
+    path.join(HERE, 'PlanCard.tsx'), path.join(HERE, 'NumberBadge.tsx'),
+    path.join(HERE, 'StatCard.tsx')],
   outdir, bundle: true, format: 'esm', jsx: 'automatic',
   external: ['react', 'react-dom', 'react/jsx-runtime'],
   logLevel: 'silent',
@@ -64,6 +65,7 @@ const { Column } = await import(url.pathToFileURL(path.join(outdir, 'Column.js')
 const { Card } = await import(url.pathToFileURL(path.join(outdir, 'Card.js')))
 const { PlanCard } = await import(url.pathToFileURL(path.join(outdir, 'PlanCard.js')))
 const { NumberBadge } = await import(url.pathToFileURL(path.join(outdir, 'NumberBadge.js')))
+const { StatCard } = await import(url.pathToFileURL(path.join(outdir, 'StatCard.js')))
 
 /* ---- comparing two spellings of the same markup ---------------------------
    Neither side is wrong where they differ, so both are put in one form first:
@@ -218,6 +220,46 @@ const BADGES = [
 for (const [why, o] of BADGES) {
   check('badge — ' + why, legacy.numberBadgeHTML(o), h(NumberBadge, o))
 }
+
+/* ---- the stat card --------------------------------------------------------
+   One headline figure in a box. It has never been a string builder, so there
+   is nothing to render it against; what these pin is the shape, written out
+   longhand the same way the plan card's cases below are. The order of the
+   three parts is the whole point of the thing — eyebrow, figure, caption, all
+   inside one box — so a part moving out of it, or the eyebrow drifting back
+   above the box as a heading, fails here.
+
+   The escaping case is not incidental: nothing calls esc() on the way in, and
+   that is only safe for as long as React writes these itself. */
+check('stat card — all three parts',
+  '<div class="statcard">' +
+    '<span class="statcard-eyebrow">Completed</span>' +
+    '<span class="statcard-value">12</span>' +
+    '<span class="statcard-caption">tasks finished across 4 categories</span>' +
+  '</div>',
+  h(StatCard, { eyebrow: 'Completed', value: 12, caption: 'tasks finished across 4 categories' }))
+
+check('stat card — the figure on its own, which is the minimum',
+  '<div class="statcard"><span class="statcard-value">0</span></div>',
+  h(StatCard, { value: 0 }))
+
+check('stat card — a value that is not a number',
+  '<div class="statcard">' +
+    '<span class="statcard-eyebrow">Schedulers</span>' +
+    '<span class="statcard-value">2 of 2</span>' +
+  '</div>',
+  h(StatCard, { eyebrow: 'Schedulers', value: '2 of 2' }))
+
+check('stat card — extra classes, half-empty the way callers build them',
+  '<div class="statcard wide good"><span class="statcard-value">1</span></div>',
+  h(StatCard, { value: 1, cls: '  wide   good ' }))
+
+check('stat card — text needing escaping, which React does rather than esc()',
+  '<div class="statcard">' +
+    '<span class="statcard-eyebrow">Alex&#39;s &quot;plans&quot; &amp; &lt;b&gt;</span>' +
+    '<span class="statcard-value">3</span>' +
+  '</div>',
+  h(StatCard, { eyebrow: `Alex's "plans" & <b>`, value: 3 }))
 
 /* ---- the plan card --------------------------------------------------------
    `planItemHTML()` is gone — PlanCard is the only spelling of a plan card now —
