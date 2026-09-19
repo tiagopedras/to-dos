@@ -15,7 +15,7 @@ const state = {
   datasets: false,
   /* Everything about the Claude chat engine — the CLI's status, which
      sessions sit under which task, any run in flight, the modal itself —
-     lives inside the `chat` object from ai_chat/interface/chat.js rather
+     lives inside the `chat` object from ai_chat_engine's window rather
      than here. Nothing of it is written to the file or survives a reload. */
   originalText: '',
   fileName: 'todo.md',
@@ -48,7 +48,7 @@ const state = {
      itself gets parsed. Absent for a task never briefed yet, which falls
      back to its own raw notes exactly as it always did. */
   briefings: {},
-  /* The whole sessions index, owner key -> rows, handed over by chat.js's
+  /* The whole sessions index, owner key -> rows, handed over by the chat window's
      onSessionsChanged. The drawer only ever needs one owner's worth and asks
      for it directly; openChatByKey() has to search every owner for one id, so
      this keeps the last thing the engine said rather than asking again. */

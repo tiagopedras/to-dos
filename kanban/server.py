@@ -1934,12 +1934,12 @@ def ai_chat_for(name):
 
 
 def ai_chat_static(rel_path):
-    """A file under ai_chat/interface/, or None. Kept to that one folder —
-    this is a static-file route for the widget's own assets, not a general
-    file server onto a sibling directory."""
+    """A file under ai_chat_engine/dist/, or None. Kept to that one folder —
+    this is a static-file route for the widget's own built script and
+    stylesheet, not a general file server onto a sibling directory."""
     if not AI_CHAT_DIR or ".." in rel_path.split("/"):
         return None
-    full = os.path.join(AI_CHAT_DIR, "interface", rel_path)
+    full = os.path.join(AI_CHAT_DIR, "dist", rel_path)
     if not os.path.isfile(full):
         return None
     return full
@@ -2291,12 +2291,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        # The chat widget's own JS and CSS, read straight from ai_chat/ rather
-        # than copied in — see AI_CHAT_DIR above.
+        # The chat window's built script and stylesheet, read straight from
+        # ai_chat_engine/dist/ rather than copied in — see AI_CHAT_DIR above.
         if ai_chat and path.startswith(STATIC_PREFIX):
             full = ai_chat_static(path[len(STATIC_PREFIX):])
             if not full:
-                return self._json(404, {"error": "not found under ai_chat/interface"})
+                return self._json(404, {"error": "not found under ai_chat_engine/dist"})
             ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
             with open(full, "rb") as fh:
                 body = fh.read()

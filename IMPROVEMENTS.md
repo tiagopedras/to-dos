@@ -98,8 +98,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   kind of thing that reads as correct in the file and shows up as an empty
   section on the card.
 
-- ~~**A board link posted in the chat modal should open its card in this tab.**~~ **Done, 18 Sep 2026.** `mdInline()` linkifies URLs (`PACKAGES/ai_chat_engine/interface/chat.js`), splitting on backticks so a URL quoted as code stays text, and a delegated listener in `kanban/js/10-reference-sections.js` closes the window when the click lands on a link to this page carrying a `!task=` or `!chat=`.
-  Once `mdInline()` in `PACKAGES/ai_chat_engine/interface/chat.js:87` turns URLs
+- ~~**A board link posted in the chat modal should open its card in this tab.**~~ **Done, 18 Sep 2026.** URLs are linkified (`mdInline()` in `PACKAGES/ai_chat_engine/interface/chat.js`, and `inlineNodes()` in Tenon's `Markdown` since the window went to React on 19 Sep 2026), splitting on backticks so a URL quoted as code stays text, and a delegated listener in `kanban/js/10-reference-sections.js` closes the window when the click lands on a link to this page carrying a `!task=` or `!chat=`.
+  Once the chat window turns URLs
   into links, clicking a `#!task=<id>` one changes nothing but the part after
   the `#`, which is already what the listener at `kanban/js/25-archiving.js:506`
   wakes on and what `parseHash()` at `kanban/js/02-state.js:154` reads. What is
@@ -366,7 +366,9 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   13 Sep 2026.** It already matched `.btn.dashed.small`'s size, padding and
   radius; the one real difference was font-weight, 600 against 560. Fixed in
   `PACKAGES/ai_chat_engine/interface/chat.css`, which both `to-dos` and
-  `ai_canvas` load, so `+ New chat` / `+ Attach` now weigh the same as every
+  `ai_canvas` loaded then (the rule now lives in `kanban/board.css`, since the
+  window went to React on 19 Sep 2026 and that package no longer has a list
+  section), so `+ New chat` / `+ Attach` now weigh the same as every
   other small dashed button in either app.
 
 - ~~**The night's size is set in dollars, and nothing says how many plans he
@@ -561,7 +563,7 @@ they settled is written up in the README rather than left here:
   corner of the board, opened from a bubble, in the shape of a support chat —
   a `/pa` conversation he can keep typing into while the cards stay live and
   visible beside it. Most of the parts exist: `opts.windowed`
-  (`PACKAGES/ai_chat_engine/interface/chat.js`) already drops the centred,
+  (`PACKAGES/ai_chat_engine`, drawn by Tenon's `Window`) already drops the centred,
   scrim-backed modal for a window the host places, and `Runner.run()` already
   passes `--resume` (`engine.py:465`), so a continuing session is not new work.
   Two things are. The owner has to be the board rather than a task, which
@@ -728,7 +730,7 @@ they settled is written up in the README rather than left here:
   to say about that.", followed by what he typed. That differs from how
   `newChat()` works today, which drops `taskDescription()` into the input box
   unsent for him to see and edit. The `onSend` hook
-  (`PACKAGES/ai_chat_engine/interface/chat.js:437`) is told what was sent but
+  (`ChatController.send()` in `PACKAGES/ai_chat_engine/src/controller.ts`) is told what was sent but
   cannot change it, so wrapping the first message means a change in
   `ai_chat_engine`, which `ai_canvas` also loads.
 

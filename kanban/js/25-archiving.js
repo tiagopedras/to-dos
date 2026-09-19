@@ -490,7 +490,7 @@ function handleDepLink(e){
 }
 /* Copy and the chat trigger buttons live inside the same containers, so one
    listener each rather than two. The modal itself is AIChat's own DOM, and it
-   wires its own controls — see ai_chat/interface/chat.js. */
+   wires its own controls — see ai_chat_engine/src/ChatWindow.tsx. */
 function handleMsgClick(e){ handleAsk(e); handleCopy(e); handleDismiss(e); handleDepLink(e); }
 $('#lists').onclick = handleMsgClick;
 $('#dbody').onclick = handleMsgClick;

@@ -731,8 +731,8 @@ function claudeLink(text){
 // The stub below is the no-engine case, not a parked feature: on this machine
 // server.py's AI_CHAT_DIR resolves to ../PACKAGES/ai_chat_engine and /claude.json
 // answers, so the real AIChat loads and the buttons draw. Where that sibling
-// folder is missing — a checkout of this repo on its own, or the board served
-// statically — /ai-chat/chat.js 404s and AIChat is never defined. Falling
+// folder is missing, or its dist/ was never built — a checkout of this repo on
+// its own, or the board served statically — /ai-chat/ai-chat.js 404s and AIChat is never defined. Falling
 // straight through to AIChat.create() would throw at the top level and stop the
 // rest of this script (loadFile() included) from ever running, and the board
 // would sit on the start screen forever with no error shown. The stub keeps
@@ -904,9 +904,9 @@ function chatKeyFor(t, make){
 }
 
 /* The task's Chats field, drawn with cvCardHTML — a stack of conversation
-   cards under the task they belong to. Wired below in handleAsk rather than in
-   chat.js's own renderSection, which this host no longer
-   calls. A rule ahead of it marks it as its own section rather than one more
+   cards under the task they belong to. Wired below in handleAsk. The package's own
+   list section, renderSection, went with its rewrite in React, and this
+   host had stopped calling it long before. A rule ahead of it marks it as its own section rather than one more
    field, the same as the two suggestion lists below it — but only when
    there is something to show: with no chat engine at all, chat.available()
    is false and a bare rule with nothing under it would be a dead end. */
@@ -915,7 +915,7 @@ function chatSection(t){
   const key = t.chat || '';
   // state.chats rather than chat.sessionsFor(): the board's own cached copy
   // of the sessions index, kept current by onSessionsChanged — sessionsFor()
-  // answers from chat.js's own index, which only fills in once loadSessions()
+  // answers from the chat window's own index, which only fills in once loadSessions()
   // has actually run.
   const rows = (key && state.chats[key] || [])
     .slice().sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));

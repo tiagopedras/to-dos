@@ -74,7 +74,7 @@
   .btn.on{background:var(--tenon-background-neutral); border-color:var(--tenon-stroke-default); font-weight:640}
   /* Six variants and two sizes, and every small button in the app is one of
      them. There were five separate classes doing this — .btn.mini, .addsub,
-     .completeall, .qhold and the chat engine's own .aic-addsub — each with its
+     .completeall, .qhold and the .aic-addsub next to the chat trigger — each with its
      own font size, padding and radius, none of the differences deliberate. The
      merge took the smaller of each: 12px, padding 4/9, radius 6.
 
@@ -1903,10 +1903,18 @@
   }
   .askclaude:hover{filter:brightness(1.07)}
 
-  /* The chat modal and the list of conversations on a task now live in
-     ai_chat's own chat.css, loaded via a <link> at the top of this file —
-     see ai_chat/README.md. Only the trigger button above stays here, since
-     it is drawn by this file's own claudeActions(), not by that module. */
+  /* The chat window lives in ai_chat_engine's own chat.css, loaded via a
+     <link> at the top of the page, and is built from Tenon's components. The
+     trigger button above stays here, since it is drawn by this file's own
+     claudeActions(). So does the list of conversations on a task, which this
+     file draws itself (cvCardHTML) and no longer borrows a row style for; the
+     one thing it kept from that package is the button below. */
+  .aic-addsub{
+    border:1px dashed var(--tenon-stroke-default); background:none; color:var(--tenon-text-subtle);
+    border-radius:var(--tenon-radius-default); padding:4px 9px; font-size:var(--tenon-typography-size-sm);
+    font-weight:600; cursor:pointer;
+  }
+  .aic-addsub:hover{border-color:var(--tenon-text-faint); color:var(--tenon-text-default)}
 
   .tag.jira{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
 

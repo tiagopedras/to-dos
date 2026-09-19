@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My To-Do list</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7inIU8L3RleHQ+PC9zdmc+">
-<!-- The chat modal's own styling, served live from ai_chat/interface — see ai_chat/README.md. -->
-<link rel="stylesheet" href="/ai-chat/chat.css">
 <!-- Tenon, the design system. Copied out of the installed package into
      kanban/dist/ by the vite build, beside board-ui.js, so the one path works
      both here and on Vercel, where there is no server and no node_modules.
@@ -18,6 +16,10 @@
      bundle carries, because the half of the board that is still HTML strings
      draws .tenon-card and .tenon-column too, and could not reach it there. -->
 <link rel="stylesheet" href="/kanban/dist/tenon-react.css">
+<!-- The chat window's own arrangement around Tenon's components, served live
+     from ai_chat_engine/dist. It reads Tenon's tokens and needs the two links
+     above first; only the standalone build carries its own copy. -->
+<link rel="stylesheet" href="/ai-chat/chat.css">
 <!-- The board's own styling. Absolute rather than relative for the same reason
      DEMO_URL is: the page is served at / on Vercel and at /kanban/ locally, and a
      relative href would only resolve in one of the two. -->
@@ -166,15 +168,16 @@
   <div class="dbody" id="dbody"></div>
 </aside>
 
-<!-- The chat modal itself is injected by ai_chat's chat.js the first time a
-     chat is opened — see AIChat.create() further down. It sits outside this
-     document's own DOM on purpose, same reasoning as before: a chat outlives
-     the panel that started it. -->
+<!-- The chat window itself is mounted by ai_chat_engine's ai-chat.js the first
+     time a chat is opened, see AIChat.create() further down. It sits outside
+     this document's own DOM on purpose, same reasoning as before: a chat
+     outlives the panel that started it. -->
 
-<!-- The engine and interface live one level up, in ai_chat/, so any app can
-     load the same module. server.py serves them at /ai-chat/ straight from
-     that sibling folder — see ai_chat/README.md. -->
-<script src="/ai-chat/chat.js"></script>
+<!-- The chat window lives one level up, in ai_chat_engine/, so any app can load
+     the same module. It is React, built into one script that carries its own
+     copy of React and Tenon and sets window.AIChat. server.py serves it at
+     /ai-chat/ straight from that sibling folder's dist/, see its README.md. -->
+<script src="/ai-chat/ai-chat.js"></script>
 <!-- The to-do format itself: parsing, serialising, sub-steps and recurrence.
      Classic rather than a module, and before the inline script below, because
      that script is classic and inline and would otherwise run first. See the
