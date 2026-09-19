@@ -5,10 +5,14 @@
    ========================================================================= */
 
 let modalEl = null;
+/* Set by a modal whose body is a React tree, so shutting it lets the tree go
+   rather than leaving a root subscribed to a node that has left the page. */
+let modalOnClose = null;
 
 function closeModal(){
   if (modalEl) { modalEl.remove(); modalEl = null; }
   document.removeEventListener('keydown', modalKeys);
+  if (modalOnClose) { const done = modalOnClose; modalOnClose = null; done(); }
 }
 /* Escape closes. ⌘↵ / Ctrl+↵ presses the primary button, so a sheet with a
    reason box in it can be sent without reaching for the mouse — but only from
@@ -38,11 +42,13 @@ function isTextField(el){
 
 /* buttons: [{ label, primary, danger, agree, reject, run }] — the first is the
    safe default. The × in .top always closes without running anything.
-   opts: { wide, cls } — wide is the document-width variant a written report
+   opts: { wide, cls, onClose } — wide is the document-width variant a written report
    opens in, rather than the confirmation-sized default; cls is one more class
-   on the sheet, for a modal with a body shape of its own (the plan modal). */
+   on the sheet, for a modal with a body shape of its own (the plan modal);
+   onClose runs once when the modal goes, whichever way it goes. */
 function showModal(heading, sub, bodyHTML, buttons, opts){
   closeModal();
+  modalOnClose = (opts && opts.onClose) || null;
   modalEl = document.createElement('div');
   modalEl.className = 'mscrim';
   modalEl.innerHTML =

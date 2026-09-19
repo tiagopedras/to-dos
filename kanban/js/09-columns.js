@@ -471,7 +471,7 @@ function cardHTML(t, color, bucketLabel, opts){
                   board.css, for when the board can tell.
      collapsible  draws the column as a <details> whose <summary> is the head,
                   with `open` saying whether it starts open and `collapseKey`
-                  naming where that is remembered (data-colcollapse, read by
+                  naming where that is remembered (data-column-collapse, read by
                   the toggle listener in 19-drawer.js). Overview's five are the
                   only ones: five columns of prose open at once is a lot of
                   scrolling, and a column of cards has nothing to gain by
@@ -561,25 +561,6 @@ function colEmptyHTML(message, style){
     (style === 'boxed' ? ' tenon-column-empty--boxed' : '') + '">' +
     message + '</div>';
 }
-
-/* Shutting whichever column filter is open. One delegated handler rather than
-   one per panel, because the panels are rebuilt on every render and anything
-   bound to them directly would need rebinding right after — the same
-   arrangement the Status filter's own dropdown uses in 07-render-board.js. The
-   opening half is wired per column by its renderer, since that is where the
-   setter for the filter lives. */
-document.addEventListener('click', e => {
-  const inside = e.target.closest('.colfilter');
-  document.querySelectorAll('.colfilter').forEach(wrap => {
-    if (wrap === inside) return;
-    const panel = wrap.querySelector('.dropdown-panel');
-    const btn = wrap.querySelector('.colfilter-btn');
-    if (panel && !panel.classList.contains('hidden')) {
-      panel.classList.add('hidden');
-      if (btn) btn.setAttribute('aria-expanded', 'false');
-    }
-  });
-});
 
 /* =========================================================================
    One card, four kinds of thing on it.

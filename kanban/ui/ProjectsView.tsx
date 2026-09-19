@@ -25,7 +25,7 @@
  * instead of buried at the point of use.
  */
 import type { ReactNode } from 'react'
-import { Column, ColumnEmpty } from '@tiagopedras/tenon'
+import { Alert, Column, ColumnEmpty } from '@tiagopedras/tenon'
 
 export interface ProjectSummary {
   name: string
@@ -122,10 +122,7 @@ export function ProjectsView(props: ProjectsViewProps) {
   let body: ReactNode
   if (error) {
     body = (
-      <div className="err">
-        <strong>{error.title}</strong>
-        {error.detail ? <><br />{error.detail}</> : null}
-      </div>
+      <Alert tone="error" title={error.title}>{error.detail}</Alert>
     )
   } else if (projects === null) {
     body = 'Loading…'

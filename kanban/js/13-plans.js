@@ -1071,15 +1071,13 @@ function planTask(p){
    reading as low. Takes the task rather than the plan: the caller has already
    resolved it for the link beside these chips, and resolving one walks the
    whole document. */
-function planScoreHTML(t){
-  if (!t) return '';
-  let out = '';
-  if (unscored(t) && !t.done) out += '<span class="tag needsscore">needs scoring</span>';
-  if (t.impact) out += '<span class="tag impact-' + esc(t.impact) + '" title="' +
-    esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
-  if (t.effort) out += '<span class="tag" title="' + esc(t.effort) + ' effort">' +
-    esc(t.effort) + '</span>';
-  return out ? '<span class="planscore">' + out + '</span>' : '';
+function planScores(t){
+  if (!t) return null;
+  return {
+    needsScoring: unscored(t) && !t.done,
+    impact: t.impact ? { level: t.impact, label: IMPACT_EMOJI[t.impact] || t.impact } : null,
+    effort: t.effort || ''
+  };
 }
 
 /* What order the columns are in, and it is the task's priority rather than the
@@ -1167,69 +1165,20 @@ let doneFilter = 'all';
    reason: the bucket tabs narrow this list too, so a status that exists
    somewhere may have nothing in the column being shown, and an option leading
    to an empty column is worse than no option. */
-function colFilterHTML(id, shown, filters, current){
-  const counts = filters
-    .map(f => ({ f, n: shown.filter(f.match).length }))
-    .filter(x => x.n);
-  if (!counts.length) return '';
-  const active = counts.find(x => x.f.key === current);
-  const label = active ? active.f.label + ' ' + active.n : 'All ' + shown.length;
-  const opt = (key, text, n, on) =>
-    '<button type="button" class="dropdown-item statusopt' + (on ? ' on' : '') + '"' +
-      ' role="menuitemradio" aria-checked="' + on + '" data-planfilter="' + esc(key) + '">' +
-      esc(text) + '<span class="n">' + n + '</span></button>';
-  return '<span class="dropdown colfilter" data-colfilter="' + esc(id) + '">' +
-    '<button class="colfilter-btn" type="button" aria-expanded="false"' +
-      ' title="Narrow this column">' + esc(label) +
-      '<span class="caret" aria-hidden="true">\u25be</span></button>' +
-    '<div class="dropdown-panel alignright hidden" role="menu" aria-label="Narrow this column">' +
-      opt('all', 'All', shown.length, current === 'all') +
-      counts.map(x => opt(x.f.key, x.f.label, x.n, current === x.f.key)).join('') +
-    '</div>' +
-  '</span>';
+function colFilterProps(id, shown, filters, current, onPick){
+  const options = filters
+    .map(f => ({ key: f.key, label: f.label, n: shown.filter(f.match).length }))
+    .filter(o => o.n);
+  if (!options.length) return null;
+  return { id, current, total: shown.length, options, onPick };
 }
 
-/* The two filter dropdowns, wired once for the life of the page rather than
-   once per paint.
-
-   They are the only controls on this view still found by selector, and the
-   reason is that they are the only ones this view does not own: colFilterHTML()
-   builds them as a string and PlansView hands them to the browser through
-   dangerouslySetInnerHTML, so React never sees the buttons and cannot be given
-   a handler for them. Delegation is the answer that costs nothing — it is what
-   the closing half of the same dropdown already does, in 09-columns.js, and
-   for the same reason: the panel is rebuilt on every render and anything bound
-   to it directly would need rebinding straight after.
-
-   Which column a press came from is read off the wrapper's own
-   `data-colfilter`, which colFilterHTML() already wrote, so the two panels
-   never see each other's clicks despite sharing the attribute name. */
-const PLAN_FILTER_SETTERS = {
-  review: k => { reviewFilter = k; },
-  done: k => { doneFilter = k; }
-};
-
-document.addEventListener('click', e => {
-  const wrap = e.target.closest('.colfilter[data-colfilter]');
-  if (!wrap) return;
-  const setFilter = PLAN_FILTER_SETTERS[wrap.dataset.colfilter];
-  if (!setFilter) return;
-
-  const chip = e.target.closest('[data-planfilter]');
-  if (chip) {
-    setFilter(chip.dataset.planfilter);
-    renderPlansList();
-    return;
-  }
-
-  const btn = e.target.closest('.colfilter-btn');
-  if (!btn) return;
-  e.stopPropagation();
-  const panel = wrap.querySelector('.dropdown-panel');
-  if (!panel) return;
-  const open = !panel.classList.toggle('hidden');
-  btn.setAttribute('aria-expanded', String(open));
-});
+/* Picking an option sets the filter and redraws the lists. The dropdown's own
+   open state and its outside-click close belong to ColumnFilter
+   (kanban/ui/ColumnFilter.tsx); until 19 Sep 2026 two delegated listeners on
+   `document` did both, because the dropdown was markup React never owned. */
+const pickReviewFilter = k => { reviewFilter = k; renderPlansList(); };
+const pickDoneFilter = k => { doneFilter = k; renderPlansList(); };
 
 /* A move can land a card in any of the seven, so all seven are worked out together
    rather than each render guessing which two were touched. None of them paints
@@ -1297,7 +1246,7 @@ function planCardNode(p){
     /* The task's own impact and effort, read live off the task every render
        rather than copied into the plan — the one thing on the row that cannot
        go stale, and what the column is ordered by. */
-    scoresHTML: planScoreHTML(task),
+    scores: planScores(task),
     summaryHTML: p.summary ? mdInline(p.summary) : '',
     /* On a rejected plan the reason is worth more than the summary: it is what
        he told the agent, and it is what tonight's run will be working from. */
@@ -1335,7 +1284,7 @@ function renderPlanReview(){
   const shown = reviewFilter === 'all'
     ? all
     : all.filter(REVIEW_FILTERS.find(f => f.key === reviewFilter).match);
-  plansProps.reviewFilterHTML = colFilterHTML('review', all, REVIEW_FILTERS, reviewFilter);
+  plansProps.reviewFilterProps = colFilterProps('review', all, REVIEW_FILTERS, reviewFilter, pickReviewFilter);
   plansProps.reviewSort = plansSortBtn('review');
   plansProps.review = shown.length
     ? planCardNodes(shown)
@@ -1358,7 +1307,7 @@ function renderPlanDoing(){
   /* A card arriving here answers the column, so the "nothing running" word
      goes; a run that is live has already put its own card above, and that
      case is renderQueueDoingHead's. */
-  if (shown.length) plansProps.doingEmptyHTML = '';
+  if (shown.length) plansProps.doingEmpty = false;
 }
 
 /* Ready to be produced. He has accepted the plan as written, which is where
@@ -1420,7 +1369,7 @@ function renderPlanDone(){
   const shown = doneFilter === 'all'
     ? all
     : all.filter(DONE_FILTERS.find(f => f.key === doneFilter).match);
-  plansProps.doneFilterHTML = colFilterHTML('done', all, DONE_FILTERS, doneFilter);
+  plansProps.doneFilterProps = colFilterProps('done', all, DONE_FILTERS, doneFilter, pickDoneFilter);
   plansProps.doneSort = plansSortBtn('done');
   plansProps.done = shown.length ? planCardNodes(shown) : emptyNode('Nothing finished yet.');
 }
@@ -2028,15 +1977,6 @@ let flightTimer = null;
    the fold from something, and the poll already has the only copy. */
 let lastNightAgent = null;
 
-function flightRowHTML(r, kind){
-  return '<div class="frow ' + kind + '">' +
-    '<span class="fname">' + esc(r.title) + '</span>' +
-    '<span class="fmeta">' + esc(
-      kind === 'done' ? r.took + 's · $' + r.cost.toFixed(2) : (r.why || '')
-    ) + '</span>' +
-  '</div>';
-}
-
 /* The card's own identity — title, lead sentence, which of #queueOut /
    #doingOut is showing, whether the Run button makes sense right now — all
    follow the same one fact: is a run actually live. A dead run (the lock
@@ -2060,32 +2000,22 @@ function renderQueueDoingHead(live, orphan){
      that needs both. Read off the props rather than off the DOM, since the
      plans half of the column is a list this file built. */
   const parked = plansProps.doingPlans;
-  plansProps.doingEmptyHTML = (live || (parked && parked.length))
-    ? ''
-    : colEmptyHTML('Nothing running. The planning agent starts at its scheduled ' +
-                   'hour, or from Run now.', 'boxed');
-  plansProps.orphanHTML = (!live && orphan)
-    ? '<div class="err">The last run stopped part way through <strong>' +
-      esc(orphan.title) + '</strong> and never finished. Its lock is gone, so nothing is ' +
-      'running now.</div>'
-    : '';
+  plansProps.doingEmpty = !(live || (parked && parked.length));
+  plansProps.orphan = (!live && orphan) ? { title: orphan.title } : null;
 }
 
 /* Only ever drawn while #doingOut is actually showing — see
    renderQueueDoingHead — so there is no idle or orphan case to handle here;
    those are the queue's job now. */
 function renderDoing(n){
-  const when = s => s ? esc(s.slice(11, 16)) : '';
+  const when = s => s ? s.slice(11, 16) : '';
   if (n.live && n.current) {
-    plansProps.doingHTML = '<div class="fnow"><i class="fspin"></i>' +
-      '<div><strong>' + esc(n.current.title) + '</strong>' +
-      '<div class="repmeta">' + esc(n.current.agent) + ' \u00b7 started ' +
-      when(n.current.since) + '</div></div></div>';
+    plansProps.liveRun = { between: false, title: n.current.title,
+                           agent: n.current.agent, since: when(n.current.since) };
   } else if (n.live) {
-    plansProps.doingHTML = '<div class="fnow"><i class="fspin"></i><div><strong>A run is going</strong>' +
-      '<div class="repmeta">between tasks \u2014 nothing in flight this second</div></div></div>';
+    plansProps.liveRun = { between: true };
   } else {
-    plansProps.doingHTML = '';
+    plansProps.liveRun = null;
   }
 }
 
@@ -2121,11 +2051,6 @@ function renderDoneStats(n){
    full redraw on every range click never touches it and this needs no cache
    of its own. */
 function renderRunResults(n){
-  const out = $('#runResultsOut');
-  const fold = $('#runResultsFold');
-  const summary = $('#runResultsSummary');
-  if (!out) return;
-  let html = '';
   let label = 'Latest run costs';
   if (n.done.length) {
     const spent = n.done.reduce((a, d) => a + d.cost, 0);
@@ -2136,15 +2061,8 @@ function renderRunResults(n){
       ? new Date(when.replace(' ', 'T')).toLocaleDateString(undefined, { day:'numeric', month:'short' })
       : '';
     label += (date ? ' — ' + date : '') + ' · $' + spent.toFixed(2);
-    html += n.done.map(d => flightRowHTML(d, 'done')).join('');
   }
-  if (n.failed.length) {
-    html += '<h4 class="fhead">Failed</h4>' +
-      n.failed.map(d => flightRowHTML(d, 'failed')).join('');
-  }
-  out.innerHTML = html;
-  if (summary) summary.textContent = label;
-  if (fold) fold.classList.toggle('hidden', !n.done.length && !n.failed.length);
+  setRunResults({ label, done: n.done, failed: n.failed });
 }
 
 /* Spending money is a deliberate press and then a second one. The confirm says
@@ -2193,7 +2111,7 @@ async function renderNightAgent(){
     const n = await getJSON('/planning-agent.json');
     lastNightAgent = n;
     live = !!n.live;
-    plansProps.queueErrorHTML = '';
+    plansProps.queueError = null;
     renderQueueDoingHead(live, n.orphan);
     renderDoing(n);
     renderDoneStats(n);
@@ -2202,7 +2120,7 @@ async function renderNightAgent(){
        not own, and it is still drawn by id. */
     renderRunResults(n);
   } catch (err) {
-    plansProps.queueErrorHTML = esc('Could not read the run log. ' + String(err.message || err));
+    plansProps.queueError = 'Could not read the run log. ' + String(err.message || err);
     paintPlans();
   }
   flightTimer = setTimeout(() => {
@@ -2217,31 +2135,18 @@ async function renderNightAgent(){
    sideways scroll that came with it. Opened from the Backlog card's head,
    which had a bare h3 where the queue already had a head with a button in it.
 
-   Everything in here draws by id, so the render calls come after showModal has
-   put the markup in the DOM; before that, each of them finds nothing and
-   returns. */
+   The body is one React tree, painted by paintRefCards(). Each renderer keeps
+   its own slice of what it shows and paints only if the modal is open, so a
+   fetch that lands after it has shut costs nothing. */
 function openRefCards(){
+  /* One React tree in the body, drawn by paintRefCards() in 14-schedule.js. The
+     modal is a sheet the board builds as a string; what goes in it is not. */
   showModal('Spend, and what runs on a clock',
     'Both are reference. Nothing on either changes what tonight does.',
-    /* Two columns, drawn with the same colHTML() the view behind them uses —
-       a pair of `.listcard`s of their own until 12 Sep 2026. Being in a modal
-       does not make a column a different object. */
-    '<div class="pvcol">' +
-      colHTML({
-        heading: 'h3', title: 'Token Session', cls: 'schedview usage prose',
-        desc: 'What has been spent, window by window.',
-        body: '<div id="usageOut">Loading…</div>' +
-          '<details class="ufold hidden" id="runResultsFold"><summary id="runResultsSummary">Latest run costs</summary>' +
-            '<div id="runResultsOut"></div>' +
-          '</details>'
-      }) +
-      colHTML({
-        heading: 'h3', title: 'What runs on a clock', cls: 'reportsview clockview prose',
-        desc: 'Set in the agents dashboard, not here.',
-        body: '<div id="schedOut">Loading…</div>'
-      }) +
-    '</div>',
-    [{ label:'Close', primary:true }], { wide:true });
+    '<div id="refCardsRoot"></div>',
+    [{ label:'Close', primary:true }],
+    { wide:true, onClose: () => { const host = $('#refCardsRoot'); if (host) BoardUI.unmount(host); } });
+  paintRefCards();
   renderSched();
   renderUsage();
   // The poll's own copy rather than a second fetch: the fold is a record of a
@@ -2311,12 +2216,12 @@ function plansMountPoint(){
    it from one object rather than each fetch writing into its own corner. */
 const PLANS_BLANK = {
   backlog: 'Loading…',
-  queueErrorHTML: '',
+  queueError: null,
   queueDesc: 'Loading…',
   queue: 'Loading…',
-  orphanHTML: '',
-  doingHTML: '',
-  doingEmptyHTML: '',
+  orphan: null,
+  liveRun: null,
+  doingEmpty: false,
   reviewDesc: 'Loading…',
   doingPlans: null,
   review: 'Loading…',
@@ -2328,8 +2233,8 @@ const PLANS_BLANK = {
   doingCount: '',
   producedCount: '',
   producingCount: '',
-  reviewFilterHTML: '',
-  doneFilterHTML: '',
+  reviewFilterProps: null,
+  doneFilterProps: null,
   runLive: false
 };
 let plansProps = Object.assign({}, PLANS_BLANK);

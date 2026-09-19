@@ -276,7 +276,7 @@ check('a read plan is dimmed rather than hidden', await evalJS(`
   !!document.querySelector('#plansOut .repitem.read')
 `))
 check('the summary is what the closed row shows', await evalJS(`
-  document.querySelector('#plansOut .cardsum').textContent.includes('Foundations file')
+  document.querySelector('#plansOut .tenon-card__summary').textContent.includes('Foundations file')
 `))
 
 // --- the queue column ------------------------------------------------------
@@ -298,7 +298,7 @@ check('Producing holds the one being made, and nothing drags out of it', await e
   [...document.querySelectorAll('#plansProduced > .repitem')].every(c => c.draggable === true)
 `), await evalJS(`
   [...document.querySelectorAll('#plansProducing > .repitem')]
-    .map(c => c.querySelector('.cardtitle')?.textContent).join('/')`))
+    .map(c => c.querySelector('.tenon-card__title')?.textContent).join('/')`))
 // Token Session and the clock are behind a button, not a fifth column: neither
 // is a decision, and the view's work is the four columns.
 check('and the two reference cards are not on the view', await evalJS(`
@@ -310,7 +310,7 @@ check('and the two reference cards are not on the view', await evalJS(`
    shared one card; the queue also stays drawn, since "what happens after this
    one" is a live question during a run rather than a hidden one. */
 check('To do keeps its name and its queue while nothing is running', await evalJS(`
-  document.querySelector('#queueDoingCard .colhead h3').textContent === 'To do' &&
+  document.querySelector('#queueDoingCard .tenon-column__head h3').textContent === 'To do' &&
   !document.querySelector('#queueOut').classList.contains('hidden') &&
   document.querySelector('#doingOut').classList.contains('hidden')
 `))
@@ -318,18 +318,18 @@ check('To do keeps its name and its queue while nothing is running', await evalJ
 // two. Where a card sits is the instruction here as it is there; the seventh
 // column is the implementing agent's half, which the board has no equivalent of.
 check('the seven columns read left to right', await evalJS(`
-  [...document.querySelectorAll('.lists.pview .col')]
-    .map(c => c.querySelector('.colhead h3').textContent).join(' | ')
+  [...document.querySelectorAll('.lists.pview .tenon-column')]
+    .map(c => c.querySelector('.tenon-column__head h3').textContent).join(' | ')
 `) === 'Backlog | To do | Doing | Waiting for review | Ready to be produced | Producing | Done')
 // Every column carries one, and it is in the head rather than being the first
 // paragraph of the body — a sentence describing a column governs the column.
 check('each one says what it is for, in its own head', await evalJS(`
-  [...document.querySelectorAll('.lists.pview .col')]
-    .every(c => !!c.querySelector('.colhead .colhead-desc')) &&
-  !document.querySelector('.lists.pview .colbody .colhead-desc')
+  [...document.querySelectorAll('.lists.pview .tenon-column')]
+    .every(c => !!c.querySelector('.tenon-column__head .tenon-column__desc')) &&
+  !document.querySelector('.lists.pview .tenon-column__body .tenon-column__desc')
 `))
 check('Waiting for review is drawn as the agent\'s own column', await evalJS(`
-  document.querySelector('#plansOut').closest('.col').classList.contains('agentcol')
+  document.querySelector('#plansOut').closest('.tenon-column').classList.contains('tenon-column--dashed')
 `))
 
 // The two reference cards, a press away on the Backlog card's head. Opening is
@@ -357,14 +357,14 @@ check('every queued task is listed', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length
 `) === 3)
 check('numbered by the order it will be worked through', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .cardpos')].map(e => e.textContent).join('')
+  [...document.querySelectorAll('#queueOut > .qitem .tenon-card__lead')].map(e => e.textContent).join('')
 `) === '123')
 /* The row's own note — "never planned", or "changed since" and when it was
    last planned — is the card's summary now rather than a .qwhy line of its
    own, which is what a plan's standfirst already uses. */
 check('each says why it is being planned again', await evalJS(`
-  document.querySelectorAll('#queueOut > .qitem .cardsum')[1].textContent.includes('changed since 2026-09-03')
-`), await evalJS(`[...document.querySelectorAll('#queueOut > .qitem .cardsum')].map(e => e.textContent).join(' | ')`))
+  document.querySelectorAll('#queueOut > .qitem .tenon-card__summary')[1].textContent.includes('changed since 2026-09-03')
+`), await evalJS(`[...document.querySelectorAll('#queueOut > .qitem .tenon-card__summary')].map(e => e.textContent).join(' | ')`))
 
 /* A queued task and a plan sent back are the same instruction — plan this
    tonight — so they are one card shape, and only the eyebrow differs. They
@@ -378,7 +378,7 @@ check('and its eyebrow says it has no plan yet', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem .bucket')].map(e => e.textContent).join('|')
 `) === 'no plan yet|no plan yet|no plan yet')
 check('it keeps its rank and its Hold, which a plan card has no use for', await evalJS(`
-  !!document.querySelector('#queueOut > .qitem .cardpos') &&
+  !!document.querySelector('#queueOut > .qitem .tenon-card__lead') &&
   !!document.querySelector('#queueOut > .qitem .qhold')
 `))
 
@@ -414,10 +414,10 @@ await evalJS(`(() => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('a drag reorders the queue', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .title')].map(e => e.textContent)[0]
+  [...document.querySelectorAll('#queueOut > .qitem .tenon-card__title')].map(e => e.textContent)[0]
 `) === 'Adoption and usage report')
 check('and renumbers what it moved', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .cardpos')].map(e => e.textContent).join('')
+  [...document.querySelectorAll('#queueOut > .qitem .tenon-card__lead')].map(e => e.textContent).join('')
 `) === '123')
 const ordered = await evalJS(`window.__blocked.join(' | ')`)
 check('the new order is posted', ordered.includes('POST /queue/order'))
@@ -465,10 +465,10 @@ check('dragging a held card into the queue un-holds it', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 3
 `))
 check('dropped at the top of the queue', await evalJS(`
-  document.querySelector('#queueOut > .qitem .title').textContent
+  document.querySelector('#queueOut > .qitem .tenon-card__title').textContent
 `) === 'Arabic theme as a new token mode')
 check('the other held card stays behind', await evalJS(`
-  document.querySelector('#backlogOut [data-plan^="held:"] .title').textContent
+  document.querySelector('#backlogOut [data-plan^="held:"] .tenon-card__title').textContent
 `) === 'Adoption and usage report')
 check('and the hold list drops only the one released', await evalJS(`
   (() => { const hold = JSON.parse(window.__blocked.filter(b => b.startsWith('POST /queue/order')).pop()
@@ -496,11 +496,11 @@ check('dragging a queue card onto the backlog holds it', await evalJS(`
   [...document.querySelectorAll('#queueOut > .qitem')].length === 2
 `))
 check('and it shows up there, held', await evalJS(`
-  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .tenon-card__title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('without disturbing the card held earlier', await evalJS(`
-  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
+  [...document.querySelectorAll('#backlogOut [data-plan^="held:"] .tenon-card__title')].map(e => e.textContent)
     .includes('Adoption and usage report')
 `))
 check('and the post names both held titles', await evalJS(`
@@ -516,16 +516,16 @@ check('and the post names both held titles', await evalJS(`
 // and leaves the other where it is.
 await evalJS(`(() => {
   const row = [...document.querySelectorAll('#backlogOut [data-plan^="held:"]')]
-    .find(r => r.querySelector('.title').textContent === 'Rename the text styles');
+    .find(r => r.querySelector('.tenon-card__title').textContent === 'Rename the text styles');
   row.querySelector('.release').click();
   return painted();
 })()`)
 check('Release puts a held card back in the queue', await evalJS(`
-  [...document.querySelectorAll('#queueOut > .qitem .title')].map(e => e.textContent)
+  [...document.querySelectorAll('#queueOut > .qitem .tenon-card__title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('and takes it out of the backlog', await evalJS(`
-  ![...document.querySelectorAll('#backlogOut [data-plan^="held:"] .title')].map(e => e.textContent)
+  ![...document.querySelectorAll('#backlogOut [data-plan^="held:"] .tenon-card__title')].map(e => e.textContent)
     .includes('Rename the text styles')
 `))
 check('and drops only that title from the hold list', await evalJS(`
@@ -561,7 +561,7 @@ await new Promise(r => setTimeout(r, 300))
    it, and the queue is still the answer to what happens after this one. */
 check('the Doing column fills, and To do keeps its queue', await evalJS(`
   !document.querySelector('#doingOut').classList.contains('hidden') &&
-  document.querySelector('#queueDoingCard .colhead h3').textContent === 'To do' &&
+  document.querySelector('#queueDoingCard .tenon-column__head h3').textContent === 'To do' &&
   !document.querySelector('#queueOut').classList.contains('hidden')
 `))
 check('the task in flight is named', await evalJS(`
@@ -573,7 +573,7 @@ check('with the agent working on it', await evalJS(`
 // Run started / Planned / Left sit in Waiting for review's own column
 // description now, a record of the batch rather than a body block.
 check('progress through the batch is shown in the column description', await evalJS(`
-  document.querySelector('#plansOut').closest('.col').querySelector('.colhead-desc')
+  document.querySelector('#plansOut').closest('.tenon-column').querySelector('.tenon-column__desc')
     .textContent.includes('1 of 4')
 `))
 // The results of the run itself sit in Token Session, not here — this card
@@ -618,7 +618,7 @@ await new Promise(r => setTimeout(r, 300))
 check('a run that died mid-task says so rather than looking live', await evalJS(`
   document.querySelector('#doingOut').classList.contains('hidden') &&
   !document.querySelector('#qdOrphan').classList.contains('hidden') &&
-  document.querySelector('#qdOrphan .err').textContent.includes('never finished')
+  document.querySelector('#qdOrphan .tenon-alert').textContent.includes('never finished')
 `))
 
 // --- forcing a run by hand ------------------------------------------------
@@ -727,19 +727,19 @@ check('and names the file', marked.includes('"name":"add-caveat.md"'))
 
 check('the stage being made now is a column, and the other two are not', await evalJS(`
   ['Accepted, not started','Reported back'].every(t =>
-    [...document.querySelectorAll('#plansProduced .card .title')].some(e => e.textContent === t)) &&
-  [...document.querySelectorAll('#plansProducing .card .title')]
+    [...document.querySelectorAll('#plansProduced .tenon-card .tenon-card__title')].some(e => e.textContent === t)) &&
+  [...document.querySelectorAll('#plansProducing .tenon-card .tenon-card__title')]
     .map(e => e.textContent).join() === 'Being made right now'
 `), await evalJS(`
-  [...document.querySelectorAll('#plansProduced .card .title')].map(e => e.textContent).join(' | ')`))
+  [...document.querySelectorAll('#plansProduced .tenon-card .tenon-card__title')].map(e => e.textContent).join(' | ')`))
 
 check('which makes seven columns', await evalJS(`
-  document.querySelectorAll('.lists.pview > .col').length
-`) === 7, await evalJS(`document.querySelectorAll('.lists.pview > .col').length`))
+  document.querySelectorAll('.lists.pview > .tenon-column').length
+`) === 7, await evalJS(`document.querySelectorAll('.lists.pview > .tenon-column').length`))
 
 const prodChip = title => evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProduced .card, #plansProducing .card')].find(c =>
-    c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
+  const card = [...document.querySelectorAll('#plansProduced .tenon-card, #plansProducing .tenon-card')].find(c =>
+    c.querySelector('.tenon-card__title')?.textContent === ${JSON.stringify(title)});
   const chip = card && card.querySelector('.planprod');
   return chip ? chip.textContent + '/' + chip.className : 'missing';
 })()`)
@@ -760,8 +760,8 @@ check('and one that has reported back is the one waiting on him',
    start over: the server writes the id it used back onto the plan, and the
    card's own button reads that back to know which word to use. */
 const sessionBtn = title => evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProduced .card, #plansProducing .card')].find(c =>
-    c.querySelector('.title')?.textContent === ${JSON.stringify(title)});
+  const card = [...document.querySelectorAll('#plansProduced .tenon-card, #plansProducing .tenon-card')].find(c =>
+    c.querySelector('.tenon-card__title')?.textContent === ${JSON.stringify(title)});
   const btn = card && card.querySelector('.startsession');
   return btn ? btn.textContent : 'missing';
 })()`)
@@ -770,15 +770,15 @@ check('a plan nothing has started offers to start one',
 check('one already under way offers to return to it instead',
   await sessionBtn('Being made right now') === 'Return to session')
 check('a plan he has not accepted has no session button at all', await evalJS(`
-  [...document.querySelectorAll('#plansOut .card')].every(c => !c.querySelector('.startsession'))
+  [...document.querySelectorAll('#plansOut .tenon-card')].every(c => !c.querySelector('.startsession'))
 `))
 check('and neither does one already produced', await evalJS(`
-  !document.querySelector('#plansDone .card .startsession')
+  !document.querySelector('#plansDone .tenon-card .startsession')
 `))
 
 await evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
-    c.querySelector('.title')?.textContent === 'Accepted, not started');
+  const card = [...document.querySelectorAll('#plansProduced .tenon-card')].find(c =>
+    c.querySelector('.tenon-card__title')?.textContent === 'Accepted, not started');
   card.querySelector('.startsession').click();
 })()`)
 await new Promise(r => setTimeout(r, 300))
@@ -799,8 +799,8 @@ check('and moves it to Producing before the session opens', await evalJS(`(() =>
 })()`), await evalJS(`window.__blocked.join(' | ')`))
 
 await evalJS(`(() => {
-  const card = [...document.querySelectorAll('#plansProducing .card')].find(c =>
-    c.querySelector('.title')?.textContent === 'Being made right now');
+  const card = [...document.querySelectorAll('#plansProducing .tenon-card')].find(c =>
+    c.querySelector('.tenon-card__title')?.textContent === 'Being made right now');
   card.querySelector('.startsession').click();
 })()`)
 await new Promise(r => setTimeout(r, 300))
@@ -820,37 +820,37 @@ await new Promise(r => setTimeout(r, 300))
    has just arrived, so it takes the accent the same way an unread plan does.
    Before the fold this card was on another board and could not say so here. */
 check('a report he has not read yet is marked like a new plan', (await evalJS(`
-  (() => { const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
-      c.querySelector('.title')?.textContent === 'Reported back');
+  (() => { const card = [...document.querySelectorAll('#plansProduced .tenon-card')].find(c =>
+      c.querySelector('.tenon-card__title')?.textContent === 'Reported back');
     return card.getAttribute('style') || '' })()
-`)).includes('--b1'), await evalJS(`
-  (() => { const card = [...document.querySelectorAll('#plansProduced .card')].find(c =>
-      c.querySelector('.title')?.textContent === 'Reported back');
+`)).includes('--tenon-card-accent'), await evalJS(`
+  (() => { const card = [...document.querySelectorAll('#plansProduced .tenon-card')].find(c =>
+      c.querySelector('.tenon-card__title')?.textContent === 'Reported back');
     return card.getAttribute('style') || '' })()`))
 
 /* The fourth way out of the modal. Before it, a plan he had read and did not
    want could only go round again for a second opinion or sit in Backlog reading
    as undecided. */
 check('a plan he turned down sits in Done', await evalJS(`
-  [...document.querySelectorAll('#plansDone .card .title')].some(e =>
+  [...document.querySelectorAll('#plansDone .tenon-card .tenon-card__title')].some(e =>
     e.textContent === 'An idea turned down')
 `), await evalJS(`
-  [...document.querySelectorAll('#plansDone .card .title')].map(e => e.textContent).join(' | ')`))
+  [...document.querySelectorAll('#plansDone .tenon-card .tenon-card__title')].map(e => e.textContent).join(' | ')`))
 check('and says so in its own word, not "finished" or "replaced"', await evalJS(`
-  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
-      x.querySelector('.title')?.textContent === 'An idea turned down');
+  (() => { const c = [...document.querySelectorAll('#plansDone .tenon-card')].find(x =>
+      x.querySelector('.tenon-card__title')?.textContent === 'An idea turned down');
     return c?.querySelector('.bucket')?.textContent })()
 `) === 'declined', await evalJS(`
-  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
-      x.querySelector('.title')?.textContent === 'An idea turned down');
+  (() => { const c = [...document.querySelectorAll('#plansDone .tenon-card')].find(x =>
+      x.querySelector('.tenon-card__title')?.textContent === 'An idea turned down');
     return c?.querySelector('.bucket')?.textContent })()`))
 check('the reason he gave is kept on the card', await evalJS(`
-  (() => { const c = [...document.querySelectorAll('#plansDone .card')].find(x =>
-      x.querySelector('.title')?.textContent === 'An idea turned down');
+  (() => { const c = [...document.querySelectorAll('#plansDone .tenon-card')].find(x =>
+      x.querySelector('.tenon-card__title')?.textContent === 'An idea turned down');
     return /Not worth the effort/.test(c?.textContent || '') })()
 `))
 check('a plan he has not accepted carries no production mark at all', await evalJS(`
-  [...document.querySelectorAll('#plansOut .card')].every(c => !c.querySelector('.planprod'))
+  [...document.querySelectorAll('#plansOut .tenon-card')].every(c => !c.querySelector('.planprod'))
 `))
 
 // Ready to be produced. He accepts the plan as written, which is the end of the
@@ -923,7 +923,7 @@ check('the plan is drawn in To do, under the queue', await evalJS(`
 // Sending it back emptied the review column — there were two plans and both
 // have now been ruled on.
 check('an emptied Waiting for review says so rather than going blank', await evalJS(`
-  !!document.querySelector('#plansOut .empty') &&
+  !!document.querySelector('#plansOut .tenon-column-empty') &&
   !document.querySelector('#plansOut .repitem')
 `))
 
@@ -949,22 +949,15 @@ check('the parked plan is drawn in Backlog', await evalJS(`
 `))
 
 /* The two filters are independent: a pick in one must not reset the other.
-   Both live in their column's own head, and both are wired by the one
-   delegated listener on document in 13-plans.js — which is why this matters
-   enough to check. The listener reads the wrapper's own `data-colfilter` to
-   know which column a press came from, so the two panels never see each
+   Both live in their column's own head, and each is a ColumnFilter that gives
+   its own `data-colfilter` and its own `onPick`, so the two never see each
    other's clicks despite sharing the attribute name.
-
-   They are also the one thing on this view still found by selector rather than
-   given a handler, because colFilterHTML() builds them as a string and
-   PlansView hands them over through dangerouslySetInnerHTML. React never owns
-   those buttons, so it cannot be given a handler for them.
 
    A step per paint rather than one closure doing all of it: renderPlansList()
    schedules a paint now rather than performing one, so a chip read in the same
    breath as the render that drew it is last paint's chip. */
 const colChip = (body, key) => `(() => {
-  const head = document.querySelector('${body}').closest('.col').querySelector('.colhead');
+  const head = document.querySelector('${body}').closest('.tenon-column').querySelector('.tenon-column__head');
   const chip = [...head.querySelectorAll('[data-planfilter]')]
     .find(b => b.dataset.planfilter === '${key}');
   if (!chip) return 0;
@@ -985,10 +978,33 @@ check('each column keeps its own status filter', await evalJS(`
 `), await evalJS(`reviewFilter + '/' + doneFilter`))
 await evalJS(colChip('#plansOut', 'all'))
 check('and All puts it back', await evalJS(`reviewFilter === 'all'`))
+
+/* Open and shut belong to the dropdown itself now, not to two listeners on
+   `document`. The button opens its own panel, a click anywhere else shuts it,
+   and picking an option shuts it as well as narrowing the column. */
+const filterState = () => evalJS(`(() => {
+  const w = document.querySelector('#plansOut').closest('.tenon-column').querySelector('.colfilter');
+  return w.querySelector('.colfilter-btn').getAttribute('aria-expanded') + '/' +
+    w.querySelector('.dropdown-panel').classList.contains('hidden');
+})()`)
+check('a filter starts shut', await filterState() === 'false/true', await filterState())
+await evalJS(`document.querySelector('#plansOut').closest('.tenon-column').querySelector('.colfilter-btn').click(); painted()`)
+await new Promise(r => setTimeout(r, 100))
+check('its button opens the panel', await filterState() === 'true/false', await filterState())
+await evalJS(`document.body.click(); painted()`)
+await new Promise(r => setTimeout(r, 100))
+check('a click elsewhere shuts it', await filterState() === 'false/true', await filterState())
+await evalJS(`document.querySelector('#plansOut').closest('.tenon-column').querySelector('.colfilter-btn').click(); painted()`)
+await new Promise(r => setTimeout(r, 100))
+await evalJS(colChip('#plansOut', 'read'))
+await new Promise(r => setTimeout(r, 100))
+check('picking an option shuts it and narrows the column', await filterState() === 'false/true' &&
+  await evalJS(`reviewFilter === 'read'`), await filterState())
+await evalJS(colChip('#plansOut', 'all'))
 /* Ready to be produced carries no filter, because every card in it is the same
    thing: a plan he has accepted whose work has not finished. */
 check('and Ready to be produced needs none', await evalJS(`
-  !document.querySelector('#plansProduced').closest('.col').querySelector('.colfilter')
+  !document.querySelector('#plansProduced').closest('.tenon-column').querySelector('.colfilter')
 `))
 
 
@@ -1153,7 +1169,7 @@ await evalJS(`(() => {
 // means on both boards.
 check('a plan still out for another night sits in To do', await evalJS(`
   [...document.querySelectorAll('#queueOut .repitem.redo')]
-    .map(r => r.querySelector('.title').textContent).join(',') === 'Sent back last night'
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') === 'Sent back last night'
 `))
 check('and a replaced rejection is not there with it', await evalJS(`
   !document.querySelector('#plansProduced > .repitem.redo')
@@ -1166,11 +1182,11 @@ check('and a replaced rejection is not there with it', await evalJS(`
    produced rather than reading as work that finished. */
 check('the replaced rejection is filed in Done', await evalJS(`
   [...document.querySelectorAll('#plansDone > .repitem')]
-    .map(r => r.querySelector('.title').textContent).sort().join(',') === 'Planned twice'
+    .map(r => r.querySelector('.tenon-card__title').textContent).sort().join(',') === 'Planned twice'
 `))
 check('and the plan accepted under the old spelling stays in Ready to be produced', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') === 'A record' &&
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') === 'A record' &&
   document.querySelector('#plansProduced .bucket').textContent === 'accepted'
 `))
 check('the reason he wrote is still readable on it', await evalJS(`
@@ -1180,17 +1196,17 @@ check('the reason he wrote is still readable on it', await evalJS(`
    the old column could not draw: it called a replaced rejection "accepted",
    claiming he had acted on work he only ever sent back. */
 check('Done says which kind of closed each one is', await evalJS(`
-  [...document.querySelector('#plansDone').closest('.col')
-    .querySelectorAll('.colhead [data-planfilter]')]
+  [...document.querySelector('#plansDone').closest('.tenon-column')
+    .querySelectorAll('.tenon-column__head [data-planfilter]')]
     .map(b => b.textContent).join(' | ') === 'All1 | replaced1'
 `))
 check('and the replacement itself is in Waiting for review', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') === 'Planned twice'
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') === 'Planned twice'
 `))
 
 // An option with nothing behind it is not drawn at all rather than sitting
-// there at zero, which is what colFilterHTML does for every empty one.
+// there at zero, which is what colFilterProps does for every empty one.
 await evalJS(`(() => {
   planList = planList.filter(p => p.name !== 'twice-old.md');
   doneFilter = 'all';
@@ -1198,8 +1214,8 @@ await evalJS(`(() => {
   return painted();
 })()`)
 check('with nothing replaced the option is not drawn at all', await evalJS(`
-  ![...document.querySelector('#plansDone').closest('.col')
-    .querySelectorAll('.colhead [data-planfilter]')]
+  ![...document.querySelector('#plansDone').closest('.tenon-column')
+    .querySelectorAll('.tenon-column__head [data-planfilter]')]
     .some(b => b.dataset.planfilter === 'replaced') &&
   !document.querySelector('#plansDone > .repitem.redo')
 `))
@@ -1235,42 +1251,42 @@ await evalJS(`(() => {
 })()`)
 check('the highest priority task is at the top, not the newest night', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') ===
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
-`), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
+`), await evalJS(`[...document.querySelectorAll('#plansOut .tenon-card__title')].map(r => r.textContent).join(',')`))
 /* The toggle this column's head grew alongside the port: priority is the
    default and the entry's asked-for alternative is what was written most
    recently, undated (there is none here) falling further back to the night
    folder. Toggled on, then off again, so every check after this one still
    reads the priority order it was written against. */
 check('the column offers a sort toggle, off by default', await evalJS(`
-  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn:not(.on)')?.textContent === 'by priority'
+  document.querySelector('#plansOut').closest('.tenon-column').querySelector('.sortbtn:not(.on)')?.textContent === 'by priority'
 `))
 await evalJS(`(() => {
-  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn').click();
+  document.querySelector('#plansOut').closest('.tenon-column').querySelector('.sortbtn').click();
   return painted();
 })()`)
 check('clicking it sorts by when the plan was written, newest first', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') ===
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') ===
   'gone,middling,slow-burn,unscored,cheap-and-big'
-`), await evalJS(`[...document.querySelectorAll('#plansOut .title')].map(r => r.textContent).join(',')`))
+`), await evalJS(`[...document.querySelectorAll('#plansOut .tenon-card__title')].map(r => r.textContent).join(',')`))
 check('and the button now reads the other way round', await evalJS(`
-  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn.on')?.textContent === 'by night'
+  document.querySelector('#plansOut').closest('.tenon-column').querySelector('.sortbtn.on')?.textContent === 'by night'
 `))
 await evalJS(`(() => {
-  document.querySelector('#plansOut').closest('.col').querySelector('.sortbtn').click();
+  document.querySelector('#plansOut').closest('.tenon-column').querySelector('.sortbtn').click();
   return painted();
 })()`)
 check('and clicking it again puts priority order back', await evalJS(`
   [...document.querySelectorAll('#plansOut .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') ===
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
 check('the task\'s impact and effort are on the row', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'middling');
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'middling');
     const tags = [...row.querySelectorAll('.planscore .tag')];
     return tags.length === 2 && tags[0].title === 'high impact' && tags[1].textContent === 'M';
   })()
@@ -1281,18 +1297,18 @@ check('and they are the board\'s own chips rather than a second kind', await eva
 check('a task carrying neither score says so', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'unscored');
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'unscored');
     return !!row.querySelector('.planscore .tag.needsscore');
   })()
 `))
 check('a plan whose task is gone from the board carries no score at all', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'gone');
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'gone');
     // No tag row at all rather than an empty one, and the meta row — where
     // it sits, and the link back — still there.
-    return !row.querySelector('.planscore') && !row.querySelector('.meta') &&
-           !!row.querySelector('.cardmeta');
+    return !row.querySelector('.planscore') && !row.querySelector('.tenon-card__tags') &&
+           !!row.querySelector('.tenon-card__meta');
   })()
 `))
 // The meta row reads scores, then which card, then where it sits — and the
@@ -1301,7 +1317,7 @@ check('a plan whose task is gone from the board carries no score at all', await 
 check('the link is named after the task it opens', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'middling');
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'middling');
     const b = row.querySelector('.plangoto');
     return b.textContent.trim() === 'Close the Figma against code gap on buttons \u2197';
   })()
@@ -1323,7 +1339,7 @@ check('and pressing it opens that task', await evalJS(`
     window.goToPlanTask = k => { asked = k; };
     try {
       [...document.querySelectorAll('#plansOut .repitem')]
-        .find(r => r.querySelector('.title').textContent === 'middling')
+        .find(r => r.querySelector('.tenon-card__title').textContent === 'middling')
         .querySelector('.plangoto').click();
     } finally { window.goToPlanTask = real; }
     return asked === 'Close the Figma against code gap on buttons';
@@ -1339,9 +1355,9 @@ check('and it does not also open the plan behind it',
 check('the scores are the tag row, and where it sits is the meta row', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'middling');
-    const tags = [...row.querySelector('.meta').children].map(n => n.className);
-    const meta = [...row.querySelector('.cardmeta').children].map(n => n.className);
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'middling');
+    const tags = [...row.querySelector('.tenon-card__tags').children].map(n => n.className);
+    const meta = [...row.querySelector('.tenon-card__meta').children].map(n => n.className);
     return tags.join('|') === 'planscore' &&
            meta.join('|') === 'planwhere|plangoto' &&
            row.querySelector('.planwhere').textContent === 'DS · To do · 2026-09-07';
@@ -1350,7 +1366,7 @@ check('the scores are the tag row, and where it sits is the meta row', await eva
 check('a plan whose task is gone still links, under the name it stored', await evalJS(`
   (() => {
     const row = [...document.querySelectorAll('#plansOut .repitem')]
-      .find(r => r.querySelector('.title').textContent === 'gone');
+      .find(r => r.querySelector('.tenon-card__title').textContent === 'gone');
     return row.querySelector('.plangoto').textContent.trim() === 'A task nobody kept \u2197';
   })()
 `))
@@ -1369,7 +1385,7 @@ await evalJS(`(() => {
 })()`)
 check('Ready to be produced is ordered the same way', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
-    .map(r => r.querySelector('.title').textContent).join(',') ===
+    .map(r => r.querySelector('.tenon-card__title').textContent).join(',') ===
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
 /* The old spelling and the new one draw as one column and read as one word.
@@ -1593,7 +1609,7 @@ check('Waiting for review leads with the last run, formatted rather than sliced'
    card, and after a drag let go somewhere else, until 15 Sep 2026. */
 const outline = await evalJS(`(async () => {
   const body = document.querySelector('#plansProduced');
-  const inside = body.querySelector('.card');
+  const inside = body.querySelector('.tenon-card');
   const fire = (el, type, related) => el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, relatedTarget: related || null }));
   const lit = () => body.classList.contains('coldrop');
   const tick = () => new Promise(r => setTimeout(r, 50));

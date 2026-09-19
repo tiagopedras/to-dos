@@ -50,17 +50,23 @@ import type { ReactNode } from 'react'
    markup, so the half of the board that is still strings and the half that is
    React draw the same card. That is the rule those two files have always been
    under; only the shape they agree on has moved. */
-export { Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } from '@tiagopedras/tenon'
+export { Alert, Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } from '@tiagopedras/tenon'
 export type {
-  CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
+  AlertProps, CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
 } from '@tiagopedras/tenon'
 export { PlanCard } from './PlanCard'
-export type { PlanCardProps } from './PlanCard'
+export type { PlanCardProps, PlanScores } from './PlanCard'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
 export { TasksFinishedColumn, WrittenReportsColumn } from './ReportsColumns'
 export { PlansView } from './PlansView'
-export type { PlansViewProps, DropZone } from './PlansView'
+export type { PlansViewProps, DropZone, LiveRun } from './PlansView'
+export { ColumnFilter } from './ColumnFilter'
+export { RefCards } from './RefCards'
+export type {
+  RefCardsProps, Usage, UsageState, ScheduleJob, ScheduleState, RunResults,
+} from './RefCards'
+export type { ColumnFilterProps, ColumnFilterOption } from './ColumnFilter'
 export type { ReportsColumnsProps, WrittenReport, ReportWindow } from './ReportsColumns'
 export {
   CompletedByCategory, RecentAccomplishments, WeeklyTrend,

@@ -39,7 +39,7 @@
  * Markdown either way.
  */
 import type { ReactNode } from 'react'
-import { Column } from '@tiagopedras/tenon'
+import { Alert, Column } from '@tiagopedras/tenon'
 import {
   CompletedByCategory, RecentAccomplishments, WeeklyTrend,
   type CompletedByCategoryData, type RecentAccomplishmentsData, type WeeklyTrendProps,
@@ -172,12 +172,11 @@ export function WrittenReportsColumn(props: ReportsColumnsProps) {
   if (writtenError) {
     body = writtenError.kind === 'stale-helper'
       ? (
-        <div className="err">
-          <strong>The board helper needs restarting.</strong><br />
+        <Alert tone="error" title="The board helper needs restarting.">
           It is running, but it is an older copy that does not know about reports yet.
-        </div>
+        </Alert>
       )
-      : <div className="err">Could not read the report list. {writtenError.detail}</div>
+      : <Alert tone="error">Could not read the report list. {writtenError.detail}</Alert>
   } else if (written === null) {
     body = 'Loading…'
   } else if (!written.length) {

@@ -297,13 +297,16 @@ every body, and one `paintPlans()` that renders it — and nothing, in this file
 or any other, assigns into the tree by id. `renderStatus()` in `14-schedule.js`
 used to, and hands its markup to `setPlansStatus()` instead.
 
-What is a component and what is still a string splits by card kind rather than
-by column. `PlanCard` is `planItemHTML()`'s twin and that builder is gone, so
-the four columns holding nothing but plans — Doing, Waiting for review, Ready
-to be produced, Done — are nodes. Backlog and To do are nodes too but hold
-queue rows built through `Card` directly, and the bodies four independent
-fetches fill at different times are markup, because each paints as it arrives
-rather than the view waiting on the slowest.
+Nothing on Plans is built as a string any more, as of 19 Sep 2026. The
+bodies the four fetches fill are data on `plansProps` (`liveRun`, `orphan`,
+`queueError`, `doingEmpty`, and the two filters as `ColumnFilterProps`), and
+`PlansView` turns each into markup, using Tenon's `Alert` and `ColumnEmpty`.
+The board's classic scripts have no JSX, so they hand over a shape to fill in
+rather than assembling elements by hand. Each fetch still paints as it
+arrives, because a paint redraws all of `plansProps` from the one object.
+The one exception is a plan card's summary, which stays `summaryHTML` because
+the board's `mdInline()` knows `[text](url)` links and `[placeholder]` markers
+that Tenon's `Markdown` does not, and the drawer shares it.
 
 **`mountSync()` is gone**, and with it the seven kinds of node the board used
 to find by selector after every paint. Every handler on this view is a prop:
@@ -320,13 +323,17 @@ round to it. And a test that renders and then reads has to wait a paint:
 `test_plans.mjs` has a `painted()` helper for it, and every render step returns
 it.
 
-The one thing still found by selector is the pair of filter dropdowns, and that
-is correct rather than left over. `colFilterHTML()` builds them as a string and
-the component hands them over through `dangerouslySetInnerHTML`, so React never
-owns those buttons. They are wired by one delegated listener on `document`,
-keyed off the wrapper's own `data-colfilter` — which is what the closing half of
-the same dropdown already did in `09-columns.js`. Delegation queries nothing
-after a paint, so it costs no flush.
+The filter dropdowns are `ColumnFilter` (`kanban/ui/ColumnFilter.tsx`) and own
+their open state and their outside-click close. Two delegated listeners on
+`document` did that when they were markup, and both are gone.
+
+**The Spend and clocks modal is React too.** `RefCards` (`kanban/ui/RefCards.tsx`)
+draws Token Session, the job list and the run-cost fold as one tree, mounted in
+`#refCardsRoot` inside a modal the board still builds as a string.
+`14-schedule.js` keeps a slice of state per renderer (`usageState`,
+`schedState`, `runResultsState`) and `paintRefCards()` draws only while the
+modal is open. `showModal()` takes an `onClose` so the tree is unmounted when
+the modal goes.
 
 **Reports' counted half went real, 14 Sep 2026.** The window picker and both
 columns' shell were already components; `countedLeadHTML()` and the three

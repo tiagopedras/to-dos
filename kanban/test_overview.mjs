@@ -113,9 +113,9 @@ await evalJS(`state.view = 'overview'; renderView()`)
 /* ---- the shell: seven columns, in reading order ---- */
 
 check('all seven columns are drawn, in reading order', await evalJS(`
-  [...document.querySelectorAll('.lists.split .col h3')].map(h => h.textContent).join('|')
+  [...document.querySelectorAll('.lists.split .tenon-column h3')].map(h => h.textContent).join('|')
 `) === 'Tasks finished|Big rocks|This week|Quick wins|Delegate to Claude|Context|Written reports',
-  await evalJS(`[...document.querySelectorAll('.lists.split .col h3')].map(h => h.textContent).join('|')`))
+  await evalJS(`[...document.querySelectorAll('.lists.split .tenon-column h3')].map(h => h.textContent).join('|')`))
 
 check('the split grid carries seven tracks', await evalJS(`
   (document.querySelector('.lists.split').style.gridTemplateColumns.match(/minmax/g) || []).length
@@ -135,14 +135,14 @@ check('Tasks finished leads the row at exactly two reference columns wide', awai
 `) === 'minmax(774px, 2fr)', await evalJS(`document.querySelector('.lists.split').style.gridTemplateColumns`))
 
 check('a hint with a tag in it renders the tag as code, not literal backticks', await evalJS(`
-  document.querySelector('.lists.split .col:nth-child(3) .colhead-desc code')?.textContent
-`) === 'week', await evalJS(`document.querySelector('.lists.split .col:nth-child(3) .colhead-desc')?.innerHTML`))
+  document.querySelector('.lists.split .tenon-column:nth-child(3) .tenon-column__desc code')?.textContent
+`) === 'week', await evalJS(`document.querySelector('.lists.split .tenon-column:nth-child(3) .tenon-column__desc')?.innerHTML`))
 
 /* ---- each section counts what it holds ---- */
 
 const countOf = title => evalJS(`(() => {
-  const h = [...document.querySelectorAll('.lists.split .col h3')].find(h => h.textContent === ${JSON.stringify(title)});
-  return h?.closest('.col')?.querySelector('.colhead-right .count')?.textContent;
+  const h = [...document.querySelectorAll('.lists.split .tenon-column h3')].find(h => h.textContent === ${JSON.stringify(title)});
+  return h?.closest('.tenon-column')?.querySelector('.tenon-column__head-end .tenon-column__count')?.textContent;
 })()`)
 
 check('Big rocks counts the one L task', await countOf('Big rocks') === '1')
@@ -153,22 +153,22 @@ check('Delegate to Claude counts the one ai:full task', await countOf('Delegate 
 /* ---- the two report columns, at the end of the same row ---- */
 
 check('Tasks finished carries the window picker in its head', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
   return !!c?.querySelector('summary #reportWindow');
 })()`))
 /* The report columns carry `.reportsview`, which styles the folds inside the
    Completed report — and those rules caught the column's own head the moment
    the column became a <details> with a <summary> for one: 12.5px type and a
-   second chevron on a line of its own. They are scoped under `.colbody` now,
+   second chevron on a line of its own. They are scoped under `.tenon-column__body` now,
    so the head is the same object as any other column's. */
 check('and its head is drawn exactly like a reference column\'s', await evalJS(`(() => {
-  const at = t => [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === t);
+  const at = t => [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === t);
   const shape = el => { const s = el.querySelector('summary'), cs = getComputedStyle(s);
     return [cs.fontSize, cs.padding, getComputedStyle(s, '::before').content,
-            s.querySelectorAll('.colchev').length].join('/') };
+            s.querySelectorAll('.tenon-column__chevron').length].join('/') };
   return shape(at('Tasks finished')) === shape(at('Big rocks')) ? 'same' : shape(at('Tasks finished')) + ' vs ' + shape(at('Big rocks'));
 })()`) === 'same', await evalJS(`(() => {
-  const at = t => [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === t);
+  const at = t => [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === t);
   const s = at('Tasks finished').querySelector('summary'), cs = getComputedStyle(s);
   return cs.fontSize + '/' + getComputedStyle(s, '::before').content;
 })()`))
@@ -176,23 +176,23 @@ check('and its head is drawn exactly like a reference column\'s', await evalJS(`
 /* The head, used the way every other column on this row uses it: a count of
    the thing the column holds, and one line saying what that is. */
 check('and a count and a description, like every other column here', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
-  return c.querySelector('.colhead-right .count')?.textContent + '|' +
-    (c.querySelector('.colhead-desc')?.textContent || '').slice(0, 24);
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.tenon-column__head-end .tenon-column__count')?.textContent + '|' +
+    (c.querySelector('.tenon-column__desc')?.textContent || '').slice(0, 24);
 })()`) === '0|Everything ticked off in', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
-  return c.querySelector('.colhead-right .count')?.textContent + '|' + c.querySelector('.colhead-desc')?.textContent;
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.tenon-column__head-end .tenon-column__count')?.textContent + '|' + c.querySelector('.tenon-column__desc')?.textContent;
 })()`))
 check('Written reports folds on the same key the other six use', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Written reports');
-  return c?.tagName === 'DETAILS' && c.dataset.colcollapse === 'ov:Written reports';
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Written reports');
+  return c?.tagName === 'DETAILS' && c.dataset.columnCollapse === 'ov:Written reports';
 })()`))
 
 /* ---- the section with nothing to count ---- */
 
 check('Context carries no count, since it is prose rather than a list', await evalJS(`(() => {
-  const h = [...document.querySelectorAll('.lists.split .col h3')].find(h => h.textContent === 'Context');
-  return h.closest('.col').querySelector('.colhead-right .count');
+  const h = [...document.querySelectorAll('.lists.split .tenon-column h3')].find(h => h.textContent === 'Context');
+  return h.closest('.tenon-column').querySelector('.tenon-column__head-end .tenon-column__count');
 })()`) == null)
 
 /* ---- capMsgCards() against real, painted layout ---- */
@@ -206,12 +206,12 @@ check('the long message is clamped and marked capped by measuring the real box, 
 /* ---- collapsing a section persists, the same way it always has ---- */
 
 const bigRocksDetails = () => evalJS(`
-  [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks')?.tagName
+  [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Big rocks')?.tagName
 `)
 check('a section is a <details>, open by default', await bigRocksDetails() === 'DETAILS')
 
 await evalJS(`(() => {
-  const d = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
+  const d = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
   d.open = false;
   d.dispatchEvent(new Event('toggle'));
 })()`)
@@ -222,7 +222,7 @@ check('shutting one writes it to the same key Overview has always used', await e
 
 await evalJS(`state.view = 'board'; renderView(); state.view = 'overview'; renderView()`)
 check('and it stays shut across a re-render', await evalJS(`(() => {
-  const d = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
+  const d = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Big rocks');
   return d.open === false;
 })()`))
 
@@ -232,10 +232,10 @@ await evalJS(`localStorage.removeItem('todo-board-overview-closed')`)
 /* ---- Quick wins' own sort control, and Delegate to Claude's ranked rows ---- */
 
 check('Quick wins carries its own sort toggle, not the board\'s', await evalJS(`
-  !!document.querySelector('.lists.split .col:nth-child(4) [data-quicksort]')
+  !!document.querySelector('.lists.split .tenon-column:nth-child(4) [data-quicksort]')
 `))
 check('Delegate to Claude numbers its rows', await evalJS(`
-  document.querySelector('.lists.split .col:nth-child(5) .refnum')?.textContent
+  document.querySelector('.lists.split .tenon-column:nth-child(5) .refnum')?.textContent
 `) === '1')
 
 /* ---- delegation still opens a card from a React-rendered section ---- */

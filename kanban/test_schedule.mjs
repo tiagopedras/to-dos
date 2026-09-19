@@ -71,6 +71,12 @@ async function evalJS (expr) {
 await new Promise(r => setTimeout(r, 2500))
 check('the board loaded', await evalJS(`typeof renderPlansView === 'function' && typeof renderSched === 'function'`))
 
+/* The modal's tree is React, so a render followed by a read in the same breath
+   reads the paint before it. Two frames: React commits in one and the browser
+   lays out in the next. */
+await evalJS(`(window.painted = () => new Promise(
+  r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))) && 1`)
+
 // LOCK FIRST. Nothing below can write anything.
 await evalJS(`(() => {
   state.locked = true;
@@ -155,7 +161,7 @@ await evalJS(`document.querySelector('#refCardsBtn').click()`)
 await new Promise(r => setTimeout(r, 700))
 
 check('the clock card is its own column, stacked under Token Session', await evalJS(`
-  (() => { const card = document.querySelector('#schedOut').closest('.col');
+  (() => { const card = document.querySelector('#schedOut').closest('.tenon-column');
     return card && card.parentElement.classList.contains('pvcol') &&
       card.closest('.mscrim') &&
       card.querySelector('h3').textContent === 'What runs on a clock' &&
@@ -185,12 +191,12 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
 // the same call draws both.
 check('the window left leads the Queue/Doing card, in its own description', await evalJS(`
   /^Session open — closes \\d\\d:\\d\\d, \\d+ min left\\.$/.test(
-    document.querySelector('#queueDoingCard .colhead-desc').textContent) &&
+    document.querySelector('#queueDoingCard .tenon-column__desc').textContent) &&
   (m => m && +m[1] >= 85 && +m[1] <= 90)(
-    document.querySelector('#queueDoingCard .colhead-desc').textContent.match(/(\\d+) min left/))
+    document.querySelector('#queueDoingCard .tenon-column__desc').textContent.match(/(\\d+) min left/))
 `))
 check('and nothing on it reads as a verdict any more', await evalJS(`
-  !/RIDE|OPEN|STOP/.test(document.querySelector('#queueDoingCard .colhead-desc').textContent)
+  !/RIDE|OPEN|STOP/.test(document.querySelector('#queueDoingCard .tenon-column__desc').textContent)
 `))
 // The usage card itself carries no explanatory prose: the Status line
 // (elsewhere now) says what there is to spend and
@@ -270,10 +276,10 @@ check('a window with no shape still draws its box', await evalJS(`
     const keep = window.__usage;
     window.__usage = Object.assign({}, keep, { windows: keep.windows.map(w =>
       Object.assign({}, w, { shape: [] })) });
-    await renderUsage();
+    await renderUsage(); await painted();
     const ok = document.querySelectorAll('#usageOut .ubox').length === 3 &&
                document.querySelectorAll('#usageOut .ufill').length === 0;
-    window.__usage = keep; await renderUsage();
+    window.__usage = keep; await renderUsage(); await painted();
     return ok;
   })()
 `))
@@ -331,7 +337,7 @@ await evalJS(`(async () => {
   const keep = window.__usage;
   window.__usage = Object.assign({}, keep, { ceiling:
     { session: 430e6, week: 640e6, source:'measured', measuredAt:'2026-09-05' } });
-  await renderUsage();
+  await renderUsage(); await painted();
   window.__usage = keep;
   return 1;
 })()`)
@@ -349,14 +355,14 @@ await new Promise(r => setTimeout(r, 300))
 await evalJS(`(async () => {
   const keep = window.__usage;
   window.__usage = Object.assign({}, keep, { windows: [], rolling: [] });
-  await renderUsage();
+  await renderUsage(); await painted();
   window.__usage = keep;
   return 1;
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('no windows draws no chart rather than a broken one', await evalJS(`
   !document.querySelector('#usageOut .uchart') &&
-  /min left/.test(document.querySelector('#queueDoingCard .colhead-desc').textContent)
+  /min left/.test(document.querySelector('#queueDoingCard .tenon-column__desc').textContent)
 `))
 await evalJS(`renderUsage()`)
 await new Promise(r => setTimeout(r, 300))

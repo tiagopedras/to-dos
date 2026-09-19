@@ -17,7 +17,7 @@
  * finds the button by them.
  */
 import type { ReactNode } from 'react'
-import { Column } from '@tiagopedras/tenon'
+import { Alert, Column } from '@tiagopedras/tenon'
 
 export interface BackupFile {
   name: string
@@ -92,15 +92,14 @@ function Group(props: { title: string; files: BackupFile[]; blank: string; child
 }
 
 const STALE_HELPER = (
-  <div className="err">
-    <strong>The board helper needs restarting.</strong><br />
+  <Alert tone="error" title="The board helper needs restarting.">
     It is running, but it is an older copy that does not know about backups yet. Save anything
     unsaved on the board first, then run this in Terminal:<br />
     <code style={{ display: 'inline-block', marginTop: 7, fontSize: 12 }}>
       lsof -ti tcp:8765 | xargs kill
     </code><br /><br />
     Then open <strong>To-Do Board.app</strong> again, or double-click <strong>run.command</strong>.
-  </div>
+  </Alert>
 )
 
 export function BackupsView(props: BackupsViewProps) {
@@ -126,7 +125,7 @@ export function BackupsView(props: BackupsViewProps) {
   if (error) {
     body = error.kind === 'stale-helper'
       ? STALE_HELPER
-      : <div className="err"><strong>Could not read the backup list.</strong><br />{error.detail}</div>
+      : <Alert tone="error" title="Could not read the backup list.">{error.detail}</Alert>
   } else if (weekly === null) {
     body = 'Loading…'
   } else {

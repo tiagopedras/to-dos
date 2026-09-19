@@ -772,7 +772,7 @@ function wireTlResize(scroll){
    since none of the eight across all three views ever varies. What still
    comes from here is only what does: the count, the body, whether an
    Overview section is open (overviewOpen(), unchanged — the toggle listener
-   in 19-drawer.js that persists it reads data-colcollapse off the rendered
+   in 19-drawer.js that persists it reads data-column-collapse off the rendered
    <details> either way, string-built or React). */
 let sectionsRoot = null;
 function sectionsMountPoint(){

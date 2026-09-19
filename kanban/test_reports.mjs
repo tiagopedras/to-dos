@@ -157,24 +157,24 @@ await new Promise(r => setTimeout(r, 700))
 /* ---- the two columns, at the end of Overview's own row ---- */
 
 check('counted leads the row and written closes it', await evalJS(`(() => {
-  const t = [...document.querySelectorAll('.lists.split .col .colhead h3')].map(h => h.textContent);
+  const t = [...document.querySelectorAll('.lists.split .tenon-column .tenon-column__head h3')].map(h => h.textContent);
   return t[0] + '|' + t[t.length - 1];
 })()`) === 'Tasks finished|Written reports', await evalJS(`
-  [...document.querySelectorAll('.lists.split .col .colhead h3')].map(h => h.textContent).join('|')`))
+  [...document.querySelectorAll('.lists.split .tenon-column .tenon-column__head h3')].map(h => h.textContent).join('|')`))
 
 check('the counted head says how many the window holds', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
-  return c.querySelector('.colhead-right .count')?.textContent;
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.tenon-column__head-end .tenon-column__count')?.textContent;
 })()`) === '3', await evalJS(`(() => {
-  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
-  return c.querySelector('.colhead-right .count')?.textContent;
+  const c = [...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.tenon-column__head-end .tenon-column__count')?.textContent;
 })()`))
 
-const countedCol = `[...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished')`
+const countedCol = `[...document.querySelectorAll('.lists.split .tenon-column')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished')`
 
 check('the window picker is in the counted column’s head, not its body', await evalJS(`
-  !!${countedCol}.querySelector('.colhead #reportWindow') &&
-  !${countedCol}.querySelector('.colbody #reportWindow')
+  !!${countedCol}.querySelector('.tenon-column__head #reportWindow') &&
+  !${countedCol}.querySelector('.tenon-column__body #reportWindow')
 `))
 
 /* Every column on Overview folds, these two included — and a <summary> folds
@@ -302,8 +302,8 @@ check('every report in the folder gets a row', await evalJS(`
   document.querySelectorAll('#writtenOut .repitem').length
 `) === 2)
 check('the head counts them', await evalJS(`
-  document.querySelector('#writtenCol .colhead .count')?.textContent
-`) === '2', await evalJS(`document.querySelector('#writtenCol .colhead .count')?.textContent`))
+  document.querySelector('#writtenCol .tenon-column__head .tenon-column__count')?.textContent
+`) === '2', await evalJS(`document.querySelector('#writtenCol .tenon-column__head .tenon-column__count')?.textContent`))
 check('a row leads with its title and date', await evalJS(`
   document.querySelector('#writtenOut .reptitle')?.textContent === 'August in review' &&
   document.querySelector('#writtenOut .repdate')?.textContent === '1 Sep 2026'
@@ -338,7 +338,7 @@ check('an empty folder says how a report gets there', await evalJS(`
 await evalJS(`window.__reportsStatus = 404; forgetWrittenReports(); ensureWrittenReports()`)
 await new Promise(r => setTimeout(r, 400))
 check('an older helper is named as the cause', await evalJS(`
-  /board helper needs restarting/.test(document.querySelector('#writtenOut .err')?.textContent || '')
+  /board helper needs restarting/.test(document.querySelector('#writtenOut .tenon-alert')?.textContent || '')
 `))
 await evalJS(`window.__reportsStatus = 0; window.__reports = [
   { title:'Back again', date:'', covers:'', topic:'', summary:'', url:'/data/reports/x.md' }]`)

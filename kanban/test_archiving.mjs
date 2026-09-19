@@ -219,11 +219,11 @@ check('and countsAsFinished() is what tells the three apart', await evalJS(`
 /* An ordinary done card wearing one more chip, rather than a state of its
    own — the same shape every other tag on a card already renders as. */
 check('the cards carry a Cancelled and an Archived chip', await evalJS(`
-  [...document.querySelectorAll('#board .col[data-tier="Done"] .card .tag.cancelled')]
+  [...document.querySelectorAll('#board .tenon-column[data-tier="Done"] .tenon-card .tag.cancelled')]
     .map(e => e.textContent).join('|')
 `) === 'cancelled|archived')
 check('and all three are otherwise ordinary done cards', await evalJS(`
-  document.querySelectorAll('#board .col[data-tier="Done"] .card.done').length
+  document.querySelectorAll('#board .tenon-column[data-tier="Done"] .tenon-card.done').length
 `) === 3)
 
 /* Written back on a save, ticked or not. An unticked one is what check_todo.py

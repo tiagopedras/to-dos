@@ -1602,9 +1602,9 @@ document.addEventListener('toggle', e => {
   if (ds.collapse) setSectionCollapsed(ds.collapse, !e.target.open);
   // Overview's columns, since 12 Sep 2026 drawn by colHTML() like every other
   // column rather than by a `.listcard` of their own — so the attribute is the
-  // component's (data-colcollapse) while the keys are still Overview's `ov:`
+  // component's (data-column-collapse) while the keys are still Overview's `ov:`
   // ones, and a section he shut before the change stays shut after it.
-  else if (ds.colcollapse) setOverviewOpen(ds.colcollapse, e.target.open);
+  else if (ds.columnCollapse) setOverviewOpen(ds.columnCollapse, e.target.open);
   else if (ds.tlcollapse) setSectionCollapsed(ds.tlcollapse, !e.target.open);
 }, true);
 

@@ -51,6 +51,14 @@
 import type { DragEvent, MouseEvent, ReactNode } from 'react'
 import { Card } from '@tiagopedras/tenon'
 
+export interface PlanScores {
+  /** Impact or effort is missing, so the task has no score yet. */
+  needsScoring?: boolean
+  /** `level` is the impact word; `label` is what the chip shows for it. */
+  impact?: { level: string, label: string }
+  effort?: string
+}
+
 export interface PlanCardProps {
   /** The plan's own file, which is its identity everywhere on this view. */
   url: string
@@ -75,8 +83,13 @@ export interface PlanCardProps {
   /** Bucket, column and when it was written. Blanks are dropped here rather
    *  than by the caller, since the separator is this component's business. */
   where?: (string | undefined)[]
-  /** Markup the board built: the task's chips, and the summary as Markdown. */
-  scoresHTML?: string
+  /** The task's own impact and effort, as the chips the board's task cards
+   *  carry. Data rather than markup: which chip is drawn is decided here. */
+  scores?: PlanScores
+  /** The summary, as inline Markdown the board has already rendered. The one
+   *  thing on this card still handed over as markup, because the board's own
+   *  inline renderer knows `[text](url)` links and `[placeholder]` markers that
+   *  Tenon's `Markdown` does not, and the drawer shares it. */
   summaryHTML?: string
   /** What he told the agent when he sent it back. */
   feedback?: string
@@ -108,7 +121,7 @@ export interface PlanCardProps {
 export function PlanCard(props: PlanCardProps) {
   const {
     url, title, variant, stripe, word, production, productionKind,
-    needsYou, gotoKey, gotoLabel, where, scoresHTML, summaryHTML, feedback,
+    needsYou, gotoKey, gotoLabel, where, scores, summaryHTML, feedback,
     position, action, onOpen, onGoto, onDragStart, onDragEnd, attrs,
   } = props
 
@@ -150,7 +163,17 @@ export function PlanCard(props: PlanCardProps) {
       title={title}
       lead={position}
       action={action}
-      tags={scoresHTML ? { __html: scoresHTML } : null}
+      tags={scores && (scores.needsScoring || scores.impact || scores.effort) ? (
+        <span className="planscore">
+          {scores.needsScoring ? <span className="tag needsscore">needs scoring</span> : null}
+          {scores.impact ? (
+            <span className={'tag impact-' + scores.impact.level} title={scores.impact.level + ' impact'}>
+              {scores.impact.label}
+            </span>
+          ) : null}
+          {scores.effort ? <span className="tag" title={scores.effort + ' effort'}>{scores.effort}</span> : null}
+        </span>
+      ) : null}
       meta={(line || gotoKey) ? (
         <>
           {line ? <span className="planwhere">{line}</span> : null}

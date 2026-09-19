@@ -32,11 +32,13 @@
  * instead, `position` for the queue's rank, which is what a drag there edits,
  * and `attrs` for the four drop handlers a queue row carries as a reorder
  * target.
- * What still arrives as an HTML string is what four independent fetches fill
- * at different times — `/plans.json`, `/queue.json`, the agent's own status,
- * and the usage reconstruction that takes about a second — each painting as it
- * arrives rather than the view waiting on the slowest. Those go in through
- * `dangerouslySetInnerHTML`, the same bargain ReportsView already makes.
+ * Nothing arrives as an HTML string any more. What four independent fetches
+ * fill at different times — `/plans.json`, `/queue.json`, the agent's own
+ * status, and the usage reconstruction that takes about a second — is data
+ * here: `liveRun`, `orphan`, `queueError` and the two filters are plain
+ * objects, and this file turns each into markup. The board's classic scripts
+ * have no JSX, so handing them a shape to fill in is what keeps them from
+ * assembling elements by hand.
  *
  * This view re-renders, which the shell-only version of it deliberately did
  * not. Every body is a prop, and `plansProps` in `13-plans.js` is the one
@@ -56,7 +58,8 @@
  * listener on `document` the same way their closing half already was.
  */
 import type { DragEvent, ReactNode } from 'react'
-import { Column } from '@tiagopedras/tenon'
+import { Alert, Column, ColumnEmpty } from '@tiagopedras/tenon'
+import { ColumnFilter, type ColumnFilterProps } from './ColumnFilter'
 
 /* What a column that takes drops is given. Three handlers rather than a
    callback, because the answer to "will you take this" has to be given on
@@ -73,9 +76,9 @@ export interface PlansViewProps {
   /** Backlog: what the agent is to leave alone — held tasks, parked plans, and
    *  a fold of the ones a rule excluded. */
   backlog: ReactNode
-  /** To do: the error line and tonight's queue. The error is markup the
-   *  board built; the queue is cards. */
-  queueErrorHTML: string
+  /** To do: the error line and tonight's queue. The error is a sentence, or
+   *  null when there is nothing to say. */
+  queueError: string | null
   /** To do's own description — when the current usage window closes, and how
    *  long is left in it — replacing the static sentence every other column
    *  keeps, since this is the one column where that answer changes by the
@@ -83,17 +86,17 @@ export interface PlansViewProps {
   queueDesc: ReactNode
   queue: ReactNode
   /** Doing: an orphaned lock notice, the live run, plans in production, or nothing. */
-  orphanHTML: string
-  doingHTML: string
-  doingEmptyHTML: string
+  orphan: { title: string } | null
+  liveRun: LiveRun | null
+  /** Says nothing is running. Only meaningful when there is no live run and
+   *  no plan parked in `doing`, which is for the caller to work out. */
+  doingEmpty: boolean
   /** Waiting for review's own description — the same move as queueDesc:
    *  when the last run started and how far it got, in place of the static
    *  sentence. */
   reviewDesc: ReactNode
-  /** The four columns that hold nothing but plans, as nodes rather than as
-   *  markup — `PlanCard`s, or the column's empty state. These are the half of
-   *  the port that has happened; everything above and below is still a string
-   *  the board built. */
+  /** The four columns that hold nothing but plans, as nodes — `PlanCard`s, or
+   *  the column's empty state. */
   doingPlans: ReactNode
   review: ReactNode
   produced: ReactNode
@@ -117,12 +120,9 @@ export interface PlansViewProps {
   doingCount?: string
   producedCount?: string
   producingCount?: string
-  /** The two filter dropdowns, built by colFilterHTML(). Markup rather than a
-   *  component, and the only thing on this view still wired off the DOM — by
-   *  one delegated listener on `document` rather than a query after a paint,
-   *  which is why it costs no flush. */
-  reviewFilterHTML: string
-  doneFilterHTML: string
+  /** The two filter dropdowns, or null for a column with nothing to narrow. */
+  reviewFilterProps: ColumnFilterProps | null
+  doneFilterProps: ColumnFilterProps | null
   /** Whether a run is actually going. It decides two things and nothing else:
    *  the live-run body shows, and Run now does not — run.sh holds a lock and
    *  would refuse a second batch anyway, but it refuses by logging and exiting
@@ -142,23 +142,40 @@ export interface PlansViewProps {
   doneDrop?: DropZone
 }
 
-/* Every body in here is HTML the board just built. See the note above on why,
-   and keep it the only way anything gets in: a component that starts taking
-   half nodes and half strings is two shapes again.
- *
- * It goes on the id'd element itself rather than on a wrapper inside it. The
- * renderers in 13-plans.js assign to `$('#plansOut').innerHTML` and the
- * stylesheet reaches these ids directly, so an extra div between the id and
- * the content would be a third shape nobody asked for. */
-const raw = (html: string) => ({ __html: html })
+/* What the live-run body says. A run that is going but between two tasks has
+   no current task to name, which is the second shape. */
+export type LiveRun =
+  | { between: false, title: string, agent: string, since: string }
+  | { between: true }
+
+function LiveRunBody({ run }: { run: LiveRun }) {
+  return (
+    <div className="fnow">
+      <i className="fspin" />
+      <div>
+        {run.between ? (
+          <>
+            <strong>A run is going</strong>
+            <div className="repmeta">between tasks {'\u2014'} nothing in flight this second</div>
+          </>
+        ) : (
+          <>
+            <strong>{run.title}</strong>
+            <div className="repmeta">{run.agent} {'\u00b7'} started {run.since}</div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function PlansView (props: PlansViewProps) {
   const {
-    backlog, queueErrorHTML, queueDesc, queue,
-    orphanHTML, doingHTML, doingEmptyHTML,
+    backlog, queueError, queueDesc, queue,
+    orphan, liveRun, doingEmpty,
     reviewDesc, doingPlans, review, produced, producing, done,
     backlogCount, queueCount, doingCount, producedCount, producingCount,
-    reviewFilterHTML, doneFilterHTML, runLive, onRunQueue, onOpenRefCards,
+    reviewFilterProps, doneFilterProps, runLive, onRunQueue, onOpenRefCards,
     backlogDrop, queueDrop, producedDrop, producingDrop, doneDrop,
     doingSort, reviewSort, producedSort, producingSort, doneSort,
   } = props
@@ -199,8 +216,7 @@ export function PlansView (props: PlansViewProps) {
                 card rather than going to Doing with the live run. It answers
                 whether tonight can run at all, not how the run in flight is
                 getting on. */}
-            <div className={'err' + (queueErrorHTML ? '' : ' hidden')} id="nightAgentErr"
-              dangerouslySetInnerHTML={raw(queueErrorHTML)} />
+            {queueError ? <Alert tone="error" id="nightAgentErr">{queueError}</Alert> : null}
             <div id="queueOut" {...queueDrop}>{queue}</div>
           </>
         }
@@ -218,12 +234,25 @@ export function PlansView (props: PlansViewProps) {
         desc="Currently running."
         children={
           <>
-            <div className={orphanHTML ? '' : 'hidden'} id="qdOrphan"
-              dangerouslySetInnerHTML={raw(orphanHTML)} />
-            <div className={runLive ? '' : 'hidden'} id="doingOut"
-              dangerouslySetInnerHTML={raw(doingHTML)} />
+            <div className={orphan ? '' : 'hidden'} id="qdOrphan">
+              {orphan ? (
+                <Alert tone="error">
+                  The last run stopped part way through <strong>{orphan.title}</strong> and
+                  never finished. Its lock is gone, so nothing is running now.
+                </Alert>
+              ) : null}
+            </div>
+            <div className={runLive ? '' : 'hidden'} id="doingOut">
+              {liveRun ? <LiveRunBody run={liveRun} /> : null}
+            </div>
             <div id="plansDoing">{doingPlans}</div>
-            <div id="doingEmpty" dangerouslySetInnerHTML={raw(doingEmptyHTML)} />
+            <div id="doingEmpty">
+              {doingEmpty ? (
+                <ColumnEmpty boxed>
+                  Nothing running. The planning agent starts at its scheduled hour, or from Run now.
+                </ColumnEmpty>
+              ) : null}
+            </div>
           </>
         }
       />
@@ -236,8 +265,9 @@ export function PlansView (props: PlansViewProps) {
         desc={reviewDesc}
         sort={reviewSort}
         filters={
-          <span className="colfilter-slot" id="reviewFilterSlot"
-            dangerouslySetInnerHTML={raw(reviewFilterHTML)} />
+          <span className="colfilter-slot" id="reviewFilterSlot">
+            {reviewFilterProps ? <ColumnFilter {...reviewFilterProps} /> : null}
+          </span>
         }
         children={<div id="plansOut">{review}</div>}
       />
@@ -279,8 +309,9 @@ export function PlansView (props: PlansViewProps) {
         desc="Completed."
         sort={doneSort}
         filters={
-          <span className="colfilter-slot" id="doneFilterSlot"
-            dangerouslySetInnerHTML={raw(doneFilterHTML)} />
+          <span className="colfilter-slot" id="doneFilterSlot">
+            {doneFilterProps ? <ColumnFilter {...doneFilterProps} /> : null}
+          </span>
         }
         children={<div id="plansDone" {...doneDrop}>{done}</div>}
       />

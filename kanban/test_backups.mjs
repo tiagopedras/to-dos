@@ -162,8 +162,8 @@ check('every file gets a row, the archive included',
 
 // The count in the head has to include the archive, which is not in `backups`.
 check('the head counts the archive as one of them',
-  await evalJS(`document.querySelector('#backupsCol .colhead .count')?.textContent`) === '4',
-  await evalJS(`document.querySelector('#backupsCol .colhead .count')?.textContent`))
+  await evalJS(`document.querySelector('#backupsCol .tenon-column__head .tenon-column__count')?.textContent`) === '4',
+  await evalJS(`document.querySelector('#backupsCol .tenon-column__head .tenon-column__count')?.textContent`))
 
 check('a weekly snapshot is tagged by its week rather than its file name', await evalJS(`
   [...document.querySelectorAll('#backupsOut .row .tag')].map(t => t.textContent).join('|')
@@ -203,14 +203,14 @@ check('the note says what is kept and what is deleted', await evalJS(`
 await evalJS(`window.__backupStatus = 404; renderBackupsView()`)
 await new Promise(r => setTimeout(r, 400))
 check('an older helper is named as the cause, with the command to fix it', await evalJS(`
-  /board helper needs restarting/.test(document.querySelector('#backupsOut .err')?.textContent || '') &&
-  /lsof -ti tcp:8765/.test(document.querySelector('#backupsOut .err')?.textContent || '')
+  /board helper needs restarting/.test(document.querySelector('#backupsOut .tenon-alert')?.textContent || '') &&
+  /lsof -ti tcp:8765/.test(document.querySelector('#backupsOut .tenon-alert')?.textContent || '')
 `))
 
 await evalJS(`window.__backupStatus = 500; renderBackupsView()`)
 await new Promise(r => setTimeout(r, 400))
 check('any other failure says so plainly instead', await evalJS(`
-  /Could not read the backup list/.test(document.querySelector('#backupsOut .err')?.textContent || '')
+  /Could not read the backup list/.test(document.querySelector('#backupsOut .tenon-alert')?.textContent || '')
 `))
 
 await evalJS(`window.__backupStatus = 0; renderBackupsView()`)

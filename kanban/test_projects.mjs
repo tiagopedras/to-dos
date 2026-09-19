@@ -128,6 +128,10 @@ check('the tab is locked', await evalJS(`state.locked === true`))
 
 /* ---- the Projects tab ---- */
 
+// The chosen sort is remembered in the test browser's own localStorage, and a
+// later section of this file leaves it on Z–A. Start every run from the default.
+await evalJS(`setProjectSort('name-asc')`)
+
 await evalJS(`renderProjectsView()`)
 await new Promise(r => setTimeout(r, 500))
 check('both folders are listed, on disk order', await evalJS(`
@@ -360,8 +364,8 @@ check('and the select shows the order it is in',
 // The count in the head was filled in by setColCount() after the fetch and is
 // a prop now, so it is React that has to get it right.
 check('the head count is the number of folders',
-  await evalJS(`document.querySelector('#projectsCol .colhead .count')?.textContent`) === '2',
-  await evalJS(`document.querySelector('#projectsCol .colhead .count')?.textContent`))
+  await evalJS(`document.querySelector('#projectsCol .tenon-column__head .tenon-column__count')?.textContent`) === '2',
+  await evalJS(`document.querySelector('#projectsCol .tenon-column__head .tenon-column__count')?.textContent`))
 
 await evalJS(`$('#lists').innerHTML = '<div class="lists">another view was here</div>'`)
 await new Promise(r => setTimeout(r, 200))

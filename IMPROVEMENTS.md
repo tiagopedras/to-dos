@@ -487,6 +487,57 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **Overview, Matrix and Timeline are components around bodies that are still HTML strings.**
+  `renderSections()` (`kanban/js/18-timeline.js:791`) hands `OverviewView`,
+  `MatrixView` and `TimelineView` a `{ bodyHTML, count, sortHTML, filtersHTML }`
+  per section, and each body comes from a string builder: `bigRocksSection()`,
+  `weekSection()`, `quickSection()`, `delegateSection()` and `chainSection()` in
+  `kanban/js/10-reference-sections.js`, `contextSection()` in
+  `kanban/js/11-chat-cards.js:341`, `matrixSection()` in `kanban/js/17-matrix.js:222`
+  and `timelineSection()` in `kanban/js/18-timeline.js:290`. `SectionsView.tsx`
+  draws all of them through `dangerouslySetInnerHTML`, so a card, a matrix dot or
+  a timeline bar inside them cannot be a Tenon component. Porting the bodies
+  means each builder returns props for a component instead of a string, and it
+  means the two things a prop cannot carry today get real homes: `capMsgCards()`
+  measuring `.ref .msg` after the paint, and `wireTimelineDrag()` and the
+  matrix dot's hover, which `#lists`'s own delegated listener wires. The suites
+  that catch a regression are `kanban/test_overview.mjs`, `test_matrix.mjs` and
+  `test_timeline.mjs`, and all three should pass unchanged. Decided 19 Sep 2026
+  to follow Plans and the Board view, not to go with them.
+
+- **Most of the board is still strings, so Tenon's components only reach the views already ported.**
+  Projects, Backups, Overview, Matrix and Timeline are React (`kanban/ui/`), and
+  Plans is React around bodies that four fetches fill as HTML. The Board view
+  is not. `renderBoard()` (`kanban/js/18-timeline.js:1191`) builds its columns
+  as strings, and so do the headline (`renderHeadline()`, `:1058`), the filter
+  bar (`renderFilterBar()`, `:1120`), the view tabs (`renderViewTabs()`, `:879`),
+  the bucket tabs (`renderTabs()`, `kanban/js/07-render-board.js:118`), the
+  drawer (`openDrawer()`, `kanban/js/19-drawer.js:820`, in a 1,725-line file),
+  the conflict modal (`kanban/js/23-conflict-modal.js`) and the schedule card
+  (`renderSched()`, `kanban/js/14-schedule.js:362`, drawn from
+  `renderPlansView()`). Tenon's components are React, so none of these can use
+  them.
+
+  The `.err` boxes show the gap. Three React views draw Tenon's `Alert` since
+  19 Sep 2026, and eleven in plain JS (six in `13-plans.js`, three in
+  `14-schedule.js`, one each in `12-reports.js` and `20-loading-saving.js`)
+  still use the `.err` rule in `board.css`. The same split holds for `.tabs`
+  against `SegmentedControl`, the drawer's `#scrim` and the conflict modal
+  against `Modal`, and the drawer's `<textarea>` and `<details>` markup against
+  `Textarea`, `EditableText` and `Disclosure`.
+
+  Order, if it goes ahead: the conflict modal first, since it is 114 lines and
+  `Modal` fits it. Then the two tab strips and the filter bar onto
+  `SegmentedControl`. The drawer is the large one and needs deciding rather
+  than drifting into, because `openDrawer()` is reached from every view and the
+  Markdown and report builders it uses are shared with Plans, which is why
+  those bodies still cross over as `dangerouslySetInnerHTML`. The Board view
+  goes last. Until it moves, `colHTML()` and `cardShellHTML()`
+  (`kanban/js/09-columns.js`) keep emitting the same markup as Tenon's `Card`
+  and `Column`, and `kanban/ui/test_primitives.mjs` is what checks that. After
+  splicing any renderer out, grep its file for a second definition of every
+  name replaced, since a later duplicate in a classic script wins.
+
 - **A stream is a real layer of the list and the board has never heard of it.**
   The Design System bucket is sub-organised into five of them — ways of working,
   audits, improvements, documentation, enablement — and the only record is a

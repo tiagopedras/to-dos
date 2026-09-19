@@ -95,11 +95,11 @@ await evalJS(`state.view = 'timeline'; renderView()`)
 /* ---- the shell ---- */
 
 check('the Timeline column is drawn', await evalJS(`
-  document.querySelector('.lists.tview .col h3')?.textContent
+  document.querySelector('.lists.tview .tenon-column h3')?.textContent
 `) === 'Timeline')
 check('a hint with two tags renders both as code', await evalJS(`
-  [...document.querySelectorAll('.lists.tview .colhead-desc code')].map(c => c.textContent).join('|')
-`) === 'start:|due:|due:|start:', await evalJS(`document.querySelector('.lists.tview .colhead-desc')?.innerHTML`))
+  [...document.querySelectorAll('.lists.tview .tenon-column__desc code')].map(c => c.textContent).join('|')
+`) === 'start:|due:|due:|start:', await evalJS(`document.querySelector('.lists.tview .tenon-column__desc')?.innerHTML`))
 
 check('the dated task draws a lane', await evalJS(`!!document.querySelector('.tlscroll .tlbody')`))
 check('the undated one sits in the tray', (await evalJS(`

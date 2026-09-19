@@ -18,7 +18,7 @@
  *      under 640px and the slider above it — both halves are asserted, at both
  *      widths, because a rule that showed neither or both would pass a test
  *      that only ever looked at one.
- *   3. .sortbtn sits at 55% opacity until .col:hover, which on a phone means
+ *   3. .sortbtn sits at 55% opacity until .tenon-column:hover, which on a phone means
  *      always, so the control reads as disabled.
  *
  * Both widths run the same checks, so the CSS breakpoint is what is under test

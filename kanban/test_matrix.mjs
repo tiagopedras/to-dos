@@ -282,7 +282,7 @@ check('and so does Escape', await evalJS(`!document.querySelector('.mpreview.on'
    than decided once at render time. */
 check('the hint offers both words and shows one of them', await evalJS(`
   (() => {
-    const h = document.querySelector('.lists.mview .colhead-desc');
+    const h = document.querySelector('.lists.mview .tenon-column__desc');
     return !!h.querySelector('.hoverword') && !!h.querySelector('.tapword') &&
       getComputedStyle(h.querySelector('.tapword')).display === 'none';
   })()

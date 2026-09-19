@@ -328,7 +328,7 @@ const PLAN = {
   gotoKey: 'close-the-figma-gap',
   gotoLabel: 'Close the Figma gap',
   where: ['Design System', 'To do', undefined, '13 Sep 12:04'],
-  scoresHTML: '<span class="planscore"><span class="tag impact-high">🔥</span></span>',
+  scores: { impact: { level: 'high', label: '🔥' } },
   summaryHTML: 'What the plan <em>proposes</em>.',
   feedback: 'Too broad — split it per component.',
 }
@@ -345,7 +345,7 @@ check('plan card — every row a plan carries',
       '<span class="planfold" ' +
       'title="The agent stopped and asked rather than guessing">needs you</span></span>',
     title: legacy.esc(PLAN.title),
-    tags: PLAN.scoresHTML,
+    tags: '<span class="planscore"><span class="tag impact-high" title="high impact">🔥</span></span>',
     meta: '<span class="planwhere">Design System · To do · 13 Sep 12:04</span>' +
       '<button class="plangoto" ' +
       'title="Open this task on the board">Close the Figma gap ↗</button>',
