@@ -254,7 +254,7 @@ def state():
         # `run.sh` refuses to start inside the working day whatever the schedule
         # file says, so an hour it would refuse should not be an hour the page
         # offers. schedule.py is the single place that list is written down.
-        "hours_allowed": list(schedule.ALLOWED),
+        "hours_preferred": list(schedule.PREFERRED),
         "actions": [
             {"id": "dry", "label": "Dry run"},
             {"id": "run", "label": "Run now", "primary": True},
@@ -287,14 +287,9 @@ def apply(body):
                 hours = sorted({int(h) for h in value})
             except (TypeError, ValueError):
                 return {"ok": False, "error": "hours want to be whole numbers"}
-            # The floor, refused here rather than quietly dropped. A schedule
-            # silently missing the hour he just clicked is worse than being told
-            # why he cannot have it.
-            barred = [h for h in hours if h not in schedule.ALLOWED]
-            if barred:
-                return {"ok": False, "error":
-                        "%s is inside the working day — this agent will not start then"
-                        % ", ".join("%02d:00" % h for h in barred)}
+            # Any hour he picks. The working day used to be refused here; it is
+            # a preference now, and the dashboard hatches those hours rather
+            # than turning his click into an error.
             s["hours"] = hours
         elif key == "budget":
             try:

@@ -1375,38 +1375,41 @@ def fake_data_root(sched, names=("twinkl",), current="twinkl"):
 
 
 def test_schedule():
-    """The floor under the schedule, and that nothing can write below it.
+    """The schedule file, and that nothing overrides what it says.
 
-    The hours moved out of run.sh and the plist into a JSON file the agents
-    dashboard writes, which removed one of the two guards on something that
-    spends money unattended. `schedule.ALLOWED` is what replaced it, so it gets
-    more than one check: the floor itself, the loader dropping an hour under it,
-    and `due()` refusing to obey a file that already names one.
+    `schedule.PREFERRED` was a floor until 19 September 2026: enforced in the
+    setter, at load and again at `due()`, so a working-day hour could not be
+    written and would not fire if it somehow was. It is a preference now — it
+    seeds a list nothing has heard of and tells the dashboard which hours to
+    hatch — so what these check is the opposite: an hour he sets is kept and
+    obeyed whatever time of day it names.
     """
     import importlib
     import schedule as sched
 
-    check("the floor is the old 19:00-06:59 gate, exactly",
-          sorted(sched.ALLOWED), sorted(list(range(0, 7)) + list(range(19, 24))))
+    check("the preferred range is the old 19:00-06:59 gate, exactly",
+          sorted(sched.PREFERRED), sorted(list(range(0, 7)) + list(range(19, 24))))
     for hour in (7, 12, 18):
-        check("%02d:00 is barred" % hour, hour in sched.ALLOWED, False)
+        check("%02d:00 is outside it" % hour, hour in sched.PREFERRED, False)
     for hour in (19, 23, 0, 6):
-        check("%02d:00 is allowed" % hour, hour in sched.ALLOWED, True)
+        check("%02d:00 is inside it" % hour, hour in sched.PREFERRED, True)
 
     real_root, real_path = paths.ROOT, sched.path
     tmp = fake_data_root(sched)
     try:
         path = sched.path()
 
-        # A file naming a barred hour — edited by hand, or written before the
-        # floor was narrowed. The loader drops it and due() refuses it, so
-        # neither is the only thing between a stray edit and a run at lunchtime.
+        # A file naming an hour in the working day. It is kept and it fires:
+        # the hours are his, and the loader dropping one he set would be a
+        # schedule silently missing the hour he clicked.
         with open(path, "w", encoding="utf-8") as fh:
             fh.write('{"on": true, "hours": [3, 12, 20]}')
-        check("load() drops an hour under the floor", sched.load()["hours"], [3, 20])
-        check("due() says no at 12:00 even if the file said yes",
-              sched.due(at(4, 12)), False)
+        check("load() keeps an hour in the working day",
+              sched.load()["hours"], [3, 12, 20])
+        check("due() says yes at 12:00 because the file said yes",
+              sched.due(at(4, 12)), True)
         check("due() says yes at 03:00", sched.due(at(4, 3)), True)
+        check("and no at an hour the file does not name", sched.due(at(4, 5)), False)
 
         # Switched off is switched off, whatever the hours say.
         with open(path, "w", encoding="utf-8") as fh:
@@ -1418,7 +1421,7 @@ def test_schedule():
         # about in the morning.
         os.unlink(path)
         check("a missing schedule falls back to on", sched.load()["on"], True)
-        check("and to the full allowed range", sched.load()["hours"], list(sched.ALLOWED))
+        check("and to the preferred range", sched.load()["hours"], list(sched.PREFERRED))
     finally:
         paths.ROOT = sched.ROOT = real_root
         sched.path = real_path
@@ -1672,7 +1675,7 @@ def test_per_dataset_schedule():
               sched.load("twinkl")["budget"], 9.5)
         check("with its hours intact", sched.load("twinkl")["hours"], [1, 2])
         check("and the other list does not inherit them",
-              sched.load("personal")["hours"], list(sched.ALLOWED))
+              sched.load("personal")["hours"], list(sched.PREFERRED))
         check("nor its budget", sched.load("personal")["budget"], 6.00)
         # The one that would have cost money: a list he has never armed must
         # not start planning the night this shipped.
@@ -1695,7 +1698,8 @@ def test_per_dataset_schedule():
               sched.enabled(), ["personal", "twinkl"])
 
         inside = dt.datetime(2026, 9, 19, 14, 0, tzinfo=TZ)
-        check("no list is ever due inside the working day", sched.due_now(inside), [])
+        check("the working day is not special — no list names 14:00",
+              sched.due_now(inside), [])
 
         # paths.using() is what lets one process look at both in turn.
         with paths.using("personal"):
@@ -1724,9 +1728,11 @@ def test_per_dataset_schedule():
         check("a card nobody has heard of is refused rather than written",
               dashboard.apply({"target": "nope", "changes": {"budget": 1.0}}).get("ok"),
               False)
-        check("the working day is still refused per card",
+        check("a working-day hour is written rather than refused",
               dashboard.apply({"target": "personal", "changes": {"hours": [14]}}).get("ok"),
-              False)
+              True)
+        check("and it is what the file says afterwards",
+              sched.load("personal")["hours"], [14])
 
         # The pointer moves whenever the board's dropdown does, and this page is
         # the editor for every list at once. A change that arrived without a
