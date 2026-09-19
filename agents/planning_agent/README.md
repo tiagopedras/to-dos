@@ -84,12 +84,18 @@ editing both and reloading launchd, which is a good description of why they were
 never changed. The schedule file was seeded with exactly those twelve hours, so
 nothing about the first night after the move was different.
 
-**The floor is not editable.** `schedule.ALLOWED` in `schedule.py` is the same
-19:00–06:59 range, and `run.sh` refuses to start outside it however the file has
-been edited; the dashboard draws those hours dead rather than accepting a click
-it knows would be refused. Moving a schedule into a file a web page can write
-removes a guard, and this is what replaced it — two guards is the right number
-for something that spends money unattended.
+**The night is a preference, not a floor.** `schedule.PREFERRED` in
+`schedule.py` is the same 19:00–06:59 range. It seeds a list the file has never
+heard of, and the dashboard hatches the hours outside it so a working-day hour
+reads as the worse choice. It refuses nothing.
+
+It was a floor until 19 September 2026: not editable, enforced in the setter,
+at load and again at the wake, and drawn dead on the dashboard. That was put
+there when the schedule moved into a file a web page can write, on the grounds
+that the guard had to go somewhere. It came out because the hours are set by
+hand — nothing here works them out — and a rule that overrode him was the tool
+telling him what he was allowed to want. What is left is the budget, the
+per-list cap and the lock.
 
 ### Where the boundaries come from
 

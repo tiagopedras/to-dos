@@ -21,11 +21,12 @@ A file in the old flat shape is read as belonging to whichever list `.current`
 pointed at, which is the one it has in fact been driving, and the first write
 saves it in the new shape.
 
-Moving a schedule into a file that a web page can write does remove a guard,
-though, and this one guarded something that spends money unattended. So the
-floor below is not editable and not in the file. `run.sh` refuses to start
-inside the working day whatever the schedule says, the dashboard draws those
-hours dead, and both of those come from `ALLOWED` here.
+The working day used to be a floor here: not editable, not in the file, and
+refused at the wake whatever the schedule said. It is a preference now, on
+19 September 2026, at his word — he sets these hours by hand, they are not
+worked out by the agent, and a floor that overrode him was the page telling him
+what he was allowed to want. `PREFERRED` below is what the dashboard hatches to
+say a night hour is the better choice. Nothing refuses an hour he has picked.
 """
 
 import json
@@ -38,12 +39,15 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 import paths  # noqa: E402
 
-# The hours this agent may ever be woken at, and the one thing on this page a
-# dashboard cannot change. 19:00 to 06:59, which is exactly what the old clock
-# check in `run.sh` allowed, so nothing about tonight is different from last
-# night. 07:00 is the boundary because it is the same 07:00 `core/windows.py`
-# calls the morning: past it, the window being spent in is one he would notice.
-ALLOWED = tuple(list(range(19, 24)) + list(range(0, 7)))
+# The hours this agent is better run at, and what a new list is seeded with.
+# 19:00 to 06:59, which is what the old clock check in `run.sh` allowed. 07:00
+# is the boundary because it is the same 07:00 `core/windows.py` calls the
+# morning: past it, the window being spent in is one he would notice.
+#
+# A preference and not a floor. It seeds `DEFAULTS` and the dashboard hatches
+# the hours outside it; it refuses nothing. An hour in the working day costs
+# what any other hour costs and he knows that when he clicks it.
+PREFERRED = tuple(list(range(19, 24)) + list(range(0, 7)))
 
 # The shape of one list's schedule. `on` is False here and True in the branch
 # below that reads a missing file: a list the file has never heard of is one he
@@ -51,9 +55,9 @@ ALLOWED = tuple(list(range(19, 24)) + list(range(0, 7)))
 # spending against a second list the night this shipped.
 DEFAULTS = {
     "on": False,
-    "hours": list(ALLOWED),
+    "hours": list(PREFERRED),
     "budget": 6.00,
-    # How many plans a night stops at, on top of the budget and the floor.
+    # How many plans a night stops at, on top of the budget.
     # 0 means no cap of its own — the count that lands is whatever the budget
     # buys, same as before this existed.
     "max_plans": 0,
@@ -93,8 +97,7 @@ def _clean(raw, fallback_on=False):
         except (TypeError, ValueError):
             pass
     if isinstance(raw.get("hours"), list):
-        out["hours"] = sorted({int(h) for h in raw["hours"]
-                               if isinstance(h, int) and h in ALLOWED})
+        out["hours"] = sorted({int(h) for h in raw["hours"] if isinstance(h, int)})
     return out
 
 
@@ -187,15 +190,15 @@ def save(name, entry):
 
 
 def due(now, name=None):
-    """Whether this list may be planned at this hour.
+    """Whether this list is planned at this hour.
 
-    The floor is checked here as well as in the setter, on purpose. A file
-    edited by hand, or written before `ALLOWED` was narrowed, would otherwise
-    name an hour nothing else would ever accept — and the wake that reads it is
-    the last place that can still say no.
+    The schedule and nothing else. There was a second test here against the
+    working day, so that a file naming an hour the setter would have refused
+    was refused again at the wake. Both went on 19 September 2026: the hours
+    are his and the file says what he set.
     """
     s = load(name)
-    return bool(s["on"]) and now.hour in ALLOWED and now.hour in s["hours"]
+    return bool(s["on"]) and now.hour in s["hours"]
 
 
 def due_now(now):
@@ -239,9 +242,9 @@ def main(argv=None):
     if "--json" in argv:
         rest = [a for a in argv if not a.startswith("--")]
         if rest:
-            print(json.dumps(dict(load(rest[0]), allowed=list(ALLOWED))))
+            print(json.dumps(dict(load(rest[0]), preferred=list(PREFERRED))))
         else:
-            print(json.dumps({"allowed": list(ALLOWED), "lists": load_all()}))
+            print(json.dumps({"preferred": list(PREFERRED), "lists": load_all()}))
         return 0
     if "--due" in argv:
         rest = [a for a in argv if not a.startswith("--")]

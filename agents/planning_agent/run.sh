@@ -17,11 +17,11 @@
 #
 # Two gates before anything is allowed to spend, in this order, cheapest first:
 #
-#   1. The schedule. No list names this hour and this exits immediately.
-#      schedule.py also holds a floor the dashboard cannot write under, so a
-#      wake inside the working day is refused whatever the file says. launchd
-#      fires a job missed while the lid was shut, so without this a laptop
-#      closed on Friday runs at 09:00 on Monday while he is reading the board.
+#   1. The schedule. No list names this hour and this exits immediately. It is
+#      the only clock test there is: schedule.py held a floor under the working
+#      day until 19 Sep 2026 and no longer does, so the hours in the file are
+#      exactly the hours that run. launchd fires a job missed while the lid was
+#      shut, so a laptop closed on Friday runs Monday's first named hour.
 #   2. The lock, one per list. One run at a time per list. An hourly wake
 #      landing on top of a batch still going is the normal case, not an edge
 #      one. Per list rather than one for the agent, so a batch overrunning on
@@ -30,7 +30,7 @@
 # There was a third until 9 Sep 2026: a usage-window check, refusing any window
 # that outlived 07:00. It went because a window is anchored to whenever the
 # day's first request landed, so it moves, and hours could not be set against
-# it. The schedule and its floor are what keep the morning clear now.
+# it. The schedule is what keeps the morning clear now, and it is his to set.
 #
 #   ./agents/planning_agent/run.sh                  every list due this hour
 #   ./agents/planning_agent/run.sh --dataset twinkl  one named list
@@ -85,9 +85,9 @@ logline() {
 # The hours used to be written here as `19` and `7`, and again as twelve entries
 # in the plist. Now they are in data/planning-agent-schedule.json, where the agents
 # dashboard can edit them, and the plist is woken every hour so that the file
-# can mean what it says. schedule.py holds the floor that no schedule can go
-# under, so this still refuses to start in the working day however the file has
-# been edited — the guard the hardcoded hours used to be.
+# can mean what it says. There is nothing under the file: schedule.PREFERRED
+# seeds a new list and tells the dashboard which hours to hatch, and refuses
+# nothing.
 # Collected as newline-separated text rather than into an array: bash 3.2 is
 # what ships with macOS, it has no `mapfile`, and an empty array under `set -u`
 # is an error there rather than a length of zero.

@@ -485,6 +485,33 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **A stream is a real layer of the list and the board has never heard of it.**
+  The Design System bucket is sub-organised into five of them — ways of working,
+  audits, improvements, documentation, enablement — and the only record is a
+  sentence at the top of the task's notes, `- Stream: audits.`, on 49 of the 152
+  tasks in `twinkl`. Nothing parses it: `parseTaskLine()` (`core/todo.js`) reads
+  it as ordinary prose, `KNOWN_TAG_FIELDS` (`kanban/js/19-drawer.js:584`) has no
+  entry for it, and `splitDrawnNotes()` (`:413`) leaves it in the Description
+  field precisely because no part of the panel draws it. The one thing that does
+  use it is the overnight planner, and only because
+  `data/twinkl/buckets/ds/ds.md` tells the agent to read the first note line —
+  which is an instruction to a language model rather than a field, so it cannot
+  be filtered, counted or coloured, and a task filed under the wrong stream
+  looks exactly like one filed correctly.
+
+  Making it official is a tag, `[stream:: audits]` alongside the other
+  double-colon four so a query can see inside it, plus somewhere for the values
+  to be declared per bucket rather than invented per task. The board half is a
+  second row of pills under the bucket tabs, reusing `bucketColor()` and
+  `BUCKET_COLOR` (`kanban/js/02-state.js:275`) and `state.bucketFilter`'s own
+  shape (`kanban/js/08-buckets.js`), and a chip on the card.
+
+  The decision it needs first is the name. `bucket_stream()`
+  (`agents/planning_agent/plan.py:138`) already calls a whole bucket a stream,
+  and `BUCKETS.md` says "the heading is the stream" — so the word currently
+  means the level above and the level below at once, and one of the two has to
+  give it up before anything is built on either.
+
 - **A task with no project folder can only be given one by hand, and a folder
   the board knows about cannot be opened.** `projectSection()`
   (`kanban/js/19-drawer.js:435`) draws an empty state telling him to type
