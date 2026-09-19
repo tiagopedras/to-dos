@@ -344,10 +344,12 @@ function taskDependencies(t){
   const items = allItems();
   const parts = splitBody(t);
   const out = [];
+  const notes = waitingNotes(t);
   const addFor = (slug, blockedBy, where) => {
     const waitingOn = (blockedBy || []).map(s => ({ slug: s, item: itemBySlug(items, s) }));
     const blocks = slug ? items.filter(i => !i.done && i.blockedBy.indexOf(slug) > -1) : [];
-    if (waitingOn.length || blocks.length) out.push({ where, waitingOn, blocks });
+    const people = notes.filter(n => n.where === where);
+    if (waitingOn.length || blocks.length || people.length) out.push({ where, waitingOn, blocks, people });
   };
   addFor(t.slug, t.blockedBy, '');
   parts.steps.forEach(s => addFor(s.slug, s.blockedBy, s.clean));
@@ -375,9 +377,16 @@ function depLink(item, missingSlug){
     '</button></li>';
 }
 function depGroupHTML(g){
-  const waiting = g.waitingOn.length
+  /* The two kinds sit under one heading, cards first: waiting on a task and
+     waiting on a person are the same question, and splitting them into two
+     labels would make a task waiting on both look like it had two problems. */
+  const people = (g.people || []).map(p =>
+    '<li class="depitem"><div class="chaincard dep depnote">' +
+      '<span class="chaintitle">' + mdInline(p.text) + '</span>' +
+    '</div></li>').join('');
+  const waiting = (g.waitingOn.length || people)
     ? '<div class="depcol"><span class="deplabel">Waiting on</span><ul class="deplist">' +
-      g.waitingOn.map(w => depLink(w.item, w.slug)).join('') + '</ul></div>'
+      g.waitingOn.map(w => depLink(w.item, w.slug)).join('') + people + '</ul></div>'
     : '';
   const blocks = g.blocks.length
     ? '<div class="depcol"><span class="deplabel">Blocks</span><ul class="deplist">' +
@@ -388,6 +397,77 @@ function depGroupHTML(g){
     '<div class="depcols">' + waiting + blocks + '</div>' +
   '</div>';
 }
+/* ---- The note lines the second column already draws ----
+   A suggested message, a prompt, an agenda, a Jira ticket, the project folder
+   and who the task is waiting on are all written as a note under the task, and
+   every one of them is pulled back out and drawn properly in the column beside
+   this one. Left in the Description field as well they are the same thing
+   written twice, and on a task carrying three or four of them the note he
+   actually wrote is buried under scaffolding he never reads there.
+
+   So the field holds the prose and nothing else. Held back rather than hidden:
+   what is in the field is what gets written on commit, so a line merely hidden
+   would be deleted by the first edit anybody made. Each one keeps the position
+   it had among the notes and mergeDrawnNotes() puts it back — the same bargain
+   bodyParts() already makes with sub-steps, for the same reason. */
+const PROJECT_NOTE = /^\s*-\s+Project\s*:/i;
+const WAITING_NOTE = /^\s*-\s+Waiting on\s*:/i;
+function splitDrawnNotes(notes){
+  const prose = [], held = [];
+  for (let i = 0; i < notes.length; i++) {
+    const l = notes[i];
+    const block = AGENDA_NOTE.test(l) || PREV_AGENDA_NOTE.test(l);
+    const drawn = block || MSG_NOTE.test(l) || PROMPT_NOTE.test(l) || JIRA_NOTE.test(l) ||
+      WAITING_NOTE.test(l) ||
+      (PROJECT_NOTE.test(l) && PROJECT_RE.test(l)) ||
+      // A ticket body belongs to the note above it, so it only comes out when
+      // that note did — a stray Description: line is somebody's prose.
+      (DESC_NOTE.test(l) && held.length && JIRA_NOTE.test(held[held.length - 1].line));
+    if (!drawn) { prose.push(l); continue; }
+    held.push({ at: i, line: l });
+    if (!block) continue;
+    /* The topics under an agenda heading, by the rule readBlockNote already
+       reads them with: everything indented past the heading, up to the last
+       line that is. Blank lines inside the block come with it; a blank line
+       after it is an ordinary gap and stays where it is. */
+    const head = leadIndent(l);
+    let j = i + 1, last = i;
+    while (j < notes.length && (!notes[j].trim() || leadIndent(notes[j]) > head)) {
+      if (notes[j].trim()) last = j;
+      j++;
+    }
+    for (let k = i + 1; k <= last; k++) held.push({ at: k, line: notes[k] });
+    i = last;
+  }
+  return { prose, held };
+}
+/* The other half, and the only reason the split above is safe. Held lines go
+   back at the index they came from, in the order they were taken, which puts
+   an untouched note back exactly as it was. A line whose index is now past the
+   end — he deleted the prose it sat under — lands at the end rather than
+   being dropped. */
+function mergeDrawnNotes(prose, held){
+  const out = prose.slice();
+  held.forEach(h => out.splice(Math.min(h.at, out.length), 0, h.line));
+  return out;
+}
+
+/* Who this task is waiting on when it is a person or an event rather than
+   another task, written as `- Waiting on: ...` in the notes. blocked-by: is
+   the half of this the file can resolve to a card; this is the half it cannot,
+   and until now it read as prose in the note while the Dependencies section
+   said the task had nothing holding it up. */
+function waitingNotes(t){
+  const parts = splitBody(t);
+  const out = [];
+  const take = (lines, where) => lines.forEach(l => {
+    if (WAITING_NOTE.test(l)) out.push({ text: l.replace(WAITING_NOTE, '').trim(), where });
+  });
+  take(parts.notes, '');
+  parts.steps.forEach(s => take(s.notes, s.clean));
+  return out;
+}
+
 /* ---- One shape for every section in the drawer's second column ----
    Chats, Project, Dependencies, the agenda, the two suggestion lists and Jira
    all arrived separately and each drew its own heading — the chat list came
@@ -479,7 +559,8 @@ function dependenciesSection(t){
   const body = groups.length
     ? groups.map(depGroupHTML).join('')
     : emptyState('Nothing waiting on this, and nothing holding it up. '
-               + 'Written as `blocked-by:slug` on whichever task is waiting.');
+               + 'Written as `blocked-by:slug` on whichever task is waiting, '
+               + 'or as `- Waiting on: ...` in Notes where it is a person.');
   return sideSection('Dependencies', 'deps', body);
 }
 
@@ -820,7 +901,7 @@ function openDrawer(id, focusTitle){
          parse the same text this renders, and a "Message (draft):" line reads
          as a bullet either way, which is honest rather than wrong. */
       '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
-      '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(bodyParts(t).notes)) + '</textarea>' +
+      '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(splitDrawnNotes(bodyParts(t).notes).prose)) + '</textarea>' +
     '</details>' +
     tagsSection(t) +
     /* A custom dropdown rather than a native <select> — an <option> cannot
@@ -1221,7 +1302,11 @@ function openDrawer(id, focusTitle){
       if (bodyTa.value === bodySaved) return;
       bodySaved = bodyTa.value;
       const p = bodyParts(t);
-      rebuildBody(t, indent(bodyTa.value), p.subs, p.subsAt);
+      /* Read again here rather than reused from the render: a tag edit or a
+         dismissed suggestion can have rewritten the body since the field was
+         filled, and what goes back has to be what is on the task now. */
+      const held = splitDrawnNotes(p.notes).held;
+      rebuildBody(t, mergeDrawnNotes(indent(bodyTa.value), held), p.subs, p.subsAt);
       markDirty(); refreshView();
     };
     const stopEditing = () => {

@@ -364,6 +364,105 @@ check('the note about subtasks sits beside the label',
 check('and nothing trails under the field',
   JSON.stringify(label.under) === JSON.stringify(['DIV', 'TEXTAREA']), JSON.stringify(label.under))
 
+/* ---- The lines the second column already draws ----
+   A suggested message, a prompt, an agenda, a Jira ticket, the project folder
+   and a `Waiting on:` note are each pulled out and drawn properly on the right
+   of this same panel, so the field holds the prose and nothing else. Held back
+   rather than hidden: the field's content is what gets written on commit, so
+   the real test is the second half — that an edit to the prose puts every held
+   line back where it was rather than deleting it.
+
+   Both halves in one fixture on purpose. A test that only checked what the
+   field shows would pass just as happily against a change that dropped the
+   lines on the floor. */
+const MIXED = [
+  '  Real prose, the first line.',
+  '  - Stream: audits. Stays, because nothing else draws it.',
+  '  - Waiting on: HR, chased 3 Sep.',
+  '  - Project: `data/projects/probation-pack`',
+  '  - Suggested message: "Hi Ana, any word on the 360?"',
+  '  - Prompt: "Draft the form from the notes"',
+  '  - Jira (DSYS): "Raise the rename"',
+  '  - Description: "The body of the ticket"',
+  '  - Agenda:',
+  '    - AOP2027',
+  '      - Confirm the rescope',
+  '  Real prose, the last line.'
+].join('\n')
+
+const split = await evalJS(`
+  (() => {
+    window.__t.body = ${JSON.stringify(MIXED)}.split('\\n');
+    openDrawer(window.__t.id);
+    return { raw: document.querySelector('#f-body').value,
+             view: document.querySelector('#f-body-view').textContent };
+  })()
+`)
+await settle()
+check('the field holds the prose and the unhomed lines only',
+  split.raw === 'Real prose, the first line.\n- Stream: audits. Stays, because nothing else draws it.\nReal prose, the last line.',
+  JSON.stringify(split.raw))
+check('and the rendering shows the same, not the raw note',
+  !/Suggested message|Agenda|Jira/.test(split.view), JSON.stringify(split.view))
+
+/* Every one of them still on the task, and still drawn on the right. */
+const drawn = await evalJS(`
+  (() => {
+    const side = document.querySelector('.dcol-side');
+    const heads = [...side.querySelectorAll('details.sugg')]
+      .filter(d => !d.querySelector('p.empty'))
+      .map(d => d.querySelector('summary').textContent.trim().split(' ')[0]);
+    return { heads, deps: side.querySelector('[data-collapse="sugg:deps"]').textContent };
+  })()
+`)
+check('the held lines are drawn in the column beside it',
+  ['Project', 'Dependencies', 'Meeting', 'Message', 'Prompt', 'Jira'].every(h => drawn.heads.some(x => x.startsWith(h))),
+  JSON.stringify(drawn.heads))
+check('and a `Waiting on:` note reads as a dependency',
+  /HR, chased 3 Sep/.test(drawn.deps), drawn.deps.slice(0, 120))
+
+/* The half that matters. Type over the prose and the held lines come back. */
+const merged = await evalJS(`
+  (() => {
+    const view = document.querySelector('#f-body-view'), ta = document.querySelector('#f-body');
+    view.onclick({ target: view, clientX: 0, clientY: 0, preventDefault(){} });
+    ta.value = 'Rewritten prose.';
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+    return window.__t.body.join('\\n');
+  })()
+`)
+check('an edit to the prose keeps every held line',
+  ['Waiting on: HR', 'Project: `data/projects', 'Suggested message:', 'Prompt:', 'Jira (DSYS):',
+   'Description: "The body', '- Agenda:', 'AOP2027', 'Confirm the rescope'].every(f => merged.includes(f)),
+  JSON.stringify(merged))
+check('and puts them back in the order they were in',
+  merged.indexOf('Waiting on') < merged.indexOf('Project:') &&
+  merged.indexOf('Suggested message') < merged.indexOf('Prompt:') &&
+  merged.indexOf('Jira (DSYS)') < merged.indexOf('Description:') &&
+  merged.indexOf('- Agenda:') < merged.indexOf('AOP2027'),
+  JSON.stringify(merged))
+check('and the new prose is the only thing that changed',
+  merged.includes('Rewritten prose.') && !merged.includes('Real prose'),
+  JSON.stringify(merged))
+
+/* An untouched note round-trips byte for byte — the field is opened, left
+   alone and committed, which is what closing the drawer does. */
+const untouched = await evalJS(`
+  (() => {
+    const before = ${JSON.stringify(MIXED)}.split('\\n');
+    window.__t.body = before.slice();
+    openDrawer(window.__t.id);
+    const view = document.querySelector('#f-body-view'), ta = document.querySelector('#f-body');
+    view.onclick({ target: view, clientX: 0, clientY: 0, preventDefault(){} });
+    ta.value = ta.value + ' ';
+    ta.value = ta.value.slice(0, -1);
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+    return { same: JSON.stringify(window.__t.body) === JSON.stringify(before), got: window.__t.body };
+  })()
+`)
+check('a note nobody edited comes back exactly as it was', untouched.same,
+  untouched.same ? '' : JSON.stringify(untouched.got))
+
 /* The whole point of the second guard. Typing into the Description marks the
    document dirty, and the tab was unlocked above so the field would behave as
    it does in real use, so autosave does try — and this is the recording of it
