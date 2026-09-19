@@ -1205,7 +1205,7 @@ function renderBoard(){
   });
   const columns = boardColumns().filter(name => name !== BLOCKED_TIER || hasBlocked);
   board.style.setProperty('--cols', columns.length);
-  board.innerHTML = columns.map(name => {
+  const data = columns.map(name => {
     const isDone = name === DONE_COL;
     const isAi = name === AI_COL;
     const mode = sortMode(name);
@@ -1238,113 +1238,86 @@ function renderBoard(){
         .sort((a, b) => (priorityScore(b.e.t) - priorityScore(a.e.t)) || (a.i - b.i))
         .map(x => x.e);
     }
-    const n = entries.length;
     // A card lands in Handed to AI by its ai: tag rather than a drag, but it
     // can be dragged back out: dropTask() sets the tag to none on the way.
-    const cards = entries.map(e => cardHTML(e.t, e.color, e.label, { noDrag: state.locked, muted: name === WAIT_COL, tier: name })).join('');
-
-    const sortBtn = (isDone || isAi) ? '' :
-      '<button class="sortbtn' + (mode === 'priority' ? ' on' : '') + '" data-sort="' + esc(name) + '"' +
-      ' title="' + (mode === 'priority'
-        ? 'Showing highest impact for the lightest lift first. Hand-reordering is off while this is on.'
-        : 'Showing your own order. Click to sort by impact against effort.') + '">' +
-      (mode === 'priority' ? 'by priority' : '⇅') + '</button>';
+    const cards = entries.map(e => ({
+      model: cardModel(e.t, { muted: name === WAIT_COL, tier: name }),
+      stripe: e.color,
+      bucketLabel: e.label,
+      draggable: !state.locked
+    }));
 
     /* No hint on the board since 12 Sep 2026. TIER_HINT is still the source of
        the sentence — the tier editor shows it, and the Plans view's own
        descriptions are the same idea — but on the board the six column names
        carry their own meaning and the subtitle beside each was saying it a
-       second time in smaller type. */
-    /* The pencil the head carries, one per column, since 19 Sep 2026. The
+       second time in smaller type.
+
+       The pencil the head carries, one per column, since 19 Sep 2026. The
        sheet behind it is the one that was reached from the filter bar until
        the button there was hidden — comparative questions need every column
        in front of you — so this opens the same sheet rather than a per-column
        menu, and scrolls to the row for the column it was clicked on. Not on
        Done or Handed to AI, neither of which is a row in it, and not on a
        locked board, which can write nothing. */
-    const editBtn = (isDone || isAi || state.locked) ? '' :
-      '<button class="iconbtn coledit" data-editcol="' + esc(name) + '"' +
-      ' aria-label="Rename this column" title="Rename, reorder, add or remove columns">' +
-      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-      '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' +
-      '</svg></button>';
-
-    return colHTML({
+    return {
       // What it is called on screen; `name` stays the heading everything else
-      // matches by, and is what data-tier below and every lookup still use.
+      // matches by, and is what data-tier and every lookup still use.
+      tier: name,
       title: tierLabel(name),
-      sort: sortBtn,
-      action: editBtn,
-      count: n,
-      body: n ? cards : colEmptyHTML('Nothing here'),
-      cls: (isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
-           (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : ''),
-      // Handed to AI is an agent's column in exactly the sense Plans' and
-      // Execution's Waiting for review are, so it takes the same variant
-      // rather than a dashed rule of its own — `aicol` above is left holding
-      // only the head colour it also sets.
-      style: isAi ? 'agent' : '',
-      hot: isAi,
-      attrs: 'data-tier="' + esc(name) + '"',
-      // .drop as well as .tenon-column__body: the board's body is a drag target, and the
-      // wiring below and .drop.over in board.css both find it by that class.
-      bodyCls: 'drop',
-      bodyAttrs: 'data-tier="' + esc(name) + '"',
-      footer: (isDone || isAi || state.locked) ? ''
-        : '<button class="addbtn" data-add="' + esc(name) + '">+ Add task</button>'
-    });
-  }).join('');
-
-  renderColTabs(columns);
-
-  board.querySelectorAll('.tenon-card').forEach(el => {
-    el.onclick = () => openDrawer(el.dataset.id);
-    el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(el.dataset.id); } };
-  });
-  // Drag-and-drop, the add-task footer and their wiring only mean anything for
-  // the live file — a backup preview has nothing to reorder into.
-  if (!state.locked) {
-    board.querySelectorAll('.tenon-card').forEach(el => {
-      el.ondragstart = e => {
-        e.dataTransfer.setData('text/plain', el.dataset.id);
-        e.dataTransfer.effectAllowed = 'move';
-        dragId = el.dataset.id;
-        requestAnimationFrame(() => el.classList.add('dragging'));
-      };
-      el.ondragend = () => { el.classList.remove('dragging'); dragId = null; hideDropLine(); };
-    });
-    board.querySelectorAll('.drop').forEach(zone => {
-      zone.ondragover = e => {
-        e.preventDefault();
-        zone.classList.add('over');
-        showDropLine(zone, e.clientY);
-      };
-      // Moving onto a card inside the zone counts as leaving the zone in most
-      // browsers, so check where the pointer actually went before clearing.
-      zone.ondragleave = e => {
-        if (zone.contains(e.relatedTarget)) return;
-        zone.classList.remove('over');
-        hideDropLine();
-      };
-      zone.ondrop = e => {
-        e.preventDefault();
-        zone.classList.remove('over');
-        hideDropLine();
-        const id = e.dataTransfer.getData('text/plain') || dragId;
-        if (id) dropTask(id, zone.dataset.tier, zone, e.clientY);
-      };
-    });
-    board.querySelectorAll('.addbtn').forEach(el => { el.onclick = () => addTask(el.dataset.add); });
-  }
-  board.querySelectorAll('[data-editcol]').forEach(el => {
-    el.onclick = () => openTierEditor(el.dataset.editcol);
-  });
-  board.querySelectorAll('.sortbtn').forEach(el => {
-    el.onclick = () => {
-      setSortMode(el.dataset.sort, sortMode(el.dataset.sort) === 'priority' ? 'manual' : 'priority');
-      renderBoard();
+      className: ((isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
+                  (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : '')).trim(),
+      // Handed to AI is an agent's column in exactly the sense Plans' Waiting
+      // for review is, so it takes the same dashed edge rather than a rule of
+      // its own — `aicol` above is left holding only the head colour it sets.
+      agent: isAi,
+      sort: (isDone || isAi) ? null : mode,
+      canEdit: !(isDone || isAi || state.locked),
+      canAdd: !(isDone || isAi || state.locked),
+      cards
     };
   });
+
+  /* Flushed, because what follows reads the columns this just drew: the phone's
+     tab strip measures their offsets, and every caller that opens a card or
+     checks a count straight after a render expects it to be there. */
+  BoardUI.mountFlushed(board, BoardUI.h(BoardUI.BoardView, {
+    columns: data,
+    locked: state.locked,
+    onOpen: id => openDrawer(id),
+    onDragStart: (e, id) => {
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.effectAllowed = 'move';
+      dragId = id;
+    },
+    onDragEnd: () => { dragId = null; },
+    /* Says where the drop line goes, and nothing else: a sub-step drag is not a
+       card, and a sorted column has no gap to drop into because its order is
+       worked out. Either way the column still lights up as a valid target. The
+       line reads the same cards dropTask() does — only same-bucket ones count,
+       since a card can only be reordered against its own bucket's list — so it
+       always marks the place the card actually goes. */
+    onZoneOver: (e, tier) => {
+      e.preventDefault();
+      if (subDrag !== null || sortMode(tier) === 'priority') return null;
+      const from = dragId ? locate(dragId) : null;
+      const after = insertAfterEl(e.currentTarget, e.clientY, from ? from.bucket : null, dragId);
+      return after ? after.dataset.id : '';
+    },
+    onZoneDrop: (e, tier) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain') || dragId;
+      if (id) dropTask(id, tier, e.currentTarget, e.clientY);
+    },
+    onAdd: tier => addTask(tier),
+    onEdit: tier => openTierEditor(tier),
+    onSort: tier => {
+      setSortMode(tier, sortMode(tier) === 'priority' ? 'manual' : 'priority');
+      renderBoard();
+    }
+  }));
+
+  renderColTabs(columns);
 }
 
 /* The intake queue. Counts across every bucket whatever the tabs say, because
@@ -1392,20 +1365,6 @@ function insertAfterEl(zone, clientY, dragBucket, skipId){
     if (clientY > r.top + r.height / 2) after = el;
   });
   return after;
-}
-function showDropLine(zone, clientY){
-  if (subDrag !== null) return;                       // a sub-step drag, not a card
-  // Nothing to point at in a sorted column: the order is worked out, so there
-  // is no gap to drop into. The column still highlights as a valid target.
-  if (sortMode(zone.dataset.tier) === 'priority') return;
-  if (!dropLine) {
-    dropLine = document.createElement('div');
-    dropLine.className = 'dropline';
-  }
-  const from = dragId ? locate(dragId) : null;
-  const after = insertAfterEl(zone, clientY, from ? from.bucket : null, dragId);
-  if (after) after.after(dropLine);
-  else zone.prepend(dropLine);
 }
 function hideDropLine(){ if (dropLine && dropLine.parentNode) dropLine.remove(); }
 

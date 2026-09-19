@@ -319,57 +319,59 @@ function openTierEditor(focusOn){
   draw();
 }
 
-/* opts.static drops the drag and focus attributes. The matrix hover preview is
-   the same card, but it is a picture of one rather than one you can act on, so
-   it must not be draggable or land in the tab order.
-
-   opts.tier is the task's real column name, used only to fade the card by its
-   own status (done/waiting/blocked/backlog — see board.css) rather than by
-   which DOM section happens to be rendering it. Pass it whether or not the
-   card is done: t.done wins regardless. */
-function cardHTML(t, color, bucketLabel, opts){
+/* Everything a task card says, as data. opts.tier is the task's real column
+   name, used only to fade the card by its own status (done/waiting/blocked/
+   backlog — see board.css) rather than by which DOM section happens to be
+   rendering it. Pass it whether or not the card is done: t.done wins
+   regardless. */
+function cardModel(t, opts){
   opts = opts || {};
   const subs = subSteps(t);
   const doneSubs = subs.filter(s => s.done).length;
   const di = dueInfo(t.due, opts.muted);
   const notes = noteLines(t);
 
-  let meta = '';
+  /* What is on the card, as data. Two things draw it: cardHTML() below, as a
+     string, for the matrix's hover preview, and TaskCard (kanban/ui/TaskCard.tsx)
+     for the board. Deciding which chips a task earns lives here once, so the two
+     cannot disagree about it. A chip is { cls, text, title?, project? }. */
+  const chips = [];
   /* The card sitting in its own column is the same task as the one pinned in
      the headline bar, and used to give no sign of that — open two tabs and
      they read as two different tasks. The ring round the card and the tag
      both point back at the bar rather than duplicating it. */
-  if (t.headline) meta += '<span class="tag onething" title="This is the headline — pinned at the top as the one thing">the one thing</span>';
+  if (t.headline) chips.push({ cls: 'tag onething', text: 'the one thing',
+    title: 'This is the headline — pinned at the top as the one thing' });
   /* First, because it says which piece of work this belongs to, and that frames
      everything after it. Clicking it opens the project rather than the card —
      see the capture-phase handler on [data-project]. */
   const proj = taskProject(t);
-  if (proj) meta += '<span class="tag proj" data-project="' + esc(proj) + '" title="' +
-    esc('Everything on ' + proj) + '">' + esc(proj) + '</span>';
+  if (proj) chips.push({ cls: 'tag proj', text: proj, project: proj, title: 'Everything on ' + proj });
   // Says it once, on the card, rather than leaving a gap that reads as "low".
-  if (unscored(t) && !t.done) meta += '<span class="tag needsscore">needs scoring</span>';
+  if (unscored(t) && !t.done) chips.push({ cls: 'tag needsscore', text: 'needs scoring' });
   /* A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), so
      on the board it is an ordinary done card wearing one more chip rather than
      a state of its own — the same shape every other tag already renders as. It
      sits here rather than with the dates because it answers "was this done",
      which is the first thing to know about a ticked card. */
-  if (t.done && t.cancelled) meta += '<span class="tag cancelled" title="Decided against on ' +
-    esc(t.cancelled) + ' — not counted as finished work">cancelled</span>';
-  if (t.done && t.archived) meta += '<span class="tag cancelled" title="No longer relevant, ' +
-    esc(t.archived) + ' — not counted as finished work">archived</span>';
-  if (t.impact) meta += '<span class="tag impact-' + esc(t.impact) + '" title="' + esc(t.impact) + ' impact">' + (IMPACT_EMOJI[t.impact] || esc(t.impact)) + '</span>';
-  if (t.effort) meta += '<span class="tag">' + esc(t.effort) + '</span>';
+  if (t.done && t.cancelled) chips.push({ cls: 'tag cancelled', text: 'cancelled',
+    title: 'Decided against on ' + t.cancelled + ' — not counted as finished work' });
+  if (t.done && t.archived) chips.push({ cls: 'tag cancelled', text: 'archived',
+    title: 'No longer relevant, ' + t.archived + ' — not counted as finished work' });
+  if (t.impact) chips.push({ cls: 'tag impact-' + t.impact, text: IMPACT_EMOJI[t.impact] || t.impact,
+    title: t.impact + ' impact' });
+  if (t.effort) chips.push({ cls: 'tag', text: t.effort });
   const si = startInfo(t.start);
-  if (si) meta += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
-  if (t.ai && t.ai !== 'none') meta += '<span class="tag ai ai-' + esc(t.ai) + '" title="' + esc(t.ai) + ' AI help">ai</span>';
-  if (t.to && t.to.trim()) meta += '<span class="tag who" title="Delegated to ' +
-    esc(t.to.trim()) + '">\u2192 ' + esc(t.to.trim()) + '</span>';
+  if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
+  if (t.ai && t.ai !== 'none') chips.push({ cls: 'tag ai ai-' + t.ai, text: 'ai', title: t.ai + ' AI help' });
+  if (t.to && t.to.trim()) chips.push({ cls: 'tag who', text: '→ ' + t.to.trim(),
+    title: 'Delegated to ' + t.to.trim() });
   /* A ticket waiting to be raised is a fact about the task worth seeing in the
      column, but the button belongs where there is room for it — the task panel
      and the reference cards. So the card gets the marker and not the link. */
   const tickets = jiraNotes(t);
   if (tickets.length && !t.done) {
-    tickets.forEach(n => { meta += '<span class="tag jira">' + esc(n.key ? n.key + ' ticket' : 'ticket') + '</span>'; });
+    tickets.forEach(n => chips.push({ cls: 'tag jira', text: n.key ? n.key + ' ticket' : 'ticket' }));
   }
   /* How often the task comes round, and nothing about whether it is prepared.
      There is no "agenda ready" chip on purpose: on a recurring task the tick
@@ -378,22 +380,20 @@ function cardHTML(t, color, bucketLabel, opts){
      passed and the board rolls it onto the next date. A chip saying the same
      thing a second way is a second thing to keep in step. */
   const rep = readRepeat(t.repeat);
-  if (rep) meta += '<span class="tag repeat" title="Recurring ' + esc(rep.label) +
-    '. The board moves the date on once this one has passed.">' + esc(rep.label) + '</span>';
+  if (rep) chips.push({ cls: 'tag repeat', text: rep.label,
+    title: 'Recurring ' + rep.label + '. The board moves the date on once this one has passed.' });
   // Urgent and due are the "look at this now" signals, so they get their own
   // corner rather than sitting in the wrap with everything else.
-  let metaWhen = '';
-  if (t.urgent) metaWhen += '<span class="tag urgent">urgent</span>';
-  if (di) metaWhen += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
-  if (metaWhen) meta += '<span class="meta-when">' + metaWhen + '</span>';
+  const when = [];
+  if (t.urgent) when.push({ cls: 'tag urgent', text: 'urgent' });
+  if (di) when.push({ cls: 'tag due ' + di.cls, text: di.label + (di.note ? ' · ' + di.note : '') });
 
-  let prog = '';
+  let progress = null;
   if (subs.length) {
-    const pct = Math.round(doneSubs / subs.length * 100);
-    prog = '<div class="prog"><span>' + doneSubs + '/' + subs.length + ' steps</span>' +
-           '<span class="bar"><i style="width:' + pct + '%"></i></span></div>';
+    progress = { kind: 'steps', done: doneSubs, total: subs.length,
+                 pct: Math.round(doneSubs / subs.length * 100) };
   } else if (notes) {
-    prog = '<div class="notecount">' + notes + ' note' + (notes > 1 ? 's' : '') + '</div>';
+    progress = { kind: 'notes', n: notes };
   }
 
   const statusClass = t.done ? ' done' :
@@ -401,17 +401,56 @@ function cardHTML(t, color, bucketLabel, opts){
     opts.tier === BLOCKED_TIER ? ' blocked' :
     opts.tier === BACKLOG_TIER ? ' backlog' : '';
 
+  return {
+    id: t.id,
+    cls: statusClass.trim() + (t.headline ? ' onething' : ''),
+    titleHTML: mdInline(t.title),
+    chips, when, progress
+  };
+}
+
+function chipHTML(c){
+  return '<span class="' + esc(c.cls) + '"' +
+    (c.project ? ' data-project="' + esc(c.project) + '"' : '') +
+    (c.title ? ' title="' + esc(c.title) + '"' : '') + '>' + esc(c.text) + '</span>';
+}
+
+/* opts.static drops the drag and focus attributes. The matrix hover preview is
+   the same card, but it is a picture of one rather than one you can act on, so
+   it must not be draggable or land in the tab order.
+
+   opts.tier is the task's real column name, used only to fade the card by its
+   own status (done/waiting/blocked/backlog — see board.css) rather than by
+   which DOM section happens to be rendering it. Pass it whether or not the
+   card is done: t.done wins regardless.
+
+   The board no longer calls this: it draws TaskCard from cardModel(). What is
+   left is the matrix's preview, which goes when the matrix's bodies do. */
+function cardHTML(t, color, bucketLabel, opts){
+  opts = opts || {};
+  const m = cardModel(t, opts);
+  let meta = m.chips.map(chipHTML).join('');
+  if (m.when.length) meta += '<span class="meta-when">' + m.when.map(chipHTML).join('') + '</span>';
+
+  let prog = '';
+  if (m.progress && m.progress.kind === 'steps') {
+    prog = '<div class="prog"><span>' + m.progress.done + '/' + m.progress.total + ' steps</span>' +
+           '<span class="bar"><i style="width:' + m.progress.pct + '%"></i></span></div>';
+  } else if (m.progress) {
+    prog = '<div class="notecount">' + m.progress.n + ' note' + (m.progress.n > 1 ? 's' : '') + '</div>';
+  }
+
   /* Through the shared shell since 12 Sep 2026 — see cardShellHTML() below,
      and the Figma `Card` component it is. A task card is the eyebrow, the
      title, the tag row and the stripe, plus whichever of progress and the note
      count it has something to say with. */
   return cardShellHTML({
-    cls: statusClass.trim() + (t.headline ? ' onething' : ''),
+    cls: m.cls,
     draggable: !opts.static && !opts.noDrag,
     attrs: (opts.static ? '' : 'tabindex="0" role="button" ') + 'data-id="' + t.id + '"',
     stripe: color,
     eyebrow: bucketLabel ? '<span class="bucket">' + esc(bucketLabel) + '</span>' : '',
-    title: mdInline(t.title),
+    title: m.titleHTML,
     tags: meta,
     progress: prog
   });

@@ -18,6 +18,17 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **Two inline Markdown renderers know different things.** `mdInline()`
+  (`kanban/js/10-reference-sections.js:687`) understands `[text](url)` links
+  and `[placeholder]` markers as well as code, bold and italics, and the board
+  runs every card title, plan summary and drawer note through it. Tenon's
+  `Markdown` (`inlineNodes()` in the package) knows bare URLs and no link
+  syntax, and is what the chat window uses. That difference is why
+  `TaskCard.tsx` and `PlanCard.tsx` still take their title and summary as HTML
+  through `dangerouslySetInnerHTML`. Teaching `Markdown` the link and
+  placeholder forms, in Tenon, would let both take a string and drop the
+  markup, and `mdInline()` would go once the drawer and the Overview bodies did.
+
 - **A new task lands in the first bucket in the file even when that bucket is
   filtered out.** `defaultAddBucket()` (`kanban/js/07-render-board.js:33`)
   returns `state.doc.buckets[0]` unconditionally, so adding a card while only
@@ -487,6 +498,17 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The board's tag chips are its own `.tag` classes, not Tenon's `Tag`.**
+  `cardModel()` (`kanban/js/09-columns.js`) gives each chip a class such as
+  `tag impact-high` or `tag due late`, and `board.css` styles about twenty of
+  them (`.tag.needsscore`, `.tag.proj`, `.tag.jira` and the rest), while Tenon's
+  `Tag` draws `tenon-tag--<tone>` and `tenon-tag--chart` from a tone or a chart
+  colour. `TaskCard.tsx`, `PlanCard.tsx` and `RefCards.tsx` all draw the board's
+  spelling in React. Moving them means mapping each of the twenty to a tone,
+  which changes how the board looks, so it wants a look at the result rather
+  than a find and replace. The suites that read chip classes are
+  `test_board.mjs`, `test_plans.mjs` and `test_overview.mjs`.
+
 - **Overview, Matrix and Timeline are components around bodies that are still HTML strings.**
   `renderSections()` (`kanban/js/18-timeline.js:791`) hands `OverviewView`,
   `MatrixView` and `TimelineView` a `{ bodyHTML, count, sortHTML, filtersHTML }`
@@ -505,38 +527,37 @@ they settled is written up in the README rather than left here:
   `test_timeline.mjs`, and all three should pass unchanged. Decided 19 Sep 2026
   to follow Plans and the Board view, not to go with them.
 
-- **Most of the board is still strings, so Tenon's components only reach the views already ported.**
-  Projects, Backups, Overview, Matrix and Timeline are React (`kanban/ui/`), and
-  Plans is React around bodies that four fetches fill as HTML. The Board view
-  is not. `renderBoard()` (`kanban/js/18-timeline.js:1191`) builds its columns
-  as strings, and so do the headline (`renderHeadline()`, `:1058`), the filter
-  bar (`renderFilterBar()`, `:1120`), the view tabs (`renderViewTabs()`, `:879`),
-  the bucket tabs (`renderTabs()`, `kanban/js/07-render-board.js:118`), the
-  drawer (`openDrawer()`, `kanban/js/19-drawer.js:820`, in a 1,725-line file),
-  the conflict modal (`kanban/js/23-conflict-modal.js`) and the schedule card
-  (`renderSched()`, `kanban/js/14-schedule.js:362`, drawn from
-  `renderPlansView()`). Tenon's components are React, so none of these can use
-  them.
+- **The drawer, the header chrome and the conflict modal are still strings, so Tenon's components cannot reach them.**
+  Plans and the Board view went to React on 19 Sep 2026, and so did Projects,
+  Backups and Overview, the Matrix and the Timeline around their bodies. What is
+  left is the headline bar (`renderHeadline()`, `kanban/js/18-timeline.js:1058`),
+  the filter bar (`renderFilterBar()`, `:1120`), the view tabs
+  (`renderViewTabs()`, `:879`), the bucket tabs (`renderTabs()`,
+  `kanban/js/07-render-board.js:118`), the phone's column strip
+  (`renderColTabs()`, `:1147`), the drawer (`openDrawer()`,
+  `kanban/js/19-drawer.js:820`, in a 1,725-line file), the conflict modal
+  (`kanban/js/23-conflict-modal.js`, which `showModal()` also serves to every
+  other modal on the board) and the plan modal behind Plans
+  (`openPlanModal()`).
 
-  The `.err` boxes show the gap. Three React views draw Tenon's `Alert` since
-  19 Sep 2026, and eleven in plain JS (six in `13-plans.js`, three in
-  `14-schedule.js`, one each in `12-reports.js` and `20-loading-saving.js`)
-  still use the `.err` rule in `board.css`. The same split holds for `.tabs`
-  against `SegmentedControl`, the drawer's `#scrim` and the conflict modal
-  against `Modal`, and the drawer's `<textarea>` and `<details>` markup against
-  `Textarea`, `EditableText` and `Disclosure`.
+  The `.err` boxes show the gap. Six views draw Tenon's `Alert`, and eleven in
+  plain JS (six in `13-plans.js`, three in `14-schedule.js`, one each in
+  `12-reports.js` and `20-loading-saving.js`) still use the `.err` rule in
+  `board.css`. The same split holds for `.tabs` against `SegmentedControl`, the
+  drawer's `#scrim` and the modals against `Modal`, and the drawer's
+  `<textarea>` and `<details>` markup against `Textarea`, `EditableText` and
+  `Disclosure`. `Disclosure` is a button that unmounts its panel and the
+  board's folds are native `<details>`, so it is not a drop-in for the `ufold`
+  and `schedlog` folds; those want deciding before anything moves.
 
-  Order, if it goes ahead: the conflict modal first, since it is 114 lines and
-  `Modal` fits it. Then the two tab strips and the filter bar onto
-  `SegmentedControl`. The drawer is the large one and needs deciding rather
-  than drifting into, because `openDrawer()` is reached from every view and the
-  Markdown and report builders it uses are shared with Plans, which is why
-  those bodies still cross over as `dangerouslySetInnerHTML`. The Board view
-  goes last. Until it moves, `colHTML()` and `cardShellHTML()`
-  (`kanban/js/09-columns.js`) keep emitting the same markup as Tenon's `Card`
-  and `Column`, and `kanban/ui/test_primitives.mjs` is what checks that. After
-  splicing any renderer out, grep its file for a second definition of every
-  name replaced, since a later duplicate in a classic script wins.
+  Order, if it goes ahead: `showModal()` first, since it is one function every
+  modal shares and `Modal` fits it, and the conflict modal is 114 lines. Then
+  the tab strips and the filter bar onto `SegmentedControl`. The drawer is the
+  large one and needs deciding rather than drifting into, because
+  `openDrawer()` is reached from every view and the Markdown and report
+  builders it uses are shared with Plans. After splicing any renderer out, grep
+  its file for a second definition of every name replaced, since a later
+  duplicate in a classic script wins.
 
 - **A stream is a real layer of the list and the board has never heard of it.**
   The Design System bucket is sub-organised into five of them — ways of working,

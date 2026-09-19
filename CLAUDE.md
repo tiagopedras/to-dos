@@ -233,12 +233,13 @@ all read.
 name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
-written against, plus `mount()`, `mountFlushed()` and `unmount()`. Seven views
+written against, plus `mount()`, `mountFlushed()` and `unmount()`. Eight views
 are ported: Projects, Backups, the two report columns, Overview, the Matrix and
-the Timeline whole, Plans in the three passes described below. The board itself, the
-drawer and the canvas are what is left — always meant to go last, since they
-are 3,100 lines behind one `state` object every other view's mutation still
-has to remember to re-render.
+the Timeline, Plans, and the Board itself (19 Sep 2026, below). What is still
+built as strings is the drawer, the header chrome (headline, filter bar, both
+tab strips), the conflict modal, and the bodies inside Overview, the Matrix and
+the Timeline. All of it sits behind one `state` object every view's mutation
+still has to remember to re-render.
 
 The point of doing the primitives first is that a column is one object across
 the whole app, and the section above is what rests on it. So `Column` is not a
@@ -334,6 +335,38 @@ draws Token Session, the job list and the run-cost fold as one tree, mounted in
 `schedState`, `runResultsState`) and `paintRefCards()` draws only while the
 modal is open. `showModal()` takes an `onClose` so the tree is unmounted when
 the modal goes.
+
+**The Board went last but one**, 19 Sep 2026. `renderBoard()` builds a plain
+data model of the columns and hands it to `BoardView`
+(`kanban/ui/BoardView.tsx`), mounted with `mountFlushed()` straight onto
+`#board`, which no other view writes into, so the rule about owning a node you
+created does not bite here. Flushed because the phone's tab strip measures the
+columns the moment the render returns, and so does every caller that opens a
+card or reads a count after one.
+
+A task card is `TaskCard` (`kanban/ui/TaskCard.tsx`), drawn from
+`cardModel()` in `09-columns.js`, which is where it is decided which chips a
+task earns. `cardHTML()` draws the same model as a string for the matrix's
+hover preview, and `test_board.mjs` compares the two over every task in
+`demo.md`, element for element, so **change what a card shows in `cardModel()`
+and how a chip or the progress line is drawn in both renderers**. The title
+is the one exception to "element for element": it sits in a span the string
+version does not emit, because the board's inline Markdown (`mdInline()`)
+knows `[text](url)` links and `[placeholder]` markers that Tenon's `Markdown`
+does not, and the test steps over that span.
+
+Every handler on the board is a prop. The drop line and the highlight under a
+dragged card are state inside `BoardView`, not a `div` moved about in a tree it
+does not own, and `onZoneOver` asks the board where the line goes because only
+the board can measure the other cards. `dropTask()`, `setSortMode()`,
+`openDrawer()` and `addTask()` are still `18-timeline.js`'s, and `BoardView`
+only says when to call them. The drop target is the whole column rather than
+its body, since Tenon's `Column` gives the body a class and no props, so a card
+can now be dropped on a column's head, where it lands at the top.
+
+`BoardUI.BoardView` has a hook in it, which the earlier views do not, so it is
+mounted as `BoardUI.h(BoardUI.BoardView, props)` and never called as a
+function.
 
 **Reports' counted half went real, 14 Sep 2026.** The window picker and both
 columns' shell were already components; `countedLeadHTML()` and the three
@@ -579,8 +612,9 @@ node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardSh
 python3 agents/planning_agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
 python3 kanban/test_bucket_brief.py # the brief routes — no board, no browser
-node kanban/test_plans.mjs         # the eleven below need the board running
+node kanban/test_plans.mjs         # the ones below need the board running
 node kanban/test_schedule.mjs
+node kanban/test_board.mjs         # drag, drop, sort, add, and the string card against the React one
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs
 node kanban/test_notes.mjs
