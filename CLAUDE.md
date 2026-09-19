@@ -2,6 +2,11 @@
 
 Read [README.md](README.md) first. Everything in `data/` is private and gitignored.
 
+**Parallel sessions.** Read `COORDINATION.md` at the repo root at the start of
+any task, and append an entry when you start, when you change something another
+session could depend on, and when you finish. Append only. The
+`session-coordination` skill holds the format.
+
 [IMPROVEMENTS.md](IMPROVEMENTS.md) is the standing list of what is wrong with the
 board and what should be built next. Read it before diagnosing anything here, and
 update it when something lands or something new turns up. Three skills read and

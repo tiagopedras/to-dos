@@ -84,3 +84,6 @@ companion/dist/
 node_modules/
 kanban/dist/
 node_modules/.cache-board-ui-*
+
+# Session state on one machine, not repo history.
+COORDINATION.md
