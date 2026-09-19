@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
+import fs from 'node:fs'
 
 /* The board is 28 classic <script src> tags in source order, and that ordering
  * is load-bearing: index.html says so, and so does core/CLAUDE.md. A module
@@ -12,8 +13,29 @@ import path from 'node:path'
  * under the repo root — so there is no route to add and no server restart in
  * the loop while this is being worked on.
  */
+/* Tenon's built CSS, out of node_modules and into the same folder the bundle
+ * goes to. The page links it from there, which means one route rather than two:
+ * server.py serves kanban/dist/ already, and so does the Vercel deployment,
+ * where node_modules does not exist and a server route could not have reached
+ * it. It is a build output like board-ui.js beside it, not a copy kept in the
+ * repo — the package is still the only place the file comes from, and the
+ * version is stamped into its first line. */
+function tenonCss() {
+  const from = path.resolve(__dirname, 'node_modules/@tiagopedras/tenon/dist/tenon.css')
+  return {
+    name: 'tenon-css',
+    closeBundle() {
+      if (!fs.existsSync(from)) {
+        this.warn('@tiagopedras/tenon is not installed, so the board will have no colours. Run npm install.')
+        return
+      }
+      fs.copyFileSync(from, path.resolve(__dirname, 'kanban/dist/tenon.css'))
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tenonCss()],
   /* Not optional, and not something the app-style build would have needed.
      Vite substitutes process.env.NODE_ENV for an application build but leaves
      it alone in lib mode, so without this the bundle carries React's

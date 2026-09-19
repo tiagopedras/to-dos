@@ -1887,15 +1887,6 @@ STATIC_PREFIX = "/ai-chat/"
 WORK_STREAMS_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work_streams"))
 WS_PREFIX = "/work-streams/"
 
-# The design system's built CSS. Same shape as the two routes above, but from
-# node_modules rather than a sibling folder: Tenon is installed as a git
-# dependency pinned to a tag, which is the one route it has to every consumer.
-# Unlike the two above, this one the board does need in order to look like
-# itself — board.css reads --tenon-* names and nothing else defines them — so
-# a missing file says so at startup rather than leaving a colourless page to
-# be puzzled over.
-TENON_DIR = os.path.normpath(os.path.join(ROOT, "node_modules", "@tiagopedras", "tenon", "dist"))
-TENON_PREFIX = "/tenon/"
 if os.path.isdir(WORK_STREAMS_DIR):
     sys.path.insert(0, WORK_STREAMS_DIR)
 try:
@@ -1961,17 +1952,6 @@ def work_streams_static(rel_path):
     if not WORK_STREAMS_DIR or ".." in rel_path.split("/"):
         return None
     full = os.path.join(WORK_STREAMS_DIR, "interface", rel_path)
-    if not os.path.isfile(full):
-        return None
-    return full
-
-
-def tenon_static(rel_path):
-    """A file under the installed Tenon's dist/, or None. Kept to that one
-    folder, exactly like the two routes above."""
-    if ".." in rel_path.split("/"):
-        return None
-    full = os.path.join(TENON_DIR, rel_path)
     if not os.path.isfile(full):
         return None
     return full
@@ -2293,21 +2273,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # drawer's "Attach a session…" reads this list.
         if ai_chat and path == "/claude/attachable.json":
             return self._json(200, ai_chat.attachable())
-        # The design system's tokens, read straight from the installed package.
-        if path.startswith(TENON_PREFIX):
-            full = tenon_static(path[len(TENON_PREFIX):])
-            if not full:
-                return self._json(404, {"error": "not found under the installed tenon/dist"})
-            ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
-            with open(full, "rb") as fh:
-                body = fh.read()
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-            return
-
         # The work-item model's browser half, read straight from the package.
         # Same shape as the ai-chat block below, and the same degradation: on a
         # checkout or a deployment without PACKAGES this 404s and the board
@@ -2881,12 +2846,14 @@ def main():
         return 1
     # board.css names --tenon-* and defines none of them, so without this file
     # every colour on the page falls back to the browser's. That reads as a
-    # broken stylesheet rather than a missing dependency, so say which it is.
-    if not os.path.isfile(os.path.join(TENON_DIR, "tenon.css")):
-        print("The design system's tokens are not installed, so the board will")
-        print("have no colours. Install them and start again:")
+    # broken stylesheet rather than a missing build, so say which it is.
+    # run.command builds on every launch, so this only fires when the server
+    # was started by hand.
+    if not os.path.isfile(os.path.join(ROOT, "kanban", "dist", "tenon.css")):
+        print("The design system's tokens have not been built, so the board will")
+        print("have no colours. Build them and start again:")
         print("")
-        print("    cd \"%s\" && npm install" % ROOT)
+        print("    cd \"%s\" && npm install && npm run build" % ROOT)
         print("")
 
     try:

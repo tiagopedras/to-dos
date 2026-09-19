@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/", "destination": "/kanban/index.html" }
   ]

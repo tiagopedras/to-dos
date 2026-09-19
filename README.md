@@ -138,8 +138,10 @@ Two things sit beside it rather than inside it, and both moved out on 5 Sep 2026
 
   It carried its own two-tier token block at the top until 19 Sep 2026. That
   block is now Tenon, the design system in `PACKAGES/tenon`, installed as a git
-  dependency pinned to a tag, served at `/tenon/tenon.css` by `server.py` and
-  linked ahead of `board.css`. Every rule here reads a `--tenon-` name, so a
+  dependency pinned to a tag. The vite build copies its CSS out of
+  `node_modules` into `kanban/dist/` beside `board-ui.js`, and the page links it
+  from there ahead of `board.css` — one path, because the Vercel deployment has
+  no server and no `node_modules` and a static one is all it can reach. Every rule here reads a `--tenon-` name, so a
   colour decision is made in one place for this board, `ai_canvas` and the
   personal site at once. The reason for moving it rather than leaving it: the
   hand-written block had `--accent` missing from its dark theme for months and
@@ -168,10 +170,15 @@ more than keeping the build.
 
 ### The Vercel deployment is only the shell
 
-There is a copy of this repo on Vercel, and `vercel.json` exists solely so the
-root URL lands on `kanban/index.html` rather than a 404 — without it Vercel
-serves the repo root, which has no index page. That is the whole of what the
-rewrite does.
+There is a copy of this repo on Vercel. `vercel.json` does two things: the
+rewrite lands the root URL on `kanban/index.html` rather than a 404, since
+without it Vercel serves the repo root, which has no index page; and the build
+command runs `npm run build` so that `kanban/dist/` exists out there at all.
+
+It did not build until 19 Sep 2026, which meant the deployment had no
+`board-ui.js` — the React half of every view, 404ing silently — and then no
+`tenon.css` either, which would have left the page with no colours at all.
+Both come out of that one build, so both are fixed by running it.
 
 What it cannot do is be the board. The page is a front end for `server.py`: it
 fetches `data/todo.md` on load, saves with a `PUT` back to the same path, and
@@ -1212,10 +1219,13 @@ colours — is read straight off disk in TypeScript (`plans.ts`,
 JSON with no format of its own to duplicate.
 
 `src/renderer/src/board-ui.css` is the board's own stylesheet, in the part
-that matters here: the colour tokens, the `.card` block and `.btn`, taken out
-of `kanban/board.css`. The tokens are a hand-written copy of what that file
-used to carry, and since 19 Sep 2026 the board reads Tenon instead, so the two
-have started to drift. The companion is not a Tenon consumer yet. Copied rather than imported, because that file is
+that matters here: the `.card` block and `.btn`, taken out of
+`kanban/board.css`. It carried a hand-written copy of that file's token block
+too, thirty-odd literal hexes across two themes, until both windows moved onto
+Tenon on 19 Sep 2026. The companion installs it itself and imports it in
+`main.tsx`, rather than reaching for the board's copy: it is its own npm
+package with its own build, and a second consumer of the same tag is exactly
+what a pinned git dependency is for. Copied rather than imported, because that file is
 2,400 lines whose `body`, `header` and layout rules are written for a
 full-page board and would quietly restyle a 380px window. If a card changes
 shape over there, that file is the one place to bring it across. The cards

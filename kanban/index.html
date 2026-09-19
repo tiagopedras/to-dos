@@ -7,11 +7,13 @@
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7inIU8L3RleHQ+PC9zdmc+">
 <!-- The chat modal's own styling, served live from ai_chat/interface — see ai_chat/README.md. -->
 <link rel="stylesheet" href="/ai-chat/chat.css">
-<!-- Tenon, the design system, served from the installed package by server.py.
+<!-- Tenon, the design system. Copied out of the installed package into
+     kanban/dist/ by the vite build, beside board-ui.js, so the one path works
+     both here and on Vercel, where there is no server and no node_modules.
      Every colour, radius, shadow and text style on the page is defined here and
      board.css only reads them, so this link has to come first: a --tenon- name
      read before it is defined falls back to nothing, silently. -->
-<link rel="stylesheet" href="/tenon/tenon.css">
+<link rel="stylesheet" href="/kanban/dist/tenon.css">
 <!-- The board's own styling. Absolute rather than relative for the same reason
      DEMO_URL is: the page is served at / on Vercel and at /kanban/ locally, and a
      relative href would only resolve in one of the two. -->

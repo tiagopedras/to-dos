@@ -8,14 +8,14 @@
   position: relative;
   height: 100vh;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--tenon-background-default);
 }
 
 .app.loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
   font-size: 13px;
 }
 
@@ -24,7 +24,7 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--tenon-background-default);
 }
 
 /* ---------- the bar over the header ---------- */
@@ -34,16 +34,16 @@
   justify-content: flex-end;
   gap: 6px;
   padding: 8px 12px 0;
-  background: var(--panel);
+  background: var(--tenon-background-raised);
 }
 
 .iconbtn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink-soft);
+  border: 1px solid var(--tenon-stroke-default);
+  background: var(--tenon-background-raised);
+  color: var(--tenon-text-subtle);
   border-radius: 7px;
   padding: 4px 9px;
   font-size: 12px;
@@ -51,8 +51,8 @@
 }
 
 .iconbtn:hover {
-  border-color: var(--ink-faint);
-  color: var(--ink);
+  border-color: var(--tenon-text-faint);
+  color: var(--tenon-text-default);
 }
 
 .iconbtn-glyph {
@@ -63,8 +63,8 @@
 /* ---------- header ---------- */
 
 header {
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: var(--tenon-background-raised);
+  border-bottom: 1px solid var(--tenon-stroke-default);
   padding: 8px 16px 12px;
 }
 
@@ -81,13 +81,13 @@ header {
 .line {
   margin-top: 7px;
   font-size: 13px;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
 }
 
 .error {
   margin-top: 7px;
   font-size: 13px;
-  color: var(--red);
+  color: var(--tenon-text-error);
 }
 
 main {
@@ -130,16 +130,16 @@ main {
   align-items: flex-start;
   gap: 2px;
   padding: 11px 12px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--tenon-stroke-default);
   border-radius: 9px;
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--tenon-background-raised);
+  color: var(--tenon-text-default);
   box-shadow: 0 1px 1px rgba(16, 20, 28, 0.04);
   text-align: left;
 }
 
 .sectioncard:hover {
-  border-color: var(--ink-faint);
+  border-color: var(--tenon-text-faint);
 }
 
 .sectioncard.empty {
@@ -148,7 +148,7 @@ main {
 }
 
 .sectioncard.empty:hover {
-  border-color: var(--line);
+  border-color: var(--tenon-stroke-default);
 }
 
 .sectioncard-icon {
@@ -166,13 +166,13 @@ main {
 .sectioncard-title {
   font-size: 11.5px;
   font-weight: 560;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
   line-height: 1.25;
 }
 
 .parked,
 .quiet {
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
   font-size: 12px;
   padding: 2px 2px 0;
 }
@@ -181,13 +181,13 @@ main {
    of text, until the night did not finish — which is the one thing here he
    would want to act on. */
 .nightline {
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
   font-size: 12px;
   padding: 0 2px 2px;
 }
 
 .nightline.unfinished {
-  color: var(--red);
+  color: var(--tenon-text-error);
 }
 
 /* ---------- the screen that slides in ---------- */
@@ -230,22 +230,22 @@ main {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: var(--tenon-background-raised);
+  border-bottom: 1px solid var(--tenon-stroke-default);
 }
 
 /* The night a plan was written. In the accent while it is unread, which is
    what the board does with the same date (.repdate on an unread plan). */
 .tag.night {
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink-faint);
+  border: 1px solid var(--tenon-stroke-default);
+  color: var(--tenon-text-faint);
   font-weight: 550;
 }
 
 .tag.night.new {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--tenon-text-accent);
+  border-color: color-mix(in srgb, var(--tenon-stroke-accent) 40%, transparent);
   font-weight: 640;
 }
 
@@ -255,7 +255,7 @@ main {
   gap: 2px;
   border: none;
   background: none;
-  color: var(--accent);
+  color: var(--tenon-text-accent);
   font-size: 13px;
   font-weight: 560;
   padding: 2px 4px 2px 0;
@@ -285,7 +285,7 @@ main {
    clear of the dismiss button sitting in the corner above it. */
 .msgwho {
   display: block;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
   text-transform: none;
   font-size: 11px;
   letter-spacing: 0;
@@ -297,7 +297,7 @@ main {
 
 .msgtext {
   font-weight: 450;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
@@ -307,7 +307,7 @@ main {
 .copyhint {
   margin-left: auto;
   font-size: 11px;
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
 }
 
 .dismiss {
@@ -316,7 +316,7 @@ main {
   right: 6px;
   border: none;
   background: none;
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
   font-size: 15px;
   line-height: 1;
   padding: 2px 5px;
@@ -324,8 +324,8 @@ main {
 }
 
 .dismiss:hover {
-  background: var(--chip);
-  color: var(--red);
+  background: var(--tenon-background-neutral);
+  color: var(--tenon-text-error);
 }
 
 /* ---------- meetings today, and the agenda screen ---------- */
@@ -339,7 +339,7 @@ main {
 .group-title {
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
   padding: 0 2px;
 }
 
@@ -349,16 +349,16 @@ main {
 
 .tag.meeting-time {
   font-variant-numeric: tabular-nums;
-  color: var(--ink);
+  color: var(--tenon-text-default);
 }
 
 .meeting-count {
   font-size: 11.5px;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
 }
 
 .meeting-count.none {
-  color: var(--ink-faint);
+  color: var(--tenon-text-faint);
 }
 
 .agenda {
@@ -372,12 +372,12 @@ main {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
 }
 
 .tag.agenda-ready {
-  background: var(--green-bg);
-  color: var(--green);
+  background: var(--tenon-background-success-subtle);
+  color: var(--tenon-text-success);
 }
 
 .agenda-topics {
@@ -389,20 +389,20 @@ main {
 }
 
 .agenda-topics li::marker {
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
 }
 
 .agenda-topic {
   font-size: 13px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--tenon-text-default);
 }
 
 .agenda-context {
   margin-top: 3px;
   font-size: 12.5px;
   line-height: 1.4;
-  color: var(--ink-soft);
+  color: var(--tenon-text-subtle);
 }
 
 .agenda-actions {

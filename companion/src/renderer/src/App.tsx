@@ -12,8 +12,8 @@ type Screen = { kind: 'section'; key: SectionKey } | { kind: 'meeting'; task: st
    A name with nothing chosen for it in bucket-colors.json falls through to
    its position in the list, exactly as it does over there. */
 const BUCKET_COLOR = [
-  'var(--b1)', 'var(--b2)', 'var(--b3)', 'var(--b4)', 'var(--b5)',
-  'var(--b6)', 'var(--b7)', 'var(--b8)', 'var(--b9)', 'var(--b10)'
+  'var(--tenon-chart-1)', 'var(--tenon-chart-2)', 'var(--tenon-chart-3)', 'var(--tenon-chart-4)', 'var(--tenon-chart-5)',
+  'var(--tenon-chart-6)', 'var(--tenon-chart-7)', 'var(--tenon-chart-8)', 'var(--tenon-chart-9)', 'var(--tenon-chart-10)'
 ]
 
 function makeBucketColor(snapshot: Snapshot): (name: string) => string {
@@ -22,7 +22,7 @@ function makeBucketColor(snapshot: Snapshot): (name: string) => string {
     const chosen = bucketColors[name]
     if (chosen) return chosen
     const index = digest.buckets.indexOf(name)
-    if (index < 0) return 'var(--line)'
+    if (index < 0) return 'var(--tenon-stroke-default)'
     return BUCKET_COLOR[index % BUCKET_COLOR.length]
   }
 }
@@ -399,7 +399,7 @@ export default function App(): React.JSX.Element {
           {digest.headline && (
             <Card
               className="onething"
-              color={'var(--accent)'}
+              color={'var(--tenon-text-accent)'}
               bucket="The one thing"
               title={digest.headline.title}
               onClick={() => window.companion.openBoard(digest.headline?.task)}
