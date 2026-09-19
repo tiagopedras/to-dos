@@ -146,21 +146,21 @@ function calendarHTML(month, selected){
    ai:'s blank and ai:none were never told apart anywhere else, which is why
    that slider only got three stops instead of four. */
 const AI_STOPS = [
-  { value: 'none', label: 'None', color: 'var(--ink-faint)' },
-  { value: 'partial', label: 'Partial', color: 'var(--amber)' },
-  { value: 'full', label: 'Full', color: 'var(--green)' },
+  { value: 'none', label: 'None', color: 'var(--tenon-text-faint)' },
+  { value: 'partial', label: 'Partial', color: 'var(--tenon-text-warning)' },
+  { value: 'full', label: 'Full', color: 'var(--tenon-text-success)' },
 ];
 const IMPACT_STOPS = [
-  { value: '', label: '—', color: 'var(--ink-faint)' },
-  { value: 'low', label: 'Low', color: 'var(--ink-faint)' },
-  { value: 'med', label: 'Med', color: 'var(--amber)' },
-  { value: 'high', label: 'High', color: 'var(--green)' },
+  { value: '', label: '—', color: 'var(--tenon-text-faint)' },
+  { value: 'low', label: 'Low', color: 'var(--tenon-text-faint)' },
+  { value: 'med', label: 'Med', color: 'var(--tenon-text-warning)' },
+  { value: 'high', label: 'High', color: 'var(--tenon-text-success)' },
 ];
 const EFFORT_STOPS = [
-  { value: '', label: '—', color: 'var(--ink-faint)' },
-  { value: 'S', label: 'S', color: 'var(--ink-faint)' },
-  { value: 'M', label: 'M', color: 'var(--amber)' },
-  { value: 'L', label: 'L', color: 'var(--green)' },
+  { value: '', label: '—', color: 'var(--tenon-text-faint)' },
+  { value: 'S', label: 'S', color: 'var(--tenon-text-faint)' },
+  { value: 'M', label: 'M', color: 'var(--tenon-text-warning)' },
+  { value: 'L', label: 'L', color: 'var(--tenon-text-success)' },
 ];
 
 /* Where a stop sits along the track: evenly spaced, except the first and
@@ -757,7 +757,7 @@ function openDrawer(id, focusTitle){
   // Labelled the way the board labels them, valued by the heading the document
   // carries: this stepper is what moves a card on a phone, where there is no
   // drag, so the two must read as the same column.
-  const tierStops = cols.map(n => ({ value: n, label: tierLabel(n), color: n === DONE_COL ? 'var(--green)' : 'var(--accent)' }));
+  const tierStops = cols.map(n => ({ value: n, label: tierLabel(n), color: n === DONE_COL ? 'var(--tenon-text-success)' : 'var(--tenon-text-accent)' }));
   const subs = subSteps(t);
   const sugg = suggestions(t);
   const proj = taskProject(t);

@@ -272,8 +272,8 @@ function initViewFromHash(){
    is the whole point: reordering the buckets used to reshuffle every colour on
    the board along with them, because position was the only thing a colour was
    ever derived from. */
-const BUCKET_COLOR = ['var(--b1)','var(--b2)','var(--b3)','var(--b4)','var(--b5)','var(--b6)',
-                       'var(--b7)','var(--b8)','var(--b9)','var(--b10)'];
+const BUCKET_COLOR = ['var(--tenon-chart-1)','var(--tenon-chart-2)','var(--tenon-chart-3)','var(--tenon-chart-4)','var(--tenon-chart-5)','var(--tenon-chart-6)',
+                       'var(--tenon-chart-7)','var(--tenon-chart-8)','var(--tenon-chart-9)','var(--tenon-chart-10)'];
 /* state.bucketColors is name -> swatch (one of BUCKET_COLOR's own values),
    loaded from bucket-colors.json alongside the document — see loadBucketColors
    in 08-buckets.js. A name with nothing chosen for it falls through to its

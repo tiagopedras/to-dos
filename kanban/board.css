@@ -1,140 +1,24 @@
   /* ================= tokens =================================================
-     Two layers, the shape the design system itself uses.
+     There are none here any more. Every colour, shadow and radius this file
+     reads comes from Tenon, linked ahead of this stylesheet in index.html and
+     served from the installed package by server.py.
 
-     PRIMITIVES are the ramps: a name for a value and nothing else, no opinion
-     about where it is used. They do not change between themes — a ramp step is
-     the same colour whichever theme is on — and no rule outside this block
-     should ever read one directly.
+     What used to sit here was the same two-tier shape — ramps with no opinion,
+     semantics that say what a colour is for — written by hand and checked by
+     nobody. That is how --accent came to be missing from the dark theme for
+     months: a hand-written stylesheet has no way to know a key is absent.
+     Tenon's build refuses to write a file where light and dark hold different
+     key sets, which is the whole reason the block moved rather than stayed.
 
-     SEMANTICS are what the board reads. Each one aliases a primitive and says
-     what the colour is *for*, and it is the alias that changes between light
-     and dark rather than the ramp underneath.
-
-     The point of the split is that a colour decision is made once, at the
-     semantic, rather than at each of the several hundred places that needs one.
-     Before this block existed `--accent` was the literal #2f6feb with no ramp
-     behind it, which is how it came to be missing from the dark theme for as
-     long as it was: there was nowhere for the second value to live.
+     Names below are Tenon's own, so a rule here reads exactly what a React
+     component in kanban/ui/ reads. The board's radius, spacing and type scales
+     went with the block: nothing had ever read them.
      ------------------------------------------------------------------------- */
 
-  :root{
-    /* ---- primitives: neutral ----
-       One ramp, both themes. The light theme reads from the top, the dark
-       theme from the bottom, which is why the steps are not evenly spaced —
-       they are the values the board already used, sorted and named. */
-    --n-0:#ffffff;   --n-25:#f6f7f9;  --n-50:#f0f2f5;  --n-75:#eef0f3;
-    --n-100:#e3e6ea; --n-300:#a5abb6; --n-400:#8b919c; --n-450:#7b818c;
-    --n-500:#5d636e; --n-700:#363c45; --n-750:#2c313a; --n-800:#262b33;
-    --n-850:#1c1f25; --n-900:#16181d; --n-950:#14161a;
-
-    /* ---- primitives: hues ----
-       Each ramp carries the step the light theme uses and a lighter step for
-       dark, because the dark panel needs a lighter colour to reach the same
-       contrast. The -400 steps were picked by measuring against --n-850
-       rather than by eye: each clears 4.5:1, which is the threshold that
-       matters because these are used as text far more often than as fills. */
-    --blue-300:#6aa0ff;  --blue-400:#4d83ef;  --blue-500:#2f6feb;
-    --green-300:#6fd398; --green-400:#2eb873; --green-500:#1f7a45;
-    --green-bg-light:#e8f6ed; --green-bg-dark:#16301f;
-    --red-300:#ff8a85;   --red-400:#d9625e;   --red-500:#c8322f;
-    --red-bg-light:#fdecec;   --red-bg-dark:#3a1f1f;
-    --amber-300:#f0b355; --amber-500:#9a6100;
-    --amber-bg-light:#fff4e0; --amber-bg-dark:#3a2c14;
-    --orange-300:#ff9d5c; --orange-500:#e0610f;
-
-    /* ---- primitives: the bucket ramp ----
-       Ten hues, still hand-picked rather than generated off one ramp. Naming
-       them as a set is the half of that worth having now: it says they are one
-       family and shows the two themes side by side. Generating them properly
-       would change every bucket colour on the board, which is a visible change
-       and his to ask for. */
-    --bucket-1-light:#2f6feb;  --bucket-1-dark:#6aa0ff;
-    --bucket-2-light:#c8710a;  --bucket-2-dark:#e8a04a;
-    --bucket-3-light:#7c4ddb;  --bucket-3-dark:#a98cf0;
-    --bucket-4-light:#1f8a5f;  --bucket-4-dark:#57c78f;
-    --bucket-5-light:#b1306b;  --bucket-5-dark:#f28cb6;
-    --bucket-6-light:#0f7d93;  --bucket-6-dark:#5cc3d8;
-    --bucket-7-light:#8a5a2f;  --bucket-7-dark:#d1a06c;
-    --bucket-8-light:#4550c9;  --bucket-8-dark:#9aa3ff;
-    --bucket-9-light:#c23b3b;  --bucket-9-dark:#f28080;
-    --bucket-10-light:#55606e; --bucket-10-dark:#aab4c0;
-    /* Urgency on the Timeline, and only there. The board's own --red and
-       --amber sit at the same saturation as the bucket ramp above — the
-       swatches are picked to be tellable apart from each other, which makes
-       --red a near neighbour of bucket 9 and --amber one of bucket 2, and a
-       12px bar carrying one of them said nothing. These two are pushed to
-       full chroma so the urgent bars read as a different kind of thing
-       rather than as another bucket. Text never uses them: they are bar and
-       diamond fills, so the contrast floor the -500/-300 steps exist for
-       does not apply. */
-    --tl-over-light:#ff1e2d;   --tl-over-dark:#ff3346;
-    --tl-soon-light:#ffa600;   --tl-soon-dark:#ffb81a;
-
-    /* ---- primitives: radius, space and type ----
-       The stylesheet carries 16 distinct border-radius values and 21 font
-       sizes, most of them a half-pixel apart from another — 4, 5, 6, 7 and 8px
-       split 69 radius declarations between them, and 11 through 13.5px split
-       162 font-size ones. These scales are what those collapse onto. Nothing
-       reads them yet: migrating the call sites changes how the board looks,
-       slightly, everywhere, so it belongs with the view rewrites rather than
-       in a blind find-and-replace. */
-    --r-xs:3px; --r-sm:5px; --r-md:7px; --r-lg:10px; --r-xl:13px;
-    --r-pill:999px; --r-circle:50%;
-
-    --sp-1:4px; --sp-2:6px; --sp-3:8px; --sp-4:10px; --sp-5:12px;
-    --sp-6:16px; --sp-7:20px; --sp-8:24px;
-
-    --t-2xs:10px; --t-xs:11.5px; --t-sm:12.5px; --t-md:13px;
-    --t-lg:14px; --t-xl:16px; --t-2xl:19px;
-
-    /* ---- semantics: light ---- */
-    --bg:var(--n-25); --panel:var(--n-0); --ink:var(--n-900);
-    --ink-soft:var(--n-500); --ink-faint:var(--n-400);
-    --line:var(--n-100); --line-soft:var(--n-75); --chip:var(--n-50);
-    --accent:var(--blue-500); --accent-ink:#fff;
-    --red:var(--red-500); --red-bg:var(--red-bg-light);
-    --amber:var(--amber-500); --amber-bg:var(--amber-bg-light);
-    --hot:var(--orange-500);
-    --green:var(--green-500); --green-bg:var(--green-bg-light);
-    --agree:var(--green-500); --agree-ink:#fff;
-    --reject:var(--red-500); --reject-ink:#fff;
-    --b1:var(--bucket-1-light); --b2:var(--bucket-2-light); --b3:var(--bucket-3-light);
-    --b4:var(--bucket-4-light); --b5:var(--bucket-5-light); --b6:var(--bucket-6-light);
-    --b7:var(--bucket-7-light); --b8:var(--bucket-8-light); --b9:var(--bucket-9-light);
-    --b10:var(--bucket-10-light);
-    --tl-over:var(--tl-over-light); --tl-soon:var(--tl-soon-light);
-    --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
-  }
-
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:var(--n-950); --panel:var(--n-850); --ink:#e9ebee;
-      --ink-soft:var(--n-300); --ink-faint:var(--n-450);
-      --line:var(--n-700); --line-soft:var(--n-750); --chip:var(--n-800);
-      /* The six below were missing from this block entirely until 13 Sep 2026,
-         so the light blue sat on the dark panel unchanged: --accent measured
-         3.61:1 against --panel where 4.5:1 is the floor for text, and it is
-         used as `color:` 22 times and as a border 9 more. --agree and --reject
-         were the same story at 3.09 and 3.11. The -400 steps fix all three. */
-      --accent:var(--blue-400); --accent-ink:var(--n-950);
-      --agree:var(--green-400); --agree-ink:var(--n-950);
-      --reject:var(--red-400); --reject-ink:var(--n-950);
-      --red:var(--red-300); --red-bg:var(--red-bg-dark);
-      --amber:var(--amber-300); --amber-bg:var(--amber-bg-dark);
-      --hot:var(--orange-300);
-      --green:var(--green-300); --green-bg:var(--green-bg-dark);
-      --b1:var(--bucket-1-dark); --b2:var(--bucket-2-dark); --b3:var(--bucket-3-dark);
-      --b4:var(--bucket-4-dark); --b5:var(--bucket-5-dark); --b6:var(--bucket-6-dark);
-      --b7:var(--bucket-7-dark); --b8:var(--bucket-8-dark); --b9:var(--bucket-9-dark);
-      --b10:var(--bucket-10-dark);
-      --tl-over:var(--tl-over-dark); --tl-soon:var(--tl-soon-dark);
-      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
-    }
-  }
-  *{box-sizing:border-box}
+*{box-sizing:border-box}
   html,body{height:100%}
   body{
-    margin:0; background:var(--bg); color:var(--ink);
+    margin:0; background:var(--tenon-background-default); color:var(--tenon-text-default);
     font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -147,18 +31,18 @@
      The frame is a fixed overlay rather than a body border, so it can't shift
      layout or get clipped by an inner scroll container. */
   .lockframe{
-    position:fixed; inset:0; border:3px solid var(--amber); pointer-events:none; z-index:40;
+    position:fixed; inset:0; border:3px solid var(--tenon-text-warning); pointer-events:none; z-index:40;
   }
   .lockbar{
     position:sticky; top:0; z-index:30; display:flex; align-items:center;
     flex-wrap:wrap; gap:8px 10px;
-    padding:8px 16px; background:var(--amber-bg); color:var(--amber);
-    border-bottom:1px solid var(--amber); font-size:12.5px;
+    padding:8px 16px; background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
+    border-bottom:1px solid var(--tenon-text-warning); font-size:12.5px;
   }
   .lockbar strong{
     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
   }
-  .lockbar .btn{background:var(--panel); border-color:var(--amber); color:var(--ink)}
+  .lockbar .btn{background:var(--tenon-background-raised); border-color:var(--tenon-text-warning); color:var(--tenon-text-default)}
   /* The header sticks below the bar rather than under it. The offset is the
      bar's real height, measured in syncLockBarHeight, because it was a fixed
      37px and the bar wraps to two lines on a narrow window or a longer label —
@@ -168,26 +52,26 @@
 
   /* ---------- header ---------- */
   header{
-    position:sticky; top:0; z-index:20; background:var(--panel);
-    border-bottom:1px solid var(--line); padding:10px 16px;
+    position:sticky; top:0; z-index:20; background:var(--tenon-background-raised);
+    border-bottom:1px solid var(--tenon-stroke-default); padding:10px 16px;
     display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center;
   }
   h1{font-size:15px; font-weight:650; margin:0 4px 0 0; letter-spacing:-.01em}
-  .status{font-size:12px; color:var(--ink-faint); white-space:nowrap}
-  .status.dirty{color:var(--amber); font-weight:600}
+  .status{font-size:12px; color:var(--tenon-text-faint); white-space:nowrap}
+  .status.dirty{color:var(--tenon-text-warning); font-weight:600}
   .spacer{flex:1 1 auto}
   .btn{
-    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-default);
     border-radius:7px; padding:6px 11px; font-size:13px; font-weight:520;
   }
-  .btn:hover{border-color:var(--ink-faint)}
-  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+  .btn:hover{border-color:var(--tenon-text-faint)}
+  .btn.primary{background:var(--tenon-background-accent); border-color:var(--tenon-stroke-accent); color:var(--tenon-text-on-accent)}
   .btn.primary:disabled{opacity:.45; cursor:default}
-  .btn.ghost{border-color:transparent; color:var(--ink-soft)}
-  .btn.danger{color:var(--red); border-color:var(--line)}
-  .btn.agree{background:var(--agree); border-color:var(--agree); color:var(--agree-ink)}
-  .btn.reject{background:var(--reject); border-color:var(--reject); color:var(--reject-ink)}
-  .btn.on{background:var(--chip); border-color:var(--line); font-weight:640}
+  .btn.ghost{border-color:transparent; color:var(--tenon-text-subtle)}
+  .btn.danger{color:var(--tenon-text-error); border-color:var(--tenon-stroke-default)}
+  .btn.agree{background:var(--tenon-background-success); border-color:var(--tenon-background-success); color:var(--tenon-text-on-success)}
+  .btn.reject{background:var(--tenon-background-error); border-color:var(--tenon-background-error); color:var(--tenon-text-on-error)}
+  .btn.on{background:var(--tenon-background-neutral); border-color:var(--tenon-stroke-default); font-weight:640}
   /* Six variants and two sizes, and every small button in the app is one of
      them. There were five separate classes doing this — .btn.mini, .addsub,
      .completeall, .qhold and the chat engine's own .aic-addsub — each with its
@@ -198,10 +82,10 @@
      those five actually was. .dashed is the same with a dashed edge, for a
      button that adds something rather than acting on something — a dashed box
      reads as a slot waiting to be filled. */
-  .btn.outline{background:transparent; color:var(--ink-soft)}
-  .btn.outline:hover{color:var(--ink)}
-  .btn.dashed{background:transparent; border-style:dashed; color:var(--ink-soft)}
-  .btn.dashed:hover{color:var(--ink)}
+  .btn.outline{background:transparent; color:var(--tenon-text-subtle)}
+  .btn.outline:hover{color:var(--tenon-text-default)}
+  .btn.dashed{background:transparent; border-style:dashed; color:var(--tenon-text-subtle)}
+  .btn.dashed:hover{color:var(--tenon-text-default)}
   .btn.small{padding:4px 9px; font-size:12px; font-weight:560; border-radius:6px}
   .menugroup{display:inline-flex; align-items:center; gap:9px}
   /* A themed cluster of header actions (Data: Undo, Download copy, Backups,
@@ -213,8 +97,8 @@
   .dropdown-panel{
     position:absolute; top:calc(100% + 6px); left:0; z-index:25;
     display:flex; flex-direction:column; min-width:200px; padding:5px;
-    background:var(--panel); border:1px solid var(--line); border-radius:9px;
-    box-shadow:var(--shadow);
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:9px;
+    box-shadow:var(--tenon-elevation-overlay);
   }
   /* A panel hanging off a button in the right-hand end of the header runs off
      the window before it runs out of items, so it hangs from its right edge
@@ -222,26 +106,26 @@
   .dropdown-panel.alignright{left:auto; right:0}
   .dropdown-item{
     display:block; width:100%; text-align:left; border:none; background:none;
-    color:var(--ink); border-radius:6px; padding:7px 9px; font-size:13px; font-weight:520;
+    color:var(--tenon-text-default); border-radius:6px; padding:7px 9px; font-size:13px; font-weight:520;
   }
-  .dropdown-item:hover{background:var(--chip)}
-  .dropdown-item:disabled{color:var(--ink-faint); cursor:default}
+  .dropdown-item:hover{background:var(--tenon-background-neutral)}
+  .dropdown-item:disabled{color:var(--tenon-text-faint); cursor:default}
   .dropdown-item:disabled:hover{background:none}
   /* The lists sit under their own heading inside the same panel — which
      list is being read is a different question from what to do to it, so the
      rule and the label are what separate the two halves. */
   .dropdown-divider{
-    margin-top:5px; padding:8px 9px 5px; border-top:1px solid var(--line-soft);
+    margin-top:5px; padding:8px 9px 5px; border-top:1px solid var(--tenon-stroke-subtle);
     display:flex; flex-direction:column; align-items:stretch; gap:6px;
   }
-  .dropdown-label{font-size:12px; font-weight:520; color:var(--ink-soft)}
+  .dropdown-label{font-size:12px; font-weight:520; color:var(--tenon-text-subtle)}
   /* The lists themselves are rows in the panel like any other, so they run to
      the panel's own edges rather than being indented by the divider's padding
      — the tick column is what they line up on, not their left edge. */
   #datasetList{margin:0 -9px -5px}
   .dsitem{display:flex; align-items:center; gap:7px}
   .dsitem.current{font-weight:620}
-  .dstick{width:11px; flex:none; text-align:center; color:var(--ink-soft)}
+  .dstick{width:11px; flex:none; text-align:center; color:var(--tenon-text-subtle)}
 
   /* ---------- the bucket strip ----------
      Its own bar between the header and the board, lined up with the columns it
@@ -256,7 +140,7 @@
   .bucketbar{
     position:sticky; top:var(--header-h, 68px); z-index:15;
     display:flex; flex-wrap:wrap; gap:6px; align-items:center;
-    padding:12px 16px 2px; background:var(--bg);
+    padding:12px 16px 2px; background:var(--tenon-background-default);
   }
   /* One pill holding N tabs, and one tab. The view tabs in the header and the
      bucket tabs in the strip below were two sets of classes drawing the same
@@ -264,10 +148,10 @@
      both of which are now optional parts of the one tab rather than a second
      kind of tab. The dividers are the header's own, switched on there and off
      in the strip, which is the third thing that used to fork them. */
-  .tabs{display:inline-flex; gap:3px; background:var(--chip); padding:3px; border-radius:9px}
+  .tabs{display:inline-flex; gap:3px; background:var(--tenon-background-neutral); padding:3px; border-radius:9px}
   .tab{
     border:1px solid transparent; background:transparent; border-radius:7px;
-    padding:5px 11px; font-size:13px; font-weight:560; color:var(--ink-soft);
+    padding:5px 11px; font-size:13px; font-weight:560; color:var(--tenon-text-subtle);
     display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
   }
   /* The Plans column's filter chips wanted a small size once, and became a
@@ -275,18 +159,18 @@
      The Reports window picker is the one that actually got it: `.tabs.small`
      below, at the smaller of the two sizes the Figma Tab component has. */
   .tab .dot{width:7px; height:7px; border-radius:50%; background:var(--bc); opacity:.5}
-  .tab .n{font-size:11px; font-weight:650; color:var(--ink-faint); background:var(--panel); border-radius:5px; padding:0 5px; min-width:19px; text-align:center}
-  .tab:hover{color:var(--ink)}
-  .tabsep{width:1px; align-self:stretch; background:var(--line); margin:0 2px}
-  .tab.on{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
+  .tab .n{font-size:11px; font-weight:650; color:var(--tenon-text-faint); background:var(--tenon-background-raised); border-radius:5px; padding:0 5px; min-width:19px; text-align:center}
+  .tab:hover{color:var(--tenon-text-default)}
+  .tabsep{width:1px; align-self:stretch; background:var(--tenon-stroke-default); margin:0 2px}
+  .tab.on{background:var(--tenon-background-raised); color:var(--tenon-text-default); border-color:var(--tenon-stroke-default); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
   .tab.on .dot{opacity:1}
-  .tab.on .n{background:var(--chip); color:var(--ink-soft)}
+  .tab.on .n{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
   /* The number badge (numberBadgeHTML / NumberBadge): filled in the accent,
      so it reads as waiting on you where `.n` beside it only counts. */
   .nbadge{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:18px; height:18px; padding:0 5px; box-sizing:border-box;
-    border-radius:var(--r-pill); background:var(--accent); color:var(--accent-ink);
+    border-radius:var(--tenon-radius-full); background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
     font-size:11px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;
   }
   .tab .nbadge{margin:-2px -4px -2px -2px}
@@ -296,14 +180,14 @@
      rather than two adjacent borders, and the halves stay transparent. */
   .viewgroup{gap:0; border:1px solid transparent; border-radius:7px}
   .viewgroup.on{
-    background:var(--panel); border-color:var(--line);
+    background:var(--tenon-background-raised); border-color:var(--tenon-stroke-default);
     box-shadow:0 1px 2px rgba(16,20,28,.07);
   }
   .viewgroup .tab{border:none; background:none; box-shadow:none; border-radius:6px}
   .viewname{padding-right:7px}
   .viewchev{padding-left:6px; padding-right:8px; font-size:11px}
-  .viewgroup.on .viewchev{border-left:1px solid var(--line-soft); border-radius:0 6px 6px 0}
-  .viewgroup .tab:hover{background:var(--line-soft)}
+  .viewgroup.on .viewchev{border-left:1px solid var(--tenon-stroke-subtle); border-radius:0 6px 6px 0}
+  .viewgroup .tab:hover{background:var(--tenon-stroke-subtle)}
 
   /* On a phone the view tabs and the bucket tabs are each wider than the
      screen, and one row that does not fit widens the whole page. Both pills
@@ -330,8 +214,8 @@
   .statusfield .btn{white-space:nowrap}
   #statusFilterMenu{min-width:170px}
   .statusopt{display:flex; align-items:center; gap:7px}
-  .statusopt.on{font-weight:640; background:var(--chip)}
-  #statusFilterMenu .dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--ink-faint); opacity:.5}
+  .statusopt.on{font-weight:640; background:var(--tenon-background-neutral)}
+  #statusFilterMenu .dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--tenon-text-faint); opacity:.5}
   .statusopt.on .dot{opacity:1}
 
   /* Editing the buckets sits beside the strip rather than inside it: the strip is
@@ -341,16 +225,16 @@
   .iconbtn{
     display:inline-flex; align-items:center; justify-content:center;
     width:28px; height:28px; padding:0; border:1px solid transparent; border-radius:7px;
-    background:transparent; color:var(--ink-faint);
+    background:transparent; color:var(--tenon-text-faint);
   }
   .iconbtn svg{width:17px; height:17px; display:block; fill:currentColor}
-  .iconbtn:hover{color:var(--ink); background:var(--panel); border-color:var(--line)}
-  .iconbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .iconbtn:hover{color:var(--tenon-text-default); background:var(--tenon-background-raised); border-color:var(--tenon-stroke-default)}
+  .iconbtn:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
 
   /* ---------- bucket editor ---------- */
-  .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-soft)}
+  .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--tenon-stroke-subtle)}
   .bkrow:last-child{border-bottom:0}
-  .bknum{flex:0 0 auto; width:14px; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+  .bknum{flex:0 0 auto; width:14px; font-size:12px; color:var(--tenon-text-faint); font-variant-numeric:tabular-nums}
   /* The dot itself, and the popover of ten presets it opens — a picker rather
      than a free colour input, so every bucket colour on the board still comes
      from the one set of ten. Position:relative on the wrapper rather than the
@@ -361,11 +245,11 @@
     width:16px; height:16px; border-radius:50%; padding:0; border:1px solid rgba(0,0,0,.12);
     cursor:pointer;
   }
-  .bkpick:hover, .bkpick:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .bkpick:hover, .bkpick:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
   .bkpalette{
     position:absolute; z-index:5; top:calc(100% + 6px); left:0;
     display:grid; grid-template-columns:repeat(5, 20px); gap:6px; padding:8px;
-    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:8px;
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
   .bkswatch{
@@ -375,9 +259,9 @@
   .bkswatch:hover{transform:scale(1.12)}
   /* The one already worn by this bucket, so the popover reads as a picker
      rather than ten identical dots asking to be told apart by eye. */
-  .bkswatch.on{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--ink)}
+  .bkswatch.on{box-shadow:0 0 0 2px var(--tenon-background-raised), 0 0 0 4px var(--tenon-text-default)}
   .bkrow input[type="text"]{
-    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
     border-radius:7px; padding:5px 8px; font-size:13px;
   }
   /* The brief button. Shrink-proof beside the name input, which takes the
@@ -388,7 +272,7 @@
      is shown under. Only drawn when the two differ, so a list that has renamed
      nothing looks exactly as it did. */
   .bkwas{
-    flex:0 0 auto; font-size:11px; color:var(--ink-faint); white-space:nowrap;
+    flex:0 0 auto; font-size:11px; color:var(--tenon-text-faint); white-space:nowrap;
     font:11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   /* The brief itself, in its own wide sheet. Monospaced because it is Markdown
@@ -400,17 +284,17 @@
     width:100%; box-sizing:border-box; margin:10px 0 0; padding:10px 12px;
     min-height:min(58vh, 520px); resize:vertical;
     font:13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    color:var(--ink); background:var(--panel);
-    border:1px solid var(--line); border-radius:8px;
+    color:var(--tenon-text-default); background:var(--tenon-background-raised);
+    border:1px solid var(--tenon-stroke-default); border-radius:8px;
   }
-  .briefbody:focus{outline:2px solid var(--accent); outline-offset:1px}
-  .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
+  .briefbody:focus{outline:2px solid var(--tenon-stroke-focus); outline-offset:1px}
+  .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--tenon-stroke-default)}
   .bkadd input{
-    flex:1 1 auto; min-width:0; border:1px solid var(--line); background:var(--panel);
+    flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
     border-radius:7px; padding:6px 9px; font-size:13px;
   }
   /* Always in the layout, so an error appearing does not shove the buttons down. */
-  .bkerr{margin:11px 0 0; min-height:1.3em; font-size:12.5px; color:var(--red)}
+  .bkerr{margin:11px 0 0; min-height:1.3em; font-size:12.5px; color:var(--tenon-text-error)}
   /* One height for every control on the page — 33px, which is what a
      default-size .btn comes to. They were 32.3 (search, the AI filter), 34.85
      (the date and bucket buttons) and 36.3 (the drawer's text inputs), three
@@ -418,10 +302,10 @@
      deliberate. The padding matches the button's too, so a control and a
      button sitting side by side agree about their own edges. */
   input[type="search"]{
-    border:1px solid var(--line); background:var(--panel); border-radius:7px;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:7px;
     padding:5px 9px; width:200px; min-height:33px;
   }
-  label.toggle{font-size:12px; color:var(--ink-soft); display:inline-flex; gap:6px; align-items:center}
+  label.toggle{font-size:12px; color:var(--tenon-text-subtle); display:inline-flex; gap:6px; align-items:center}
 
   /* ---------- the one thing ----------
      A single bar above the board. Set, it is the loudest thing on the page,
@@ -429,63 +313,63 @@
      that says what it is for and otherwise stays out of the way. */
   .headline{
     display:flex; align-items:center; gap:14px; margin:0 0 12px; padding:11px 14px;
-    border:1.5px dashed var(--line); border-radius:12px; background:transparent;
+    border:1.5px dashed var(--tenon-stroke-default); border-radius:12px; background:transparent;
   }
   .headline.set{
-    border-style:solid; border-color:color-mix(in srgb, var(--accent) 40%, transparent);
-    background:color-mix(in srgb, var(--accent) 6%, var(--panel)); box-shadow:var(--shadow);
+    border-style:solid; border-color:color-mix(in srgb, var(--tenon-stroke-accent) 40%, transparent);
+    background:color-mix(in srgb, var(--tenon-background-accent) 6%, var(--tenon-background-raised)); box-shadow:var(--tenon-elevation-overlay);
   }
-  .headline.over{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel))}
+  .headline.over{border-color:var(--tenon-stroke-accent); background:color-mix(in srgb, var(--tenon-background-accent) 12%, var(--tenon-background-raised))}
   /* Set, the whole bar opens the task, the same as a card. The empty bar has
      nothing to open, so only the set state takes the pointer and the focus ring. */
   .headline.set{cursor:pointer}
-  .headline.set:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
-  .headline.set:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .headline.set:hover{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 70%, transparent)}
+  .headline.set:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
   .hllabel{
     flex:none; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-    color:var(--ink-faint);
+    color:var(--tenon-text-faint);
   }
-  .headline.set .hllabel{color:var(--accent)}
-  .hlempty{font-size:12.5px; color:var(--ink-faint)}
-  .hlempty strong{font-weight:640; color:var(--ink-soft)}
+  .headline.set .hllabel{color:var(--tenon-text-accent)}
+  .hlempty{font-size:12.5px; color:var(--tenon-text-faint)}
+  .hlempty strong{font-weight:640; color:var(--tenon-text-subtle)}
   .hlmain{flex:1; min-width:0}
   /* Not a button any more: the bar around it is the thing you click, and a button
      inside a button is neither valid nor tabbable in a sensible order. */
   .hltitle{
-    font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.3;
+    font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--tenon-text-default); line-height:1.3;
   }
   .headline.set:hover .hltitle{text-decoration:underline}
   .hlmeta{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px}
-  .hlwhere{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint)}
-  .tag.unblocks{background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green)}
+  .hlwhere{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.03em; color:var(--tenon-text-faint)}
+  .tag.unblocks{background:color-mix(in srgb, var(--tenon-text-success) 14%, transparent); color:var(--tenon-text-success)}
   .hlright{flex:none; display:flex; align-items:center; gap:10px}
-  .hlage{font-size:11.5px; color:var(--ink-faint)}
-  .hldone{font-size:11.5px; font-weight:640; color:var(--green)}
+  .hlage{font-size:11.5px; color:var(--tenon-text-faint)}
+  .hldone{font-size:11.5px; font-weight:640; color:var(--tenon-text-success)}
   .hlclear{
-    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-subtle);
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
-  .hlclear:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .hlclear:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   /* The panel's own button for the same thing, since dragging is not obvious.
      Sits beside Close because it is a decision about the task as a whole,
      like closing it, and not one more field to scroll past. */
   .hlpin{
-    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); border-radius:7px;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); color:var(--tenon-text-subtle); border-radius:7px;
     padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap;
   }
-  .hlpin:hover{border-color:var(--ink-faint); color:var(--ink)}
+  .hlpin:hover{border-color:var(--tenon-text-faint); color:var(--tenon-text-default)}
   .hlpin.on{
-    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
-    background:color-mix(in srgb, var(--accent) 10%, var(--bg)); color:var(--accent);
+    border-color:color-mix(in srgb, var(--tenon-stroke-accent) 45%, transparent);
+    background:color-mix(in srgb, var(--tenon-background-accent) 10%, var(--tenon-background-default)); color:var(--tenon-text-accent);
   }
 
   /* ---------- projects ----------
      A project is a folder, not a task, so it gets a chip rather than a card. */
   .tag.proj{
-    background:transparent; border:1px solid var(--line); color:var(--ink-soft);
+    background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-subtle);
     font-weight:550; cursor:pointer;
   }
-  .tag.proj:hover{border-color:var(--accent); color:var(--accent)}
+  .tag.proj:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   .tag.proj::before{content:'▣ '; opacity:.6}
   /* The project the task's work lives in, in the drawer's second column. Built
      on the same shell as a conversation card next to it — see the shared rule
@@ -495,71 +379,71 @@
     display:block; width:100%; text-align:left; border:0; background:none;
     padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
   }
-  .pcbody:hover{background:var(--chip)}
+  .pcbody:hover{background:var(--tenon-background-neutral)}
   .pctitle{display:block; font-size:13px; font-weight:600; line-height:1.3}
-  .pcpath{display:block; font-size:11px; font-family:var(--mono, monospace); color:var(--ink-faint); margin-top:2px}
-  .pcblurb{display:block; font-size:12px; line-height:1.45; color:var(--ink-soft); margin-top:3px}
+  .pcpath{display:block; font-size:11px; font-family:var(--mono, monospace); color:var(--tenon-text-faint); margin-top:2px}
+  .pcblurb{display:block; font-size:12px; line-height:1.45; color:var(--tenon-text-subtle); margin-top:3px}
   .pcblurb:empty{display:none}
-  .pcmeta{display:block; font-size:11px; color:var(--ink-faint); margin-top:5px}
+  .pcmeta{display:block; font-size:11px; color:var(--tenon-text-faint); margin-top:5px}
   .pcmeta:empty{display:none}
   /* The path is a caption for the card under it, not a field of its own —
      it had a box, the file list did not, and the border was drawn around
      the one thing on screen with nothing inside it. */
   .projpath{
     display:block; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:11px; color:var(--ink-faint); text-decoration:none;
+    font-size:11px; color:var(--tenon-text-faint); text-decoration:none;
     overflow-wrap:anywhere; margin-bottom:6px;
   }
-  a.projpath:hover{color:var(--accent)}
+  a.projpath:hover{color:var(--tenon-text-accent)}
   /* One level of the folder, in a card, because the rows are a list of one
      folder's contents rather than loose links: the border is what says where
      the folder stops. A sub-folder is the same row shape carrying a count
      instead of a size. */
   .projfiles{
     display:flex; flex-direction:column; padding:4px; gap:1px; margin-bottom:10px;
-    border:1px solid var(--line); border-radius:8px; background:var(--bg);
+    border:1px solid var(--tenon-stroke-default); border-radius:8px; background:var(--tenon-background-default);
   }
   .projfiles .help{padding:4px 6px}
   .projfiles .projfile{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:5px 8px; border-radius:6px;
-    color:var(--ink); text-decoration:none; font-size:12px;
+    color:var(--tenon-text-default); text-decoration:none; font-size:12px;
   }
-  .projfiles .projfile:hover{background:var(--panel); color:var(--accent)}
+  .projfiles .projfile:hover{background:var(--tenon-background-raised); color:var(--tenon-text-accent)}
   .projfile .pf{overflow-wrap:anywhere}
   .projfile.isdir .pf{font-weight:600}
-  .projfile .pfm{font-size:11px; color:var(--ink-faint); white-space:nowrap}
+  .projfile .pfm{font-size:11px; color:var(--tenon-text-faint); white-space:nowrap}
   /* What the project is, above everything else in the panel — read out of the
      folder's CLAUDE.md rather than typed anywhere. */
   .projabout:not(:empty){margin-bottom:16px}
   .projname{font-size:14px; font-weight:600; line-height:1.3; margin-bottom:4px}
-  .projblurb{font-size:12px; line-height:1.5; color:var(--ink-soft); margin:0}
-  .projblurb.none{color:var(--ink-faint)}
-  .projwhen{font-size:11px; color:var(--ink-faint); margin-top:6px}
+  .projblurb{font-size:12px; line-height:1.5; color:var(--tenon-text-subtle); margin:0}
+  .projblurb.none{color:var(--tenon-text-faint)}
+  .projwhen{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
   /* The same sentence the drawer opens with, on the card in the Projects
      tab — the folder name alone never said what any of these were. */
-  .projcardblurb{font-size:12px; line-height:1.5; color:var(--ink-soft); margin-top:6px}
+  .projcardblurb{font-size:12px; line-height:1.5; color:var(--tenon-text-subtle); margin-top:6px}
   .projlist{display:flex; flex-direction:column; gap:6px}
   .projrow{
-    border:1px solid var(--line); background:var(--bg); border-radius:8px; padding:8px 10px;
-    text-align:left; width:100%; display:flex; flex-direction:column; gap:4px; color:var(--ink);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:8px; padding:8px 10px;
+    text-align:left; width:100%; display:flex; flex-direction:column; gap:4px; color:var(--tenon-text-default);
   }
-  .projrow:hover{border-color:var(--accent)}
+  .projrow:hover{border-color:var(--tenon-stroke-accent)}
   .projrow .pt{font-size:13px; font-weight:600; line-height:1.35}
-  .projrow.done .pt{color:var(--ink-faint); text-decoration:line-through}
-  .projrow .pw{font-size:11px; color:var(--ink-faint); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+  .projrow.done .pt{color:var(--tenon-text-faint); text-decoration:line-through}
+  .projrow .pw{font-size:11px; color:var(--tenon-text-faint); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
 
   /* ---------- intake: what still needs scoring ---------- */
   .scorechip{
-    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 10px;
-    font-size:12px; font-weight:620; color:var(--ink-soft); white-space:nowrap;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:7px; padding:5px 10px;
+    font-size:12px; font-weight:620; color:var(--tenon-text-subtle); white-space:nowrap;
   }
-  .scorechip:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .scorechip:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .scorechip.on{
-    background:var(--amber-bg); color:var(--amber);
-    border-color:color-mix(in srgb, var(--amber) 40%, transparent);
+    background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
+    border-color:color-mix(in srgb, var(--tenon-text-warning) 40%, transparent);
   }
-  .tag.needsscore{background:var(--amber-bg); color:var(--amber)}
+  .tag.needsscore{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
 
   /* ---------- the matrix ----------
      Nine cells. Impact down the left, effort across the top, so the cheap
@@ -578,31 +462,31 @@
   }
   .maxis{
     font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
-    color:var(--ink-faint); white-space:nowrap;
+    color:var(--tenon-text-faint); white-space:nowrap;
   }
   .mhead{
     padding:0 0 7px; text-align:center; font-size:12.5px; font-weight:700;
-    color:var(--ink-soft); display:flex; flex-direction:column; gap:2px;
+    color:var(--tenon-text-subtle); display:flex; flex-direction:column; gap:2px;
   }
-  .mhead .mhint{font-size:10.5px; font-weight:500; color:var(--ink-faint)}
+  .mhead .mhint{font-size:10.5px; font-weight:500; color:var(--tenon-text-faint)}
   .mside{
     display:flex; align-items:center; justify-content:flex-end; padding-right:9px;
     font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
-    color:var(--ink-soft); min-width:62px;
+    color:var(--tenon-text-subtle); min-width:62px;
   }
   .mcell{
-    border:1px solid var(--line); border-radius:10px; padding:8px 9px 9px; min-height:96px;
+    border:1px solid var(--tenon-stroke-default); border-radius:10px; padding:8px 9px 9px; min-height:96px;
     display:flex; flex-direction:column; gap:7px;
     /* --w is impact ÷ effort, 0.33 to 3. Divided by 3 it drives the tint. */
-    background:color-mix(in srgb, var(--accent) calc(var(--w,1) * 4%), var(--panel));
+    background:color-mix(in srgb, var(--tenon-background-accent) calc(var(--w,1) * 4%), var(--tenon-background-raised));
   }
-  .mcell.first{border-color:color-mix(in srgb, var(--accent) 50%, transparent)}
+  .mcell.first{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 50%, transparent)}
   .mcell.empty{background:transparent; border-style:dashed}
   .mcellhead{display:flex; align-items:baseline; gap:6px}
-  .madvice{flex:1; font-size:11px; font-weight:620; color:var(--ink-soft); line-height:1.3}
-  .mcell.first .madvice{color:var(--accent)}
-  .mcell.empty .madvice{color:var(--ink-faint); font-weight:550}
-  .mcount{font-size:11px; font-weight:700; color:var(--ink-faint)}
+  .madvice{flex:1; font-size:11px; font-weight:620; color:var(--tenon-text-subtle); line-height:1.3}
+  .mcell.first .madvice{color:var(--tenon-text-accent)}
+  .mcell.empty .madvice{color:var(--tenon-text-faint); font-weight:550}
+  .mcount{font-size:11px; font-weight:700; color:var(--tenon-text-faint)}
   .mdots{display:flex; flex-wrap:wrap; gap:5px; align-content:flex-start}
   /* One task. Bucket colour carries which area it belongs to, the title is on
      hover, and a click opens the real card — so nothing is lost by shrinking it. */
@@ -611,9 +495,9 @@
     background:var(--bc); opacity:.85; cursor:pointer;
   }
   .mdot:hover{opacity:1; transform:scale(1.25)}
-  .mdot:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
-  .mdot.urgent{box-shadow:0 0 0 2px var(--red-bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
-  .mdot.hl{box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--accent)}
+  .mdot:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
+  .mdot.urgent{box-shadow:0 0 0 2px var(--tenon-background-error-subtle), 0 0 0 3px color-mix(in srgb, var(--tenon-text-error) 55%, transparent)}
+  .mdot.hl{box-shadow:0 0 0 2px var(--tenon-background-raised), 0 0 0 4px var(--tenon-stroke-accent)}
   /* Waiting on a review, or on another task. Faded the same way a done card is
      faded on the board, and restored on hover, so it still reads as present
      without competing with the work he can actually pick up. */
@@ -633,13 +517,13 @@
      the drawer, at any width, so this is the one control that does. */
   .mopen{
     display:block; width:100%; margin-top:6px; padding:7px 10px; border-radius:8px;
-    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-default);
     font:inherit; font-size:12.5px; font-weight:620; cursor:pointer; text-align:center;
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
-  .mopen:hover{border-color:var(--accent); color:var(--accent)}
+  .mopen:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   .mpreview .card{
-    cursor:default; border-color:var(--ink-faint);
+    cursor:default; border-color:var(--tenon-text-faint);
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
   .mpreview .card{opacity:1}      /* a preview is for reading, not for dimming */
@@ -657,11 +541,11 @@
   }
 
   .mlegend{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 4px}
-  .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft)}
+  .mkey{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--tenon-text-subtle)}
   .mkey i{width:10px; height:10px; border-radius:50%; background:var(--bc); flex:none}
-  .mkeyhl i{background:transparent; box-shadow:0 0 0 2px var(--accent)}
-  .mkeyurg i{background:var(--ink-faint); box-shadow:0 0 0 1.5px var(--bg), 0 0 0 3px color-mix(in srgb, var(--red) 55%, transparent)}
-  .mkeymuted i{background:var(--ink-faint); opacity:.3}
+  .mkeyhl i{background:transparent; box-shadow:0 0 0 2px var(--tenon-stroke-accent)}
+  .mkeyurg i{background:var(--tenon-text-faint); box-shadow:0 0 0 1.5px var(--tenon-background-default), 0 0 0 3px color-mix(in srgb, var(--tenon-text-error) 55%, transparent)}
+  .mkeymuted i{background:var(--tenon-text-faint); opacity:.3}
   /* Sits at the end of the legend rather than as a separate control above the
      grid — it reads what it changes, so it belongs beside the key it affects. */
   /* In the column header's Filters slot since 12 Sep 2026, which is why it
@@ -669,26 +553,26 @@
      margin-left:auto is what pushed it to the right end of the legend it used
      to sit in, and the head's own layout does that job now. */
   .mxfilter{
-    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft);
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--tenon-text-subtle);
     cursor:pointer; text-transform:none; letter-spacing:0; font-weight:500;
   }
   .mxfilter input{margin:0}
-  .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-soft) !important}
-  .mread strong{font-weight:700; color:var(--ink)}
-  .mhidden{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  .mread{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--tenon-text-subtle) !important}
+  .mread strong{font-weight:700; color:var(--tenon-text-default)}
+  .mhidden{margin:6px 0 0 !important; font-size:12.5px !important; color:var(--tenon-text-faint) !important}
   /* Tasks with a score missing cannot be placed, so they sit under the grid
      rather than being dropped. A dropped task is one he never scores. */
   .mtray{
-    margin-top:12px; padding:10px 11px; border:1px dashed color-mix(in srgb, var(--amber) 45%, transparent);
-    background:var(--amber-bg); border-radius:10px;
+    margin-top:12px; padding:10px 11px; border:1px dashed color-mix(in srgb, var(--tenon-text-warning) 45%, transparent);
+    background:var(--tenon-background-warning-subtle); border-radius:10px;
   }
   .mtrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
-  .mtrayhead strong{font-size:12.5px; font-weight:700; color:var(--amber)}
-  .mtrayhead span{font-size:11.5px; color:var(--ink-soft)}
+  .mtrayhead strong{font-size:12.5px; font-weight:700; color:var(--tenon-text-warning)}
+  .mtrayhead span{font-size:11.5px; color:var(--tenon-text-subtle)}
   /* The backlog tray is not a prompt to do anything, so it drops the amber and
      sits quietly under the grid. */
-  .mtray.mhold{border-color:var(--line); background:transparent}
-  .mtray.mhold .mtrayhead strong{color:var(--ink-soft)}
+  .mtray.mhold{border-color:var(--tenon-stroke-default); background:transparent}
+  .mtray.mhold .mtrayhead strong{color:var(--tenon-text-subtle)}
   @media (max-width:720px){
     .mgrid{grid-template-columns:auto repeat(3, minmax(84px, 1fr))}
     .madvice{font-size:10px}
@@ -712,18 +596,18 @@
      that: .tlscroll is then unambiguously the real, moving scroller, so its
      own sticky header and sticky label column behave exactly as normal. */
   .tlscroll{
-    overflow:auto; border:1px solid var(--line); border-radius:10px;
+    overflow:auto; border:1px solid var(--tenon-stroke-default); border-radius:10px;
     max-height:calc(100vh - var(--header-h,68px) - 210px); min-height:240px;
   }
   .tlbody{position:relative; min-width:max-content}
-  .tlrow{display:flex; align-items:stretch; border-bottom:1px solid var(--line-soft)}
+  .tlrow{display:flex; align-items:stretch; border-bottom:1px solid var(--tenon-stroke-subtle)}
   .tlrow:last-child{border-bottom:0}
   /* Sticky rather than a second scroll container kept in sync by hand — the
      label stays put while the dates scroll underneath it, for free. */
   .tllabel{
-    flex:none; width:var(--tllabelw,200px); padding:0 10px 0 6px; font-size:12.5px; color:var(--ink);
-    position:sticky; left:0; z-index:2; background:var(--panel);
-    border-right:1px solid var(--line-soft);
+    flex:none; width:var(--tllabelw,200px); padding:0 10px 0 6px; font-size:12.5px; color:var(--tenon-text-default);
+    position:sticky; left:0; z-index:2; background:var(--tenon-background-raised);
+    border-right:1px solid var(--tenon-stroke-subtle);
     display:flex; align-items:center; gap:2px; min-width:0;
   }
   /* Hovering anywhere on a task's row tints the whole row, label and track
@@ -737,7 +621,7 @@
      them for the one row under the pointer. The date header and the lane
      headers are out — neither is a task, and both carry their own fill. */
   .tlrow:not(.tlheader):not(.tllane):hover,
-  .tlrow:not(.tlheader):not(.tllane):hover .tllabel{background:var(--chip)}
+  .tlrow:not(.tlheader):not(.tllane):hover .tllabel{background:var(--tenon-background-neutral)}
   /* Draggable from anywhere on the row now, not just the dots — a native
      `draggable` ancestor still lets a plain click on .tllabeltext through as
      a click, same as the board's own cards already manage both at once. */
@@ -753,7 +637,7 @@
   }
   .tltrack{position:relative; flex:none; min-height:34px}
   .tlrow.tlsub .tllabel{padding-left:26px}
-  .tlrow.tlsub .tllabeltext{font-size:11.5px; color:var(--ink-soft)}
+  .tlrow.tlsub .tllabeltext{font-size:11.5px; color:var(--tenon-text-subtle)}
   .tlrow.tlsub .tltrack{min-height:24px}
   .tlrow.blocked .tllabeltext{opacity:.55}
   .tlrow.blocked .tlbar, .tlrow.blocked .tlmilestone{opacity:.55}
@@ -761,10 +645,10 @@
      title still lines up with the ones that do have one. */
   .tlchevron{
     flex:none; width:16px; height:16px; padding:0; border:0; background:transparent;
-    color:var(--ink-faint); font-size:13px; line-height:1; cursor:pointer;
+    color:var(--tenon-text-faint); font-size:13px; line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center; transition:transform .12s;
   }
-  .tlchevron:hover{color:var(--ink)}
+  .tlchevron:hover{color:var(--tenon-text-default)}
   .tlchevron.open{transform:rotate(90deg)}
   .tlchevron.ph{cursor:default}
   /* Just the visual cue now — the drag itself starts from .tllabel, wherever
@@ -772,9 +656,9 @@
      stay visible without fighting the bar's own horizontal drag in .tltrack. */
   .tlgrip{
     flex:none; width:12px; height:16px; display:flex; align-items:center; justify-content:center;
-    color:var(--ink-faint); font-size:10px; letter-spacing:-2px; user-select:none;
+    color:var(--tenon-text-faint); font-size:10px; letter-spacing:-2px; user-select:none;
   }
-  .tllabel:hover .tlgrip{color:var(--ink)}
+  .tllabel:hover .tlgrip{color:var(--tenon-text-default)}
   .tlgrip.ph{cursor:default}
 
   /* One <details> per bucket, so collapsing it is free — the browser hides
@@ -785,32 +669,32 @@
   .tllanegroup > summary::-webkit-details-marker{display:none}
   .tlrow.tllane .tllabel{
     font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em;
-    color:var(--ink-soft); background:var(--chip); padding-left:8px; gap:6px;
+    color:var(--tenon-text-subtle); background:var(--tenon-background-neutral); padding-left:8px; gap:6px;
   }
-  .tlrow.tllane .tltrack{background:var(--chip)}
-  .lanehead::before{content:'▾'; font-size:10px; color:var(--ink-faint)}
+  .tlrow.tllane .tltrack{background:var(--tenon-background-neutral)}
+  .lanehead::before{content:'▾'; font-size:10px; color:var(--tenon-text-faint)}
   .tllanegroup:not([open]) .lanehead::before{content:'▸'}
   .tllabel.lanehead .dot{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
-  .lanecount{font-weight:600; color:var(--ink-faint); text-transform:none; letter-spacing:0}
+  .lanecount{font-weight:600; color:var(--tenon-text-faint); text-transform:none; letter-spacing:0}
   /* Right-aligned in the same flex row as the dot/name/count — a one-off
      action, not a standing toggle, so it reads as a button rather than a
      pill next to the count. */
   .tlsort{
     margin-left:auto; flex:none; border:0; background:transparent; cursor:pointer;
     font-weight:600; font-size:10px; text-transform:none; letter-spacing:0;
-    color:var(--ink-faint); padding:2px 6px; border-radius:5px;
+    color:var(--tenon-text-faint); padding:2px 6px; border-radius:5px;
   }
-  .tlsort:hover{color:var(--ink); background:var(--panel)}
+  .tlsort:hover{color:var(--tenon-text-default); background:var(--tenon-background-raised)}
 
-  .tlrow.tlheader{position:sticky; top:0; z-index:3; background:var(--panel)}
-  .tlrow.tlheader .tllabel{background:var(--panel); position:relative}
-  .tlrow.tlheader .tltrack{min-height:40px; background:var(--panel)}
+  .tlrow.tlheader{position:sticky; top:0; z-index:3; background:var(--tenon-background-raised)}
+  .tlrow.tlheader .tllabel{background:var(--tenon-background-raised); position:relative}
+  .tlrow.tlheader .tltrack{min-height:40px; background:var(--tenon-background-raised)}
   .tlmonth{
     position:absolute; top:8px; font-size:10.5px; font-weight:700; text-transform:uppercase;
-    letter-spacing:.03em; color:var(--ink-faint); white-space:nowrap;
+    letter-spacing:.03em; color:var(--tenon-text-faint); white-space:nowrap;
   }
   .tlweeknum{
-    position:absolute; top:23px; font-size:9px; font-weight:600; color:var(--ink-faint); white-space:nowrap;
+    position:absolute; top:23px; font-size:9px; font-weight:600; color:var(--tenon-text-faint); white-space:nowrap;
   }
   /* Sits inside the header's own sticky label cell rather than spanning the
      whole table, so it tracks the frozen column through a horizontal scroll
@@ -818,14 +702,14 @@
      pattern as the drawer's own #dgrip, mirrored to the right edge. */
   .tlresize{position:absolute; right:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
   .tlresize::after{content:""; position:absolute; right:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
-  .tlresize:hover::after, .tlresize.active::after{background:var(--accent)}
+  .tlresize:hover::after, .tlresize.active::after{background:var(--tenon-background-accent)}
   /* Both of these span every lane at once, so they sit outside any one row —
      a sibling of .tlbody's rows rather than inside one, positioned against
      the same relatively-positioned ancestor. Real week boundaries, not a
      cosmetic repeat, which is why they're drawn from tlWeeks rather than a
      CSS background pattern. */
   .tlweekline{
-    position:absolute; top:0; bottom:0; width:1px; background:var(--line-soft); pointer-events:none;
+    position:absolute; top:0; bottom:0; width:1px; background:var(--tenon-stroke-subtle); pointer-events:none;
   }
   /* Weekends stay real space on the axis — decided against collapsing them,
      see IMPROVEMENTS.md — marked instead with the same diagonal-stripe idiom
@@ -837,11 +721,11 @@
        as much weight as the gap and a weekend then reads heavier than the
        working days either side. The repeat stays 12px so the angle and the
        spacing don't move. */
-    background-image:repeating-linear-gradient(45deg, var(--line-soft) 0 3px, transparent 3px 12px);
+    background-image:repeating-linear-gradient(45deg, var(--tenon-stroke-subtle) 0 3px, transparent 3px 12px);
   }
   .tltoday{
     position:absolute; top:0; bottom:0; width:1px;
-    background:color-mix(in srgb, var(--accent) 55%, transparent); z-index:1; pointer-events:none;
+    background:color-mix(in srgb, var(--tenon-background-accent) 55%, transparent); z-index:1; pointer-events:none;
   }
   /* Lives in the sticky header row rather than on .tltoday's own full-height
      line, so the label stays pinned to the top of the viewport while the
@@ -850,11 +734,11 @@
      the line up through it to meet the label at the top. */
   .tltodaytick{
     position:absolute; top:0; bottom:0; width:1px; pointer-events:none;
-    background:color-mix(in srgb, var(--accent) 55%, transparent);
+    background:color-mix(in srgb, var(--tenon-background-accent) 55%, transparent);
   }
   .tltodaylabel{
     position:absolute; top:2px; margin-left:4px; font-size:9.5px; font-weight:700;
-    letter-spacing:.03em; text-transform:uppercase; color:var(--accent); white-space:nowrap;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--tenon-text-accent); white-space:nowrap;
     pointer-events:none;
   }
   /* .tltoday's own line and label, following the pointer instead of pinned
@@ -863,11 +747,11 @@
      both happen to be on screen at once. */
   .tlhoverline{
     position:absolute; top:0; bottom:0; width:1px;
-    background:var(--ink-faint); z-index:1; pointer-events:none;
+    background:var(--tenon-text-faint); z-index:1; pointer-events:none;
   }
   .tlhoverlabel{
     position:absolute; top:2px; margin-left:4px; font-size:9.5px; font-weight:700;
-    letter-spacing:.03em; text-transform:uppercase; color:var(--ink-faint); white-space:nowrap;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--tenon-text-faint); white-space:nowrap;
     pointer-events:none;
   }
   /* Shown only while dragging an undated tray card across the scale — see
@@ -875,7 +759,7 @@
      reads as .tltoday at a glance. */
   .tltarget{
     position:absolute; top:0; bottom:0; width:0; z-index:1; pointer-events:none;
-    border-left:2px dashed var(--accent);
+    border-left:2px dashed var(--tenon-stroke-accent);
   }
 
   .tlbar{
@@ -899,8 +783,8 @@
     background-image:repeating-linear-gradient(45deg, var(--bc) 0 4px, transparent 4px 8px);
     opacity:.75;
   }
-  .tlbar.over{background:var(--tl-over)}
-  .tlbar.soon{background:var(--tl-soon)}
+  .tlbar.over{background:var(--tenon-status-over)}
+  .tlbar.soon{background:var(--tenon-status-soon)}
   .tlsub .tlbar{top:7px; height:10px}
   /* The bar being drawn, live, while dragging a fresh start/due out of empty
      track — see wireTlTrackClick in 18-timeline.js. Dashed and see-through
@@ -922,25 +806,25 @@
     margin-left:calc((var(--tldaypx, 28px) - 12px) / 2);
   }
   .tlmilestone:active{cursor:grabbing}
-  .tlmilestone.over{background:var(--tl-over)}
-  .tlmilestone.soon{background:var(--tl-soon)}
+  .tlmilestone.over{background:var(--tenon-status-over)}
+  .tlmilestone.soon{background:var(--tenon-status-soon)}
   .tlsub .tlmilestone{top:7px; width:9px; height:9px; cursor:pointer; margin-left:calc((var(--tldaypx, 28px) - 9px) / 2)}
 
   /* Under the scale and above the tray — the last thing read rather than a
      header the eye has to pass on every visit. */
   .tllegend{
     display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center;
-    margin-top:8px; font-size:11.5px; color:var(--ink-faint);
+    margin-top:8px; font-size:11.5px; color:var(--tenon-text-faint);
   }
   .tllegitem{display:flex; align-items:center; gap:6px}
   .tlswatch{width:20px; height:8px; border-radius:3px; flex:none}
   /* The same .55 the rows themselves fade to, so the swatch is the thing it
      describes rather than an approximation of it. */
   .tlswatch.dim{opacity:.55}
-  .tltray{margin-top:12px; padding:10px 11px; border:1px dashed var(--line); border-radius:10px}
+  .tltray{margin-top:12px; padding:10px 11px; border:1px dashed var(--tenon-stroke-default); border-radius:10px}
   .tltrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
-  .tltrayhead strong{font-size:12.5px; font-weight:700; color:var(--ink-soft)}
-  .tltrayhead span{font-size:11.5px; color:var(--ink-faint)}
+  .tltrayhead strong{font-size:12.5px; font-weight:700; color:var(--tenon-text-subtle)}
+  .tltrayhead span{font-size:11.5px; color:var(--tenon-text-faint)}
   .tltraycards{display:flex; flex-wrap:wrap; gap:8px}
   .tltraycard{width:auto; flex:none; max-width:220px; cursor:grab}
   .tltraycard:active{cursor:grabbing}
@@ -949,7 +833,7 @@
      the viewport and follows the pointer — see showTlPopover. */
   .tlpopover{
     position:fixed; z-index:50; transform:translate(-50%,-100%);
-    background:var(--ink); color:var(--bg); font-size:11.5px; font-weight:650;
+    background:var(--tenon-text-default); color:var(--tenon-background-default); font-size:11.5px; font-weight:650;
     padding:4px 9px; border-radius:6px; pointer-events:none; white-space:nowrap;
     box-shadow:0 4px 12px rgba(16,20,28,.25); opacity:0; transition:opacity .08s;
   }
@@ -1004,18 +888,18 @@
   @media (max-width:640px){
     .coltabs{
       display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
-      padding:0 16px 8px; background:var(--bg);
+      padding:0 16px 8px; background:var(--tenon-background-default);
       position:sticky; top:0; z-index:3;
     }
     .coltabs::-webkit-scrollbar{display:none}
     .coltabs.hidden{display:none}
     .coltab{
-      flex:none; border:1px solid var(--line); background:var(--panel);
+      flex:none; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
       border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600;
-      color:var(--ink-faint); white-space:nowrap; cursor:pointer;
+      color:var(--tenon-text-faint); white-space:nowrap; cursor:pointer;
     }
-    .coltab.on{color:var(--ink); border-color:var(--accent);
-      background:color-mix(in srgb, var(--accent) 10%, var(--panel))}
+    .coltab.on{color:var(--tenon-text-default); border-color:var(--tenon-stroke-accent);
+      background:color-mix(in srgb, var(--tenon-background-accent) 10%, var(--tenon-background-raised))}
   }
   @media (max-width:640px){
     .board, .lists.split, .lists.mview, .lists.pview{
@@ -1040,7 +924,7 @@
      the first thing in the body rather than part of the head. Standardising
      on the board's shape was the smaller change: it has six columns and
      thirty-odd cards against four columns of prose. */
-  .col{background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:120px}
+  .col{background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:12px; box-shadow:var(--tenon-elevation-overlay); display:flex; flex-direction:column; min-height:120px}
   /* The Style=Agent variant, and the only dashed thing in the app, so the dash
      means one thing: an agent owns this column and you do not drag into it.
      Handed to AI on the board, Waiting for review on Plans and on Execution.
@@ -1051,18 +935,18 @@
      same meaning carried twice — once by the fill and once by the border — so
      the fill went and Done's dash went with it. */
   .col.agentcol{border-style:dashed}
-  .col.aicol .colhead{color:var(--ink-soft)}
+  .col.aicol .colhead{color:var(--tenon-text-subtle)}
   /* Hot columns: running queues worked by AI (Doing and Producing on Plans,
      Handed to AI on the board). Orange rather than amber, which already means
      a warning. The gear turns for now; add .idle to stop it once the board
      knows whether anything is actually running. */
   .col.hotcol{
-    background:color-mix(in srgb, var(--hot) 6%, var(--panel));
-    border-color:color-mix(in srgb, var(--hot) 35%, var(--line));
+    background:color-mix(in srgb, var(--tenon-text-running) 6%, var(--tenon-background-raised));
+    border-color:color-mix(in srgb, var(--tenon-text-running) 35%, var(--tenon-stroke-default));
   }
-  .col.hotcol .colhead{color:var(--hot); border-bottom-color:color-mix(in srgb, var(--hot) 20%, var(--line-soft))}
+  .col.hotcol .colhead{color:var(--tenon-text-running); border-bottom-color:color-mix(in srgb, var(--tenon-text-running) 20%, var(--tenon-stroke-subtle))}
   .colgear{
-    flex:none; width:14px; height:14px; background:var(--hot);
+    flex:none; width:14px; height:14px; background:var(--tenon-background-running);
     -webkit-mask:var(--gear) center/contain no-repeat; mask:var(--gear) center/contain no-repeat;
     --gear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.61.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.48 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z'/%3E%3C/svg%3E");
     animation:colgear-spin 3s linear infinite;
@@ -1071,15 +955,15 @@
   .col.hotcol:has(> .colbody .empty) .colgear{animation:none}
   @keyframes colgear-spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: reduce){ .colgear{animation:none} }
-  .col.donecol .colhead{color:var(--ink-faint)}
-  .col.waitcol .colhead{color:var(--ink-soft)}
+  .col.donecol .colhead{color:var(--tenon-text-faint)}
+  .col.waitcol .colhead{color:var(--tenon-text-subtle)}
   /* min-height so a header carrying nothing but a title still lines up with
      one carrying a sort button and a count — the Plans columns are the case,
      and a row of columns whose first lines sit at different heights reads as
      a mistake rather than as a difference. */
   .colhead{
     margin:0; padding:11px 13px 9px; font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
-    color:var(--ink-soft); border-bottom:1px solid var(--line-soft); min-height:41px; box-sizing:border-box;
+    color:var(--tenon-text-subtle); border-bottom:1px solid var(--tenon-stroke-subtle); min-height:41px; box-sizing:border-box;
     display:flex; flex-direction:column; gap:8px;
   }
   /* Pushed apart rather than floated right — see colHTML(). The left group is
@@ -1095,7 +979,7 @@
     margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
     text-transform:inherit; color:inherit; min-width:0;
   }
-  .colhead .count{font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
+  .colhead .count{font-weight:600; color:var(--tenon-text-faint); font-size:12px; letter-spacing:0}
   /* The per-column pencil. Smaller than the toolbar .iconbtn it borrows from,
      because it sits in a row with a count and a sort toggle rather than on a
      bar of its own. Hidden until the head is pointed at: renaming a column is
@@ -1118,26 +1002,26 @@
      already had its say. */
   .colhead-desc{
     margin:0; font-size:11px; font-weight:500; line-height:1.45;
-    text-transform:none; letter-spacing:0; color:var(--ink-faint);
+    text-transform:none; letter-spacing:0; color:var(--tenon-text-faint);
   }
   /* Says which order the column is in, and changes it. Quiet until it is on,
      because "your order" is the normal state and needs no announcing. */
   .sortbtn{
     flex:none; border:1px solid transparent; background:transparent; border-radius:6px;
     padding:2px 6px; font-size:11px; font-weight:650; letter-spacing:.02em; text-transform:none;
-    color:var(--ink-faint); opacity:.55;
+    color:var(--tenon-text-faint); opacity:.55;
   }
   .col:hover .sortbtn{opacity:1}
-  .sortbtn:hover{color:var(--ink); border-color:var(--line)}
+  .sortbtn:hover{color:var(--tenon-text-default); border-color:var(--tenon-stroke-default)}
   /* A touch screen never hovers, so the quiet state is the only state it would
      ever see and the control reads as disabled. Full opacity there. */
   @media (hover:none){ .sortbtn{opacity:1} }
   .sortbtn.on{
-    color:var(--accent); border-color:color-mix(in srgb, var(--accent) 35%, transparent);
-    background:color-mix(in srgb, var(--accent) 8%, transparent); opacity:1; font-size:10.5px;
+    color:var(--tenon-text-accent); border-color:color-mix(in srgb, var(--tenon-stroke-accent) 35%, transparent);
+    background:color-mix(in srgb, var(--tenon-background-accent) 8%, transparent); opacity:1; font-size:10.5px;
   }
 
-  .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
+  .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint)}
   /* A collapsible column — Overview's seven. The head is the <summary>, so it
      keeps every rule above it and gains only a chevron and a pointer. The
      marker is turned off in both spellings because Safari still wants the
@@ -1145,7 +1029,7 @@
   .col > summary{cursor:pointer; list-style:none}
   .col > summary::-webkit-details-marker{display:none}
   .col > summary::marker{content:''}
-  .colchev{flex:none; font-size:10px; color:var(--ink-faint); line-height:1}
+  .colchev{flex:none; font-size:10px; color:var(--tenon-text-faint); line-height:1}
   .colchev::before{content:'\25b8'}
   .col[open] .colchev::before{content:'\25be'}
   /* Shut, the head is the whole column, so the divider under it would be a
@@ -1156,21 +1040,21 @@
   .col[data-colcollapse]:not([open]) > summary{border-bottom:0}
   .col[data-colcollapse]:not([open]) > .colbody{display:none}
   .colbody{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
-  .drop.over{background:color-mix(in srgb, var(--accent) 7%, transparent)}
+  .drop.over{background:color-mix(in srgb, var(--tenon-background-accent) 7%, transparent)}
   /* Where the card being dragged will land. Sits in the gap between two cards,
      so the line is the answer to "in front of which one?". */
   .dropline{
-    flex:none; height:3px; border-radius:2px; background:var(--accent); position:relative;
+    flex:none; height:3px; border-radius:2px; background:var(--tenon-background-accent); position:relative;
   }
   .dropline::before, .dropline::after{
-    content:""; position:absolute; top:-2px; width:7px; height:7px; border-radius:50%; background:var(--accent);
+    content:""; position:absolute; top:-2px; width:7px; height:7px; border-radius:50%; background:var(--tenon-background-accent);
   }
   .dropline::before{left:-3px}
   .dropline::after{right:-3px}
   .col footer{padding:0 9px 10px}
-  .addbtn{width:100%; border:1px dashed var(--line); background:transparent; color:var(--ink-faint); border-radius:8px; padding:7px; font-size:12.5px}
-  .addbtn:hover{color:var(--ink); border-color:var(--ink-faint)}
-  .empty{color:var(--ink-faint); font-size:12.5px; padding:6px 4px 10px}
+  .addbtn{width:100%; border:1px dashed var(--tenon-stroke-default); background:transparent; color:var(--tenon-text-faint); border-radius:8px; padding:7px; font-size:12.5px}
+  .addbtn:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
+  .empty{color:var(--tenon-text-faint); font-size:12.5px; padding:6px 4px 10px}
 
   /* ---------- lists view ---------- */
   /* CSS columns rather than grid: sections are wildly different heights, and
@@ -1203,37 +1087,37 @@
      and Execution's bodies hold cards, and a card sets its own type. */
   .col.prose .colbody{gap:0; display:block; padding:12px 14px 14px}
   .col.prose .colbody h4{margin:14px 0 6px; font-size:13px; font-weight:640}
-  .col.prose .colbody p{margin:0 0 9px; color:var(--ink-soft); font-size:13.5px; line-height:1.55}
+  .col.prose .colbody p{margin:0 0 9px; color:var(--tenon-text-subtle); font-size:13.5px; line-height:1.55}
   .col.prose .colbody p:last-child{margin-bottom:0}
   .col.prose .colbody li{font-size:13.5px; line-height:1.5}
-  .col.prose .colbody code{background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .col.prose .colbody code{background:var(--tenon-background-neutral); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
   /* ---------- backups view ----------
      Scoped under .backupsview so its .row/.tag/.name/.empty/.err don't collide
      with the task-card classes of the same name used everywhere else. */
   .backupsview h2{
     font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink-faint); margin:20px 0 9px;
+    color:var(--tenon-text-faint); margin:20px 0 9px;
   }
   .backupsview h2:first-of-type{margin-top:4px}
   .backupsview .row{
-    display:flex; align-items:center; gap:12px; background:var(--bg);
-    border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin-bottom:7px;
+    display:flex; align-items:center; gap:12px; background:var(--tenon-background-default);
+    border:1px solid var(--tenon-stroke-default); border-radius:10px; padding:11px 13px; margin-bottom:7px;
   }
   .backupsview .when{font-weight:600; color:inherit; text-decoration:none; min-width:14.5em}
   .backupsview .when:hover{text-decoration:underline}
-  .backupsview .ago{color:var(--ink-faint); font-size:12.5px; min-width:8em}
-  .backupsview .size{color:var(--ink-faint); font-size:12.5px; min-width:5em; text-align:right}
+  .backupsview .ago{color:var(--tenon-text-faint); font-size:12.5px; min-width:8em}
+  .backupsview .size{color:var(--tenon-text-faint); font-size:12.5px; min-width:5em; text-align:right}
   .backupsview .tag{
     font-size:11px; font-weight:650; border-radius:5px; padding:2px 7px;
-    background:var(--green-bg); color:var(--green);
+    background:var(--tenon-background-success-subtle); color:var(--tenon-text-success);
   }
-  .backupsview .tag.session{background:var(--chip); color:var(--ink-soft)}
+  .backupsview .tag.session{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
   .backupsview .name{
-    font-size:11.5px; color:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11.5px; color:var(--tenon-text-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .backupsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
-  .backupsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+  .backupsview .empty{color:var(--tenon-text-faint); font-size:13px; padding:6px 0 14px}
+  .backupsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:9px; font-size:13px}
   .backupsview .loadbtn{flex:none; font-size:12px; padding:4px 10px}
   @media (max-width:640px){
     .backupsview .row{flex-wrap:wrap}
@@ -1251,7 +1135,7 @@
      spaces its own row. */
   .repwindow{
     display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:12px;
-    color:var(--ink-soft); text-transform:none; letter-spacing:0; font-weight:500;
+    color:var(--tenon-text-subtle); text-transform:none; letter-spacing:0; font-weight:500;
   }
   /* Seven windows shown at once instead of a <select> showing one — the
      shared .tabs object at its small size, the last control on the board that
@@ -1263,16 +1147,16 @@
   .tabs.small .tab{padding:4px 9px; font-size:12px}
   /* The range the picker resolves to, stated once beside it rather than
      repeated as its own heading further down. */
-  .repwindow .repdates{color:var(--ink-faint)}
+  .repwindow .repdates{color:var(--tenon-text-faint)}
   /* Same shape as .repwindow above, for the same reason, and in the column
      header's Sort slot for the same reason: it governs every card in the list
      below it rather than belonging to one of them. */
   .projsort{
-    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft);
+    display:flex; align-items:center; gap:7px; font-size:12px; color:var(--tenon-text-subtle);
     text-transform:none; letter-spacing:0; font-weight:500;
   }
   .projsort select{
-    border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:4px 7px; font-size:12.5px;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:7px; padding:4px 7px; font-size:12.5px;
   }
   /* One h2 per report in reportDefs() — a report's own name, not a section
      eyebrow, so it carries weight instead of shrinking away. Same bottom
@@ -1281,7 +1165,7 @@
      a single figure, so its name is the .statcard's own eyebrow and sits in
      the same box as the number it names. */
   .reportsview h2{
-    font-size:15px; font-weight:660; color:var(--ink); margin:26px 0 10px; letter-spacing:-.01em;
+    font-size:15px; font-weight:660; color:var(--tenon-text-default); margin:26px 0 10px; letter-spacing:-.01em;
   }
   /* One headline figure, boxed — the answer to the question the view was
      opened for, with what it counts underneath. It used to sit on one baseline
@@ -1296,21 +1180,21 @@
      Reports is not the only view with a headline figure in it — see
      kanban/ui/StatCard.tsx, which is the only thing that draws one. */
   .statcard{
-    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    background:var(--tenon-background-default); border:1px solid var(--tenon-stroke-default); border-radius:10px;
     padding:18px 20px 16px; margin-bottom:16px; width:max-content; max-width:100%;
   }
   /* Inside the box rather than over it, so the name of the figure and the
      figure are one object. Quiet and small on purpose: it labels the number,
      it does not compete with it. */
   .statcard-eyebrow{
-    display:block; font-size:11px; font-weight:600; color:var(--ink-faint);
+    display:block; font-size:11px; font-weight:600; color:var(--tenon-text-faint);
     text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;
   }
   .statcard-value{
-    display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--ink);
+    display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--tenon-text-default);
     letter-spacing:-.03em; font-variant-numeric:tabular-nums;
   }
-  .statcard-caption{display:block; font-size:13px; color:var(--ink-soft); margin-top:7px}
+  .statcard-caption{display:block; font-size:13px; color:var(--tenon-text-subtle); margin-top:7px}
   /* The gap the h2 above it used to carry, kept where it belongs: this is the
      Reports layout's spacing, not the card's, and a statcard elsewhere sets
      its own. */
@@ -1319,29 +1203,29 @@
      same fact, so the rule goes under the pair. With the rule under the row
      instead, an opened list sat below its own divider and read as the next
      bucket's. */
-  .reportsview .bkgroup{border-bottom:1px solid var(--line-soft)}
+  .reportsview .bkgroup{border-bottom:1px solid var(--tenon-stroke-subtle)}
   .reportsview .bkgroup:last-of-type{border-bottom:0}
   .reportsview .row{display:flex; align-items:center; gap:12px; padding:9px 2px}
   .reportsview .bkname{
     display:flex; align-items:center; gap:8px; min-width:13em; flex:none;
-    font-size:13px; font-weight:600; color:var(--ink);
+    font-size:13px; font-weight:600; color:var(--tenon-text-default);
   }
   .reportsview .bkname i{width:9px; height:9px; border-radius:50%; background:var(--bc); flex:none}
   /* The bar is the comparison. It is scaled to the biggest bucket rather than to
      the total, so a quiet month still reads as a shape instead of four slivers. */
-  .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--chip); border-radius:5px; overflow:hidden}
+  .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--tenon-background-neutral); border-radius:5px; overflow:hidden}
   .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:5px}
-  .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--ink)}
+  .reportsview .n{min-width:2.5em; text-align:right; font-size:14px; font-weight:660; color:var(--tenon-text-default)}
   /* Effort points, sitting between the count and the percentage. Quieter than
      the count on purpose: the count is still what the report is about, and this
      qualifies it rather than replacing it. */
   .reportsview .ef{
-    min-width:4.5em; text-align:right; font-size:12.5px; color:var(--ink-soft);
+    min-width:4.5em; text-align:right; font-size:12.5px; color:var(--tenon-text-subtle);
     font-variant-numeric:tabular-nums;
   }
-  .reportsview .ef.untagged{color:var(--ink-faint); font-style:italic}
-  .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--ink-faint)}
-  .reportsview .zero .n, .reportsview .zero .ef, .reportsview .zero .bkname{color:var(--ink-faint)}
+  .reportsview .ef.untagged{color:var(--tenon-text-faint); font-style:italic}
+  .reportsview .pct{min-width:4em; text-align:right; font-size:12.5px; color:var(--tenon-text-faint)}
+  .reportsview .zero .n, .reportsview .zero .ef, .reportsview .zero .bkname{color:var(--tenon-text-faint)}
   /* Each bucket can be opened to see which tasks made the number. Closed by
      default: the count is the report, the list is the evidence behind it. */
   /* Indented under the bucket name it belongs to, so the pairing survives a
@@ -1355,31 +1239,31 @@
      draws. A column head is `colHTML()`'s, not this file's. */
   .reportsview .colbody details{margin:0 0 4px 21px}
   .reportsview .colbody summary{
-    font-size:12.5px; color:var(--ink-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
+    font-size:12.5px; color:var(--tenon-text-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
   }
   .reportsview .colbody summary::-webkit-details-marker{display:none}
-  .reportsview .colbody summary::before{content:'▸ '; color:var(--ink-faint)}
+  .reportsview .colbody summary::before{content:'▸ '; color:var(--tenon-text-faint)}
   .reportsview .colbody details[open] summary::before{content:'▾ '}
-  .reportsview .colbody summary:hover{color:var(--ink-soft)}
+  .reportsview .colbody summary:hover{color:var(--tenon-text-subtle)}
   .reportsview .done{margin:2px 0 12px; padding:0; list-style:none}
   .reportsview .done li{
     display:flex; gap:10px; align-items:baseline; padding:5px 10px; margin-bottom:4px;
-    background:var(--bg); border:1px solid var(--line); border-radius:8px;
-    border-left:3px solid var(--bc,var(--line));
+    background:var(--tenon-background-default); border:1px solid var(--tenon-stroke-default); border-radius:8px;
+    border-left:3px solid var(--bc,var(--tenon-stroke-default));
   }
   .reportsview .done .dt{
-    flex:none; min-width:6.5em; font-size:11.5px; color:var(--ink-faint);
+    flex:none; min-width:6.5em; font-size:11.5px; color:var(--tenon-text-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .reportsview .done .tt{
-    flex:1; min-width:0; font-size:13px; line-height:1.4; color:var(--ink);
+    flex:1; min-width:0; font-size:13px; line-height:1.4; color:var(--tenon-text-default);
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
-  .reportsview .done .tt:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  .reportsview .done .tt:hover{color:var(--tenon-text-accent); text-decoration:underline; text-underline-offset:2px}
   /* Archived work has nothing left in todo.md to open, so it stays plain text. */
-  .reportsview .done .tt.archived{color:var(--ink-soft); cursor:default}
-  .reportsview .done .tt.archived:hover{color:var(--ink-soft); text-decoration:none}
-  .reportsview .done .where{flex:none; font-size:11.5px; color:var(--ink-faint)}
+  .reportsview .done .tt.archived{color:var(--tenon-text-subtle); cursor:default}
+  .reportsview .done .tt.archived:hover{color:var(--tenon-text-subtle); text-decoration:none}
+  .reportsview .done .where{flex:none; font-size:11.5px; color:var(--tenon-text-faint)}
   /* The flat list is not evidence behind a count, so it is not indented under
      anything. Its fold is open from the start and only ever closed by hand. */
   .reportsview .done.flat{margin:0 0 4px}
@@ -1392,12 +1276,12 @@
      alone is too thin to name a bucket by. */
   .reportsview .done .where.bk{
     display:inline-flex; align-items:center; gap:6px; padding:1px 9px 2px;
-    border-radius:999px; background:var(--chip); color:var(--ink-soft);
+    border-radius:999px; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle);
   }
   .reportsview .done .where.bk::before{
     content:''; width:7px; height:7px; border-radius:50%; background:var(--bc); flex:none;
   }
-  .reportsview .empty{color:var(--ink-faint); font-size:13px; padding:6px 0 14px}
+  .reportsview .empty{color:var(--tenon-text-faint); font-size:13px; padding:6px 0 14px}
   /* One band per bucket rather than one stack per week. A stack only ever
      answers how many in total; the offset under each chunk moves every week,
      so a single bucket cannot be followed along the row. Overlaid curves can,
@@ -1411,59 +1295,59 @@
   .trendhead h2{margin:0}
   .trend{margin:10px 0 2px}
   .trendchart{display:block; width:100%; height:auto}
-  .trendgrid{stroke:var(--line); stroke-width:1}
-  .trendbase{stroke:var(--line); stroke-width:1}
+  .trendgrid{stroke:var(--tenon-stroke-default); stroke-width:1}
+  .trendbase{stroke:var(--tenon-stroke-default); stroke-width:1}
   .trendline{fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round}
   .trendbar{rx:2}
   .trenddot{pointer-events:none}
   .trendpt{fill:transparent; cursor:pointer}
-  .trendpt:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .trendpt:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:1px}
   /* The popover itself, same fixed-and-floating idea as the Matrix's dot
      preview (.mpreview) — a fact he can check by pointing rather than one he
      has to add the per-week totals up to reach. */
   .tpreview{
     position:fixed; left:0; top:0; z-index:40; pointer-events:none;
-    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:8px;
     padding:7px 10px; box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
     opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
     white-space:nowrap;
   }
   .tpreview.on{opacity:1; transform:none}
-  .tprow{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:650; color:var(--ink)}
+  .tprow{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:650; color:var(--tenon-text-default)}
   /* Two lines can cross the same value in the same week, stacking their dots
      on the same point — the popover then lists one label-and-count pair per
      line sharing it, so this gap is what keeps that reading as a short list
      rather than one crowded block. First pair sits flush under the point. */
   .tprow + .tprow{margin-top:8px}
   .tprow i{width:8px; height:8px; border-radius:50%; background:var(--bc); flex:none}
-  .tpcount{margin-top:2px; font-size:11.5px; color:var(--ink-soft)}
-  .tpcount strong{color:var(--ink); font-weight:700}
+  .tpcount{margin-top:2px; font-size:11.5px; color:var(--tenon-text-subtle)}
+  .tpcount strong{color:var(--tenon-text-default); font-weight:700}
   @media (prefers-reduced-motion:reduce){ .tpreview{transition:none} }
   /* Labels are HTML under the chart, not text inside it: they stay at their own
      size whatever width the card ends up at, and they theme with everything else. */
   .trendx{display:flex; margin:8px 0 0}
   .trendxc{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:1px}
-  .trendwk{font-size:10px; color:var(--ink-faint); white-space:nowrap}
-  .trendn{font-size:10px; color:var(--ink-faint)}
+  .trendwk{font-size:10px; color:var(--tenon-text-faint); white-space:nowrap}
+  .trendn{font-size:10px; color:var(--tenon-text-faint)}
   /* Current week is still filling up, so its label is marked rather than its
      curve recoloured — the colour is the bucket's, not a status. */
-  .trendxc.current .trendwk{color:var(--accent); font-weight:660}
-  .trendxc.current .trendn{color:var(--ink-soft)}
+  .trendxc.current .trendwk{color:var(--tenon-text-accent); font-weight:660}
+  .trendxc.current .trendn{color:var(--tenon-text-subtle)}
   .trendkey{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0}
   .tkey{
     display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px;
-    background:var(--chip); border:1px solid transparent; color:var(--ink-soft);
+    background:var(--tenon-background-neutral); border:1px solid transparent; color:var(--tenon-text-subtle);
     font-size:11.5px; font-weight:600; cursor:pointer;
   }
   .tkey i{flex:none; width:9px; height:9px; border-radius:50%; background:var(--bc)}
-  .tkey:hover{color:var(--ink); border-color:var(--line)}
+  .tkey:hover{color:var(--tenon-text-default); border-color:var(--tenon-stroke-default)}
   .tkey.off{opacity:.45}
-  .tkey.off i{background:var(--ink-faint)}
+  .tkey.off i{background:var(--tenon-text-faint)}
   /* The one finding a report reads back to you, after its own chart or list —
      "climbing", "flat" — as opposed to .help.listlead, which describes the
      report rather than concluding one. */
-  .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
-  .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
+  .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--tenon-text-faint) !important}
+  .reportsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:9px; font-size:13px}
 
   /* The two report columns had a grid of their own, `.lists.rview`, while they
      were a tab. They are the last two columns of `.lists.split` since
@@ -1517,8 +1401,8 @@
      by name rather than inferred from which view it is in — .reportsview
      .empty is shared with the Reports view, which keeps its plain text. */
   .empty.boxed{
-    padding:11px 13px; background:var(--bg); border:1px dashed var(--line);
-    border-radius:10px; font-size:13px; color:var(--ink-faint);
+    padding:11px 13px; background:var(--tenon-background-default); border:1px dashed var(--tenon-stroke-default);
+    border-radius:10px; font-size:13px; color:var(--tenon-text-faint);
   }
   /* Run now and Spend and clocks are `action` on their column's head now —
      see colHTML() — so the head shape they used to need is gone with
@@ -1536,19 +1420,19 @@
   .colfilter .dropdown-panel{min-width:150px}
   .colfilter-btn{
     display:inline-flex; align-items:center; justify-content:space-between; gap:7px;
-    border:1px solid var(--line); background:var(--bg); border-radius:7px;
-    padding:5px 9px; min-height:33px; color:var(--ink); font-size:13px; font-weight:400;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:7px;
+    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size:13px; font-weight:400;
     text-transform:none; letter-spacing:0; white-space:nowrap; cursor:pointer;
   }
-  .colfilter-btn:hover{border-color:var(--ink-faint)}
-  .colfilter-btn .caret{font-size:11px; color:var(--ink-soft)}
+  .colfilter-btn:hover{border-color:var(--tenon-text-faint)}
+  .colfilter-btn .caret{font-size:11px; color:var(--tenon-text-subtle)}
   .colfilter .dropdown-item{display:flex; align-items:center; gap:8px}
   .colfilter .dropdown-item .n{
-    margin-left:auto; font-size:11px; font-weight:650; color:var(--ink-faint);
-    background:var(--chip); border-radius:5px; padding:0 5px; min-width:19px; text-align:center;
+    margin-left:auto; font-size:11px; font-weight:650; color:var(--tenon-text-faint);
+    background:var(--tenon-background-neutral); border-radius:5px; padding:0 5px; min-width:19px; text-align:center;
   }
-  .colfilter .dropdown-item.on{background:var(--chip); font-weight:640}
-  .colfilter .dropdown-item.on .n{background:var(--panel); color:var(--ink-soft)}
+  .colfilter .dropdown-item.on{background:var(--tenon-background-neutral); font-weight:640}
+  .colfilter .dropdown-item.on .n{background:var(--tenon-background-raised); color:var(--tenon-text-subtle)}
 
   /* The queue and the Backlog beside it share this card — a card here is a
      proposal about tonight (or about not-tonight), so it is lighter than a
@@ -1565,8 +1449,8 @@
   .qitem{margin:0 0 7px}
   .qitem:last-child{margin-bottom:0}
   .qitem.dragging{opacity:.4}
-  .qitem.over-top{box-shadow:inset 0 2px 0 var(--accent)}
-  .qitem.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .qitem.over-top{box-shadow:inset 0 2px 0 var(--tenon-stroke-accent)}
+  .qitem.over-bottom{box-shadow:inset 0 -2px 0 var(--tenon-stroke-accent)}
   /* .qhead, .qpos and .qtitle are gone: a queue row draws through
      cardShellHTML() like every other card, so its head is .cardhead, its
      position is .cardpos and its title is .title. */
@@ -1575,7 +1459,7 @@
      act, and a visible button on every row in the queue would invite it. */
   .qhold{flex:none; opacity:0; transition:opacity .1s}
   .qitem:hover .qhold, .qitem:focus-within .qhold{opacity:1}
-  .qhold:hover{border-color:var(--accent); color:var(--accent)}
+  .qhold:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   @media (prefers-reduced-motion:reduce){ .qhold{transition:none} }
   /* .qwhy is gone: a queue row draws in the PlanCard shell now, so the reason
      it is queued sits in .cardsum, the same slot a plan's own standfirst
@@ -1593,13 +1477,13 @@
      and read as tangled with their borders rather than as framing the column.
      The radius matches the column's 12px less its 1px border. */
   .coldrop{
-    outline:2px dashed var(--accent); outline-offset:-1px; border-radius:11px;
+    outline:2px dashed var(--tenon-stroke-accent); outline-offset:-1px; border-radius:11px;
   }
   /* And one that will refuse what is being dragged: a task has nothing to
      accept, so Done says no while the card is still in the air rather than
      after it lands. Same geometry. */
   .coldeny{
-    outline:2px dashed var(--red); outline-offset:-1px; border-radius:11px;
+    outline:2px dashed var(--tenon-text-error); outline-offset:-1px; border-radius:11px;
   }
   /* Waiting for review is the agent's own column and takes no drops at all.
      The dashed edge is the whole tell, so it has to be on the card rather than
@@ -1620,32 +1504,32 @@
      it. */
   .fnow{
     display:flex; gap:10px; align-items:flex-start; padding:11px 13px;
-    background:var(--green-bg); border:1px solid color-mix(in srgb, var(--green) 25%, transparent);
-    border-radius:10px; font-size:13.5px; color:var(--ink);
+    background:var(--tenon-background-success-subtle); border:1px solid color-mix(in srgb, var(--tenon-text-success) 25%, transparent);
+    border-radius:10px; font-size:13.5px; color:var(--tenon-text-default);
   }
   .fspin{
     flex:none; width:9px; height:9px; margin-top:5px; border-radius:50%;
-    background:var(--green); animation:fpulse 1.6s ease-in-out infinite;
+    background:var(--tenon-background-success); animation:fpulse 1.6s ease-in-out infinite;
   }
   @keyframes fpulse{ 0%,100%{opacity:1} 50%{opacity:.25} }
   @media (prefers-reduced-motion: reduce){ .fspin{animation:none} }
   .fstop{
-    margin:10px 0 0; padding:8px 11px; background:var(--amber-bg); border-radius:8px;
-    font-size:12.5px; color:var(--amber);
+    margin:10px 0 0; padding:8px 11px; background:var(--tenon-background-warning-subtle); border-radius:8px;
+    font-size:12.5px; color:var(--tenon-text-warning);
   }
   .fhead{margin:14px 0 6px !important; font-size:12px !important; font-weight:660 !important;
-    text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint) !important}
+    text-transform:uppercase; letter-spacing:.03em; color:var(--tenon-text-faint) !important}
   .frow{
     display:flex; gap:10px; align-items:baseline; padding:5px 2px;
-    border-bottom:1px solid var(--line-soft); font-size:12.5px;
+    border-bottom:1px solid var(--tenon-stroke-subtle); font-size:12.5px;
   }
   .frow:last-child{border-bottom:0}
-  .fname{flex:1; min-width:0; color:var(--ink-soft)}
+  .fname{flex:1; min-width:0; color:var(--tenon-text-subtle)}
   .fmeta{
-    flex:none; font-size:11.5px; color:var(--ink-faint);
+    flex:none; font-size:11.5px; color:var(--tenon-text-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .frow.failed .fname{color:var(--red)}
+  .frow.failed .fname{color:var(--tenon-text-error)}
   .frow.failed .fmeta{font-family:inherit; max-width:45%; text-align:right}
   #qdOrphan .err{margin-top:0}
 
@@ -1655,51 +1539,51 @@
      scoped under any view class — Plans uses these classes directly rather
      than through a wrapper the way .reportsview and .backupsview are. */
   .schedjob{
-    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    background:var(--tenon-background-default); border:1px solid var(--tenon-stroke-default); border-radius:10px;
     padding:12px 14px; margin:0 0 10px;
   }
   .schedhead{display:flex; align-items:center; gap:9px}
   .schedhead .dot{width:9px; height:9px; border-radius:50%; flex:none}
   /* Armed and not armed, and nothing in between. A job is either going to fire
      or it is not, and a third colour would only invite a maybe. */
-  .schedhead .dot.on{background:var(--green)}
-  .schedhead .dot.off{background:var(--ink-faint)}
-  .schedname{font-size:14px; font-weight:640; color:var(--ink); flex:1; min-width:0}
-  .schedstate{font-size:11.5px; color:var(--ink-faint)}
-  .schedstate.on{color:var(--green)}
-  .schedwhat{margin:7px 0 0; font-size:12.5px; color:var(--ink-soft); line-height:1.5}
+  .schedhead .dot.on{background:var(--tenon-background-success)}
+  .schedhead .dot.off{background:var(--tenon-text-faint)}
+  .schedname{font-size:14px; font-weight:640; color:var(--tenon-text-default); flex:1; min-width:0}
+  .schedstate{font-size:11.5px; color:var(--tenon-text-faint)}
+  .schedstate.on{color:var(--tenon-text-success)}
+  .schedwhat{margin:7px 0 0; font-size:12.5px; color:var(--tenon-text-subtle); line-height:1.5}
   .schedmeta{
     display:grid; grid-template-columns:auto 1fr; gap:3px 12px;
     margin:9px 0 0; font-size:12px;
   }
-  .schedmeta dt{color:var(--ink-faint)}
-  .schedmeta dd{margin:0; color:var(--ink-soft)}
+  .schedmeta dt{color:var(--tenon-text-faint)}
+  .schedmeta dd{margin:0; color:var(--tenon-text-subtle)}
   .schedhint{
-    margin:9px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
-    font-size:12px; color:var(--ink-soft);
+    margin:9px 0 0; padding:8px 10px; background:var(--tenon-background-neutral); border-radius:7px;
+    font-size:12px; color:var(--tenon-text-subtle);
   }
   .schedhint code{
     display:block; margin-top:5px; font-size:11.5px; word-break:break-all;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--tenon-text-default);
   }
   .schedlog{margin:9px 0 0; font-size:12px}
-  .schedlog summary{cursor:pointer; color:var(--ink-faint)}
+  .schedlog summary{cursor:pointer; color:var(--tenon-text-faint)}
   .schedlog pre{
-    margin:7px 0 0; padding:8px 10px; background:var(--chip); border-radius:7px;
-    font-size:11px; line-height:1.55; overflow-x:auto; color:var(--ink-soft);
+    margin:7px 0 0; padding:8px 10px; background:var(--tenon-background-neutral); border-radius:7px;
+    font-size:11px; line-height:1.55; overflow-x:auto; color:var(--tenon-text-subtle);
   }
   /* The chart. Two series on two scales, so each axis is drawn in the colour of
      the line it belongs to — that is the only thing saying which reads against
      which, and a legend alone would not carry it. */
   .uchart{margin:12px 0 4px}
   .uchart svg{width:100%; height:auto; display:block; overflow:visible}
-  .ugrid{stroke:var(--line-soft); stroke-width:1}
+  .ugrid{stroke:var(--tenon-stroke-subtle); stroke-width:1}
   /* The 100% rule is the one line on here that is a claim rather than a
      measurement, so it is dashed — the same way an estimate is drawn
      everywhere else on the board. */
-  .ugrid.cap{stroke:var(--ink-faint); stroke-dasharray:3 3; opacity:.55}
+  .ugrid.cap{stroke:var(--tenon-text-faint); stroke-dasharray:3 3; opacity:.55}
   .uline{fill:none; stroke-linejoin:round; stroke-linecap:round}
-  .uline.r{stroke:var(--b2); stroke-width:1.6}
+  .uline.r{stroke:var(--tenon-chart-2); stroke-width:1.6}
   /* One vertical line per five-hour session, at the moment it opened. Night
      ones are picked out because they are the windows the nightly agent could
      have spent in without touching the morning.
@@ -1722,19 +1606,19 @@
      day/night split is set once per box rather than on each of its two
      pieces. currentColor is also why the <g> carries the class and not the
      shapes: colour set on the group is what both children inherit. */
-  .ubox{color:var(--ink-faint)}
-  .ubox.night{color:var(--accent)}
-  .ubox.live{color:var(--green)}
+  .ubox{color:var(--tenon-text-faint)}
+  .ubox.night{color:var(--tenon-text-accent)}
+  .ubox.live{color:var(--tenon-text-success)}
   .uboxline{fill:none; stroke:currentColor; stroke-width:1.2; shape-rendering:crispEdges}
   /* Filled rather than outlined, and quiet: the box's own edge is the figure
      to read against the axis, and this says how it got there. */
   .ufill{fill:currentColor; opacity:.3; stroke:none}
   .ubox.live .ufill{opacity:.4}
-  .unow{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2 3; opacity:.6}
-  .uaxl{font-size:9px; fill:var(--ink-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .unow{stroke:var(--tenon-text-faint); stroke-width:1; stroke-dasharray:2 3; opacity:.6}
+  .uaxl{font-size:9px; fill:var(--tenon-text-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .uaxl.y{text-anchor:end}
   .uaxl.d{text-anchor:middle}
-  .ukey{display:flex; flex-wrap:wrap; gap:12px; margin:6px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  .ukey{display:flex; flex-wrap:wrap; gap:12px; margin:6px 0 0; font-size:11.5px; color:var(--tenon-text-faint)}
   .ukey .k{display:flex; align-items:center; gap:5px}
   /* Each swatch is the mark it stands for, at the size it is drawn: the two
      session keys are hollow boxes because a session is a hollow box now, and
@@ -1742,51 +1626,51 @@
      back when a session was a 3px bar. */
   .ukey .k::before{
     content:''; width:10px; height:11px; border-radius:2px;
-    border:1.2px solid var(--ink-faint); background:transparent;
+    border:1.2px solid var(--tenon-text-faint); background:transparent;
   }
-  .ukey .k.n::before{border-color:var(--accent)}
-  .ukey .k.f::before{border-color:transparent; background:var(--ink-faint); opacity:.3}
-  .ukey .k.r::before{width:12px; height:0; border:none; border-top:3px solid var(--b2); border-radius:0}
+  .ukey .k.n::before{border-color:var(--tenon-stroke-accent)}
+  .ukey .k.f::before{border-color:transparent; background:var(--tenon-text-faint); opacity:.3}
+  .ukey .k.r::before{width:12px; height:0; border:none; border-top:3px solid var(--tenon-chart-2); border-radius:0}
   /* How far back the chart looks. Segmented rather than a dropdown: four
      stops, and which one is on is the thing to read at a glance. */
   .uranges{display:flex; gap:3px; margin:10px 0 0}
   .urange{
-    flex:1; border:1px solid var(--line); background:transparent; color:var(--ink-faint);
+    flex:1; border:1px solid var(--tenon-stroke-default); background:transparent; color:var(--tenon-text-faint);
     border-radius:6px; padding:3px 0; font-size:11px; font-weight:640;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .urange:hover{color:var(--ink-soft); border-color:var(--ink-faint)}
+  .urange:hover{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
   .urange.on{
-    background:color-mix(in srgb, var(--accent) 14%, transparent);
-    border-color:color-mix(in srgb, var(--accent) 45%, transparent); color:var(--accent);
+    background:color-mix(in srgb, var(--tenon-background-accent) 14%, transparent);
+    border-color:color-mix(in srgb, var(--tenon-stroke-accent) 45%, transparent); color:var(--tenon-text-accent);
   }
-  .ucap{margin:7px 0 0; font-size:11px; line-height:1.5; color:var(--ink-faint)}
-  .ucap b{color:var(--ink-soft); font-weight:640}
+  .ucap{margin:7px 0 0; font-size:11px; line-height:1.5; color:var(--tenon-text-faint)}
+  .ucap b{color:var(--tenon-text-subtle); font-weight:640}
   .ucap em{font-style:normal; opacity:.8}
   .ufold{margin:6px 0 0}
-  .ufold summary{font-size:12px; color:var(--ink-faint); cursor:pointer; padding:4px 0}
-  .ustats{display:flex; flex-wrap:wrap; gap:14px; margin:12px 0 10px; font-size:12px; color:var(--ink-faint)}
-  .ustats b{color:var(--ink); font-weight:660; font-size:13px}
+  .ufold summary{font-size:12px; color:var(--tenon-text-faint); cursor:pointer; padding:4px 0}
+  .ustats{display:flex; flex-wrap:wrap; gap:14px; margin:12px 0 10px; font-size:12px; color:var(--tenon-text-faint)}
+  .ustats b{color:var(--tenon-text-default); font-weight:660; font-size:13px}
   /* Thirty days is eighty-odd windows, which unrolled runs further down the
      page than everything else on the view put together. Scrolled inside the
      card instead, so the two cards stay the same height and the recent ones —
      the only ones anybody reads — are the ones on screen. */
-  .ulist{border-top:1px solid var(--line-soft); max-height:min(52vh, 460px); overflow-y:auto}
+  .ulist{border-top:1px solid var(--tenon-stroke-subtle); max-height:min(52vh, 460px); overflow-y:auto}
   .urow{
     display:flex; align-items:center; gap:10px; padding:6px 2px;
-    border-bottom:1px solid var(--line-soft); font-size:12px; color:var(--ink-soft);
+    border-bottom:1px solid var(--tenon-stroke-subtle); font-size:12px; color:var(--tenon-text-subtle);
   }
   .uday{flex:none; width:8.5em}
   .uspan{flex:none; width:7.5em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px}
-  .ubar{flex:1; min-width:40px; height:8px; background:var(--chip); border-radius:4px; overflow:hidden}
-  .ubar span{display:block; height:100%; background:var(--ink-faint); border-radius:4px}
+  .ubar{flex:1; min-width:40px; height:8px; background:var(--tenon-background-neutral); border-radius:4px; overflow:hidden}
+  .ubar span{display:block; height:100%; background:var(--tenon-text-faint); border-radius:4px}
   .utok{flex:none; width:4.5em; text-align:right; font-variant-numeric:tabular-nums}
   /* A window that opened in the night is one the agent could have ridden, and
      one still running is the one it would ride now. Both are worth picking out
      of a list of thirty. */
-  .urow.night .ubar span{background:var(--accent)}
-  .urow.live{color:var(--ink); font-weight:600}
-  .urow.live .uspan::after{content:' ·'; color:var(--accent)}
+  .urow.night .ubar span{background:var(--tenon-background-accent)}
+  .urow.live{color:var(--tenon-text-default); font-weight:600}
+  .urow.live .uspan::after{content:' ·'; color:var(--tenon-text-accent)}
   @media (max-width: 900px){
     .urow{flex-wrap:wrap}
     .uday{width:auto; flex:1 0 60%}
@@ -1797,7 +1681,7 @@
      A list of standfirsts that opens into the report itself. Closed, it should
      read like a contents page. */
   .reportsview.written .empty code, .reportsview.processed .empty code{
-    background:var(--chip); padding:1px 5px; border-radius:4px; font-size:12px;
+    background:var(--tenon-background-neutral); padding:1px 5px; border-radius:4px; font-size:12px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   /* The box comes from the shared card rule; this is only the spacing between
@@ -1810,19 +1694,19 @@
     display:flex; align-items:baseline; gap:10px; width:100%;
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
-  .reptitle{flex:1; min-width:0; color:var(--ink)}
-  .rephead:hover .reptitle{color:var(--accent)}
+  .reptitle{flex:1; min-width:0; color:var(--tenon-text-default)}
+  .rephead:hover .reptitle{color:var(--tenon-text-accent)}
   /* A project card carries data-project on the whole <article>, so the path,
      status line and blurb open the drawer too — the pointer and the hover
      accent have to cover the same area, or two thirds of the target looks
      inert. Projects only: a report or plan item is still its top strip. */
   .projitem{cursor:pointer}
-  .projitem:hover .reptitle{color:var(--accent)}
+  .projitem:hover .reptitle{color:var(--tenon-text-accent)}
   .repdate{
-    flex:none; font-size:11.5px; color:var(--ink-faint);
+    flex:none; font-size:11.5px; color:var(--tenon-text-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--ink-faint)}
+  .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--tenon-text-faint)}
   /* A plan's meta used to be its own stacked two-row block, so the link — which
      carries the task's own long name — got a line to itself. It is the shared
      .cardmeta now, which wraps instead: one row until the link needs a second,
@@ -1831,7 +1715,7 @@
   /* Long titles wrap inside the link rather than pushing the row wide — a
      button does not wrap its own label by default. */
   .cardmeta .plangoto{white-space:normal; text-align:left; max-width:100%}
-  .planwhere{color:var(--ink-faint)}
+  .planwhere{color:var(--tenon-text-faint)}
   /* Plans reuse the report item wholesale and add one thing reports do not
      have: a state. Unread carries the accent so a night's work is findable at a
      glance; actioned recedes, because it is kept as a record rather than as
@@ -1843,11 +1727,11 @@
      two things nobody can tell apart. It keeps its mark once read — the
      question does not go away because he has seen it. */
   .repitem.folded{
-    border-color:color-mix(in srgb, var(--amber) 45%, transparent); background:var(--amber-bg);
+    border-color:color-mix(in srgb, var(--tenon-text-warning) 45%, transparent); background:var(--tenon-background-warning-subtle);
   }
   .planfold{
     flex:none; font-size:10.5px; font-weight:680; letter-spacing:.02em;
-    text-transform:uppercase; color:var(--amber);
+    text-transform:uppercase; color:var(--tenon-text-warning);
     border:1px solid currentColor; border-radius:999px; padding:1px 7px;
   }
   /* How far the implementing agent has got, on a plan he accepted. The same
@@ -1861,18 +1745,18 @@
      unattended, these three values become the two extra columns instead. */
   .planprod{
     flex:none; font-size:10.5px; font-weight:680; letter-spacing:.02em;
-    text-transform:uppercase; color:var(--ink-faint);
+    text-transform:uppercase; color:var(--tenon-text-faint);
     border:1px solid currentColor; border-radius:999px; padding:1px 7px;
   }
   /* Nothing is owed from him yet: accepted, and the agent has not been asked. */
-  .planprod-none{color:var(--ink-faint)}
+  .planprod-none{color:var(--tenon-text-faint)}
   /* Running right now, in a session he is in — so it is information rather
      than a request, and takes the accent without the weight of amber. */
-  .planprod-doing{color:var(--accent)}
+  .planprod-doing{color:var(--tenon-text-accent)}
   /* It did the work and wrote back: this one is waiting on him, which is what
      amber means everywhere else on this view. */
-  .planprod-review{color:var(--amber)}
-  .planprod-done{color:var(--green)}
+  .planprod-review{color:var(--tenon-text-warning)}
+  .planprod-done{color:var(--tenon-text-success)}
   /* Finished, and kept as a record rather than as something to read. Dimmed,
      because it means "present, not in play". */
   .repitem.actioned{opacity:.6}
@@ -1885,10 +1769,10 @@
   .repitem.redo{opacity:.82}
   .planredo{
     margin:6px 0 0; padding:6px 8px; border-radius:6px;
-    background:var(--chip); color:var(--ink-soft);
+    background:var(--tenon-background-neutral); color:var(--tenon-text-subtle);
     font-size:12px; line-height:1.45;
   }
-  .planredo b{color:var(--ink)}
+  .planredo b{color:var(--tenon-text-default)}
   /* A plan card carries the same 3px left stripe every other card does, and no
      top border.
 
@@ -1905,7 +1789,7 @@
      planStripe() in 13-plans.js sets --bc: blue for a plan that has just
      arrived, green for one he has accepted, and the ordinary line colour for
      everything else. Nothing is red. */
-  .repitem.planitem{border-left:3px solid var(--bc,var(--line))}
+  .repitem.planitem{border-left:3px solid var(--bc,var(--tenon-stroke-default))}
   /* Parked in Backlog: dimmed, the same treatment a held task card gets, for
      the same reason — it is waiting rather than inert. After the stripe rule
      above for the same reason that rule is where it is: it sets one edge on
@@ -1916,39 +1800,39 @@
      Accept/Plan it again/Turn it down below. */
   .plangoto{
     background:transparent; border:0; padding:0; margin:0; font:inherit; font-size:inherit;
-    color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+    color:var(--tenon-text-accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   }
-  .plangoto:hover{color:var(--ink)}
+  .plangoto:hover{color:var(--tenon-text-default)}
   /* The reason box on Send it back and on Turn it down. Full width, and it
      inherits the sheet's own type rather than the browser's textarea default. */
   .redowhy{
     width:100%; box-sizing:border-box; margin:8px 0 0; padding:8px 10px;
-    font:inherit; font-size:13px; color:var(--ink);
-    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    font:inherit; font-size:13px; color:var(--tenon-text-default);
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:8px;
     resize:vertical;
   }
-  .redowhy:focus{outline:2px solid var(--accent); outline-offset:1px}
+  .redowhy:focus{outline:2px solid var(--tenon-stroke-focus); outline-offset:1px}
 
   /* The standfirst is the whole point of the closed state: it should say what the
      report found, so opening it is a choice rather than the only way to know. */
-  .repsum{margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  .repsum{margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
   /* Reused inside the modal's .mid — see openReportModal — so the typography
      is what's shared here, not any box styling of its own. */
   .repdoc h4{
     margin:16px 0 6px !important; font-size:13.5px !important; font-weight:660 !important;
-    color:var(--ink) !important;
+    color:var(--tenon-text-default) !important;
   }
   .repdoc h4:first-child{margin-top:0 !important}
-  .repdoc p{margin:0 0 10px; font-size:13.5px; line-height:1.6; color:var(--ink-soft)}
+  .repdoc p{margin:0 0 10px; font-size:13.5px; line-height:1.6; color:var(--tenon-text-subtle)}
   .repdoc p:last-child{margin-bottom:0}
   .repdoc .repbul{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
-  .repdoc .repbul li{font-size:13.5px; line-height:1.5; color:var(--ink-soft); padding-left:14px; position:relative}
-  .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--ink-faint); font-weight:700}
+  .repdoc .repbul li{font-size:13.5px; line-height:1.5; color:var(--tenon-text-subtle); padding-left:14px; position:relative}
+  .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--tenon-text-faint); font-weight:700}
   /* Numbered lists keep the browser's own numbering — .repbul turns it off and
      draws a middot, which would swallow the step numbers a plan is written in. */
   .repdoc .repnum{margin:0 0 10px; padding-left:20px; display:flex; flex-direction:column; gap:5px}
-  .repdoc .repnum li{font-size:13.5px; line-height:1.5; color:var(--ink-soft)}
-  .repdoc strong{color:var(--ink)}
+  .repdoc .repnum li{font-size:13.5px; line-height:1.5; color:var(--tenon-text-subtle)}
+  .repdoc strong{color:var(--tenon-text-default)}
   @media (max-width:1000px){
     .lists.pview{grid-template-columns:1fr; min-width:0}
   }
@@ -1968,26 +1852,26 @@
   /* The panel showing a project is a reading view over other people's rows:
      nothing in it belongs to a task, so neither control in the frame applies. */
   #drawer.projectview #del{display:none}
-  #drawer.readonly #dheadHelp{color:var(--amber)}
+  #drawer.readonly #dheadHelp{color:var(--tenon-text-warning)}
   /* A suggestion, not a fact about the task — a message, a prompt, a ticket to
      raise, an agenda. Dashed and faded rather than a solid coloured stripe, so
      the border itself says "not committed yet" instead of just marking a type.
      One shape everywhere it appears, drawer or Overview: the module itself
      never changes layout by context, only how many cards sit next to it does. */
   .msg{
-    position:relative; margin:2px 0 12px 14px; padding:10px 40px 10px 12px; background:var(--bg);
-    border:1px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius:8px;
+    position:relative; margin:2px 0 12px 14px; padding:10px 40px 10px 12px; background:var(--tenon-background-default);
+    border:1px dashed color-mix(in srgb, var(--tenon-stroke-accent) 40%, transparent); border-radius:8px;
   }
   /* Message, prompt and Jira suggestions are click-to-copy over their whole
      card (see handleCopy) — this hover is what tells him that before he's
      found the small icon. Agenda cards are a different, denser shape and
      keep their own quieter styling instead. */
   .msg:not(.agenda):hover{
-    cursor:pointer; background:color-mix(in srgb, var(--amber) 12%, var(--bg));
-    border-color:color-mix(in srgb, var(--amber) 60%, transparent);
+    cursor:pointer; background:color-mix(in srgb, var(--tenon-text-warning) 12%, var(--tenon-background-default));
+    border-color:color-mix(in srgb, var(--tenon-text-warning) 60%, transparent);
   }
-  .msgtext{font-size:13px; line-height:1.55; color:var(--ink)}
-  .msgtext a{color:var(--accent)}
+  .msgtext{font-size:13px; line-height:1.55; color:var(--tenon-text-default)}
+  .msgtext a{color:var(--tenon-text-accent)}
   /* Copy is the one action worth reaching for without hovering first — the
      rest (Open in Claude, Raise in Jira, Dismiss) only earn their place once
      he is actually looking at the card, so they wait in .msgextra below.
@@ -1996,28 +1880,28 @@
   .msgacts{position:absolute; top:6px; right:6px; display:flex; flex-direction:column; align-items:flex-end; gap:4px}
   .copy{
     flex:none; display:inline-flex; align-items:center; justify-content:center;
-    width:26px; height:26px; padding:0; border:1px solid var(--line); background:var(--panel);
-    color:var(--ink-soft); border-radius:6px;
+    width:26px; height:26px; padding:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
+    color:var(--tenon-text-subtle); border-radius:6px;
   }
   .copy svg{width:14px; height:14px; display:block; fill:currentColor}
-  .copy:hover, .msg:hover .copy{color:var(--ink); border-color:var(--ink-faint)}
+  .copy:hover, .msg:hover .copy{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .msgextra{
     display:flex; flex-direction:column; align-items:stretch; gap:4px;
     opacity:0; pointer-events:none; transition:opacity .12s ease;
   }
   .msg:hover .msgextra, .msg:focus-within .msgextra{opacity:1; pointer-events:auto}
   .toclaude{
-    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-subtle);
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
     text-decoration:none; text-align:center; white-space:nowrap;
   }
-  .toclaude:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .toclaude:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .tojira{
-    border:1px solid var(--line); background:var(--panel); color:var(--ink-soft);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-subtle);
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
     text-decoration:none; text-align:center; white-space:nowrap;
   }
-  .tojira:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .tojira:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
 
   /* ---------- Claude, on a task ----------
      Modelled on the claude.ai composer and thread, because that is the shape
@@ -2026,7 +1910,7 @@
      the primary action, and a status line whose words are the progress. The
      part worth not copying was hiding the trace behind a hover. */
   .askclaude{
-    flex:none; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
+    flex:none; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; white-space:nowrap;
   }
   .askclaude:hover{filter:brightness(1.07)}
@@ -2036,38 +1920,38 @@
      see ai_chat/README.md. Only the trigger button above stays here, since
      it is drawn by this file's own claudeActions(), not by that module. */
 
-  .tag.jira{color:var(--ink-soft); border-color:var(--ink-faint)}
+  .tag.jira{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
 
   /* An agenda is drawn as the document it is about to become: the meeting date as
      a title, the word Agenda under it, then a real nested <ul>. Real bullets
      rather than styled indentation, because the bullets are the format — what is
      on screen and what lands in Google Docs should not be two designs of one
      list. */
-  .agdate{display:block; font-weight:640; color:var(--ink); margin-bottom:8px}
-  .aglead{display:block; color:var(--ink-soft); margin-bottom:2px}
+  .agdate{display:block; font-weight:640; color:var(--tenon-text-default); margin-bottom:8px}
+  .aglead{display:block; color:var(--tenon-text-subtle); margin-bottom:2px}
   .aglist, .aglist ul{margin:0; padding-left:18px; list-style:disc}
   .aglist ul{list-style:circle; margin-top:2px}
-  .aglist li{margin:2px 0; color:var(--ink)}
-  .aglist ul li{font-size:12.5px; line-height:1.5; color:var(--ink-faint)}
+  .aglist li{margin:2px 0; color:var(--tenon-text-default)}
+  .aglist ul li{font-size:12.5px; line-height:1.5; color:var(--tenon-text-faint)}
   /* Last cycle's, read while writing the next one. Quieter throughout: it is
      reference sitting under the live block, not a second thing to act on. */
   .msg.agenda.prev{opacity:.72}
   .msg.agenda.prev .aglead{font-size:12.5px}
-  .tag.repeat{color:var(--ink-soft); border-color:var(--ink-faint)}
+  .tag.repeat{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
   /* The ticket body, under its summary. Quieter than the summary because the
      summary is the thing to check and this is the thing to skim. */
-  .jirabody{display:block; margin-top:6px; font-size:12.5px; line-height:1.5; color:var(--ink-faint); font-style:normal}
-  .copy.done{color:var(--green); border-color:color-mix(in srgb, var(--green) 45%, transparent)}
-  .copy.warn{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
+  .jirabody{display:block; margin-top:6px; font-size:12.5px; line-height:1.5; color:var(--tenon-text-faint); font-style:normal}
+  .copy.done{color:var(--tenon-text-success); border-color:color-mix(in srgb, var(--tenon-text-success) 45%, transparent)}
+  .copy.warn{color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 45%, transparent)}
   /* Same shape as Copy, quieter until it matters: a suggestion he does not want
      is not a mistake to flag red, just something to stop seeing. */
   .dismiss{
-    flex:none; border:1px solid var(--line); background:var(--panel); color:var(--ink-faint);
+    flex:none; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-faint);
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
-  .dismiss:hover{color:var(--red); border-color:color-mix(in srgb, var(--red) 35%, transparent)}
-  .col.prose strong{font-weight:640; color:var(--ink)}
-  .col.prose em{color:var(--ink-faint)}
+  .dismiss:hover{color:var(--tenon-text-error); border-color:color-mix(in srgb, var(--tenon-text-error) 35%, transparent)}
+  .col.prose strong{font-weight:640; color:var(--tenon-text-default)}
+  .col.prose em{color:var(--tenon-text-faint)}
   .listnote{max-width:1180px; margin:4px 2px 0}
   .listlead{margin:0 2px 10px}   /* one explanation above the columns, not one per column */
 
@@ -2077,8 +1961,8 @@
      message or prompt where that is the whole point of the entry. Each one is
      bordered so a list of them reads as separate things to act on. */
   .ref{
-    position:relative; background:var(--panel); border:1px solid var(--line); border-radius:9px;
-    border-left:3px solid var(--bc,var(--line)); padding:9px 11px; margin:0 0 8px;
+    position:relative; background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:9px;
+    border-left:3px solid var(--bc,var(--tenon-stroke-default)); padding:9px 11px; margin:0 0 8px;
   }
   .ref:last-child{margin-bottom:0}
   .ref.done{opacity:.42}
@@ -2086,28 +1970,28 @@
   .ref.done .reftitle{text-decoration:line-through}
   .refhead{display:flex; align-items:flex-start; gap:7px}
   .reftitle{
-    flex:1; min-width:0; font-size:13.5px; font-weight:570; line-height:1.4; color:var(--ink);
+    flex:1; min-width:0; font-size:13.5px; font-weight:570; line-height:1.4; color:var(--tenon-text-default);
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
-  .reftitle:hover{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+  .reftitle:hover{color:var(--tenon-text-accent); text-decoration:underline; text-underline-offset:2px}
   .refbox{
-    flex:none; width:16px; height:16px; margin-top:1px; border:1px solid var(--line);
-    border-radius:4px; font-size:10px; line-height:14px; text-align:center; color:var(--green);
-    background:var(--bg); padding:0; cursor:pointer;
+    flex:none; width:16px; height:16px; margin-top:1px; border:1px solid var(--tenon-stroke-default);
+    border-radius:4px; font-size:10px; line-height:14px; text-align:center; color:var(--tenon-text-success);
+    background:var(--tenon-background-default); padding:0; cursor:pointer;
   }
-  .refbox:hover{border-color:var(--ink-faint)}
+  .refbox:hover{border-color:var(--tenon-text-faint)}
   .refdrop{
-    flex:none; border:1px solid transparent; background:transparent; color:var(--ink-faint);
+    flex:none; border:1px solid transparent; background:transparent; color:var(--tenon-text-faint);
     border-radius:6px; padding:2px 7px; font-size:11.5px; font-weight:600; cursor:pointer; opacity:0;
   }
   .ref:hover .refdrop, .refdrop:focus-visible{opacity:1}
-  .refdrop:hover{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent)}
+  .refdrop:hover{color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 45%, transparent)}
   .reflink{
-    flex:none; border:1px solid var(--line); background:transparent; color:var(--ink-faint);
+    flex:none; border:1px solid var(--tenon-stroke-default); background:transparent; color:var(--tenon-text-faint);
     border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:600; cursor:pointer;
   }
-  .reflink:hover{color:var(--ink); border-color:var(--ink-faint); background:var(--bg)}
-  .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--ink-faint)}
+  .reflink:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint); background:var(--tenon-background-default)}
+  .refwhere{margin:3px 0 0 21px; font-size:11.5px; color:var(--tenon-text-faint)}
   .ref .meta{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 0 21px}
   /* A long message, prompt, ticket or agenda would otherwise stretch the card
      past the rest of the column, so every kind clamps to the same three lines —
@@ -2139,32 +2023,32 @@
     content:'truncated — open the task to read the rest';
     position:absolute; left:0; right:0; bottom:0; height:28px;
     display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px;
-    background:linear-gradient(to bottom, transparent, var(--bg) 55%);
-    font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.01em;
+    background:linear-gradient(to bottom, transparent, var(--tenon-background-default) 55%);
+    font-size:11px; font-weight:600; color:var(--tenon-text-faint); letter-spacing:.01em;
     border-radius:0 0 8px 8px; pointer-events:none;
   }
-  .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--ink-faint)}
-  .reflead.draft{color:var(--amber); font-weight:600}
-  .refgroup{margin:16px 0 8px !important; font-size:12.5px !important; font-weight:660 !important; color:var(--ink-soft)}
+  .reflead{margin:7px 0 0 21px; font-size:12px; color:var(--tenon-text-faint)}
+  .reflead.draft{color:var(--tenon-text-warning); font-weight:600}
+  .refgroup{margin:16px 0 8px !important; font-size:12.5px !important; font-weight:660 !important; color:var(--tenon-text-subtle)}
   .refgroup:first-child{margin-top:0 !important}
-  .refhint{margin:0 0 10px !important; font-size:12.5px !important; color:var(--ink-faint) !important}
+  .refhint{margin:0 0 10px !important; font-size:12.5px !important; color:var(--tenon-text-faint) !important}
   .refwarn{
-    margin:0 0 10px; padding:8px 10px; border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
-    background:color-mix(in srgb, var(--amber) 8%, transparent); border-radius:8px;
-    font-size:12.5px; color:var(--ink)
+    margin:0 0 10px; padding:8px 10px; border:1px solid color-mix(in srgb, var(--tenon-text-warning) 45%, transparent);
+    background:color-mix(in srgb, var(--tenon-text-warning) 8%, transparent); border-radius:8px;
+    font-size:12.5px; color:var(--tenon-text-default)
   }
   /* Quieter than refwarn: what was held back is a fact about the list, not a
      problem with it. */
-  .refheld{margin:0 0 10px !important; font-size:12px !important; color:var(--ink-faint) !important}
-  .refheld strong{font-weight:640; color:var(--ink-soft)}
+  .refheld{margin:0 0 10px !important; font-size:12px !important; color:var(--tenon-text-faint) !important}
+  .refheld strong{font-weight:640; color:var(--tenon-text-subtle)}
   /* Trails the cards rather than leading them, since what it reports is that
      the column stopped rendering, not a fact about the work itself. */
-  .refmore{margin:10px 0 0 !important; font-size:12px !important; color:var(--ink-faint) !important}
+  .refmore{margin:10px 0 0 !important; font-size:12px !important; color:var(--tenon-text-faint) !important}
   .refrow{display:flex; align-items:flex-start; gap:9px}
   .refrow .ref{flex:1; min-width:0}
   .refnum{
-    flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--chip);
-    color:var(--ink-soft); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
+    flex:none; width:22px; height:22px; margin-top:9px; border-radius:6px; background:var(--tenon-background-neutral);
+    color:var(--tenon-text-subtle); font-size:11.5px; font-weight:700; line-height:22px; text-align:center;
   }
   /* Dependency chain: the blocker(s) sit beside the card waiting on them.
      Each blocker gets its own arrow into the target, so a task with several
@@ -2176,57 +2060,57 @@
   .chainrow{display:flex; align-items:center; gap:8px}
   .chainfrom{display:flex; flex-direction:column; gap:10px; flex:1; min-width:0}
   .chaindep{display:flex; align-items:center; gap:8px}
-  .chainarrow{flex:none; font-size:16px; color:var(--ink-faint); line-height:1}
+  .chainarrow{flex:none; font-size:16px; color:var(--tenon-text-faint); line-height:1}
   /* The box comes from the shared card rule. What is left here is what makes
      it a resettable full-width button rather than a div. */
   .chaincard{display:block; width:100%; text-align:left; cursor:pointer; min-width:0}
-  .chaincard:hover{border-color:var(--ink-faint)}
+  .chaincard:hover{border-color:var(--tenon-text-faint)}
   .chaincard.dep{flex:1; min-width:0}
   .chaincard.target{
-    flex:1; min-width:0; border-style:dashed; border-color:var(--ink-faint);
-    border-left-style:solid; border-left-color:var(--bc,var(--line)); border-left-width:3px;
+    flex:1; min-width:0; border-style:dashed; border-color:var(--tenon-text-faint);
+    border-left-style:solid; border-left-color:var(--bc,var(--tenon-stroke-default)); border-left-width:3px;
   }
   .chaincard.done .chaintitle{text-decoration:line-through}
   .chaincard.missing{
-    cursor:default; border-style:dashed; border-left-color:var(--red);
-    background:var(--red-bg);
+    cursor:default; border-style:dashed; border-left-color:var(--tenon-text-error);
+    background:var(--tenon-background-error-subtle);
   }
-  .chaintitle{display:block; color:var(--ink); overflow-wrap:anywhere}
-  .chaincard.missing .chaintitle{color:var(--red)}
-  .chainwhere{margin:2px 0 0; font-size:11px; color:var(--ink-faint)}
-  .chainholds{margin:6px 0 0; font-size:11.5px; color:var(--amber)}
-  .empty{font-size:13px; color:var(--ink-faint)}
+  .chaintitle{display:block; color:var(--tenon-text-default); overflow-wrap:anywhere}
+  .chaincard.missing .chaintitle{color:var(--tenon-text-error)}
+  .chainwhere{margin:2px 0 0; font-size:11px; color:var(--tenon-text-faint)}
+  .chainholds{margin:6px 0 0; font-size:11.5px; color:var(--tenon-text-warning)}
+  .empty{font-size:13px; color:var(--tenon-text-faint)}
   /* Context entries are facts, not work: no tick box, no link, nothing to open. */
-  .ref.ctx{border-left-color:var(--line); padding:8px 11px}
-  .ctxtext{font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  .ref.ctx{border-left-color:var(--tenon-stroke-default); padding:8px 11px}
+  .ctxtext{font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
   /* A string with nowhere to wrap — a pasted URL in Context, a long slug in a
      message — used to run straight out through the side of its card. "anywhere"
      rather than "break-word" so it also stops that string forcing the whole
      column wider than the one it is sitting in. */
   .ref, .msg, .msgtext, .ctxtext{min-width:0}
   .ctxtext, .msgtext, .reftitle, .col.prose p, .col.prose li{overflow-wrap:anywhere}
-  .ctxtext strong{color:var(--ink); font-weight:620}
+  .ctxtext strong{color:var(--tenon-text-default); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
   /* One panel per `###` group in Context, closed by default — a dozen
      sections is most of the column's length, and reading one shouldn't cost
      scrolling past the other eleven. */
-  .ctxgroup{margin:0 0 2px; border-bottom:1px solid var(--line-soft)}
+  .ctxgroup{margin:0 0 2px; border-bottom:1px solid var(--tenon-stroke-subtle)}
   .ctxgroup:last-of-type{border-bottom:0}
   .ctxgroup summary{
     display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none;
-    padding:9px 2px; font-size:12.5px; font-weight:660; color:var(--ink-soft);
+    padding:9px 2px; font-size:12.5px; font-weight:660; color:var(--tenon-text-subtle);
   }
   .ctxgroup summary::-webkit-details-marker{display:none}
-  .ctxgroup summary::before{content:'▸'; color:var(--ink-faint); font-size:10px}
+  .ctxgroup summary::before{content:'▸'; color:var(--tenon-text-faint); font-size:10px}
   .ctxgroup[open] summary::before{content:'▾'}
-  .ctxgroup summary:hover{color:var(--ink)}
+  .ctxgroup summary:hover{color:var(--tenon-text-default)}
   .ctxgroup[open]{padding-bottom:8px}
   #lists.hidden{display:none}
   .allbuckets{
-    font-size:12.5px; font-weight:620; color:var(--ink-soft);
-    background:var(--chip); border-radius:7px; padding:6px 11px;
+    font-size:12.5px; font-weight:620; color:var(--tenon-text-subtle);
+    background:var(--tenon-background-neutral); border-radius:7px; padding:6px 11px;
   }
-  select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 9px; min-height:33px}
+  select#aiFilter{border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:7px; padding:5px 9px; min-height:33px}
   /* ---------- card ----------
      One card, four kinds of thing on it. A task on the board, a plan written
      about one, a row in tonight's queue and a dependency in the chain were
@@ -2244,47 +2128,47 @@
      — see .repitem.planitem below for what that border was arguing and why the
      argument changed. */
   .card, .repitem, .chaincard{
-    background:var(--panel); border:1px solid var(--line);
-    border-left:4px solid var(--bc,var(--line));
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default);
+    border-left:4px solid var(--bc,var(--tenon-stroke-default));
     border-radius:9px; padding:9px 10px 9px 8px; box-shadow:0 1px 1px rgba(16,20,28,.04);
   }
   /* 8 left plus the 4px stripe is the component's 12, against 10 on the right.
      The asymmetry is deliberate: the stripe is a mark, not a margin, so the
      text has to clear it by the same amount it clears the other edge. */
   .card{cursor:grab}
-  .card:hover, .repitem:hover{border-color:var(--ink-faint)}
+  .card:hover, .repitem:hover{border-color:var(--tenon-text-faint)}
   /* A card with nothing to mark. The component leaves the stripe off rather
      than drawing it in the line colour, and that difference is the whole
      point of it: a grey stripe still reads as a mark. Queue rows are always
      like this, and so is a plan nobody needs to look at. */
-  .card.nostripe, .repitem.nostripe{border-left-width:1px; border-left-color:var(--line); padding-left:11px}
+  .card.nostripe, .repitem.nostripe{border-left-width:1px; border-left-color:var(--tenon-stroke-default); padding-left:11px}
   /* The rows, in the component's order. 5px between them, and the few that
      carry a little more of their own. */
   .card .cardhead, .repitem .cardhead{display:flex; align-items:baseline; gap:9px; min-width:0}
   .card .cardpos, .repitem .cardpos{
-    flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--ink-faint);
+    flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--tenon-text-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .card .cardact, .repitem .cardact{flex:none; margin-left:auto}
   .card .cardmeta, .repitem .cardmeta{
     display:flex; flex-wrap:wrap; align-items:baseline; gap:4px;
-    margin-top:9px; font-size:11.5px; color:var(--ink-faint);
+    margin-top:9px; font-size:11.5px; color:var(--tenon-text-faint);
   }
-  .card .cardsum, .repitem .cardsum{margin-top:11px; font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  .card .cardsum, .repitem .cardsum{margin-top:11px; font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
   .row1 + .cardhead{margin-top:5px}
-  .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .card:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
   .card.dragging{opacity:.4}
   /* Same as any other card — same width, radius, padding, shadow, left
      bucket-colour stripe — except the border colour and a faint accent tint
      behind it, so it reads as "the same card, just marked" rather than a
      different kind of card. */
   .card.onething{
-    border-color:color-mix(in srgb, var(--accent) 45%, transparent);
-    border-left:3px solid var(--bc,var(--line));
-    background:color-mix(in srgb, var(--accent) 6%, var(--panel));
+    border-color:color-mix(in srgb, var(--tenon-stroke-accent) 45%, transparent);
+    border-left:3px solid var(--bc,var(--tenon-stroke-default));
+    background:color-mix(in srgb, var(--tenon-background-accent) 6%, var(--tenon-background-raised));
   }
-  .card.onething:hover{border-color:color-mix(in srgb, var(--accent) 70%, transparent)}
-  .tag.onething{background:transparent; border:1px solid var(--accent); color:var(--accent)}
+  .card.onething:hover{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 70%, transparent)}
+  .tag.onething{background:transparent; border:1px solid var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   /* Fading is a fact about the task's own status, not about which column
      happens to be rendering it — these classes come from cardHTML off t.done
      and the task's real tier, so a card fades the same way in the board, the
@@ -2326,16 +2210,16 @@
      inherited. The semantic classes below stay, because a chip should say what
      it means at its call site, but each is now one line pointing at one of the
      ten boxes rather than a box of its own. */
-  .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--chip); color:var(--ink-soft)}
-  .tag--outline{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
-  .tag--blue{background:color-mix(in srgb, var(--accent) 12%, transparent); color:var(--accent); font-weight:650}
-  .tag--amber{background:var(--amber-bg); color:var(--amber)}
-  .tag--red{background:var(--red-bg); color:var(--red)}
-  .tag--green{background:var(--green-bg); color:var(--green)}
-  .tag--outline.tag--blue{background:transparent; border-color:var(--accent); color:var(--accent)}
-  .tag--outline.tag--amber{background:transparent; border-color:color-mix(in srgb, var(--amber) 35%, transparent); color:var(--amber)}
-  .tag--outline.tag--red{background:transparent; border-color:color-mix(in srgb, var(--red) 35%, transparent); color:var(--red)}
-  .tag--outline.tag--green{background:transparent; border-color:color-mix(in srgb, var(--green) 35%, transparent); color:var(--green)}
+  .tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
+  .tag--outline{background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550}
+  .tag--blue{background:color-mix(in srgb, var(--tenon-background-accent) 12%, transparent); color:var(--tenon-text-accent); font-weight:650}
+  .tag--amber{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
+  .tag--red{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
+  .tag--green{background:var(--tenon-background-success-subtle); color:var(--tenon-text-success)}
+  .tag--outline.tag--blue{background:transparent; border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
+  .tag--outline.tag--amber{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-warning) 35%, transparent); color:var(--tenon-text-warning)}
+  .tag--outline.tag--red{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-error) 35%, transparent); color:var(--tenon-text-error)}
+  .tag--outline.tag--green{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent); color:var(--tenon-text-success)}
   /* The two bracket forms that turn up inside prose rather than on a task
      line — a `[key:: value]` tag and a `[placeholder]` — picked out by
      mdInline wherever it renders, so a note, a report and a plan all mark
@@ -2350,8 +2234,8 @@
     font-style:normal; font-size:.92em; font-weight:600; padding:1px 4px;
     border-radius:4px; white-space:nowrap;
   }
-  .mdtag{background:var(--chip); color:var(--ink-faint)}
-  .mdhole{background:var(--amber-bg); color:var(--amber)}
+  .mdtag{background:var(--tenon-background-neutral); color:var(--tenon-text-faint)}
+  .mdhole{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
   /* `.tag.impact-high` was a rule that brightened the text on a chip whose
      content is always an emoji, and an emoji renders in its own colours
      whatever `color` says. So it drew a plain chip and always had. Gone. */
@@ -2360,14 +2244,14 @@
      thing here the two axes do not cover, and it is the whole point of it — a
      gate is not a deadline. */
   .tag.startdate{
-    background:transparent; border:1px dashed var(--line); color:var(--ink-faint); font-weight:550;
+    background:transparent; border:1px dashed var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550;
   }
-  .tag.due.soon{background:var(--amber-bg); color:var(--amber)}
-  .tag.due.over{background:var(--red-bg); color:var(--red)}
-  .tag.urgent{background:var(--red-bg); color:var(--red)}
-  .tag.ai{background:transparent; border:1px solid var(--line); color:var(--ink-faint); font-weight:550}
-  .tag.ai-full{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
-  .tag.ai-partial{color:var(--amber); border-color:color-mix(in srgb, var(--amber) 35%, transparent)}
+  .tag.due.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
+  .tag.due.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
+  .tag.urgent{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
+  .tag.ai{background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550}
+  .tag.ai-full{color:var(--tenon-text-success); border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent)}
+  .tag.ai-partial{color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 35%, transparent)}
   /* Live, completed or orphaned on a project card — a soft green nod rather
      than the amber this file uses elsewhere for "needs an answer"
      (.repitem.folded, .tag.needsscore): an orphaned folder is not urgent,
@@ -2375,23 +2259,23 @@
      instead. Completed sits between the two, quieter than the green because
      the green here marks work still in flight rather than work finished, and
      louder than the faint grey because the folder is still being pointed at. */
-  .tag.projlive{color:var(--green); border-color:color-mix(in srgb, var(--green) 35%, transparent)}
-  .tag.projcompleted{color:var(--ink-soft)}
-  .tag.projorphan{color:var(--ink-faint)}
+  .tag.projlive{color:var(--tenon-text-success); border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent)}
+  .tag.projcompleted{color:var(--tenon-text-subtle)}
+  .tag.projorphan{color:var(--tenon-text-faint)}
   /* Delegated to a person. Its own colour, because "someone else has this" is a
      different fact from every other chip on the card, all of which describe the
      work rather than who holds it. */
   .tag.who{
-    background:color-mix(in srgb, var(--accent) 12%, transparent);
-    color:var(--accent); font-weight:650;
+    background:color-mix(in srgb, var(--tenon-background-accent) 12%, transparent);
+    color:var(--tenon-text-accent); font-weight:650;
   }
-  .mini{font-style:normal; font-size:11px; font-weight:600; color:var(--ink-faint); background:var(--chip); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
-  .mini.over{background:var(--red-bg); color:var(--red)}
-  .mini.soon{background:var(--amber-bg); color:var(--amber)}
-  .prog{display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--ink-faint)}
-  .bar{flex:1; height:3px; border-radius:2px; background:var(--line-soft); overflow:hidden}
-  .bar i{display:block; height:100%; background:var(--green)}
-  .notecount{font-size:11px; color:var(--ink-faint); margin-top:6px}
+  .mini{font-style:normal; font-size:11px; font-weight:600; color:var(--tenon-text-faint); background:var(--tenon-background-neutral); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
+  .mini.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
+  .mini.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
+  .prog{display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--tenon-text-faint)}
+  .bar{flex:1; height:3px; border-radius:2px; background:var(--tenon-stroke-subtle); overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--tenon-background-success)}
+  .notecount{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
 
   /* ---------- drawer ---------- */
   .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}
@@ -2403,12 +2287,12 @@
      100% of the viewport, as it was. */
   aside{
     position:fixed; top:0; right:0; height:100%; width:400px; max-width:100vw; z-index:31;
-    background:var(--panel); border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(10,12,16,.12);
+    background:var(--tenon-background-raised); border-left:1px solid var(--tenon-stroke-default); box-shadow:-8px 0 24px rgba(10,12,16,.12);
     transform:translateX(103%); transition:transform .18s ease; display:flex; flex-direction:column;
     container-type:inline-size; container-name:drawer;
   }
   aside.open{transform:none}
-  aside .dhead{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
+  aside .dhead{padding:12px 14px; border-bottom:1px solid var(--tenon-stroke-default); display:flex; align-items:center; gap:8px}
   aside .dhead strong{font-size:13px; font-weight:650; white-space:nowrap}
   /* The save line is a caption on the title, not a label above a field, so it
      drops the uppercase treatment .field > span.help carries. It is also the
@@ -2454,13 +2338,13 @@
   aside .dhead .btn{padding:5px 9px; font-size:12px; font-weight:600; white-space:nowrap}
 
   .field{display:flex; flex-direction:column; gap:5px}
-  .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint)}
+  .field > span, .field > summary{font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.04em; color:var(--tenon-text-faint)}
   /* The suggestion-shaped sections' own headlines — Dependencies, Message
      suggestions, Prompt suggestions, Meeting agenda, Jira tickets — read too
      faint against a dark panel: ink-faint is built for de-emphasis, not for a
      heading. Full ink instead, scoped to .sugg so ordinary field labels
      (Title, Status, Notes...) keep the quieter weight they're meant to have. */
-  .sugg > span, .sugg > summary{color:var(--ink)}
+  .sugg > span, .sugg > summary{color:var(--tenon-text-default)}
   /* The label above a field is a name and reads fine in caps. The help under it
      is a sentence, and was inheriting the same rule by being the same element —
      which is why .sublabel already had to undo it by hand. Undone once here. */
@@ -2479,7 +2363,7 @@
      note beside the label can be as long or short as it wants to be. */
   .notegrow{margin-left:auto}
   .field input[type="text"], .field input[type="date"], .field select, .field textarea{
-    border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:5px 9px; width:100%;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:7px; padding:5px 9px; width:100%;
     min-height:33px;
   }
   /* A textarea is sized by its rows, not by one line of text, so the shared
@@ -2492,16 +2376,16 @@
   .bucketfield{width:100%}
   .bucketbtn{
     display:flex; align-items:center; gap:7px; width:100%; text-align:left;
-    border:1px solid var(--line); background:var(--bg); border-radius:7px;
-    padding:5px 9px; min-height:33px; color:var(--ink); font-size:13px; cursor:pointer;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:7px;
+    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size:13px; cursor:pointer;
   }
-  .bucketbtn:disabled{cursor:default; color:var(--ink-faint)}
+  .bucketbtn:disabled{cursor:default; color:var(--tenon-text-faint)}
   /* A dot and a name on their own read as a label rather than as something
      that opens, which is the one thing the <select> never had to say out
      loud. Rotated rather than swapped for '▴', the way .tlchevron.open turns,
      so the movement itself is what says the panel is down there. */
   .bucketbtn::after{
-    content:'▾'; margin-left:auto; font-size:10px; color:var(--ink-faint);
+    content:'▾'; margin-left:auto; font-size:10px; color:var(--tenon-text-faint);
     transition:transform .12s;
   }
   .bucketbtn.open::after{transform:rotate(180deg)}
@@ -2518,7 +2402,7 @@
      field in openDrawer. The height that actually applies is set there, on
      both of them at once; these two floors are what they fall back to before
      that runs, and what a drag cannot go under. */
-  .field .repdoc{border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:9px 11px; min-height:120px}
+  .field .repdoc{border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:7px; padding:9px 11px; min-height:120px}
   /* Reads as text you can type into, because it is: clicking anywhere in it
      swaps it for the textarea with the caret in the same place. The border
      only warms on hover, so at rest it looks like the note rather than like
@@ -2528,15 +2412,15 @@
      rendering wants regardless — at 120px most notes are taller than the
      field and have to scroll inside it. */
   .field .noteview{cursor:text; resize:vertical; overflow:auto}
-  .field .noteview:hover{border-color:var(--ink-faint)}
+  .field .noteview:hover{border-color:var(--tenon-text-faint)}
   .drawer.readonly .field .noteview{cursor:default}
-  .drawer.readonly .field .noteview:hover{border-color:var(--line)}
-  .field .noteview .empty{font-size:13px; color:var(--ink-faint); margin:0}
+  .drawer.readonly .field .noteview:hover{border-color:var(--tenon-stroke-default)}
+  .field .noteview .empty{font-size:13px; color:var(--tenon-text-faint); margin:0}
   /* A note is written in headings and bullets far more often than a report
      is, and they sit closer together here than they do in a document read at
      full modal width. */
   .field .noteview h4{margin-top:12px}
-  .field .noteview a{color:var(--accent)}
+  .field .noteview a{color:var(--tenon-text-accent)}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 
   /* A fixed-stop slider — 2 or more positions, colour and count both set by
@@ -2585,32 +2469,32 @@
   .stepslider.disabled{opacity:.5; pointer-events:none}
   .stepslider:focus-visible{outline:none}
   .steptrack{position:relative; height:6px}
-  .steptrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--step-cap)); right:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--line)}
-  .steptick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--panel); border:1px solid var(--line); transform:translate(-50%,-50%)}
-  .stepfill{position:absolute; top:0; left:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--step-color, var(--ink-faint)); transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
+  .steptrack::before{content:''; position:absolute; top:0; left:calc(-1 * var(--step-cap)); right:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--tenon-stroke-default)}
+  .steptick{position:absolute; top:50%; width:6px; height:6px; border-radius:50%; background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); transform:translate(-50%,-50%)}
+  .stepfill{position:absolute; top:0; left:calc(-1 * var(--step-cap)); height:100%; border-radius:999px; background:var(--step-color, var(--tenon-text-faint)); transition:width .28s cubic-bezier(.34,1.56,.64,1), background-color .2s}
   .stephandle{
     position:absolute; top:50%; width:20px; height:20px; border-radius:50%;
-    background:var(--panel); border:2px solid var(--step-color, var(--ink-faint)); box-shadow:0 1px 3px rgba(16,20,28,.2);
+    background:var(--tenon-background-raised); border:2px solid var(--step-color, var(--tenon-text-faint)); box-shadow:0 1px 3px rgba(16,20,28,.2);
     transform:translate(-50%,-50%);
     transition:left .28s cubic-bezier(.34,1.56,.64,1), border-color .2s, transform .12s;
   }
   .stepslider.dragging .stephandle{transform:translate(-50%,-50%) scale(1.15); transition:border-color .2s}
-  .stepslider:focus-visible .stephandle{outline:2px solid var(--accent); outline-offset:2px}
+  .stepslider:focus-visible .stephandle{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
   /* Fixed height rather than one that grows with content: every .stepstop is
      positioned absolutely (so it can sit at its own coordinate rather than in
      flexbox flow), which means the parent never sees their height and won't
      stretch for a wrapped one on its own. 28px is two lines' worth at this
      font, which is as far as a name like "Waiting for review" ever needs to
      wrap once it's capped to its own fair share of the track's width below. */
-  .stepstops{position:relative; height:28px; margin-top:6px; font-size:11.5px; color:var(--ink-faint)}
+  .stepstops{position:relative; height:28px; margin-top:6px; font-size:11.5px; color:var(--tenon-text-faint)}
   .stepstop{
     position:absolute; top:0; padding:2px 4px; border-radius:5px; transform:translateX(-50%);
     text-align:center; line-height:1.3; overflow-wrap:break-word;
   }
   .stepstop:first-child{transform:translateX(0); text-align:left}
   .stepstop:last-child{transform:translateX(-100%); text-align:right}
-  .stepstop:hover{color:var(--ink); background:var(--chip)}
-  .stepstop.on{color:var(--ink); font-weight:650}
+  .stepstop:hover{color:var(--tenon-text-default); background:var(--tenon-background-neutral)}
+  .stepstop.on{color:var(--tenon-text-default); font-weight:650}
   /* ---------- collapsible sections in the drawer ----------
      A <details> standing in for the <label>/<div> a field or a suggestion
      block would otherwise be, so Description, Chats, Message suggestions and
@@ -2619,55 +2503,55 @@
      off screen. The label becomes the <summary>: clicking it is the whole
      interaction, and the browser's own show/hide does the rest, so nothing
      here has to track which section is open beyond a CSS arrow. */
-  .dsep{border:none; border-top:1px solid var(--line); margin:1px 0}
+  .dsep{border:none; border-top:1px solid var(--tenon-stroke-default); margin:1px 0}
   details.field > summary, details.sugg > summary{
     cursor:pointer; list-style:none; display:flex; align-items:center; gap:5px;
   }
   details.field > summary::-webkit-details-marker, details.sugg > summary::-webkit-details-marker{display:none}
   details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size:13px; display:inline-block}
   details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
-  .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--ink-faint); opacity:.85; margin-left:6px}
+  .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint); opacity:.85; margin-left:6px}
   .substeps{display:flex; flex-direction:column; gap:1px}
   .sub{
-    display:flex; gap:7px; align-items:flex-start; font-size:13px; padding:5px 6px; color:var(--ink);
-    border:1px solid transparent; border-radius:7px; background:var(--bg);
+    display:flex; gap:7px; align-items:flex-start; font-size:13px; padding:5px 6px; color:var(--tenon-text-default);
+    border:1px solid transparent; border-radius:7px; background:var(--tenon-background-default);
   }
-  .sub:hover{border-color:var(--line)}
-  .sub.checked .subtext{color:var(--ink-faint); text-decoration:line-through}
+  .sub:hover{border-color:var(--tenon-stroke-default)}
+  .sub.checked .subtext{color:var(--tenon-text-faint); text-decoration:line-through}
   .sub input{margin-top:3px; flex:none}
   .sub .subtext{flex:1; cursor:text}
-  .sub .subtext:hover{color:var(--accent)}
-  .sub.checked .subtext:hover{color:var(--ink-faint)}
-  .sub .grip{cursor:grab; color:var(--ink-faint); opacity:.45; font-size:13px; line-height:1.5; user-select:none; flex:none}
+  .sub .subtext:hover{color:var(--tenon-text-accent)}
+  .sub.checked .subtext:hover{color:var(--tenon-text-faint)}
+  .sub .grip{cursor:grab; color:var(--tenon-text-faint); opacity:.45; font-size:13px; line-height:1.5; user-select:none; flex:none}
   .sub:hover .grip{opacity:.9}
   .sub .subdel{
-    flex:none; border:none; background:transparent; color:var(--ink-faint); opacity:0;
+    flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
     font-size:15px; line-height:1; padding:0 2px; border-radius:4px;
   }
   .sub:hover .subdel{opacity:.6}
-  .sub .subdel:hover{opacity:1; color:var(--red)}
+  .sub .subdel:hover{opacity:1; color:var(--tenon-text-error)}
   .sub.dragging{opacity:.4}
-  .sub.over-top{box-shadow:inset 0 2px 0 var(--accent)}
-  .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .sub.over-top{box-shadow:inset 0 2px 0 var(--tenon-stroke-accent)}
+  .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--tenon-stroke-accent)}
   /* A note on one step, scoped to it rather than to the whole task the way
      Description is. Quiet until there is something in it — most rows carry
      none, so the icon should not read as a row of empty controls. */
   .sub .noteicon{
-    flex:none; border:none; background:transparent; color:var(--ink-faint); opacity:0;
+    flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
     font-size:12.5px; line-height:1; padding:2px 3px; border-radius:4px;
   }
   .sub:hover .noteicon{opacity:.55}
-  .sub .noteicon:hover{opacity:1 !important; background:var(--chip)}
-  .sub .noteicon.has-note{opacity:.85; color:var(--accent)}
+  .sub .noteicon:hover{opacity:1 !important; background:var(--tenon-background-neutral)}
+  .sub .noteicon.has-note{opacity:.85; color:var(--tenon-text-accent)}
   .sub:hover .noteicon.has-note{opacity:1}
   .noterow{padding:0 6px 6px 34px}
   .noterow .notebox{
-    width:100%; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
+    width:100%; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-raised); color:var(--tenon-text-default);
     border-radius:6px; padding:6px 8px; font-size:12.5px; line-height:1.5; font-family:inherit;
     resize:vertical; min-height:44px;
   }
   .subedit{
-    flex:1; border:1px solid var(--accent); background:var(--panel); color:var(--ink);
+    flex:1; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-raised); color:var(--tenon-text-default);
     border-radius:5px; padding:2px 6px; font-size:13px; font-family:inherit;
   }
   /* + Add subtask is .btn.dashed.small. What is left is where it sits. */
@@ -2682,11 +2566,11 @@
      drawer does not. */
   .dpbtn{
     display:flex; align-items:center; gap:7px;
-    border:1px solid var(--line); background:var(--bg); border-radius:7px; padding:5px 9px;
-    min-height:33px; width:100%; text-align:left; font-size:13px; color:var(--ink);
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:7px; padding:5px 9px;
+    min-height:33px; width:100%; text-align:left; font-size:13px; color:var(--tenon-text-default);
   }
-  .dpbtn:hover{border-color:var(--ink-faint)}
-  .dpbtn.empty{color:var(--ink-faint)}
+  .dpbtn:hover{border-color:var(--tenon-text-faint)}
+  .dpbtn.empty{color:var(--tenon-text-faint)}
   .dpbtn::after{
     content:''; margin-left:auto; flex:none; width:12px; height:12px;
     border:1.5px solid currentColor; border-radius:2px; opacity:.55;
@@ -2700,38 +2584,38 @@
   /* Read-only opens no picker (see openDrawer), so there is nothing for the
      glyph to promise. */
   .dpbtn:disabled::after{content:none}
-  .cal{border:1px solid var(--line); border-radius:9px; background:var(--bg); padding:9px 10px 8px}
+  .cal{border:1px solid var(--tenon-stroke-default); border-radius:9px; background:var(--tenon-background-default); padding:9px 10px 8px}
   .calhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:7px}
   .calhead strong{font-size:12.5px; font-weight:650}
   .calnav{
-    border:1px solid var(--line); background:var(--panel); border-radius:6px; width:24px; height:24px;
-    color:var(--ink-soft); font-size:14px; line-height:1;
+    border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:6px; width:24px; height:24px;
+    color:var(--tenon-text-subtle); font-size:14px; line-height:1;
   }
-  .calnav:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .calnav:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
-  .cw{font-size:10px; font-weight:650; color:var(--ink-faint); text-align:center; padding-bottom:3px}
+  .cw{font-size:10px; font-weight:650; color:var(--tenon-text-faint); text-align:center; padding-bottom:3px}
   .cd{
     border:1px solid transparent; background:transparent; border-radius:6px; padding:5px 0;
-    font-size:12.5px; color:var(--ink); text-align:center;
+    font-size:12.5px; color:var(--tenon-text-default); text-align:center;
   }
-  .cd:hover{background:var(--chip)}
+  .cd:hover{background:var(--tenon-background-neutral)}
   .cd.pad{visibility:hidden}
-  .cd.now{font-weight:700; color:var(--accent)}
-  .cd.sel{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:650}
+  .cd.now{font-weight:700; color:var(--tenon-text-accent)}
+  .cd.sel{background:var(--tenon-background-accent); border-color:var(--tenon-stroke-accent); color:#fff; font-weight:650}
   .cd.sel.now{color:#fff}
-  .calfoot{display:flex; gap:6px; margin-top:8px; padding-top:7px; border-top:1px solid var(--line-soft)}
+  .calfoot{display:flex; gap:6px; margin-top:8px; padding-top:7px; border-top:1px solid var(--tenon-stroke-subtle)}
   .calsm{
-    flex:1; border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:4px 8px;
-    font-size:11.5px; font-weight:600; color:var(--ink-soft);
+    flex:1; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:6px; padding:4px 8px;
+    font-size:11.5px; font-weight:600; color:var(--tenon-text-subtle);
   }
-  .calsm:hover{color:var(--ink); border-color:var(--ink-faint)}
+  .calsm:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
 
   /* ---------- suggestion sections in the panel ---------- */
   .sugg .empty{margin:0 0 6px; font-size:12.5px}
   /* An empty section names the syntax that would fill it in — the same chip
      treatment the other code spans on the board already get. */
   .sugg .empty code{
-    background:var(--chip); padding:1px 5px; border-radius:4px; font-size:11.5px;
+    background:var(--tenon-background-neutral); padding:1px 5px; border-radius:4px; font-size:11.5px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .sugg .msg{margin:0 0 7px; padding:9px 38px 9px 11px}
@@ -2741,9 +2625,9 @@
      message underneath is the thing being read. */
   .suggwhere{
     display:block; font-style:normal; font-size:11.5px; font-weight:550;
-    color:var(--ink-faint); margin-bottom:5px; line-height:1.4;
+    color:var(--tenon-text-faint); margin-bottom:5px; line-height:1.4;
   }
-  .suggwhere.draft{color:var(--amber); font-weight:600}
+  .suggwhere.draft{color:var(--tenon-text-warning); font-weight:600}
 
   /* Dependencies, both directions. Two columns rather than one merged list —
      "waiting on" and "blocks" answer different questions, and a slug that is
@@ -2759,7 +2643,7 @@
      beside it. */
   .deplabel{
     display:block; font-size:10px; font-weight:600; text-transform:uppercase;
-    letter-spacing:.03em; color:var(--ink-faint); opacity:.8; margin-bottom:4px;
+    letter-spacing:.03em; color:var(--tenon-text-faint); opacity:.8; margin-bottom:4px;
   }
   .deplist{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px}
   /* The card itself is .chaincard, shared with the Matrix dependency view —
@@ -2779,20 +2663,20 @@
      an error. Same amber an unrecognised tag already takes, for the same
      reason: both mean "read this one properly". */
   .tag.cancelled{
-    background:var(--amber-bg); color:var(--amber);
-    border:1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
+    border:1px solid color-mix(in srgb, var(--tenon-text-warning) 40%, transparent);
   }
 
   .tagchips{display:flex; flex-wrap:wrap; gap:6px}
   .tagchip{
     font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px;
-    background:var(--chip); color:var(--ink-soft); border:1px solid transparent;
+    background:var(--tenon-background-neutral); color:var(--tenon-text-subtle); border:1px solid transparent;
     cursor:pointer; font-family:inherit;
   }
-  .tagchip:hover{border-color:var(--line)}
+  .tagchip:hover{border-color:var(--tenon-stroke-default)}
   .tagchip.tagchip-ro{cursor:default}
   .tagchip.tagchip-ro:hover{border-color:transparent}
-  .tagchip.tagchip-extra{background:var(--amber-bg); color:var(--amber); border-color:color-mix(in srgb, var(--amber) 40%, transparent)}
+  .tagchip.tagchip-extra{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 40%, transparent)}
   .tagchip input{
     font:inherit; font-weight:600; border:none; background:transparent; color:inherit;
     width:auto; min-width:40px; padding:0; outline:none;
@@ -2800,23 +2684,23 @@
 
   .dgrip{position:absolute; left:-3px; top:0; bottom:0; width:9px; cursor:col-resize; z-index:2}
   .dgrip::after{content:""; position:absolute; left:3px; top:0; bottom:0; width:3px; background:transparent; transition:background .12s}
-  .dgrip:hover::after, .dgrip.active::after{background:var(--accent)}
+  .dgrip:hover::after, .dgrip.active::after{background:var(--tenon-background-accent)}
   body.resizing{cursor:col-resize; user-select:none}
-  .help{font-size:11.5px; color:var(--ink-faint); line-height:1.5}
+  .help{font-size:11.5px; color:var(--tenon-text-faint); line-height:1.5}
   .datewarn{
     margin:0; padding:8px 10px; border-radius:8px; font-size:12px; line-height:1.45;
-    background:var(--red-bg); color:var(--red);
-    border:1px solid color-mix(in srgb, var(--red) 40%, transparent);
+    background:var(--tenon-background-error-subtle); color:var(--tenon-text-error);
+    border:1px solid color-mix(in srgb, var(--tenon-text-error) 40%, transparent);
   }
-  .datenote{margin:0; font-size:11.5px; color:var(--ink-faint); line-height:1.5}
+  .datenote{margin:0; font-size:11.5px; color:var(--tenon-text-faint); line-height:1.5}
 
   /* ---------- start screen ---------- */
-  .start{max-width:560px; margin:8vh auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px; box-shadow:var(--shadow)}
+  .start{max-width:560px; margin:8vh auto; background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:14px; padding:26px; box-shadow:var(--tenon-elevation-overlay)}
   .start h2{margin:0 0 6px; font-size:18px; letter-spacing:-.01em}
-  .start p{color:var(--ink-soft); margin:0 0 16px; font-size:13.5px}
-  .start .drops{border:1.5px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--ink-faint); font-size:13px; margin-top:14px}
-  .start .drops.over{border-color:var(--accent); color:var(--accent)}
-  .err{background:var(--red-bg); color:var(--red); padding:9px 11px; border-radius:8px; font-size:12.5px; margin-top:12px}
+  .start p{color:var(--tenon-text-subtle); margin:0 0 16px; font-size:13.5px}
+  .start .drops{border:1.5px dashed var(--tenon-stroke-default); border-radius:10px; padding:18px; text-align:center; color:var(--tenon-text-faint); font-size:13px; margin-top:14px}
+  .start .drops.over{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
+  .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:9px 11px; border-radius:8px; font-size:12.5px; margin-top:12px}
 
   /* ---------- conflict modal ----------
      The one place the board interrupts. It only appears when the file on disk
@@ -2829,7 +2713,7 @@
     display:flex; align-items:center; justify-content:center; padding:24px;
   }
   .sheet{
-    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:14px;
     box-shadow:0 12px 40px rgba(16,20,28,.28); width:min(560px,100%);
     max-height:min(78vh,660px); display:flex; flex-direction:column; overflow:hidden;
   }
@@ -2856,42 +2740,42 @@
   .sheet.planmodal .mid{padding:0; display:flex; overflow:hidden; min-height:0}
   .planhistory{
     flex:0 0 198px; box-sizing:border-box; padding:14px; overflow:auto;
-    background:var(--bg); border-right:1px solid var(--line-soft);
+    background:var(--tenon-background-default); border-right:1px solid var(--tenon-stroke-subtle);
   }
   .planmain{flex:1 1 auto; min-width:0; overflow:auto; padding:16px 20px; display:flex; flex-direction:column; gap:14px}
   .planlabel{
     font-size:11px; font-weight:660; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink-faint); margin:0 0 8px; display:flex; align-items:center; gap:6px;
+    color:var(--tenon-text-faint); margin:0 0 8px; display:flex; align-items:center; gap:6px;
   }
-  .planlabel .n{font-size:11px; font-weight:650; background:var(--chip); color:var(--ink-soft); border-radius:5px; padding:0 5px; letter-spacing:0}
+  .planlabel .n{font-size:11px; font-weight:650; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle); border-radius:5px; padding:0 5px; letter-spacing:0}
   .plantimeline{list-style:none; margin:0; padding:0}
   .plantimeline li{position:relative; padding:0 0 12px 16px}
   .plantimeline li:last-child{padding-bottom:0}
-  .plantimeline li::before{content:""; position:absolute; left:3.5px; top:12px; bottom:-2px; width:1px; background:var(--line)}
+  .plantimeline li::before{content:""; position:absolute; left:3.5px; top:12px; bottom:-2px; width:1px; background:var(--tenon-stroke-default)}
   .plantimeline li:last-child::before{display:none}
-  .plantimeline .pdot{position:absolute; left:0; top:4px; width:8px; height:8px; border-radius:50%; background:var(--ink-faint)}
-  .plantimeline li.current .pdot{background:var(--accent)}
-  .plantimeline li.sent .pdot{background:var(--red)}
+  .plantimeline .pdot{position:absolute; left:0; top:4px; width:8px; height:8px; border-radius:50%; background:var(--tenon-text-faint)}
+  .plantimeline li.current .pdot{background:var(--tenon-background-accent)}
+  .plantimeline li.sent .pdot{background:var(--tenon-background-error)}
   .plantimeline .phead{display:flex; flex-wrap:wrap; column-gap:6px; align-items:baseline; font-size:12.5px; line-height:1.35}
-  .plantimeline .phead b{font-weight:640; color:var(--ink)}
-  .plantimeline .pwhen{font-size:11.5px; color:var(--ink-faint)}
+  .plantimeline .phead b{font-weight:640; color:var(--tenon-text-default)}
+  .plantimeline .pwhen{font-size:11.5px; color:var(--tenon-text-faint)}
   .plantimeline .pnote{
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden;
-    margin-top:2px; font-size:12px; line-height:1.4; color:var(--ink-soft);
+    margin-top:2px; font-size:12px; line-height:1.4; color:var(--tenon-text-subtle);
   }
   .plantimeline q.pnote{font-style:italic}
-  .plansummary{background:var(--chip); border-radius:10px; padding:12px 14px}
+  .plansummary{background:var(--tenon-background-neutral); border-radius:10px; padding:12px 14px}
   .plansummary .planlabel{margin-bottom:6px}
-  .plansummary .repdoc p{font-size:14px; color:var(--ink)}
+  .plansummary .repdoc p{font-size:14px; color:var(--tenon-text-default)}
   .plantabs{align-self:flex-start}
   .plantabs .tab{cursor:pointer}
-  .plantabs .tab[aria-selected="true"]{background:var(--panel); color:var(--ink); border-color:var(--line); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
-  .plantabs .tab[aria-selected="true"] .n{background:var(--chip); color:var(--ink-soft)}
+  .plantabs .tab[aria-selected="true"]{background:var(--tenon-background-raised); color:var(--tenon-text-default); border-color:var(--tenon-stroke-default); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
+  .plantabs .tab[aria-selected="true"] .n{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
   .planpanel h4{margin-top:16px}
   @media (max-width:700px){
     .sheet.planmodal .mid{flex-direction:column; overflow:auto}
     .planmain, .planhistory{overflow:visible}
-    .planhistory{order:2; flex-basis:auto; border-right:0; border-top:1px solid var(--line-soft)}
+    .planhistory{order:2; flex-basis:auto; border-right:0; border-top:1px solid var(--tenon-stroke-subtle)}
     /* A size dragged out on a desktop means nothing here, and an inline width
        of 1200px on a 400px screen is a modal off the side of the screen. The
        !important is what beats the inline style resize writes. */
@@ -2902,42 +2786,42 @@
     .sheet.planmodal .foot{padding-right:20px}
   }
   .sheet h2{font-size:15px; font-weight:660; margin:0; letter-spacing:-.01em}
-  .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--line-soft); position:relative}
+  .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--tenon-stroke-subtle); position:relative}
   .sheet .top h2{padding-right:24px}
   .mclose{
     position:absolute; top:14px; right:14px; border:0; background:none; cursor:pointer;
-    color:var(--ink-faint); font-size:19px; line-height:1; padding:3px 7px; border-radius:6px;
+    color:var(--tenon-text-faint); font-size:19px; line-height:1; padding:3px 7px; border-radius:6px;
   }
-  .mclose:hover{background:var(--chip); color:var(--ink)}
-  .sheet .msub{font-size:13px; color:var(--ink-soft); margin:7px 0 0; line-height:1.5}
+  .mclose:hover{background:var(--tenon-background-neutral); color:var(--tenon-text-default)}
+  .sheet .msub{font-size:13px; color:var(--tenon-text-subtle); margin:7px 0 0; line-height:1.5}
   .sheet .mid{padding:14px 20px; overflow:auto; flex:1 1 auto}
   .sheet .foot{
-    padding:13px 20px; border-top:1px solid var(--line-soft);
-    display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; background:var(--bg);
+    padding:13px 20px; border-top:1px solid var(--tenon-stroke-subtle);
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; background:var(--tenon-background-default);
   }
   .changes{margin:0 0 16px}
   .changes:last-child{margin-bottom:0}
   .changes h3{
     font-size:11px; font-weight:660; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink-faint); margin:0 0 7px;
+    color:var(--tenon-text-faint); margin:0 0 7px;
   }
   .changes ul{list-style:none; margin:0; padding:0}
   .changes li{
     display:flex; gap:8px; align-items:baseline; font-size:12.5px;
-    padding:5px 0; border-bottom:1px solid var(--line-soft); line-height:1.4;
+    padding:5px 0; border-bottom:1px solid var(--tenon-stroke-subtle); line-height:1.4;
   }
   .changes li:last-child{border-bottom:0}
   .changes .what{
     flex:0 0 auto; font-size:10.5px; font-weight:660; text-transform:uppercase;
-    letter-spacing:.04em; border-radius:4px; padding:2px 6px; background:var(--chip); color:var(--ink-soft);
+    letter-spacing:.04em; border-radius:4px; padding:2px 6px; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle);
   }
-  .changes .what.added{background:var(--green-bg); color:var(--green)}
-  .changes .what.removed{background:var(--red-bg); color:var(--red)}
-  .changes .what.ticked{background:var(--green-bg); color:var(--green)}
+  .changes .what.added{background:var(--tenon-background-success-subtle); color:var(--tenon-text-success)}
+  .changes .what.removed{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
+  .changes .what.ticked{background:var(--tenon-background-success-subtle); color:var(--tenon-text-success)}
   .changes .what.moved,
-  .changes .what.renamed{background:var(--amber-bg); color:var(--amber)}
-  .changes .where{color:var(--ink-faint)}
-  .changes .none{font-size:12.5px; color:var(--ink-faint)}
+  .changes .what.renamed{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
+  .changes .where{color:var(--tenon-text-faint)}
+  .changes .none{font-size:12.5px; color:var(--tenon-text-faint)}
   .hidden{display:none !important}
 
   /* ---------- toasts ----------
@@ -2952,16 +2836,16 @@
     pointer-events:none; max-width:min(480px,90vw);
   }
   .toast{
-    background:var(--ink); color:var(--panel); border-radius:10px;
+    background:var(--tenon-text-default); color:var(--tenon-background-raised); border-radius:10px;
     padding:10px 16px; font-size:13px; line-height:1.4; text-align:center;
     box-shadow:0 12px 28px rgba(10,12,16,.28), 0 2px 6px rgba(10,12,16,.16);
     opacity:0; transform:translateY(6px); transition:opacity .15s, transform .15s;
   }
-  .toast.blocked{background:var(--amber-bg); color:var(--amber); border:1px solid color-mix(in srgb, var(--amber) 35%, transparent)}
+  .toast.blocked{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning); border:1px solid color-mix(in srgb, var(--tenon-text-warning) 35%, transparent)}
   /* `bad` was in use before it had a style and fell back to the plain dark
      toast, which reads as a confirmation. A failure should not. */
-  .toast.bad{background:var(--red-bg); color:var(--red); border:1px solid color-mix(in srgb, var(--red) 35%, transparent)}
-  .toast.good{background:var(--green-bg); color:var(--green); border:1px solid color-mix(in srgb, var(--green) 35%, transparent)}
+  .toast.bad{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); border:1px solid color-mix(in srgb, var(--tenon-text-error) 35%, transparent)}
+  .toast.good{background:var(--tenon-background-success-subtle); color:var(--tenon-text-success); border:1px solid color-mix(in srgb, var(--tenon-text-success) 35%, transparent)}
   .toast.show{opacity:1; transform:translateY(0)}
 
   /* ---------------------------------------------------------------------
@@ -2979,7 +2863,7 @@
      printed inside them. */
   .cvstack .cvcard, .pcard{
     position:relative; width:auto; box-shadow:none; overflow:hidden;
-    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:10px;
   }
   .pcard{margin-bottom:8px}
   .aic-actions{display:flex; gap:8px; flex-wrap:wrap}
@@ -2994,39 +2878,39 @@
   }
   .attachpick{
     width:min(480px, 100%); max-height:min(560px, 100%); display:flex;
-    flex-direction:column; background:var(--panel); border-radius:14px;
+    flex-direction:column; background:var(--tenon-background-raised); border-radius:14px;
     box-shadow:0 24px 48px rgba(10,12,16,.28); overflow:hidden;
   }
   .attachpick header{
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 16px; font-weight:600; font-size:13.5px;
-    border-bottom:1px solid var(--line);
+    border-bottom:1px solid var(--tenon-stroke-default);
   }
   .attachpick-close{
-    border:0; background:none; cursor:pointer; color:var(--ink-faint);
+    border:0; background:none; cursor:pointer; color:var(--tenon-text-faint);
     font-size:16px; line-height:1; padding:2px 4px; border-radius:5px;
   }
-  .attachpick-close:hover{background:var(--chip); color:var(--ink)}
+  .attachpick-close:hover{background:var(--tenon-background-neutral); color:var(--tenon-text-default)}
   .attachpick-body{overflow-y:auto; padding:8px}
   .attachpick-row{
     display:block; width:100%; text-align:left; border:0; background:none;
     border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; color:inherit;
   }
-  .attachpick-row:hover{background:var(--chip)}
+  .attachpick-row:hover{background:var(--tenon-background-neutral)}
   .attachpick-row:disabled{opacity:.5; cursor:default}
   .attachpick-title{
     display:block; font-weight:600; font-size:13px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .attachpick-meta{
-    display:block; margin-top:2px; font-size:11.5px; color:var(--ink-faint);
+    display:block; margin-top:2px; font-size:11.5px; color:var(--tenon-text-faint);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .cvbody{
     display:block; width:100%; text-align:left; border:0; background:none;
     padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
   }
-  .cvbody:hover{background:var(--chip)}
+  .cvbody:hover{background:var(--tenon-background-neutral)}
   .cvtitle{
     display:block; font-weight:600; font-size:13px; line-height:1.35;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
@@ -3038,14 +2922,14 @@
      markChatViewed(). */
   .cvtitle .unread-dot{
     display:inline-block; width:6px; height:6px; margin-left:6px;
-    border-radius:50%; background:var(--accent); vertical-align:middle; flex:none;
+    border-radius:50%; background:var(--tenon-background-accent); vertical-align:middle; flex:none;
   }
-  .cvowner{display:block; margin-top:5px; font-size:11.5px; color:var(--ink-soft);
+  .cvowner{display:block; margin-top:5px; font-size:11.5px; color:var(--tenon-text-subtle);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .cvmeta{display:block; margin-top:6px; font-size:11px; color:var(--ink-faint)}
+  .cvmeta{display:block; margin-top:6px; font-size:11px; color:var(--tenon-text-faint)}
   .cvmeta .cvmode{
     display:inline-block; margin-left:6px; padding:0 5px; border-radius:4px;
-    background:var(--amber-bg); color:var(--amber); font-style:normal;
+    background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning); font-style:normal;
   }
   /* Taking a conversation off the board. Hidden until the card is under the
      cursor, like every other destructive control here — it is one click and it
@@ -3053,10 +2937,10 @@
   .cvclose{
     position:absolute; top:3px; right:3px; width:20px; height:20px; padding:0;
     border:0; border-radius:5px; background:none; cursor:pointer; opacity:0;
-    color:var(--ink-faint); font-size:14px; line-height:20px; text-align:center;
+    color:var(--tenon-text-faint); font-size:14px; line-height:20px; text-align:center;
   }
   .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
-  .cvclose:hover{background:var(--red-bg); color:var(--red)}
+  .cvclose:hover{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
 
 /* ---- Board and Plans as one tall surface --------------------------------
    The tab strip switches views by swapping one node for another, instantly.
@@ -3076,12 +2960,12 @@
   .viewflip{
     position:fixed; right:22px; bottom:22px; z-index:35;
     width:44px; height:44px; padding:0; border-radius:50%;
-    border:1px solid var(--line); background:var(--card);
+    border:1px solid var(--tenon-stroke-default); background:var(--card);
     box-shadow:0 2px 10px rgba(16,20,28,.16);
-    color:var(--ink-soft); font-size:17px; line-height:42px; text-align:center;
+    color:var(--tenon-text-subtle); font-size:17px; line-height:42px; text-align:center;
     cursor:pointer; transition:transform .16s, box-shadow .16s, color .16s;
   }
-  .viewflip:hover{ color:var(--ink); box-shadow:0 4px 14px rgba(16,20,28,.22) }
+  .viewflip:hover{ color:var(--tenon-text-default); box-shadow:0 4px 14px rgba(16,20,28,.22) }
   .viewflip:active{ transform:scale(.94) }
   .viewflip::after{ content:"\2193" }
   .viewflip.up::after{ content:"\2191" }

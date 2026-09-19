@@ -156,12 +156,12 @@ async function startPlanSession(p){
    Accepted was green until 15 Sep 2026. A whole column of green cards in
    Ready to be produced said nothing the column heading does not. */
 function planStripe(p){
-  if (p.state === 'review' && !p.seen) return 'var(--b1)';
+  if (p.state === 'review' && !p.seen) return 'var(--tenon-chart-1)';
   /* Reported back and not yet looked at is the other thing that has just
      arrived, so it takes the same colour as a new plan. Before the fold this
      card was on a different board entirely and could not say so here. */
-  if (p.production === 'review' && !p.seen) return 'var(--b1)';
-  return 'var(--ink-faint)';
+  if (p.production === 'review' && !p.seen) return 'var(--tenon-chart-1)';
+  return 'var(--tenon-text-faint)';
 }
 
 /* Which of the six columns a plan draws in. One function, so the renderers,

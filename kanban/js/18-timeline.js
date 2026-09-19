@@ -251,12 +251,12 @@ function timelineLegendHTML(colors){
     ? 'linear-gradient(90deg,' + colors.map((c, i) =>
         c + ' ' + (i / colors.length * 100) + '%,' + c + ' ' + ((i + 1) / colors.length * 100) + '%'
       ).join(',') + ')'
-    : 'var(--line)';
+    : 'var(--tenon-stroke-default)';
   const item = (sw, text) => '<span class="tllegitem">' + sw + text + '</span>';
   return '<div class="tllegend">' +
     item('<i class="tlswatch" style="background:' + stripe + '"></i>', 'Its bucket&rsquo;s colour') +
-    item('<i class="tlswatch" style="background:var(--tl-over)"></i>', 'Due today, or overdue') +
-    item('<i class="tlswatch" style="background:var(--tl-soon)"></i>', 'Due in the next 4 days') +
+    item('<i class="tlswatch" style="background:var(--tenon-status-over)"></i>', 'Due today, or overdue') +
+    item('<i class="tlswatch" style="background:var(--tenon-status-soon)"></i>', 'Due in the next 4 days') +
     item('<i class="tlswatch dim" style="background:' + stripe + '"></i>', 'Waiting on a review or another task') +
   '</div>';
 }

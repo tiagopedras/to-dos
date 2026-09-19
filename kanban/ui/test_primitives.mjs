@@ -282,7 +282,7 @@ const PLAN = {
   url: 'plans/2026-09-13-buttons.md',
   title: `Alex's "button" audit & <b>the rest</b>`,
   variant: ' agreed',
-  stripe: 'var(--green)',
+  stripe: 'var(--tenon-text-success)',
   word: 'accepted',
   production: 'being made',
   productionKind: 'doing',
@@ -319,24 +319,24 @@ check('plan card — nothing optional, which is most of them',
   legacy.cardShellHTML({
     cls: 'repitem planitem',
     attrs: 'draggable="true" data-plan="p.md"',
-    stripe: 'var(--line)',
+    stripe: 'var(--tenon-stroke-default)',
     eyebrow: '<span class="bucket">new</span>',
     title: 'Write the review',
   }),
-  h(PlanCard, { url: 'p.md', title: 'Write the review', stripe: 'var(--line)', word: 'new' }))
+  h(PlanCard, { url: 'p.md', title: 'Write the review', stripe: 'var(--tenon-stroke-default)', word: 'new' }))
 
 check('plan card — a plan with no task left on the board keeps its own name',
   legacy.cardShellHTML({
     cls: 'repitem planitem read',
     attrs: 'draggable="true" data-plan="p.md"',
-    stripe: 'var(--line)',
+    stripe: 'var(--tenon-stroke-default)',
     eyebrow: '<span class="bucket">read</span>',
     title: 'X',
     meta: '<button class="plangoto" ' +
       'title="Open this task on the board">a-slug ↗</button>',
   }),
   h(PlanCard, {
-    url: 'p.md', title: 'X', variant: ' read', stripe: 'var(--line)', word: 'read',
+    url: 'p.md', title: 'X', variant: ' read', stripe: 'var(--tenon-stroke-default)', word: 'read',
     gotoKey: 'a-slug', where: [],
   }))
 

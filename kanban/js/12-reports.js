@@ -215,7 +215,7 @@ function buildDoneRow(it, color, chip, chipClass){
    weeklyTrendReport. */
 function reportBucketColor(name){
   const i = state.doc ? state.doc.buckets.findIndex(b => b.name === name) : -1;
-  return i > -1 ? bucketColor(name, i) : 'var(--ink-faint)';
+  return i > -1 ? bucketColor(name, i) : 'var(--tenon-text-faint)';
 }
 
 /* Builds the data `CompletedByCategory` in `kanban/ui/ReportsBlocks.tsx`
@@ -410,7 +410,7 @@ function buildWeeklyTrend(){
   const bucketOrder = state.doc ? state.doc.buckets.map(b => b.name) : [];
   const colorOf = name => {
     const i = bucketOrder.indexOf(name);
-    return i > -1 ? bucketColor(name, i) : 'var(--ink-faint)';
+    return i > -1 ? bucketColor(name, i) : 'var(--tenon-text-faint)';
   };
 
   const weekData = weeks.map(w => {

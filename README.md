@@ -135,6 +135,16 @@ Two things sit beside it rather than inside it, and both moved out on 5 Sep 2026
   rewrites it, so it lifted out whole. The board still writes a handful of
   custom properties from JavaScript — `--header-h`, `--cols`, `--step-color` and
   two more — which is the only coupling left in either direction.
+
+  It carried its own two-tier token block at the top until 19 Sep 2026. That
+  block is now Tenon, the design system in `PACKAGES/tenon`, installed as a git
+  dependency pinned to a tag, served at `/tenon/tenon.css` by `server.py` and
+  linked ahead of `board.css`. Every rule here reads a `--tenon-` name, so a
+  colour decision is made in one place for this board, `ai_canvas` and the
+  personal site at once. The reason for moving it rather than leaving it: the
+  hand-written block had `--accent` missing from its dark theme for months and
+  nothing could tell, where Tenon's build refuses to write a file whose two
+  themes hold different key sets.
 - `core/todo.js` — the file format: parsing, serialising, sub-steps, suggested
   messages and the `repeat:` maths. It went to `core/` rather than staying in
   `kanban/` because it is the half that `core/todo.py` is a port *of*, and the
@@ -1202,8 +1212,10 @@ colours — is read straight off disk in TypeScript (`plans.ts`,
 JSON with no format of its own to duplicate.
 
 `src/renderer/src/board-ui.css` is the board's own stylesheet, in the part
-that matters here: the colour tokens, the `.card` block and `.btn`, verbatim
-out of `kanban/board.css`. Copied rather than imported, because that file is
+that matters here: the colour tokens, the `.card` block and `.btn`, taken out
+of `kanban/board.css`. The tokens are a hand-written copy of what that file
+used to carry, and since 19 Sep 2026 the board reads Tenon instead, so the two
+have started to drift. The companion is not a Tenon consumer yet. Copied rather than imported, because that file is
 2,400 lines whose `body`, `header` and layout rules are written for a
 full-page board and would quietly restyle a 380px window. If a card changes
 shape over there, that file is the one place to bring it across. The cards
