@@ -17,7 +17,7 @@
  * finds the button by them.
  */
 import type { ReactNode } from 'react'
-import { Column } from './Column'
+import { Column } from '@tiagopedras/tenon'
 
 export interface BackupFile {
   name: string
@@ -176,9 +176,9 @@ export function BackupsView(props: BackupsViewProps) {
     <div className="lists pview" style={{ ['--pcols' as string]: 1 }}>
       <Column
         id="backupsCol"
-        heading="h3"
+        titleAs="h3"
         title="Backups"
-        cls="backupsview prose"
+        className="backupsview prose"
         count={total}
         desc={
           <>
@@ -187,7 +187,7 @@ export function BackupsView(props: BackupsViewProps) {
             changed or saved over today’s list.
           </>
         }
-        body={<div id="backupsOut">{body}</div>}
+        children={<div id="backupsOut">{body}</div>}
       />
     </div>
   )

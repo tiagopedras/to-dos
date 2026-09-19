@@ -25,7 +25,7 @@
  * instead of buried at the point of use.
  */
 import type { ReactNode } from 'react'
-import { Column } from './Column'
+import { Column, ColumnEmpty } from '@tiagopedras/tenon'
 
 export interface ProjectSummary {
   name: string
@@ -162,9 +162,9 @@ export function ProjectsView(props: ProjectsViewProps) {
     <div className="lists pview" style={{ ['--pcols' as string]: 1 }}>
       <Column
         id="projectsCol"
-        heading="h3"
+        titleAs="h3"
         title="Projects"
-        cls="reportsview projectsview"
+        className="reportsview projectsview"
         sort={sortControl}
         count={projects ? projects.length : ''}
         desc={
@@ -175,8 +175,8 @@ export function ProjectsView(props: ProjectsViewProps) {
             it yet, or the work it names is already finished and ticked off.
           </>
         }
-        bodyCls=""
-        body={<div id="projectsOut">{body}</div>}
+        bodyClassName=""
+        children={<div id="projectsOut">{body}</div>}
       />
     </div>
   )
@@ -189,10 +189,10 @@ export function ProjectsEmpty(props: { message?: string }) {
   return (
     <div className="lists pview" style={{ ['--pcols' as string]: 1 }}>
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Projects"
-        cls="reportsview"
-        body={<div className="empty boxed">{props.message || 'No file loaded yet.'}</div>}
+        className="reportsview"
+        children={<ColumnEmpty boxed>{props.message || 'No file loaded yet.'}</ColumnEmpty>}
       />
     </div>
   )

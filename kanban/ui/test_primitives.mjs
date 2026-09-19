@@ -1,20 +1,29 @@
 #!/usr/bin/env node
-/* The React primitives against the string builders they replace.
+/* Tenon's components against the string builders they share a board with.
  *
  *     node kanban/ui/test_primitives.mjs      (or: npm test)
  *
- * Column and Card exist to be the same object colHTML() and cardShellHTML()
- * already emit — same elements, same classes, same optional parts — because
- * one stylesheet answers for both while the port is half done, and because the
- * whole "three boards, one shape" arrangement rests on there being one column
- * rather than a family resemblance. This suite is what stops them drifting: it
- * renders each case both ways and fails on any difference.
+ * Column, Card, Badge and Stat live in @tiagopedras/tenon now. They were four
+ * files in this folder until 19 Sep 2026, written to be exactly what colHTML()
+ * and cardShellHTML() emit; Tenon's are a port of those four and the builders
+ * were changed to emit Tenon's markup the same day, so the rule is unchanged:
+ * one stylesheet answers for both halves of a half-ported board, and "three
+ * boards, one shape" rests on there being one column rather than a family
+ * resemblance. This suite renders each case both ways and fails on any
+ * difference.
+ *
+ * What moved with them is the vocabulary. colHTML() still speaks the board's —
+ * cls, stripe, position, note, body — and Tenon speaks className, accent,
+ * lead, footer, children. The tables below stay in the board's words and
+ * toTenon() maps them, in one place, which is worth pinning on its own: it is
+ * the same translation every call site in kanban/ui/ does by hand.
  *
  * It needs no browser and no server. kanban/js/09-columns.js is run in a `vm`
  * with a stubbed `document` — it registers two delegated click listeners at
- * top level and touches nothing else a host would provide — and the TSX is
- * transformed by esbuild, which is already in the tree as one of vite's own
- * dependencies rather than as a dependency of this.
+ * top level and touches nothing else a host would provide — Tenon is imported
+ * as the built package a consumer gets, and PlanCard, the one component still
+ * written here, is transformed by esbuild, which is already in the tree as one
+ * of vite's own dependencies rather than as a dependency of this.
  *
  * The last check is a different kind and belongs here anyway: that the built
  * bundle carries React's production build. Vite substitutes NODE_ENV for an
@@ -54,18 +63,47 @@ const legacy = vm.runInNewContext(
    upwards — from /tmp there is no node_modules to find. */
 const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
 await esbuild.build({
-  entryPoints: [path.join(HERE, 'Column.tsx'), path.join(HERE, 'Card.tsx'),
-    path.join(HERE, 'PlanCard.tsx'), path.join(HERE, 'NumberBadge.tsx'),
-    path.join(HERE, 'StatCard.tsx')],
+  entryPoints: [path.join(HERE, 'PlanCard.tsx')],
   outdir, bundle: true, format: 'esm', jsx: 'automatic',
-  external: ['react', 'react-dom', 'react/jsx-runtime'],
+  external: ['react', 'react-dom', 'react/jsx-runtime', '@tiagopedras/tenon'],
   logLevel: 'silent',
 })
-const { Column } = await import(url.pathToFileURL(path.join(outdir, 'Column.js')))
-const { Card } = await import(url.pathToFileURL(path.join(outdir, 'Card.js')))
 const { PlanCard } = await import(url.pathToFileURL(path.join(outdir, 'PlanCard.js')))
-const { NumberBadge } = await import(url.pathToFileURL(path.join(outdir, 'NumberBadge.js')))
-const { StatCard } = await import(url.pathToFileURL(path.join(outdir, 'StatCard.js')))
+/* The built package, the same file a consumer installs, rather than Tenon's
+   source. A component that renders differently once built is a component that
+   is broken for everyone but this suite. */
+const { Column, Card, Badge, Stat } = await import('@tiagopedras/tenon')
+
+/* ---- the board's words, in Tenon's ---------------------------------------
+   Every call site in kanban/ui/ does this by hand. Here it is once, so the
+   tables below can stay in the vocabulary colHTML() still speaks. */
+const toTenonColumn = o => {
+  const { heading, cls, bodyCls, style, hot, body, ...rest } = o
+  return {
+    ...rest,
+    ...(heading ? { titleAs: heading } : {}),
+    ...(cls ? { className: cls.trim().replace(/\s+/g, ' ') } : {}),
+    ...(bodyCls ? { bodyClassName: bodyCls.trim().replace(/\s+/g, ' ') } : {}),
+    ...(style === 'agent' ? { dashed: true } : {}),
+    ...(hot ? { tone: 'running', titleAfter: h('span', { className: 'colgear', 'aria-hidden': 'true' }) } : {}),
+    ...(body !== undefined ? { children: body } : {}),
+  }
+}
+
+const toTenonCard = o => {
+  const { cls, stripe, position, note, progress, extra, tag, attrs, ...rest } = o
+  return {
+    ...rest,
+    ...(cls ? { className: cls.trim().replace(/\s+/g, ' ') } : {}),
+    ...(stripe ? { accent: stripe } : {}),
+    ...(position !== undefined ? { lead: position } : {}),
+    ...(note !== undefined ? { footer: note } : {}),
+    ...(progress !== undefined ? { body: progress } : {}),
+    ...(extra !== undefined ? { children: extra } : {}),
+    ...(tag ? { as: tag } : {}),
+    ...(attrs || {}),
+  }
+}
 
 /* ---- comparing two spellings of the same markup ---------------------------
    Neither side is wrong where they differ, so both are put in one form first:
@@ -119,7 +157,7 @@ const COLUMNS = [
 ]
 
 for (const [why, o] of COLUMNS) {
-  check('column — ' + why, legacy.colHTML(o), h(Column, o))
+  check('column — ' + why, legacy.colHTML(o), h(Column, toTenonColumn(o)))
 }
 
 /* The parts a caller passes as markup. The string builder takes them
@@ -143,8 +181,8 @@ check('column — a footer outside the body',
   h(Column, { title: 'Backlog', footer: h('button', { className: 'addtask' }, '+ Add task') }))
 
 check('column — a body',
-  legacy.colHTML({ title: 'Backlog', body: '<article class="card"></article>' }),
-  h(Column, { title: 'Backlog', body: h('article', { className: 'card' }) }))
+  legacy.colHTML({ title: 'Backlog', body: '<article class="tenon-card"></article>' }),
+  h(Column, { title: 'Backlog', children: h('article', { className: 'tenon-card' }) }))
 
 /* ---- the cards ------------------------------------------------------------ */
 const CARDS = [
@@ -166,7 +204,7 @@ for (const [why, o] of CARDS) {
      to be given to each side in its own currency, or the component escapes
      what the string builder passed through — which is the components being
      right and the test being lazy. */
-  check('card — ' + why, legacy.cardShellHTML(o), h(Card, o))
+  check('card — ' + why, legacy.cardShellHTML(o), h(Card, toTenonCard(o)))
 }
 
 check('card — tags, which are markup rather than text',
@@ -177,18 +215,18 @@ check('card — every row at once', legacy.cardShellHTML({
   title: 'X', eyebrow: 'DS', position: '2', tags: '<span class="tag">M</span>',
   meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
   cls: 'plancard',
-}), h(Card, {
+}), h(Card, toTenonCard({
   title: 'X', eyebrow: 'DS', position: '2', tags: h('span', { className: 'tag' }, 'M'),
   meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
   cls: 'plancard',
-}))
+})))
 
 /* The card's own element, which a view wires itself against. The string
    builder takes them as one pre-spelled attribute string and the component
    takes props, which is the same deliberate difference as the markup rows. */
 check('card — attributes on the element itself',
-  legacy.cardShellHTML({ title: 'X', attrs: 'draggable="true" data-plan="a/b.md"' }),
-  h(Card, { title: 'X', attrs: { draggable: true, 'data-plan': 'a/b.md' } }))
+  legacy.cardShellHTML({ title: 'X', draggable: true, attrs: 'data-plan="a/b.md"' }),
+  h(Card, { title: 'X', draggable: true, 'data-plan': 'a/b.md' }))
 
 /* A row given as markup the board already built rather than as nodes. It has
    to land on the row's own div, or the component puts a wrapper in the markup
@@ -200,7 +238,7 @@ check('card — a raw row goes on the row div, with nothing around it',
 
 check('card — a different tag',
   legacy.cardShellHTML({ title: 'X', tag: 'li' }),
-  h(Card, { title: 'X', tag: 'li' }))
+  h(Card, { title: 'X', as: 'li' }))
 
 check('card — an action',
   legacy.cardShellHTML({ title: 'X', action: '<button class="cardact-btn">Open</button>' }),
@@ -218,7 +256,7 @@ const BADGES = [
   ['a label needing escaping', { n: 1, label: `Alex's "plans" & <b>` }],
 ]
 for (const [why, o] of BADGES) {
-  check('badge — ' + why, legacy.numberBadgeHTML(o), h(NumberBadge, o))
+  check('badge — ' + why, legacy.numberBadgeHTML(o), h(Badge, { count: o.n, label: o.label }))
 }
 
 /* ---- the stat card --------------------------------------------------------
@@ -232,34 +270,34 @@ for (const [why, o] of BADGES) {
    The escaping case is not incidental: nothing calls esc() on the way in, and
    that is only safe for as long as React writes these itself. */
 check('stat card — all three parts',
-  '<div class="statcard">' +
-    '<span class="statcard-eyebrow">Completed</span>' +
-    '<span class="statcard-value">12</span>' +
-    '<span class="statcard-caption">tasks finished across 4 categories</span>' +
+  '<div class="tenon-stat">' +
+    '<span class="tenon-stat__eyebrow">Completed</span>' +
+    '<span class="tenon-stat__value">12</span>' +
+    '<span class="tenon-stat__caption">tasks finished across 4 categories</span>' +
   '</div>',
-  h(StatCard, { eyebrow: 'Completed', value: 12, caption: 'tasks finished across 4 categories' }))
+  h(Stat, { eyebrow: 'Completed', value: 12, caption: 'tasks finished across 4 categories' }))
 
 check('stat card — the figure on its own, which is the minimum',
-  '<div class="statcard"><span class="statcard-value">0</span></div>',
-  h(StatCard, { value: 0 }))
+  '<div class="tenon-stat"><span class="tenon-stat__value">0</span></div>',
+  h(Stat, { value: 0 }))
 
 check('stat card — a value that is not a number',
-  '<div class="statcard">' +
-    '<span class="statcard-eyebrow">Schedulers</span>' +
-    '<span class="statcard-value">2 of 2</span>' +
+  '<div class="tenon-stat">' +
+    '<span class="tenon-stat__eyebrow">Schedulers</span>' +
+    '<span class="tenon-stat__value">2 of 2</span>' +
   '</div>',
-  h(StatCard, { eyebrow: 'Schedulers', value: '2 of 2' }))
+  h(Stat, { eyebrow: 'Schedulers', value: '2 of 2' }))
 
-check('stat card — extra classes, half-empty the way callers build them',
-  '<div class="statcard wide good"><span class="statcard-value">1</span></div>',
-  h(StatCard, { value: 1, cls: '  wide   good ' }))
+check('stat card — extra classes',
+  '<div class="tenon-stat wide good"><span class="tenon-stat__value">1</span></div>',
+  h(Stat, { value: 1, className: 'wide good' }))
 
 check('stat card — text needing escaping, which React does rather than esc()',
-  '<div class="statcard">' +
-    '<span class="statcard-eyebrow">Alex&#39;s &quot;plans&quot; &amp; &lt;b&gt;</span>' +
-    '<span class="statcard-value">3</span>' +
+  '<div class="tenon-stat">' +
+    '<span class="tenon-stat__eyebrow">Alex&#39;s &quot;plans&quot; &amp; &lt;b&gt;</span>' +
+    '<span class="tenon-stat__value">3</span>' +
   '</div>',
-  h(StatCard, { eyebrow: `Alex's "plans" & <b>`, value: 3 }))
+  h(Stat, { eyebrow: `Alex's "plans" & <b>`, value: 3 }))
 
 /* ---- the plan card --------------------------------------------------------
    `planItemHTML()` is gone — PlanCard is the only spelling of a plan card now —
@@ -298,7 +336,8 @@ const PLAN = {
 check('plan card — every row a plan carries',
   legacy.cardShellHTML({
     cls: 'repitem planitem agreed folded',
-    attrs: 'draggable="true" data-plan="' + PLAN.url + '"',
+    draggable: true,
+    attrs: 'data-plan="' + PLAN.url + '"',
     stripe: PLAN.stripe,
     eyebrow: '<span class="bucket">accepted</span><span class="right">' +
       '<span class="planprod planprod-doing" ' +
@@ -318,7 +357,8 @@ check('plan card — every row a plan carries',
 check('plan card — nothing optional, which is most of them',
   legacy.cardShellHTML({
     cls: 'repitem planitem',
-    attrs: 'draggable="true" data-plan="p.md"',
+    draggable: true,
+    attrs: 'data-plan="p.md"',
     stripe: 'var(--tenon-stroke-default)',
     eyebrow: '<span class="bucket">new</span>',
     title: 'Write the review',
@@ -328,7 +368,8 @@ check('plan card — nothing optional, which is most of them',
 check('plan card — a plan with no task left on the board keeps its own name',
   legacy.cardShellHTML({
     cls: 'repitem planitem read',
-    attrs: 'draggable="true" data-plan="p.md"',
+    draggable: true,
+    attrs: 'data-plan="p.md"',
     stripe: 'var(--tenon-stroke-default)',
     eyebrow: '<span class="bucket">read</span>',
     title: 'X',

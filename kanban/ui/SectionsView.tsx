@@ -24,7 +24,7 @@
  * make one.
  */
 import type { ReactNode, CSSProperties } from 'react'
-import { Column } from './Column'
+import { Column } from '@tiagopedras/tenon'
 import {
   TasksFinishedColumn, WrittenReportsColumn, type ReportsColumnsProps,
 } from './ReportsColumns'
@@ -55,17 +55,17 @@ function Section(props: {
   const { title, hint, body, collapsible, collapseKey, open } = props
   return (
     <Column
-      heading="h3"
+      titleAs="h3"
       title={title}
       desc={hint}
       count={body.count != null ? body.count : null}
       sort={body.sortHTML ? <span dangerouslySetInnerHTML={{ __html: body.sortHTML }} /> : null}
       filters={body.filtersHTML ? <span dangerouslySetInnerHTML={{ __html: body.filtersHTML }} /> : null}
-      cls="refcol prose"
+      className="refcol prose"
       collapsible={collapsible}
       collapseKey={collapseKey}
       open={open}
-      body={<span dangerouslySetInnerHTML={{ __html: body.bodyHTML }} />}
+      children={<span dangerouslySetInnerHTML={{ __html: body.bodyHTML }} />}
     />
   )
 }

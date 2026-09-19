@@ -961,7 +961,7 @@ function setPlansBadge(n){
   plansAwaiting = n;
   const tab = document.querySelector('#viewToggle [data-view="plans"]');
   if (!tab) return;
-  tab.querySelectorAll('.nbadge').forEach(b => b.remove());
+  tab.querySelectorAll('.tenon-badge').forEach(b => b.remove());
   tab.insertAdjacentHTML('beforeend', plansAwaitingBadgeHTML());
 }
 

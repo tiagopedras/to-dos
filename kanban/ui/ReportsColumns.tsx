@@ -39,7 +39,7 @@
  * Markdown either way.
  */
 import type { ReactNode } from 'react'
-import { Column } from './Column'
+import { Column } from '@tiagopedras/tenon'
 import {
   CompletedByCategory, RecentAccomplishments, WeeklyTrend,
   type CompletedByCategoryData, type RecentAccomplishmentsData, type WeeklyTrendProps,
@@ -129,9 +129,9 @@ export function TasksFinishedColumn(props: ReportsColumnsProps) {
   const { windows, window: current, onWindow, range, completed, recent, trend } = props
   return (
     <Column
-      heading="h3"
+      titleAs="h3"
       title="Tasks finished"
-      cls="reportsview prose"
+      className="reportsview prose"
       collapsible
       collapseKey="ov:Tasks finished"
       open={props.finishedOpen}
@@ -152,7 +152,7 @@ export function TasksFinishedColumn(props: ReportsColumnsProps) {
           <span className="repdates" id="repDates">{range}</span>
         </span>
       }
-      body={
+      children={
         <>
           <div id="countedOut">
             <CompletedByCategory {...completed} />
@@ -196,9 +196,9 @@ export function WrittenReportsColumn(props: ReportsColumnsProps) {
   return (
     <Column
       id="writtenCol"
-      heading="h3"
+      titleAs="h3"
       title="Written reports"
-      cls="reportsview written prose"
+      className="reportsview written prose"
       collapsible
       collapseKey="ov:Written reports"
       open={props.writtenOpen}
@@ -210,7 +210,7 @@ export function WrittenReportsColumn(props: ReportsColumnsProps) {
           lands in the <code>data/reports/</code> folder.
         </>
       }
-      body={<div id="writtenOut">{body}</div>}
+      children={<div id="writtenOut">{body}</div>}
     />
   )
 }

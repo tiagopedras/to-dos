@@ -39,14 +39,21 @@ import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import type { ReactNode } from 'react'
 
-export { Column, ColumnEmpty } from './Column'
-export type { ColumnProps, ColumnStyle } from './Column'
-export { Card } from './Card'
-export type { CardProps, CardRow } from './Card'
-export { NumberBadge } from './NumberBadge'
-export type { NumberBadgeProps } from './NumberBadge'
-export { StatCard } from './StatCard'
-export type { StatCardProps } from './StatCard'
+/* Card, Column, Badge and Stat are Tenon's, not the board's. They were the
+   board's until 19 Sep 2026, and Tenon's are a port of exactly those four —
+   the card had already survived five views here, which is a harder test than
+   anything a component written fresh would have had. What changed is the
+   names: `.card` became `.tenon-card`, `cls`/`stripe`/`position`/`note` became
+   `className`/`accent`/`lead`/`footer`, and `body` became `children`.
+
+   colHTML() and cardShellHTML() in kanban/js/09-columns.js emit the same
+   markup, so the half of the board that is still strings and the half that is
+   React draw the same card. That is the rule those two files have always been
+   under; only the shape they agree on has moved. */
+export { Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } from '@tiagopedras/tenon'
+export type {
+  CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
+} from '@tiagopedras/tenon'
 export { PlanCard } from './PlanCard'
 export type { PlanCardProps } from './PlanCard'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'

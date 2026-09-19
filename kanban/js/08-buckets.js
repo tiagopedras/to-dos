@@ -397,9 +397,26 @@ async function setBucketColor(b, swatch){
    colour with nothing chosen for it just falls back to its position in the
    list, so a server too old to know this route, or a first run with no file
    yet, costs nothing. */
+/* bucket-colors.json holds the swatch as the literal string the picker wrote,
+   and until 19 Sep 2026 that string was `var(--b4)`. The board reads Tenon's
+   names now, so a file written before then names a variable nothing defines,
+   and a bucket that had chosen a colour silently loses it — the one failure
+   mode a var() has. Translated on the way in rather than migrated on disk:
+   data/ is his, one writer touches it, and a rename in the stylesheet is not
+   a reason to rewrite a file he owns. Drop this once no dataset is old enough
+   to need it. */
+const LEGACY_SWATCH = /^var\(--b(10|[1-9])\)$/;
+
+function currentSwatch(value){
+  const m = typeof value === 'string' && value.match(LEGACY_SWATCH);
+  return m ? 'var(--tenon-chart-' + m[1] + ')' : value;
+}
+
 async function loadBucketColors(){
   try {
-    state.bucketColors = await getJSON('/bucket-colors.json');
+    const raw = await getJSON('/bucket-colors.json');
+    state.bucketColors = Object.fromEntries(
+      Object.entries(raw || {}).map(([name, swatch]) => [name, currentSwatch(swatch)]));
   } catch (err) {
     state.bucketColors = {};
   }

@@ -407,8 +407,8 @@ function cardHTML(t, color, bucketLabel, opts){
      count it has something to say with. */
   return cardShellHTML({
     cls: statusClass.trim() + (t.headline ? ' onething' : ''),
-    attrs: (opts.static ? '' : 'tabindex="0" role="button"' +
-             (opts.noDrag ? '' : ' draggable="true"') + ' ') + 'data-id="' + t.id + '"',
+    draggable: !opts.static && !opts.noDrag,
+    attrs: (opts.static ? '' : 'tabindex="0" role="button" ') + 'data-id="' + t.id + '"',
     stripe: color,
     eyebrow: bucketLabel ? '<span class="bucket">' + esc(bucketLabel) + '</span>' : '',
     title: mdInline(t.title),
@@ -429,7 +429,7 @@ function cardHTML(t, color, bucketLabel, opts){
    design file and this function are the two halves of one decision.
 
    Until 12 Sep 2026 the three views drew three different things. The board had
-   `.col` with padding 0 and a divider under its heading; Plans and Execution
+   `.tenon-column` with padding 0 and a divider under its heading; Plans and Execution
    had `.listcard` with padding 14/16/16, no divider, and their lead paragraph
    as the first thing inside the body rather than part of the head. The board's
    shape won because it is the denser and more-used surface: six columns and
@@ -462,7 +462,7 @@ function cardHTML(t, color, bucketLabel, opts){
      style        'agent' is the Style=Agent variant — a dashed edge, meaning
                   an agent owns this column and you do not drag into it. It is
                   the only dashed thing in the app, which is what makes the
-                  dash readable; see the note on .col.agentcol in board.css.
+                  dash readable; see the note on .tenon-column.agentcol in board.css.
                   Anything else, including nothing, is Style=Default.
      hot          a running queue worked by AI: Doing and Producing on Plans,
                   Handed to AI on the board. An orange tint and a gear after
@@ -497,33 +497,37 @@ function colHTML(o){
      Filters select. A long title squeezes the left group and leaves the right
      one alone, which is what a header full of controls has to do. */
   const head =
-    '<' + headTag + ' class="colhead">' +
-      '<div class="colhead-row">' +
-        '<div class="colhead-left">' +
-          (o.collapsible ? '<span class="colchev" aria-hidden="true"></span>' : '') +
-          '<' + tag + '>' + esc(o.title) + '</' + tag + '>' +
+    '<' + headTag + ' class="tenon-column__head">' +
+      '<div class="tenon-column__head-row">' +
+        '<div class="tenon-column__head-start">' +
+          (o.collapsible ? '<span class="tenon-column__chevron" aria-hidden="true"></span>' : '') +
+          '<' + tag + ' class="tenon-column__title">' + esc(o.title) + '</' + tag + '>' +
           (o.hot ? '<span class="colgear" aria-hidden="true"></span>' : '') +
-          (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') +
+          (o.hint ? '<span class="tenon-column__hint">' + esc(o.hint) + '</span>' : '') +
         '</div>' +
-        '<div class="colhead-right">' +
+        '<div class="tenon-column__head-end">' +
           (o.sort || '') +
-          (o.count != null ? '<span class="count">' + o.count + '</span>' : '') +
+          (o.count != null ? '<span class="tenon-column__count">' + o.count + '</span>' : '') +
           (o.action || '') +
           (o.filters || '') +
         '</div>' +
       '</div>' +
-      (o.desc ? '<p class="colhead-desc">' + o.desc + '</p>' : '') +
+      (o.desc ? '<p class="tenon-column__desc">' + o.desc + '</p>' : '') +
     '</' + headTag + '>';
-  return '<' + el + ' class="col' + (cls ? ' ' + cls : '') +
-      (o.style === 'agent' ? ' agentcol' : '') +
-      (o.hot ? ' hotcol' : '') + '"' +
-    (o.collapsible ? ' data-colcollapse="' + esc(o.collapseKey || o.title) + '"' +
+  /* Tenon's own variants first and the caller's classes after, because that is
+     the order its `cx()` writes them in and this markup has to match character
+     for character — kanban/ui/test_primitives.mjs renders both and compares. */
+  return '<' + el + ' class="tenon-column' +
+      (o.hot ? ' tenon-column--running' : '') +
+      (o.style === 'agent' ? ' tenon-column--dashed' : '') +
+      (cls ? ' ' + cls : '') + '"' +
+    (o.collapsible ? (o.collapseKey ? ' data-column-collapse="' + esc(o.collapseKey) + '"' : '') +
       (o.open === false ? '' : ' open') : '') +
     (o.attrs ? ' ' + o.attrs : '') + '>' +
     head +
-    '<div class="colbody' + (bodyCls ? ' ' + bodyCls : '') + '"' +
+    '<div class="tenon-column__body' + (bodyCls ? ' ' + bodyCls : '') + '"' +
       (o.bodyAttrs ? ' ' + o.bodyAttrs : '') + '>' + (o.body || '') + '</div>' +
-    (o.footer || '') +
+    (o.footer ? '<div class="tenon-column__footer">' + o.footer + '</div>' : '') +
   '</' + el + '>';
 }
 
@@ -533,7 +537,7 @@ function colHTML(o){
    and the fold is cancelled. Delegated for the same reason the filter's own
    handler below is: every head is rebuilt on every render. */
 document.addEventListener('click', e => {
-  const sum = e.target.closest('.col > summary');
+  const sum = e.target.closest('.tenon-column > summary');
   if (sum && e.target.closest('button, select, input, label, a')) e.preventDefault();
 });
 
@@ -543,7 +547,7 @@ document.addEventListener('click', e => {
    Silent when the column has gone: a view can be switched away from while its
    fetch is still in the air. */
 function setColCount(sel, n){
-  const el = document.querySelector(sel + ' .colhead .count');
+  const el = document.querySelector(sel + ' .tenon-column__head .tenon-column__count');
   if (el) el.textContent = n;
 }
 
@@ -553,7 +557,8 @@ function setColCount(sel, n){
    column of prose with one line of grey text in it read as a column that had
    failed to load rather than one with nothing in it. */
 function colEmptyHTML(message, style){
-  return '<div class="empty' + (style === 'boxed' ? ' boxed' : '') + '">' +
+  return '<div class="tenon-column-empty' +
+    (style === 'boxed' ? ' tenon-column-empty--boxed' : '') + '">' +
     message + '</div>';
 }
 
@@ -616,8 +621,8 @@ document.addEventListener('click', e => {
              to flag, and above 99 it reads 99+
      label   what the count is of, for a screen reader and the tooltip
 
-   `kanban/ui/NumberBadge.tsx` is its twin and test_primitives.mjs holds the
-   two to the same markup.
+   Tenon's `Badge` is its twin and test_primitives.mjs holds the two to the
+   same markup.
    ========================================================================= */
 function numberBadgeHTML(o){
   o = o || {};
@@ -625,30 +630,38 @@ function numberBadgeHTML(o){
   if (n < 1) return '';
   const text = n > 99 ? '99+' : String(n);
   const label = o.label ? n + ' ' + o.label : '';
-  return '<span class="nbadge"' +
+  return '<span class="tenon-badge tenon-badge--accent"' +
     (label ? ' title="' + esc(label) + '" aria-label="' + esc(label) + '"' : '') + '>' +
     text + '</span>';
 }
 
 function cardShellHTML(o){
   o = o || {};
-  const cls = ('card ' + (o.cls || '')).trim().replace(/\s+/g, ' ');
+  /* Same ordering rule as colHTML above. `draggable` is a class here as well
+     as an attribute, because Tenon's Card styles the cursor off the class and
+     a card that is draggable in one half of the board and not the other is
+     the drift this whole arrangement exists to stop. */
+  const cls = ('tenon-card tenon-card--flat' +
+    (o.stripe ? ' tenon-card--accent' : '') +
+    (o.draggable ? ' tenon-card--draggable' : '') +
+    ' ' + (o.cls || '')).trim().replace(/\s+/g, ' ');
   const rows =
-    (o.eyebrow ? '<div class="row1">' + o.eyebrow + '</div>' : '') +
-    '<div class="cardhead">' +
-      (o.position ? '<span class="cardpos">' + o.position + '</span>' : '') +
-      '<div class="title">' + (o.title || '') + '</div>' +
-      (o.action ? '<span class="cardact">' + o.action + '</span>' : '') +
+    (o.eyebrow ? '<div class="tenon-card__eyebrow">' + o.eyebrow + '</div>' : '') +
+    '<div class="tenon-card__head">' +
+      (o.position ? '<span class="tenon-card__lead">' + o.position + '</span>' : '') +
+      '<div class="tenon-card__title">' + (o.title || '') + '</div>' +
+      (o.action ? '<span class="tenon-card__action">' + o.action + '</span>' : '') +
     '</div>' +
-    (o.tags ? '<div class="meta">' + o.tags + '</div>' : '') +
-    (o.meta ? '<div class="cardmeta">' + o.meta + '</div>' : '') +
-    (o.summary ? '<div class="cardsum">' + o.summary + '</div>' : '') +
-    (o.progress || '') +
-    (o.note ? '<div class="notecount">' + o.note + '</div>' : '') +
+    (o.tags ? '<div class="tenon-card__tags">' + o.tags + '</div>' : '') +
+    (o.meta ? '<div class="tenon-card__meta">' + o.meta + '</div>' : '') +
+    (o.summary ? '<div class="tenon-card__summary">' + o.summary + '</div>' : '') +
+    (o.progress ? '<div class="tenon-card__body">' + o.progress + '</div>' : '') +
+    (o.note ? '<div class="tenon-card__footer">' + o.note + '</div>' : '') +
     (o.extra || '');
   return '<' + (o.tag || 'article') + ' class="' + cls + '"' +
+    (o.draggable ? ' draggable="true"' : '') +
     (o.attrs ? ' ' + o.attrs : '') +
-    (o.stripe ? ' style="--bc:' + o.stripe + '"' : '') + '>' +
+    (o.stripe ? ' style="--tenon-card-accent:' + o.stripe + '"' : '') + '>' +
     rows +
   '</' + (o.tag || 'article') + '>';
 }

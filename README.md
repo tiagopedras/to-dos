@@ -141,7 +141,18 @@ Two things sit beside it rather than inside it, and both moved out on 5 Sep 2026
   dependency pinned to a tag. The vite build copies its CSS out of
   `node_modules` into `kanban/dist/` beside `board-ui.js`, and the page links it
   from there ahead of `board.css` — one path, because the Vercel deployment has
-  no server and no `node_modules` and a static one is all it can reach. Every rule here reads a `--tenon-` name, so a
+  no server and no `node_modules` and a static one is all it can reach.
+
+  The card, the column, the count badge and the stat box went the same way on
+  the same day. They were four files in `kanban/ui/` written to be exactly what
+  `colHTML()` and `cardShellHTML()` emit, because one stylesheet has to answer
+  for both halves of a half-ported board; Tenon's are a port of those four, so
+  the two builders were changed to emit `.tenon-card` and `.tenon-column` and
+  the four files deleted. `kanban/ui/test_primitives.mjs` still renders every
+  case both ways and fails on any difference, which is the only thing keeping
+  the string half and the React half drawing the same card. What it pins now,
+  on top of the markup, is the translation: `cls` is `className`, `stripe` is
+  `accent`, `position` is `lead`, `note` is `footer`, `body` is `children`. Every rule here reads a `--tenon-` name, so a
   colour decision is made in one place for this board, `ai_canvas` and the
   personal site at once. The reason for moving it rather than leaving it: the
   hand-written block had `--accent` missing from its dark theme for months and

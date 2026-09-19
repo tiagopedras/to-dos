@@ -21,15 +21,25 @@ import fs from 'node:fs'
  * repo — the package is still the only place the file comes from, and the
  * version is stamped into its first line. */
 function tenonCss() {
-  const from = path.resolve(__dirname, 'node_modules/@tiagopedras/tenon/dist/tenon.css')
+  const dir = path.resolve(__dirname, 'node_modules/@tiagopedras/tenon/dist')
+  /* tenon.css is the tokens, tenon-react.css is the components. Both are
+   * page-level stylesheets rather than something the bundle carries, because
+   * half the board is still HTML strings from kanban/js/09-columns.js and
+   * that half draws .tenon-card and .tenon-column too. A lib build would put
+   * the component CSS inside board-ui.js where the string half cannot reach
+   * it, which is the whole reason these are copied out instead. */
+  const files = ['tenon.css', 'tenon-react.css']
   return {
     name: 'tenon-css',
     closeBundle() {
-      if (!fs.existsSync(from)) {
-        this.warn('@tiagopedras/tenon is not installed, so the board will have no colours. Run npm install.')
-        return
+      for (const f of files) {
+        const from = path.join(dir, f)
+        if (!fs.existsSync(from)) {
+          console.warn(`@tiagopedras/tenon is not installed, so the board will have no ${f === 'tenon.css' ? 'colours' : 'cards'}. Run npm install.`)
+          continue
+        }
+        fs.copyFileSync(from, path.resolve(__dirname, 'kanban/dist', f))
       }
-      fs.copyFileSync(from, path.resolve(__dirname, 'kanban/dist/tenon.css'))
     },
   }
 }

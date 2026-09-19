@@ -14,6 +14,10 @@
      board.css only reads them, so this link has to come first: a --tenon- name
      read before it is defined falls back to nothing, silently. -->
 <link rel="stylesheet" href="/kanban/dist/tenon.css">
+<!-- Tenon's components. A page-level stylesheet rather than something the
+     bundle carries, because the half of the board that is still HTML strings
+     draws .tenon-card and .tenon-column too, and could not reach it there. -->
+<link rel="stylesheet" href="/kanban/dist/tenon-react.css">
 <!-- The board's own styling. Absolute rather than relative for the same reason
      DEMO_URL is: the page is served at / on Vercel and at /kanban/ locally, and a
      relative href would only resolve in one of the two. -->

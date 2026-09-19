@@ -56,7 +56,7 @@
  * listener on `document` the same way their closing half already was.
  */
 import type { DragEvent, ReactNode } from 'react'
-import { Column } from './Column'
+import { Column } from '@tiagopedras/tenon'
 
 /* What a column that takes drops is given. Three handlers rather than a
    callback, because the answer to "will you take this" has to be given on
@@ -166,9 +166,9 @@ export function PlansView (props: PlansViewProps) {
   return (
     <div className="lists pview" style={{ ['--pcols' as string]: 7 }}>
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Backlog"
-        cls="reportsview backlogview"
+        className="reportsview backlogview"
         id="backlogCol"
         desc="The agent leaves these alone. Held back by you, or excluded by a rule."
         count={backlogCount ?? ''}
@@ -177,13 +177,13 @@ export function PlansView (props: PlansViewProps) {
             Spend and clocks
           </button>
         }
-        body={<div id="backlogOut" {...backlogDrop}>{backlog}</div>}
+        children={<div id="backlogOut" {...backlogDrop}>{backlog}</div>}
       />
 
       <Column
-        heading="h3"
+        titleAs="h3"
         title="To do"
-        cls="reportsview queueview"
+        className="reportsview queueview"
         id="queueDoingCard"
         count={queueCount ?? ''}
         desc={queueDesc}
@@ -193,7 +193,7 @@ export function PlansView (props: PlansViewProps) {
             Run now
           </button>
         }
-        body={
+        children={
           <>
             {/* Capacity — how much of the usage window is left — stays on this
                 card rather than going to Doing with the live run. It answers
@@ -207,15 +207,16 @@ export function PlansView (props: PlansViewProps) {
       />
 
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Doing"
-        hot
-        cls="reportsview doingview"
+        tone="running"
+        titleAfter={<span className="colgear" aria-hidden="true" />}
+        className="reportsview doingview"
         id="doingCol"
         sort={doingSort}
         count={doingCount ?? ''}
         desc="Currently running."
-        body={
+        children={
           <>
             <div className={orphanHTML ? '' : 'hidden'} id="qdOrphan"
               dangerouslySetInnerHTML={raw(orphanHTML)} />
@@ -228,59 +229,60 @@ export function PlansView (props: PlansViewProps) {
       />
 
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Waiting for review"
-        cls="reportsview processed"
-        style="agent"
+        className="reportsview processed"
+        dashed
         desc={reviewDesc}
         sort={reviewSort}
         filters={
           <span className="colfilter-slot" id="reviewFilterSlot"
             dangerouslySetInnerHTML={raw(reviewFilterHTML)} />
         }
-        body={<div id="plansOut">{review}</div>}
+        children={<div id="plansOut">{review}</div>}
       />
 
       {/* No filter on this one: every card in it is the same thing, a plan he
           has accepted whose work has not finished. A dropdown with one option
           is a control that only ever says All. */}
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Ready to be produced"
-        cls="reportsview decided"
+        className="reportsview decided"
         id="producedCol"
         sort={producedSort}
         count={producedCount ?? ''}
         desc="Accepted as written, and waiting on the implementing agent."
-        body={<div id="plansProduced" {...producedDrop}>{produced}</div>}
+        children={<div id="plansProduced" {...producedDrop}>{produced}</div>}
       />
 
       {/* One-way. It takes drops, and nothing in it drags out — what happens
           next is the agent reporting back or the work finishing, neither of
           which is a card to move. */}
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Producing"
-        hot
-        cls="reportsview decided"
+        tone="running"
+        titleAfter={<span className="colgear" aria-hidden="true" />}
+        className="reportsview decided"
         id="producingCol"
         sort={producingSort}
         count={producingCount ?? ''}
         desc="Being made now by the implementing agent."
-        body={<div id="plansProducing" {...producingDrop}>{producing}</div>}
+        children={<div id="plansProducing" {...producingDrop}>{producing}</div>}
       />
 
       <Column
-        heading="h3"
+        titleAs="h3"
         title="Done"
-        cls="reportsview finished"
+        className="reportsview finished"
         desc="Completed."
         sort={doneSort}
         filters={
           <span className="colfilter-slot" id="doneFilterSlot"
             dangerouslySetInnerHTML={raw(doneFilterHTML)} />
         }
-        body={<div id="plansDone" {...doneDrop}>{done}</div>}
+        children={<div id="plansDone" {...doneDrop}>{done}</div>}
       />
     </div>
   )

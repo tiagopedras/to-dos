@@ -167,13 +167,13 @@
   .tab.on .n{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
   /* The number badge (numberBadgeHTML / NumberBadge): filled in the accent,
      so it reads as waiting on you where `.n` beside it only counts. */
-  .nbadge{
+  .tenon-badge{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:18px; height:18px; padding:0 5px; box-sizing:border-box;
     border-radius:var(--tenon-radius-full); background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
     font-size:11px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;
   }
-  .tab .nbadge{margin:-2px -4px -2px -2px}
+  .tab .tenon-badge{margin:-2px -4px -2px -2px}
   /* The grouped view tab — Board, Matrix, Timeline. Two buttons, one pill: the
      name switches to the view it names, the chevron opens the panel. The pill
      itself lives on the wrapper so the seam between the two halves is a hairline
@@ -522,11 +522,11 @@
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
   .mopen:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
-  .mpreview .card{
+  .mpreview .tenon-card{
     cursor:default; border-color:var(--tenon-text-faint);
     box-shadow:0 10px 28px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
   }
-  .mpreview .card{opacity:1}      /* a preview is for reading, not for dimming */
+  .mpreview .tenon-card{opacity:1}      /* a preview is for reading, not for dimming */
   @media (prefers-reduced-motion:reduce){
     .mpreview{transition:none}
   }
@@ -583,7 +583,7 @@
   /* One column, full width — a Gantt reads better wide than split in half the
      way Matrix and its dependency chain sit side by side. */
   .lists.tview{columns:auto; max-width:none; display:block}
-  .lists.tview .col{margin:0}
+  .lists.tview .tenon-column{margin:0}
   /* Its own scrolling pane, both axes, rather than leaving the vertical
      growth to the page. `main` already scrolls horizontally for the board
      (main{overflow-x:auto}), which makes main a scroll container by the
@@ -910,7 +910,7 @@
       width:max-content; padding-inline-end:16px;
     }
     main{scroll-snap-type:x mandatory; scroll-padding-inline:16px}
-    :is(.board, .lists.split, .lists.mview, .lists.pview) > .col{scroll-snap-align:start}
+    :is(.board, .lists.split, .lists.mview, .lists.pview) > .tenon-column{scroll-snap-align:start}
   }
   /* One column, three views. Board, Plans and Execution all draw colHTML()
      (09-columns.js), so a column is the same object wherever it appears: one
@@ -918,50 +918,50 @@
      padding, one gap. What differs between the three is which toggles the
      header carries and what goes in the body, and nothing else.
 
-     Until 12 Sep 2026 the two were unrelated furniture — the board's `.col`
+     Until 12 Sep 2026 the two were unrelated furniture — the board's `.tenon-column`
      with padding 0 and a divider under its heading, and Plans' `.listcard`
      with padding 14/16/16 and no divider — and the Plans lead paragraph was
      the first thing in the body rather than part of the head. Standardising
      on the board's shape was the smaller change: it has six columns and
      thirty-odd cards against four columns of prose. */
-  .col{background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:12px; box-shadow:var(--tenon-elevation-overlay); display:flex; flex-direction:column; min-height:120px}
+  .tenon-column{background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:12px; box-shadow:var(--tenon-elevation-overlay); display:flex; flex-direction:column; min-height:120px}
   /* The Style=Agent variant, and the only dashed thing in the app, so the dash
      means one thing: an agent owns this column and you do not drag into it.
      Handed to AI on the board, Waiting for review on Plans and on Execution.
-     One rule rather than the three it was until 12 Sep 2026 — `.col.aicol` for
-     the board and `.lists.pview .col.agentcol` for the other two, which left
+     One rule rather than the three it was until 12 Sep 2026 — `.tenon-column.aicol` for
+     the board and `.lists.pview .tenon-column.agentcol` for the other two, which left
      Execution's dash riding a selector scoped to Plans. Waiting for review and
      Done used to be transparent as well as (for Done) dashed, which was the
      same meaning carried twice — once by the fill and once by the border — so
      the fill went and Done's dash went with it. */
-  .col.agentcol{border-style:dashed}
-  .col.aicol .colhead{color:var(--tenon-text-subtle)}
+  .tenon-column--dashed{border-style:dashed}
+  .tenon-column.aicol .tenon-column__head{color:var(--tenon-text-subtle)}
   /* Hot columns: running queues worked by AI (Doing and Producing on Plans,
      Handed to AI on the board). Orange rather than amber, which already means
      a warning. The gear turns for now; add .idle to stop it once the board
      knows whether anything is actually running. */
-  .col.hotcol{
+  .tenon-column--running{
     background:color-mix(in srgb, var(--tenon-text-running) 6%, var(--tenon-background-raised));
     border-color:color-mix(in srgb, var(--tenon-text-running) 35%, var(--tenon-stroke-default));
   }
-  .col.hotcol .colhead{color:var(--tenon-text-running); border-bottom-color:color-mix(in srgb, var(--tenon-text-running) 20%, var(--tenon-stroke-subtle))}
+  .tenon-column--running .tenon-column__head{color:var(--tenon-text-running); border-bottom-color:color-mix(in srgb, var(--tenon-text-running) 20%, var(--tenon-stroke-subtle))}
   .colgear{
     flex:none; width:14px; height:14px; background:var(--tenon-background-running);
     -webkit-mask:var(--gear) center/contain no-repeat; mask:var(--gear) center/contain no-repeat;
     --gear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.61.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.48 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z'/%3E%3C/svg%3E");
     animation:colgear-spin 3s linear infinite;
   }
-  .col.hotcol.idle .colgear,
-  .col.hotcol:has(> .colbody .empty) .colgear{animation:none}
+  .tenon-column--running.idle .colgear,
+  .tenon-column--running:has(> .tenon-column__body .empty) .colgear{animation:none}
   @keyframes colgear-spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: reduce){ .colgear{animation:none} }
-  .col.donecol .colhead{color:var(--tenon-text-faint)}
-  .col.waitcol .colhead{color:var(--tenon-text-subtle)}
+  .tenon-column.donecol .tenon-column__head{color:var(--tenon-text-faint)}
+  .tenon-column.waitcol .tenon-column__head{color:var(--tenon-text-subtle)}
   /* min-height so a header carrying nothing but a title still lines up with
      one carrying a sort button and a count — the Plans columns are the case,
      and a row of columns whose first lines sit at different heights reads as
      a mistake rather than as a difference. */
-  .colhead{
+  .tenon-column__head{
     margin:0; padding:11px 13px 9px; font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
     color:var(--tenon-text-subtle); border-bottom:1px solid var(--tenon-stroke-subtle); min-height:41px; box-sizing:border-box;
     display:flex; flex-direction:column; gap:8px;
@@ -969,38 +969,38 @@
   /* Pushed apart rather than floated right — see colHTML(). The left group is
      what the column is called, the right group is what you do to it, and
      neither is allowed to shrink the other away. */
-  .colhead-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:20px}
-  .colhead-left{display:flex; align-items:center; gap:8px; min-width:0}
+  .tenon-column__head-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:20px}
+  .tenon-column__head-start{display:flex; align-items:center; gap:8px; min-width:0}
   /* Wraps because two heads carry a control wider than a button — Reports'
      seven windows and Projects' order select. Nothing else ever reaches the
      width to wrap, so the board and Plans read exactly as they did. */
-  .colhead-right{display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; min-width:0}
-  .colhead h2, .colhead h3{
+  .tenon-column__head-end{display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; min-width:0}
+  .tenon-column__head h2, .tenon-column__head h3{
     margin:0; font-size:inherit; font-weight:inherit; letter-spacing:inherit;
     text-transform:inherit; color:inherit; min-width:0;
   }
-  .colhead .count{font-weight:600; color:var(--tenon-text-faint); font-size:12px; letter-spacing:0}
+  .tenon-column__head .count{font-weight:600; color:var(--tenon-text-faint); font-size:12px; letter-spacing:0}
   /* The per-column pencil. Smaller than the toolbar .iconbtn it borrows from,
      because it sits in a row with a count and a sort toggle rather than on a
      bar of its own. Hidden until the head is pointed at: renaming a column is
      rarer than anything else in that row, and six of them drawn at rest is six
      controls competing with the counts. pointer-events go with it, so the
      invisible button cannot be clicked by accident. */
-  .colhead .coledit{
+  .tenon-column__head .coledit{
     width:22px; height:22px; border-radius:6px;
     opacity:0; pointer-events:none; transition:opacity .12s ease;
   }
-  .colhead .coledit svg{width:14px; height:14px}
-  .colhead:hover .coledit, .colhead .coledit:focus-visible{opacity:1; pointer-events:auto}
+  .tenon-column__head .coledit svg{width:14px; height:14px}
+  .tenon-column__head:hover .coledit, .tenon-column__head .coledit:focus-visible{opacity:1; pointer-events:auto}
   /* Same rule .sortbtn lives under, and for the same reason: a touch screen
      never hovers, so hidden would be the only state a phone ever saw. There it
      is simply always drawn. */
-  @media (hover:none){ .colhead .coledit{opacity:1; pointer-events:auto} }
+  @media (hover:none){ .tenon-column__head .coledit{opacity:1; pointer-events:auto} }
   /* What the column is for, in the column rather than above the row of them.
      Plans carries one on every column; the board carries none. Not uppercase
      and not the head's weight — it is a sentence, and the heading above it has
      already had its say. */
-  .colhead-desc{
+  .tenon-column__desc{
     margin:0; font-size:11px; font-weight:500; line-height:1.45;
     text-transform:none; letter-spacing:0; color:var(--tenon-text-faint);
   }
@@ -1011,7 +1011,7 @@
     padding:2px 6px; font-size:11px; font-weight:650; letter-spacing:.02em; text-transform:none;
     color:var(--tenon-text-faint); opacity:.55;
   }
-  .col:hover .sortbtn{opacity:1}
+  .tenon-column:hover .sortbtn{opacity:1}
   .sortbtn:hover{color:var(--tenon-text-default); border-color:var(--tenon-stroke-default)}
   /* A touch screen never hovers, so the quiet state is the only state it would
      ever see and the control reads as disabled. Full opacity there. */
@@ -1021,25 +1021,25 @@
     background:color-mix(in srgb, var(--tenon-background-accent) 8%, transparent); opacity:1; font-size:10.5px;
   }
 
-  .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint)}
+  .tenon-column .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint)}
   /* A collapsible column — Overview's seven. The head is the <summary>, so it
      keeps every rule above it and gains only a chevron and a pointer. The
      marker is turned off in both spellings because Safari still wants the
      -webkit one. */
-  .col > summary{cursor:pointer; list-style:none}
-  .col > summary::-webkit-details-marker{display:none}
-  .col > summary::marker{content:''}
-  .colchev{flex:none; font-size:10px; color:var(--tenon-text-faint); line-height:1}
-  .colchev::before{content:'\25b8'}
-  .col[open] .colchev::before{content:'\25be'}
+  .tenon-column > summary{cursor:pointer; list-style:none}
+  .tenon-column > summary::-webkit-details-marker{display:none}
+  .tenon-column > summary::marker{content:''}
+  .tenon-column__chevron{flex:none; font-size:10px; color:var(--tenon-text-faint); line-height:1}
+  .tenon-column__chevron::before{content:'\25b8'}
+  .tenon-column[open] .tenon-column__chevron::before{content:'\25be'}
   /* Shut, the head is the whole column, so the divider under it would be a
      line along the bottom of a closed box. Both are keyed on the attribute
      colHTML() only writes on a collapsible column: `:not([open])` is true of
      every plain <section> too, so the body rule without it hid the body of
      every column in the app. */
-  .col[data-colcollapse]:not([open]) > summary{border-bottom:0}
-  .col[data-colcollapse]:not([open]) > .colbody{display:none}
-  .colbody{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
+  .tenon-column[data-column-collapse]:not([open]) > summary{border-bottom:0}
+  .tenon-column[data-column-collapse]:not([open]) > .tenon-column__body{display:none}
+  .tenon-column__body{padding:9px; display:flex; flex-direction:column; gap:8px; flex:1; min-width:0}
   .drop.over{background:color-mix(in srgb, var(--tenon-background-accent) 7%, transparent)}
   /* Where the card being dragged will land. Sits in the gap between two cards,
      so the line is the answer to "in front of which one?". */
@@ -1051,7 +1051,6 @@
   }
   .dropline::before{left:-3px}
   .dropline::after{right:-3px}
-  .col footer{padding:0 9px 10px}
   .addbtn{width:100%; border:1px dashed var(--tenon-stroke-default); background:transparent; color:var(--tenon-text-faint); border-radius:8px; padding:7px; font-size:12.5px}
   .addbtn:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .empty{color:var(--tenon-text-faint); font-size:12.5px; padding:6px 4px 10px}
@@ -1067,7 +1066,7 @@
     grid-template-columns:repeat(var(--refcols,4), minmax(380px,1fr));
     min-width:calc(var(--refcols,4) * 394px);
   }
-  .lists.split .col{margin:0}
+  .lists.split .tenon-column{margin:0}
   /* Matrix pairs the nine cells with the dependency chain beside them. The grid
      keeps the room it needs and the chain takes a fixed reading width, rather
      than the two splitting the window evenly. */
@@ -1075,7 +1074,7 @@
     columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
     grid-template-columns:minmax(620px,1fr) 560px; min-width:1194px;
   }
-  .lists.mview .col{margin:0}
+  .lists.mview .tenon-column{margin:0}
   @media (max-width:820px){ .lists{columns:1} }
   /* A column whose body is written rather than stacked — Overview, Matrix, the
      Timeline, Reports, Backups and the two reference cards in the Spend modal.
@@ -1083,14 +1082,14 @@
      and its own heading until 12 Sep 2026, and all of them are colHTML()
      columns now; what was left of `.listcard` once the panel and the heading
      went is this, the type inside such a body. Scoped to `.prose` rather than
-     to `.colbody` so it stops at the columns that had it: the board's, Plans'
+     to `.tenon-column__body` so it stops at the columns that had it: the board's, Plans'
      and Execution's bodies hold cards, and a card sets its own type. */
-  .col.prose .colbody{gap:0; display:block; padding:12px 14px 14px}
-  .col.prose .colbody h4{margin:14px 0 6px; font-size:13px; font-weight:640}
-  .col.prose .colbody p{margin:0 0 9px; color:var(--tenon-text-subtle); font-size:13.5px; line-height:1.55}
-  .col.prose .colbody p:last-child{margin-bottom:0}
-  .col.prose .colbody li{font-size:13.5px; line-height:1.5}
-  .col.prose .colbody code{background:var(--tenon-background-neutral); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .tenon-column.prose .tenon-column__body{gap:0; display:block; padding:12px 14px 14px}
+  .tenon-column.prose .tenon-column__body h4{margin:14px 0 6px; font-size:13px; font-weight:640}
+  .tenon-column.prose .tenon-column__body p{margin:0 0 9px; color:var(--tenon-text-subtle); font-size:13.5px; line-height:1.55}
+  .tenon-column.prose .tenon-column__body p:last-child{margin-bottom:0}
+  .tenon-column.prose .tenon-column__body li{font-size:13.5px; line-height:1.5}
+  .tenon-column.prose .tenon-column__body code{background:var(--tenon-background-neutral); padding:1px 5px; border-radius:4px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
   /* ---------- backups view ----------
      Scoped under .backupsview so its .row/.tag/.name/.empty/.err don't collide
@@ -1162,7 +1161,7 @@
      eyebrow, so it carries weight instead of shrinking away. Same bottom
      margin as the card's own h3 above it, so a .help.listlead sits the same
      distance under either one. Completed is the one report without one: it is
-     a single figure, so its name is the .statcard's own eyebrow and sits in
+     a single figure, so its name is the .tenon-stat's own eyebrow and sits in
      the same box as the number it names. */
   .reportsview h2{
     font-size:15px; font-weight:660; color:var(--tenon-text-default); margin:26px 0 10px; letter-spacing:-.01em;
@@ -1179,26 +1178,26 @@
      Unscoped, and named for what it is rather than for Completed, because
      Reports is not the only view with a headline figure in it — see
      kanban/ui/StatCard.tsx, which is the only thing that draws one. */
-  .statcard{
+  .tenon-stat{
     background:var(--tenon-background-default); border:1px solid var(--tenon-stroke-default); border-radius:10px;
     padding:18px 20px 16px; margin-bottom:16px; width:max-content; max-width:100%;
   }
   /* Inside the box rather than over it, so the name of the figure and the
      figure are one object. Quiet and small on purpose: it labels the number,
      it does not compete with it. */
-  .statcard-eyebrow{
+  .tenon-stat__eyebrow{
     display:block; font-size:11px; font-weight:600; color:var(--tenon-text-faint);
     text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;
   }
-  .statcard-value{
+  .tenon-stat__value{
     display:block; font-size:56px; font-weight:700; line-height:.95; color:var(--tenon-text-default);
     letter-spacing:-.03em; font-variant-numeric:tabular-nums;
   }
-  .statcard-caption{display:block; font-size:13px; color:var(--tenon-text-subtle); margin-top:7px}
+  .tenon-stat__caption{display:block; font-size:13px; color:var(--tenon-text-subtle); margin-top:7px}
   /* The gap the h2 above it used to carry, kept where it belongs: this is the
      Reports layout's spacing, not the card's, and a statcard elsewhere sets
      its own. */
-  .reportsview .statcard{margin-top:26px}
+  .reportsview .tenon-stat{margin-top:26px}
   /* One bucket is a group, not a row: the count and the list behind it are the
      same fact, so the rule goes under the pair. With the rule under the row
      instead, an opened list sat below its own divider and read as the next
@@ -1231,20 +1230,20 @@
   /* Indented under the bucket name it belongs to, so the pairing survives a
      glance down the column.
 
-     Scoped inside `.colbody` rather than to the whole column, because since
+     Scoped inside `.tenon-column__body` rather than to the whole column, because since
      19 Sep 2026 the column itself is a collapsible `<details>` with a
      `<summary>` for a head. Unscoped, every rule here caught that head too:
      the type shrank to 12.5px and the `::before` put a second chevron on a
      line of its own above the title, beside the `.colchev` the head already
      draws. A column head is `colHTML()`'s, not this file's. */
-  .reportsview .colbody details{margin:0 0 4px 21px}
-  .reportsview .colbody summary{
+  .reportsview .tenon-column__body details{margin:0 0 4px 21px}
+  .reportsview .tenon-column__body summary{
     font-size:12.5px; color:var(--tenon-text-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
   }
-  .reportsview .colbody summary::-webkit-details-marker{display:none}
-  .reportsview .colbody summary::before{content:'▸ '; color:var(--tenon-text-faint)}
-  .reportsview .colbody details[open] summary::before{content:'▾ '}
-  .reportsview .colbody summary:hover{color:var(--tenon-text-subtle)}
+  .reportsview .tenon-column__body summary::-webkit-details-marker{display:none}
+  .reportsview .tenon-column__body summary::before{content:'▸ '; color:var(--tenon-text-faint)}
+  .reportsview .tenon-column__body details[open] summary::before{content:'▾ '}
+  .reportsview .tenon-column__body summary:hover{color:var(--tenon-text-subtle)}
   .reportsview .done{margin:2px 0 12px; padding:0; list-style:none}
   .reportsview .done li{
     display:flex; gap:10px; align-items:baseline; padding:5px 10px; margin-bottom:4px;
@@ -1270,7 +1269,7 @@
   /* A fold that is the report rather than the evidence under one line of it, so
      it keeps the left edge the headings have instead of the 21px indent every
      other <details> here sits at. */
-  .reportsview .colbody details.whole{margin-left:0}
+  .reportsview .tenon-column__body details.whole{margin-left:0}
   /* In the flat list the bucket is on the row rather than above it, so the chip
      carries the colour the grouped list gets from its heading — the left edge
      alone is too thin to name a bucket by. */
@@ -1289,7 +1288,7 @@
      SVG, because the whole thing has to scale with the column and the curves
      have to stay smooth while it does. */
   /* The line/bars toggle sits beside the heading it governs, same reasoning
-     as .colhead-row: the left side names the chart, the right side is what
+     as .tenon-column__head-row: the left side names the chart, the right side is what
      you do to it. */
   .trendhead{display:flex; align-items:center; justify-content:space-between; gap:10px}
   .trendhead h2{margin:0}
@@ -1383,7 +1382,7 @@
        comes out two pixels wide of the 322 the component says. */
     min-width:calc(var(--pcols,6) * 322px + (var(--pcols,6) - 1) * 12px);
   }
-  .lists.pview .col{margin:0}
+  .lists.pview .tenon-column{margin:0}
   /* The two reference cards, stacked inside the modal — the clock card reads
      as an appendix under the chart rather than competing with it for width,
      which is the order they were in when they shared a track on the view. */
@@ -1391,7 +1390,7 @@
   /* No shadow and no bottom margin on them in there: a column is drawn to sit
      on the page background, and the sheet it is in is already a panel with a
      border of its own. */
-  .sheet .pvcol .col{margin:0; box-shadow:none}
+  .sheet .pvcol .tenon-column{margin:0; box-shadow:none}
   /* A column with nothing in it, in the two styles there are and no third:
      plain grey text on the board, and a dashed box on Plans and Execution,
      where a column of prose with one line of grey text in it read as a column
@@ -1406,7 +1405,7 @@
   }
   /* Run now and Spend and clocks are `action` on their column's head now —
      see colHTML() — so the head shape they used to need is gone with
-     .pview .cardhead. Run now is still hidden the moment a run is live (see
+     .pview .tenon-card__head. Run now is still hidden the moment a run is live (see
      renderQueueDoingHead in 13-plans.js): offering a second run while one is
      going would look like it queued another rather than being silently
      refused, which is what run.sh actually does. */
@@ -1452,8 +1451,8 @@
   .qitem.over-top{box-shadow:inset 0 2px 0 var(--tenon-stroke-accent)}
   .qitem.over-bottom{box-shadow:inset 0 -2px 0 var(--tenon-stroke-accent)}
   /* .qhead, .qpos and .qtitle are gone: a queue row draws through
-     cardShellHTML() like every other card, so its head is .cardhead, its
-     position is .cardpos and its title is .title. */
+     cardShellHTML() like every other card, so its head is .tenon-card__head, its
+     position is .tenon-card__lead and its title is .title. */
   /* Hold and Release are .btn.outline.small. What is left is that they are
      quiet until the row is pointed at: holding a card back is a deliberate
      act, and a visible button on every row in the queue would invite it. */
@@ -1462,7 +1461,7 @@
   .qhold:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   @media (prefers-reduced-motion:reduce){ .qhold{transition:none} }
   /* .qwhy is gone: a queue row draws in the PlanCard shell now, so the reason
-     it is queued sits in .cardsum, the same slot a plan's own standfirst
+     it is queued sits in .tenon-card__summary, the same slot a plan's own standfirst
      takes. */
   /* A held task lives in the Backlog column now as a PlanCard stub, not a
      .qitem — see .repitem.planitem.parked below for the dimmed treatment it
@@ -1471,7 +1470,7 @@
      To do and Done — and each lights the whole column rather than a row within
      it, since a card dropped on a column means "put it here" and only the To do
      column has ranks to drop between. */
-  /* The class goes on .colbody, which fills the column's inside, so the
+  /* The class goes on .tenon-column__body, which fills the column's inside, so the
      outline is drawn flush with the column's own wall rather than pulled 4px
      into the padding — at -4px it left only 5px between itself and the cards
      and read as tangled with their borders rather than as framing the column.
@@ -1490,7 +1489,7 @@
      only on the rows inside it. */
   /* Dashed, and not tinted. The tint was the same fact as the dash said twice,
      which is the reason the board's own Done and Waiting for review columns lost
-     theirs on the same day — see .col.aicol above. Handed to AI on the board
+     theirs on the same day — see .tenon-column.aicol above. Handed to AI on the board
      and this column are the two dashed columns in the app, and they mean the
      same thing: an agent owns it. */
   /* A plan row drags like a board card, out of whichever column it is in. */
@@ -1709,12 +1708,12 @@
   .repmeta{margin:5px 0 0; font-size:11.5px; color:var(--tenon-text-faint)}
   /* A plan's meta used to be its own stacked two-row block, so the link — which
      carries the task's own long name — got a line to itself. It is the shared
-     .cardmeta now, which wraps instead: one row until the link needs a second,
+     .tenon-card__meta now, which wraps instead: one row until the link needs a second,
      which is the same outcome without a second layout to keep in step. */
   .planscore{display:inline-flex; gap:4px; align-items:center}
   /* Long titles wrap inside the link rather than pushing the row wide — a
      button does not wrap its own label by default. */
-  .cardmeta .plangoto{white-space:normal; text-align:left; max-width:100%}
+  .tenon-card__meta .plangoto{white-space:normal; text-align:left; max-width:100%}
   .planwhere{color:var(--tenon-text-faint)}
   /* Plans reuse the report item wholesale and add one thing reports do not
      have: a state. Unread carries the accent so a night's work is findable at a
@@ -1839,7 +1838,7 @@
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}
     .reportsview .bkname{min-width:0; flex:1 0 100%}
-    .reportsview .colbody details{margin-left:0}
+    .reportsview .tenon-column__body details{margin-left:0}
     .reportsview .done li{flex-wrap:wrap}
   }
 
@@ -1950,8 +1949,8 @@
     border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600;
   }
   .dismiss:hover{color:var(--tenon-text-error); border-color:color-mix(in srgb, var(--tenon-text-error) 35%, transparent)}
-  .col.prose strong{font-weight:640; color:var(--tenon-text-default)}
-  .col.prose em{color:var(--tenon-text-faint)}
+  .tenon-column.prose strong{font-weight:640; color:var(--tenon-text-default)}
+  .tenon-column.prose em{color:var(--tenon-text-faint)}
   .listnote{max-width:1180px; margin:4px 2px 0}
   .listlead{margin:0 2px 10px}   /* one explanation above the columns, not one per column */
 
@@ -2088,7 +2087,7 @@
      rather than "break-word" so it also stops that string forcing the whole
      column wider than the one it is sitting in. */
   .ref, .msg, .msgtext, .ctxtext{min-width:0}
-  .ctxtext, .msgtext, .reftitle, .col.prose p, .col.prose li{overflow-wrap:anywhere}
+  .ctxtext, .msgtext, .reftitle, .tenon-column.prose p, .tenon-column.prose li{overflow-wrap:anywhere}
   .ctxtext strong{color:var(--tenon-text-default); font-weight:620}
   .ref.ctx .meta{margin:6px 0 0}
   /* One panel per `###` group in Context, closed by default — a dozen
@@ -2127,7 +2126,7 @@
      with plan cards carrying a red top border instead and queue cards nothing
      — see .repitem.planitem below for what that border was arguing and why the
      argument changed. */
-  .card, .repitem, .chaincard{
+  .tenon-card, .repitem, .chaincard{
     background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default);
     border-left:4px solid var(--bc,var(--tenon-stroke-default));
     border-radius:9px; padding:9px 10px 9px 8px; box-shadow:0 1px 1px rgba(16,20,28,.04);
@@ -2135,62 +2134,62 @@
   /* 8 left plus the 4px stripe is the component's 12, against 10 on the right.
      The asymmetry is deliberate: the stripe is a mark, not a margin, so the
      text has to clear it by the same amount it clears the other edge. */
-  .card{cursor:grab}
-  .card:hover, .repitem:hover{border-color:var(--tenon-text-faint)}
+  .tenon-card{cursor:grab}
+  .tenon-card:hover, .repitem:hover{border-color:var(--tenon-text-faint)}
   /* A card with nothing to mark. The component leaves the stripe off rather
      than drawing it in the line colour, and that difference is the whole
      point of it: a grey stripe still reads as a mark. Queue rows are always
      like this, and so is a plan nobody needs to look at. */
-  .card.nostripe, .repitem.nostripe{border-left-width:1px; border-left-color:var(--tenon-stroke-default); padding-left:11px}
+  .tenon-card.nostripe, .repitem.nostripe{border-left-width:1px; border-left-color:var(--tenon-stroke-default); padding-left:11px}
   /* The rows, in the component's order. 5px between them, and the few that
      carry a little more of their own. */
-  .card .cardhead, .repitem .cardhead{display:flex; align-items:baseline; gap:9px; min-width:0}
-  .card .cardpos, .repitem .cardpos{
+  .tenon-card .tenon-card__head, .repitem .tenon-card__head{display:flex; align-items:baseline; gap:9px; min-width:0}
+  .tenon-card .tenon-card__lead, .repitem .tenon-card__lead{
     flex:none; min-width:1.6em; font-size:11.5px; font-weight:680; color:var(--tenon-text-faint);
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .card .cardact, .repitem .cardact{flex:none; margin-left:auto}
-  .card .cardmeta, .repitem .cardmeta{
+  .tenon-card .tenon-card__action, .repitem .tenon-card__action{flex:none; margin-left:auto}
+  .tenon-card .tenon-card__meta, .repitem .tenon-card__meta{
     display:flex; flex-wrap:wrap; align-items:baseline; gap:4px;
     margin-top:9px; font-size:11.5px; color:var(--tenon-text-faint);
   }
-  .card .cardsum, .repitem .cardsum{margin-top:11px; font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
-  .row1 + .cardhead{margin-top:5px}
-  .card:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
-  .card.dragging{opacity:.4}
+  .tenon-card .tenon-card__summary, .repitem .tenon-card__summary{margin-top:11px; font-size:13px; line-height:1.5; color:var(--tenon-text-subtle)}
+  .tenon-card__eyebrow + .tenon-card__head{margin-top:5px}
+  .tenon-card:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
+  .tenon-card.dragging{opacity:.4}
   /* Same as any other card — same width, radius, padding, shadow, left
      bucket-colour stripe — except the border colour and a faint accent tint
      behind it, so it reads as "the same card, just marked" rather than a
      different kind of card. */
-  .card.onething{
+  .tenon-card.onething{
     border-color:color-mix(in srgb, var(--tenon-stroke-accent) 45%, transparent);
     border-left:3px solid var(--bc,var(--tenon-stroke-default));
     background:color-mix(in srgb, var(--tenon-background-accent) 6%, var(--tenon-background-raised));
   }
-  .card.onething:hover{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 70%, transparent)}
+  .tenon-card.onething:hover{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 70%, transparent)}
   .tag.onething{background:transparent; border:1px solid var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   /* Fading is a fact about the task's own status, not about which column
      happens to be rendering it — these classes come from cardHTML off t.done
      and the task's real tier, so a card fades the same way in the board, the
      matrix hover preview or anywhere else cardHTML is used. */
-  .card.done{opacity:.3}
-  .card.done:hover{opacity:1}
-  .card.done .title{text-decoration:line-through}
+  .tenon-card.done{opacity:.3}
+  .tenon-card.done:hover{opacity:1}
+  .tenon-card.done .title{text-decoration:line-through}
   /* Work waiting on someone else is finished but not filed away, so it sits
      halfway between a live card and a done one — dimmed enough to read as
      off your plate, present enough to keep chasing. */
-  .card.waiting{opacity:.6}
-  .card.waiting:hover{opacity:1}
+  .tenon-card.waiting{opacity:.6}
+  .tenon-card.waiting:hover{opacity:1}
   /* Blocked and Backlog fade the most: neither is something to act on right
      now, one because it can't move and the other because there's no pressure
      to. */
-  .card.blocked{opacity:.9}
-  .card.blocked:hover{opacity:1}
-  .card.backlog{opacity:.9}
-  .card.backlog:hover{opacity:1}
-  .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
+  .tenon-card.blocked{opacity:.9}
+  .tenon-card.blocked:hover{opacity:1}
+  .tenon-card.backlog{opacity:.9}
+  .tenon-card.backlog:hover{opacity:1}
+  .tenon-card .tenon-card__eyebrow{display:flex; align-items:center; gap:6px; margin-bottom:5px}
   .bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
-  .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
+  .tenon-card .tenon-card__eyebrow .right{margin-left:auto; display:flex; gap:5px; align-items:center}
   /* One size and one weight on every card. The task card's own 570 was the
      odd one out — the plan card had been redrawn at Semi Bold most recently
      and that is the weight the merge took, so a title reads the same whichever
@@ -2275,7 +2274,7 @@
   .prog{display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--tenon-text-faint)}
   .bar{flex:1; height:3px; border-radius:2px; background:var(--tenon-stroke-subtle); overflow:hidden}
   .bar i{display:block; height:100%; background:var(--tenon-background-success)}
-  .notecount{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
+  .tenon-card__footer{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
 
   /* ---------- drawer ---------- */
   .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}

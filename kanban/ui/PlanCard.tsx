@@ -49,7 +49,7 @@
  * identity rather than a hook — it is how a suite says which plan it means.
  */
 import type { DragEvent, MouseEvent, ReactNode } from 'react'
-import { Card } from './Card'
+import { Card } from '@tiagopedras/tenon'
 
 export interface PlanCardProps {
   /** The plan's own file, which is its identity everywhere on this view. */
@@ -118,16 +118,14 @@ export function PlanCard(props: PlanCardProps) {
 
   return (
     <Card
-      cls={cls}
-      stripe={stripe}
-      attrs={{
-        draggable: true,
-        'data-plan': url,
-        onClick: onOpen,
-        onDragStart,
-        onDragEnd,
-        ...(attrs || {}),
-      }}
+      className={cls}
+      accent={stripe}
+      draggable
+      data-plan={url}
+      onClick={onOpen}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      {...(attrs || {})}
       eyebrow={
         <>
           <span className="bucket">{word}</span>
@@ -150,7 +148,7 @@ export function PlanCard(props: PlanCardProps) {
         </>
       }
       title={title}
-      position={position}
+      lead={position}
       action={action}
       tags={scoresHTML ? { __html: scoresHTML } : null}
       meta={(line || gotoKey) ? (
@@ -169,9 +167,10 @@ export function PlanCard(props: PlanCardProps) {
         </>
       ) : null}
       summary={summaryHTML ? { __html: summaryHTML } : null}
-      extra={feedback ? (
+    >
+      {feedback ? (
         <div className="planredo"><b>Sent back:</b>{' ' + feedback}</div>
       ) : null}
-    />
+    </Card>
   )
 }

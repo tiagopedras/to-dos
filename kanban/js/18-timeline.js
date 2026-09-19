@@ -1286,25 +1286,25 @@ function renderBoard(){
       style: isAi ? 'agent' : '',
       hot: isAi,
       attrs: 'data-tier="' + esc(name) + '"',
-      // .drop as well as .colbody: the board's body is a drag target, and the
+      // .drop as well as .tenon-column__body: the board's body is a drag target, and the
       // wiring below and .drop.over in board.css both find it by that class.
       bodyCls: 'drop',
       bodyAttrs: 'data-tier="' + esc(name) + '"',
       footer: (isDone || isAi || state.locked) ? ''
-        : '<footer><button class="addbtn" data-add="' + esc(name) + '">+ Add task</button></footer>'
+        : '<button class="addbtn" data-add="' + esc(name) + '">+ Add task</button>'
     });
   }).join('');
 
   renderColTabs(columns);
 
-  board.querySelectorAll('.card').forEach(el => {
+  board.querySelectorAll('.tenon-card').forEach(el => {
     el.onclick = () => openDrawer(el.dataset.id);
     el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(el.dataset.id); } };
   });
   // Drag-and-drop, the add-task footer and their wiring only mean anything for
   // the live file — a backup preview has nothing to reorder into.
   if (!state.locked) {
-    board.querySelectorAll('.card').forEach(el => {
+    board.querySelectorAll('.tenon-card').forEach(el => {
       el.ondragstart = e => {
         e.dataTransfer.setData('text/plain', el.dataset.id);
         e.dataTransfer.effectAllowed = 'move';
@@ -1384,7 +1384,7 @@ let tlExpanded = new Set();
 let dropLine = null;
 function insertAfterEl(zone, clientY, dragBucket, skipId){
   let after = null;
-  zone.querySelectorAll('.card').forEach(el => {
+  zone.querySelectorAll('.tenon-card').forEach(el => {
     if (el.classList.contains('dragging') || el.dataset.id === skipId) return;
     const other = locate(el.dataset.id);
     if (!other || (dragBucket && other.bucket !== dragBucket)) return;
