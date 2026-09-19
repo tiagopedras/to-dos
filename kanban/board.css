@@ -960,7 +960,7 @@
      less main's two 16px gutters, so a swipe moves exactly one column and
      snaps to it. Decided 15 Sep 2026 over stacking the columns, for the same
      reason as the rule above, and the same day extended to every view that
-     is a row of columns: Overview, Matrix, Plans and Reports swipe the same
+     is a row of columns: Overview, Matrix and Plans swipe the same
      way rather than stacking. Plans still stacks between 641px and 1000px.
      The columns are laid out as automatic tracks rather than a template,
      because Overview writes its track count inline and each view counts its
@@ -1004,7 +1004,7 @@
       background:color-mix(in srgb, var(--accent) 10%, var(--panel))}
   }
   @media (max-width:640px){
-    .board, .lists.split, .lists.mview, .lists.pview, .lists.rview{
+    .board, .lists.split, .lists.mview, .lists.pview{
       grid-template-columns:none !important; min-width:0 !important;
       grid-auto-flow:column; grid-auto-columns:calc(100vw - 32px);
       /* main's right padding is not part of what it scrolls, so without this
@@ -1012,7 +1012,7 @@
       width:max-content; padding-inline-end:16px;
     }
     main{scroll-snap-type:x mandatory; scroll-padding-inline:16px}
-    :is(.board, .lists.split, .lists.mview, .lists.pview, .lists.rview) > .col{scroll-snap-align:start}
+    :is(.board, .lists.split, .lists.mview, .lists.pview) > .col{scroll-snap-align:start}
   }
   /* One column, three views. Board, Plans and Execution all draw colHTML()
      (09-columns.js), so a column is the same object wherever it appears: one
@@ -1108,7 +1108,7 @@
   }
 
   .col .hint{font-size:11px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink-faint)}
-  /* A collapsible column — Overview's five. The head is the <summary>, so it
+  /* A collapsible column — Overview's seven. The head is the <summary>, so it
      keeps every rule above it and gains only a chevron and a pointer. The
      marker is turned off in both spellings because Safari still wants the
      -webkit one. */
@@ -1298,15 +1298,22 @@
   /* Each bucket can be opened to see which tasks made the number. Closed by
      default: the count is the report, the list is the evidence behind it. */
   /* Indented under the bucket name it belongs to, so the pairing survives a
-     glance down the column. */
-  .reportsview details{margin:0 0 4px 21px}
-  .reportsview summary{
+     glance down the column.
+
+     Scoped inside `.colbody` rather than to the whole column, because since
+     19 Sep 2026 the column itself is a collapsible `<details>` with a
+     `<summary>` for a head. Unscoped, every rule here caught that head too:
+     the type shrank to 12.5px and the `::before` put a second chevron on a
+     line of its own above the title, beside the `.colchev` the head already
+     draws. A column head is `colHTML()`'s, not this file's. */
+  .reportsview .colbody details{margin:0 0 4px 21px}
+  .reportsview .colbody summary{
     font-size:12.5px; color:var(--ink-faint); cursor:pointer; padding:2px 2px 8px; list-style:none;
   }
-  .reportsview summary::-webkit-details-marker{display:none}
-  .reportsview summary::before{content:'▸ '; color:var(--ink-faint)}
-  .reportsview details[open] summary::before{content:'▾ '}
-  .reportsview summary:hover{color:var(--ink-soft)}
+  .reportsview .colbody summary::-webkit-details-marker{display:none}
+  .reportsview .colbody summary::before{content:'▸ '; color:var(--ink-faint)}
+  .reportsview .colbody details[open] summary::before{content:'▾ '}
+  .reportsview .colbody summary:hover{color:var(--ink-soft)}
   .reportsview .done{margin:2px 0 12px; padding:0; list-style:none}
   .reportsview .done li{
     display:flex; gap:10px; align-items:baseline; padding:5px 10px; margin-bottom:4px;
@@ -1332,7 +1339,7 @@
   /* A fold that is the report rather than the evidence under one line of it, so
      it keeps the left edge the headings have instead of the 21px indent every
      other <details> here sits at. */
-  .reportsview details.whole{margin-left:0}
+  .reportsview .colbody details.whole{margin-left:0}
   /* In the flat list the bucket is on the row rather than above it, so the chip
      carries the colour the grouped list gets from its heading — the left edge
      alone is too thin to name a bucket by. */
@@ -1411,21 +1418,13 @@
   .reportsview .note{margin:14px 0 0 !important; font-size:12.5px !important; color:var(--ink-faint) !important}
   .reportsview .err{background:var(--red-bg); color:var(--red); padding:11px 13px; border-radius:9px; font-size:13px}
 
-  /* Two columns for the two kinds of report. The counted one needs room for a
-     bar and four numbers on a row without either crowding the other, so its
-     floor is a full reading-and-bars width rather than the bare minimum a
-     grid track would otherwise settle for; the written one wants a reading
-     width and no more, so it is capped rather than given half the window.
-     Same choice as Matrix and Overview: never stack these into one column,
-     just let `main`'s own overflow-x:auto scroll the pair sideways on a
-     narrower window, so the two reports keep reading side by side at
-     everything but genuinely small widths. On a phone the pair swipes one
-     screen-wide column at a time, like the board (see the board section). */
-  .lists.rview{
-    columns:auto; max-width:none; display:grid; align-items:start; gap:14px;
-    grid-template-columns:minmax(960px,1fr) minmax(420px,600px); min-width:1394px;
-  }
-  .lists.rview .col{margin:0}
+  /* The two report columns had a grid of their own, `.lists.rview`, while they
+     were a tab. They are the last two columns of `.lists.split` since
+     19 Sep 2026 and their track widths moved with them, into
+     `OverviewView` (kanban/ui/SectionsView.tsx) beside the four they now sit
+     next to — the same floors, for the same reasons: the counted one needs a
+     bar and four numbers on a row without either crowding the other, the
+     written one wants a reading width and no more. */
 
   /* ---------- plans ----------
      Read left to right as the life of one task through the nightly agent:
@@ -1909,7 +1908,7 @@
   @media (max-width:640px){
     .reportsview .row{flex-wrap:wrap}
     .reportsview .bkname{min-width:0; flex:1 0 100%}
-    .reportsview details{margin-left:0}
+    .reportsview .colbody details{margin-left:0}
     .reportsview .done li{flex-wrap:wrap}
   }
 

@@ -25,6 +25,9 @@
  */
 import type { ReactNode, CSSProperties } from 'react'
 import { Column } from './Column'
+import {
+  TasksFinishedColumn, WrittenReportsColumn, type ReportsColumnsProps,
+} from './ReportsColumns'
 
 /* A body a section builder already rendered — `{ html, n, filters, sort }`
    from `matrixSection()`, or a plainer version of the same shape from the
@@ -89,29 +92,51 @@ export interface OverviewViewProps {
   /** null when todo.md's own Context section is empty — dropped rather than
    *  drawn blank, the one section here with nothing to count. */
   context: (SectionBody & { open: boolean }) | null
+  /** Tasks finished and Written reports, the two columns that were the Reports
+   *  tab until 19 Sep 2026. null before a document is loaded — there is nothing
+   *  to count yet and the written half has not been asked for. */
+  reports: ReportsColumnsProps | null
 }
 
 /* The split grid's tracks are listed out rather than left to repeat(),
    because repeat() cannot take a computed count reliably across browsers —
    splitGridCSS()'s own reasoning in 18-timeline.js, ported rather than
    reused, since a CSS custom-property string is not a shape React's style
-   prop takes. Context is the last column and the only wider one: it is prose
-   in full sentences, not cards, and at card width it reads as a ribbon. */
-const REF_TRACK = 'minmax(380px,1fr)'
-const CTX_TRACK = 'minmax(540px,1.5fr)'
+   prop takes. Each track carries its own floor beside its CSS, since the four
+   widths here are no longer one number times a count: Context is prose in full
+   sentences rather than cards and reads as a ribbon at card width, and the two
+   report columns are wider again. */
+const REF_TRACK = { css: 'minmax(380px,1fr)', min: 394 }
+const CTX_TRACK = { css: 'minmax(540px,1.5fr)', min: 554 }
+/* Tasks finished is two reference columns wide, exactly: 380 twice plus the
+   14px gap between them, so it lines up with the pairs beside it rather than
+   being merely bigger than them. It grows twice as fast too, 2fr against their
+   1fr. Written reports keeps the floor it had as a tab, a reading width and no
+   more. */
+const FINISHED_TRACK = { css: 'minmax(774px,2fr)', min: 788 }
+const WRITTEN_TRACK = { css: 'minmax(420px,600px)', min: 434 }
 
 export function OverviewView(props: OverviewViewProps) {
-  const { bigRocks, thisWeek, quickWins, delegate, context } = props
-  const cols = context ? 5 : 4
-  const plain = context ? cols - 1 : cols
-  const tracks = Array(plain).fill(REF_TRACK)
+  const { bigRocks, thisWeek, quickWins, delegate, context, reports } = props
+  /* Tasks finished leads the row. What got done is the thing to read before
+     picking up anything else, and the four reference columns are what you pick
+     up from — so the row runs backwards through the week rather than starting
+     at the biggest rock. Written reports stays at the far end, where it is the
+     long read rather than the glance. */
+  const tracks: { css: string; min: number }[] = []
+  if (reports) tracks.push(FINISHED_TRACK)
+  tracks.push(REF_TRACK, REF_TRACK, REF_TRACK, REF_TRACK)
   if (context) tracks.push(CTX_TRACK)
-  const minW = plain * 394 + (context ? 554 : 0)
-  const gridStyle: CSSProperties = { gridTemplateColumns: tracks.join(' '), minWidth: minW + 'px' }
+  if (reports) tracks.push(WRITTEN_TRACK)
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns: tracks.map(t => t.css).join(' '),
+    minWidth: tracks.reduce((n, t) => n + t.min, 0) + 'px',
+  }
 
   return (
     <>
       <div className="lists split" style={gridStyle}>
+        {reports ? <TasksFinishedColumn {...reports} /> : null}
         <Section title="Big rocks" hint="High impact, L effort. Needs protected time."
           body={bigRocks} collapsible collapseKey="ov:Big rocks" open={bigRocks.open} />
         <Section title="This week" hint={<>Everything tagged <code>week</code>, soonest first.</>}
@@ -128,6 +153,7 @@ export function OverviewView(props: OverviewViewProps) {
           <Section title="Context" hint="Standing facts, not tasks. Edit these in todo.md."
             body={context} collapsible collapseKey="ov:Context" open={context.open} />
         ) : null}
+        {reports ? <WrittenReportsColumn {...reports} /> : null}
       </div>
       <ListNote />
     </>

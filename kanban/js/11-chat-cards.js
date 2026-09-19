@@ -404,16 +404,18 @@ function viewDefs(){
     { id:'timeline', label:'Timeline', group:'draw' },
     { id:'sep1', sep:true },
     { id:'plans',    label:'Plans' },
-    { id:'projects', label:'Projects' },
-    { id:'sep2', sep:true },
-    { id:'reports',  label:'Reports' }
+    { id:'projects', label:'Projects' }
   ];
   return defs;
 }
 /* Backups isn't a view of the board, it's a data operation — see the Backups
    button in the header's data menu — so it sits outside viewDefs() and its
-   tabs, but it still needs a #backups URL and a renderView() case of its own. */
+   tabs, but it still needs a #backups URL and a renderView() case of its own.
+
+   'reports' is here for a different reason: it was a tab until 19 Sep 2026 and
+   its two columns are the end of Overview's row now, so a #reports link is
+   still a link somebody may have, and renderView() sends it to Overview. */
 function isKnownView(id){
-  return id === 'backups' || viewDefs().some(d => d.id === id);
+  return id === 'backups' || id === 'reports' || viewDefs().some(d => d.id === id);
 }
 

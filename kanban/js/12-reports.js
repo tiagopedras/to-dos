@@ -3,14 +3,24 @@
 /* =========================================================================
    4b2. Reports — what the file says about work that is already finished.
 
-   Every other view answers "what should I do next". This one answers "what got
-   done", which is the question that comes up in a one-to-one or a quarterly
+   Every other column answers "what should I do next". These two answer "what
+   got done", which is the question that comes up in a one-to-one or a quarterly
    review and has never had an answer here that did not mean counting by hand.
 
-   Read straight from state.doc, the same as every other view: nothing is
-   fetched, nothing is stored, and a report of a backup preview describes that
-   backup rather than the live file. Adding a second report means writing one
-   more report*Report() that returns HTML and listing it in reportDefs().
+   They were a tab of their own until 19 Sep 2026 and are the last two columns
+   of Overview now, so the two questions are read in one place. What is left in
+   this file is everything but the shell: the window picker and its arithmetic,
+   the archive read that makes a 90-day count trustworthy, and the four
+   build*() functions the components in kanban/ui/ReportsBlocks.tsx draw from.
+   reportsColumnProps() near the bottom is the seam — renderSections() in
+   18-timeline.js calls it, and OverviewView lists the two columns after
+   Context.
+
+   The counted half reads straight from state.doc, the same as every other
+   column on the row: nothing is fetched, nothing is stored, and a report of a
+   backup preview describes that backup rather than the live file. Adding a
+   second counted report means one more build*() here and one more component
+   in ReportsBlocks.tsx, listed in TasksFinishedColumn's body.
    ========================================================================= */
 
 /* Fixed choices rather than a free "since" date — this counts recent output,
@@ -106,6 +116,12 @@ function reportDay(iso){
    invalidates its own cache when that happens (see runArchive). */
 let archiveEntries = null;             // null until the first fetch resolves
 let archiveEntriesPromise = null;
+/* Set and never read since 19 Sep 2026. It was the one thing that told a
+   window past the archive point that its older end might be short, through
+   CountedLead, which went with the two grey paragraphs above the first
+   report. The failure itself is silent now — a failed read leaves
+   archiveEntries as [], which reads as "nothing was archived" — so this is
+   kept as the hook for saying so somewhere smaller. */
 let archiveEntriesError = false;
 
 function parseArchiveEntries(text){
@@ -137,8 +153,8 @@ function invalidateArchiveEntries(){
 
 /* Returns the cached list once loaded, otherwise kicks off the one fetch and
    returns null. onReady is called when that fetch settles, so the caller can
-   re-render — the same lazy pattern renderWrittenReports uses for report
-   bodies. */
+   re-render — the same lazy pattern ensureWrittenReports uses for the written
+   half. */
 function archiveEntriesSync(onReady){
   if (archiveEntries) return archiveEntries;
   if (!archiveEntriesPromise) {
@@ -301,25 +317,6 @@ function buildRecentAccomplishments(){
     rows: list.map(it => buildDoneRow(it, reportBucketColor(it.bucketName), it.bucketName, 'bk')),
     emptyMessage: 'Nothing has been ticked off with a date ' + reportWindowPhrase() + '.',
   };
-}
-
-/* The data behind CountedLead, in kanban/ui/ReportsBlocks.tsx — the one
-   description of what every report on this tab counts and how complete it
-   is, right under the panel's own heading, same shape as the Written reports
-   column beside it: a headline, then what it means, then the content. Lives
-   here rather than inside buildCompletedByCategory() because it is true of
-   the reports under it too, not just the first one — they all read the same
-   `done:` dates and reach into the same archive. */
-function buildCountedLead(){
-  // Below 30 days this window sits inside the one archiving leaves alone, so the
-  // count is a complete picture by construction. Past it, completeness depends
-  // on the archive fetch above: still loading, failed, or in and merged.
-  let archiveStatus;
-  if (reportDays() <= ARCHIVE_DAYS) archiveStatus = 'inside';
-  else if (archiveEntriesError) archiveStatus = 'error';
-  else if (archiveEntries === null) archiveStatus = 'loading';
-  else archiveStatus = 'merged';
-  return { archiveDays: ARCHIVE_DAYS, archiveStatus };
 }
 
 /* ---- Weekly pace ----
@@ -610,78 +607,65 @@ function openReportModal(r){
 
 async function loadReportBody(url){ return loadDocBody(url, reportBodies, 'report'); }
 
-/* The React root, on a node this view creates rather than on #lists — the
-   same rule ProjectsView and BackupsView follow, and for the same reason: the
-   unported views still assign to #lists.innerHTML. See CLAUDE.md. */
-let reportsRoot = null;
-function reportsMountPoint(){
-  const lists = $('#lists');
-  if (!lists) return null;
-  let host = lists.querySelector('#reportsRoot');
-  if (!host) {
-    if (reportsRoot) BoardUI.unmount(reportsRoot);
-    lists.innerHTML = '<div id="reportsRoot"></div>';
-    host = lists.querySelector('#reportsRoot');
-    reportsRoot = host;
-  }
-  return host;
-}
-
 /* The written half's own state. `written` staying null is what says the fetch
-   is still out, which is not the same as the folder being empty. */
-let writtenState = { list: null, error: null };
+   is still out, which is not the same as the folder being empty. `fetched`
+   is what keeps /reports.json read once per arrival at Overview rather than
+   once per render of it — a bucket tab or a search term redraws the whole
+   row, and neither changes what is in data/reports/. */
+let writtenState = { list: null, error: null, fetched: false };
 
-function drawReports(){
-  const host = reportsMountPoint();
-  if (!host) return;
-  BoardUI.mount(host, BoardUI.ReportsView({
+/* Everything the two report columns draw from, in one object — the shape
+   ReportsColumnsProps (kanban/ui/ReportsColumns.tsx) spells out. renderSections()
+   in 18-timeline.js hands it to OverviewView, which lists the two columns
+   after Context.
+
+   The counted reports are components — see ReportsBlocks.tsx — so what crosses
+   here is the data they draw from, not markup. mdBlocks and mdInline stay
+   shared functions: the drawer and Plans still call them directly, and a done
+   task's title here is still `{ __html: mdInline(...) }` inside buildDoneRow(),
+   the same PlanCard.summaryHTML bargain. */
+function reportsColumnProps(){
+  if (!state.doc) return null;
+  return {
     windows: REPORT_WINDOWS.map(w => ({ id: w.id, label: w.label, short: w.short })),
     window: reportWindow,
-    onWindow: id => { if (setReportWindow(id)) drawReports(); },
+    onWindow: id => { if (setReportWindow(id)) renderCountedReports(); },
     range: reportDateRange(),
-    /* The counted reports are components now — see ReportsBlocks.tsx — so
-       what crosses here is the data they draw from, not markup. mdBlocks and
-       mdInline stay shared functions: the drawer and Plans still call them
-       directly, and a done task's title here is still `{ __html: mdInline(...) }`
-       inside buildDoneRow(), the same PlanCard.summaryHTML bargain. */
-    lead: buildCountedLead(),
     completed: buildCompletedByCategory(),
     recent: buildRecentAccomplishments(),
     trend: buildWeeklyTrend(),
     written: writtenState.list,
     writtenError: writtenState.error,
     onOpen: r => openReportModal(r),
-  }));
+    finishedOpen: overviewOpen('ov:Tasks finished'),
+    writtenOpen: overviewOpen('ov:Written reports'),
+  };
 }
 
-/* Kept as a named function because renderCountedReports() is what
-   archiveEntriesSync() calls back into when the archive finishes loading —
-   the counted half can be asked to redraw long after the view was drawn. */
+/* Redraw whichever view is holding the report columns. Named rather than
+   inlined because archiveEntriesSync() calls back into it when the archive
+   finishes loading, long after the view was drawn, and the trend's own key and
+   chart-type toggles reach it too. Silent when Overview is not on screen —
+   both of those can land after he has moved to another tab. */
 function renderCountedReports(){
-  drawReports();
+  if (state.view === 'overview') renderSections('overview');
 }
 
-/* Two columns, because the two kinds of report answer different questions and
-   neither is a footnote to the other. Counted on the left, written on the
-   right. Both are Column since 12 Sep 2026, like every other column in the app.
+/* /reports.json, once per arrival at Overview. The counted half needs nothing
+   fetched — it reads state.doc, the same as every other column on the row — so
+   the columns are drawn first and this fills the written one in when it lands.
 
-   Changing the window redraws through drawReports(), which re-renders both
-   columns — but the written half is re-rendered from `writtenState` rather than
-   re-fetched, so /reports.json is still read exactly once per visit to the tab.
-   kanban/test_reports.mjs asserts that by counting fetches. */
-async function renderReportsView(){
-  if (!state.doc) {
-    const host = reportsMountPoint();
-    if (host) BoardUI.mount(host, BoardUI.ReportsEmpty({}));
-    return;
-  }
-  writtenState = { list: null, error: null };
-  drawReports();
+   Called by renderSections() rather than by renderView(), because the bucket
+   tabs and the search box redraw sections without ever leaving the view, and
+   `fetched` is what tells the two apart. */
+async function ensureWrittenReports(){
+  if (writtenState.fetched) return;
+  writtenState = { list: null, error: null, fetched: true };
   try {
     const res = await fetch('/reports.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) {
-      writtenState = { list: null, error: { kind: 'stale-helper' } };
-      drawReports();
+      writtenState = { list: null, error: { kind: 'stale-helper' }, fetched: true };
+      renderCountedReports();
       return;
     }
     writtenState = {
@@ -690,17 +674,20 @@ async function renderReportsView(){
         summaryHTML: r.summary ? mdInline(r.summary) : '',
         url: r.url,
       })),
-      error: null,
+      error: null, fetched: true,
     };
-    drawReports();
+    renderCountedReports();
   } catch (err) {
-    writtenState = { list: null, error: { kind: 'unreadable', detail: String(err.message || err) } };
-    drawReports();
+    writtenState = {
+      list: null, error: { kind: 'unreadable', detail: String(err.message || err) }, fetched: true,
+    };
+    renderCountedReports();
   }
 }
 
-/* Kept so anything that wants only the written half redrawn still can. */
-async function renderWrittenReports(){ return renderReportsView(); }
+/* Asking for the list again — after an archive run, or on landing on Overview
+   from another tab. The next ensureWrittenReports() does the fetch. */
+function forgetWrittenReports(){ writtenState = { list: null, error: null, fetched: false }; }
 
 /* The span the picker is currently showing. "All" has no start date to name —
    the earliest thing counted is whatever the archive happens to still hold, and

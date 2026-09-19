@@ -2,9 +2,8 @@
  *
  * This is the same object colHTML() in kanban/js/09-columns.js emits, and that
  * is the whole point of it: since 12 Sep 2026 every column in the app — the
- * three boards, Overview's five sections, Matrix's two, the Timeline, both
- * halves of Reports, Backups, Projects and the Spend modal's reference cards —
- * is one shape, so the fill, the border, the radius, the 322px width, the 12px
+ * three boards, Overview's seven sections, Matrix's two, the Timeline,
+ * Backups, Projects and the Spend modal's reference cards — is one shape, so the fill, the border, the radius, the 322px width, the 12px
  * gap and both paddings are settled once. A second shape here would undo that
  * on the first view that got ported.
  *
@@ -50,7 +49,7 @@ export interface ColumnProps {
    *  the title. Same as colHTML()'s `hot`. */
   hot?: boolean
   /** Draws the column as a <details> whose <summary> is the head. Overview's
-   *  five are the only ones — five columns of prose open at once is a lot of
+   *  seven are the only ones — seven columns of prose open at once is a lot of
    *  scrolling, and a column of cards has nothing to gain by hiding. */
   collapsible?: boolean
   open?: boolean

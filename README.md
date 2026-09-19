@@ -354,9 +354,18 @@ from the tasks they described. Deriving them removed that whole class of bug.
 
 ### Reports
 
-Every other view answers what to do next. The **Reports** tab answers what got
-done, which is what a one-to-one or an end-of-quarter write-up actually asks for
-and which nothing here could tell you without counting ticks by hand.
+Every other column answers what to do next. **Tasks finished** and **Written
+reports** answer what got done, which is what a one-to-one or an end-of-quarter
+write-up actually asks for and which nothing here could tell you without
+counting ticks by hand.
+
+They were a tab of their own until 19 Sep 2026 and sit at the two ends of
+Overview's row now — Tasks finished leading it at twice a reference column's
+width, Written reports closing it. Reading what got done meant leaving the page
+that says what is next, and the two questions are asked together often enough —
+in a one-to-one, on a Monday, at the end of a quarter — that the trip between
+them was the whole friction. Overview's row scrolls sideways to hold them, and
+both fold like every other column on it.
 
 The first report is **Counted from the list**, broken down by bucket. It leads
 with the total, set large enough to read from across the desk, because that
@@ -419,14 +428,14 @@ it.
 
 A fourth report means one more `build*()` function in `kanban/js/12-reports.js`
 returning the data it draws from, and one more component in
-`kanban/ui/ReportsBlocks.tsx` to draw it — see `drawReports()` for where the
-three today are called. The tab is built to hold more than one.
+`kanban/ui/ReportsBlocks.tsx` to draw it — listed in `TasksFinishedColumn`'s
+body, where the three today are. The column is built to hold more than one.
 
 The column beside it, **Written reports**, holds the other kind. Counting can only
 ever say how many. Saying what moved and what it means is a judgement, so those
 have to be written, and they are written by asking Claude for one. They live as
 Markdown files in the current dataset's own `reports/` folder, listed by the
-server at `/reports.json` and opened in place on the tab. Files rather than
+server at `/reports.json` and opened in place. Files rather than
 sections inside `todo.md`, because a report is finished the day it is written and
 the list is not, so keeping them together would mean editing history every time a
 task changes. In `data/` rather than anywhere else, because a report about this
@@ -472,7 +481,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 
 ### Plans
 
-A separate tab, beside Reports, and a separate folder. Plans are written
+A separate tab and a separate folder. Plans are written
 overnight by the planning agent in `agents/planning_agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
@@ -482,8 +491,8 @@ night — replanning a task rewrites its own file in place, with a `History`
 section keeping the earlier revisions — listed by the server at `/plans.json`
 and read exactly the way written reports are.
 
-The reason they are not a third column in Reports is that they answer the
-opposite question. A report says what happened, and it is finished the day it is
+The reason they are not a third report column on Overview is that they answer
+the opposite question. A report says what happened, and it is finished the day it is
 written. A plan proposes what to do next, and it stops being true the moment it
 is acted on. Folding the two together would also put machine output into a view
 of Tiago's own writing.

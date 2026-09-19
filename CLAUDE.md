@@ -159,7 +159,7 @@ had its own `.listcard` with outer padding and no divider until then, and the
 board's shape won because it is the denser and more-used surface. The same pass
 made the dash mean exactly one thing in the app: an agent owns this column.
 
-Every column, not only these three. Overview's five sections, Matrix's two, the
+Every column, not only these three. Overview's sections, Matrix's two, the
 Timeline, both halves of Reports, Backups, Projects and the two reference cards
 in the Spend modal were all `.listcard`s of their own until the same date, and
 all of them are columns now. Two things came with them. A control that narrows
@@ -168,7 +168,8 @@ is where Reports' window picker, Matrix's "Hide Waiting for review" and Projects
 order select went. And `colHTML()` grew the one part those views needed that a
 board column never did — `collapsible`, which draws the column as a `<details>`
 whose `<summary>` is the head — because five columns of prose open at once is a
-lot of scrolling. The Figma `Column` and `Column header` components carry the
+lot of scrolling, and Overview holds seven of them since the report columns
+joined it. The Figma `Column` and `Column header` components carry the
 same set, and the two are meant to be changed together.
 
 Plans carries seven columns rather than four, and reads
@@ -228,8 +229,8 @@ name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
 written against, plus `mount()`, `mountFlushed()` and `unmount()`. Seven views
-are ported: Projects, Backups, Reports, Overview, the Matrix and the Timeline
-whole, Plans in the three passes described below. The board itself, the
+are ported: Projects, Backups, the two report columns, Overview, the Matrix and
+the Timeline whole, Plans in the three passes described below. The board itself, the
 drawer and the canvas are what is left — always meant to go last, since they
 are 3,100 lines behind one `state` object every other view's mutation still
 has to remember to re-render.
@@ -374,6 +375,56 @@ markup did not move. Overview and the Timeline had no suite before this —
 `capMsgCards()`'s or `wireTimelineDrag()`'s work, which is the point: if
 `mountFlushed()` ever stopped being synchronous, one of those two would fail
 immediately rather than flicker on a slow machine and pass on a fast one.
+
+## Reports is two columns of Overview
+
+Reports was a tab of its own until 19 Sep 2026 and is not one now. Tasks
+finished and Written reports sit at the two ends of Overview's row,
+`TasksFinishedColumn` and `WrittenReportsColumn` in
+`kanban/ui/ReportsColumns.tsx`, listed by `OverviewView`. What got done and what
+to do next are the same question asked at two ends, and reading one meant
+leaving the other.
+
+Five things are worth knowing before touching any of it:
+
+- **Tasks finished leads the row**, then the four reference sections, then
+  Context, then Written reports. What got done is read before picking anything
+  up, and the reference columns are what you pick up from.
+- **It is two reference columns wide, exactly** — `minmax(774px,2fr)`, which is
+  380 twice plus the 14px gap between them, so it lines up with the pair beside
+  it rather than being merely bigger. Written reports keeps the floor it had as
+  a tab. Both numbers live in `OverviewView` beside the four reference tracks,
+  which is why each track there carries its own floor rather than the row
+  multiplying one width by a count. The row is about 3,350px wide at its floor
+  and scrolls sideways, which is what every row of columns in the app does.
+- **Both heads are ordinary column heads**, using the same slots as every
+  column beside them: a count — tasks in the window, reports in the folder — and
+  one line of description. The counted column's description replaced two grey
+  paragraphs at the top of its body, which went with `CountedLead` and
+  `buildCountedLead()` on the same day. One of the four things the second
+  paragraph said was a real warning, that a window reaching past the archive
+  point hit a file that could not be read, and nothing says it now:
+  `archiveEntriesError` in `kanban/js/12-reports.js` is set and never read, kept
+  as the hook for saying so somewhere smaller.
+- **Both fold**, like Overview's own five, under `ov:Tasks finished` and
+  `ov:Written reports` in the same `todo-board-overview-closed` key. That puts
+  the window picker inside a `<summary>`, where a click would fold the column as
+  well as change the window — the delegated guard in `kanban/js/09-columns.js`
+  cancels the fold for any button in a column head, so nothing new was needed.
+- **`/reports.json` is read once per arrival at Overview**, not once per render
+  of it: a bucket tab or a search term redraws the whole row and neither changes
+  what is in `data/<dataset>/reports/`. `renderView()` compares against
+  `lastRenderedView` and calls `forgetWrittenReports()`; `renderSections()` calls
+  `ensureWrittenReports()` after the mount, so the counted half paints
+  immediately and the written one fills in when the fetch lands.
+- **`#reports` still resolves.** `isKnownView()` keeps the id and `renderView()`
+  sends it to Overview, the same way `#quick` and `#delegate` already went there.
+
+`kanban/test_reports.mjs` moved with the columns and every check but two came
+across untouched, which is the evidence they are the same two columns. The two
+that went were about the tab: the pair's own grid, and an empty state for a board
+with no document loaded — Overview has never had one of those and a seventh
+column cannot be reached without a document either.
 
 ## After changing `kanban/server.py`
 

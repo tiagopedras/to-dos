@@ -1,20 +1,27 @@
 #!/usr/bin/env node
-/* Overview — the five reference sections `renderSections('overview')` draws.
+/* Overview — the seven columns `renderSections('overview')` draws.
  *
  *   python3 kanban/server.py &          # or BOARD_PORT=... at one already up
  *   node kanban/test_overview.mjs
  *
  * Written 14 Sep 2026, alongside the port of the view's own shell — the split
- * grid and the five Column wrappers — to kanban/ui/SectionsView.tsx. What each
+ * grid and the Column wrappers — to kanban/ui/SectionsView.tsx. What each
  * section actually decides to show (byPriority, capCards, the Quick wins
  * groups) is untouched by that port and stays covered by inspection rather
- * than by this suite; what this suite pins is the shell: the five titles and
+ * than by this suite; what this suite pins is the shell: the titles and
  * hints, the count beside each, the split grid's track count, and — the one
  * real risk the port carries — that capMsgCards() still measures the real,
  * painted DOM rather than racing React's own schedule. mountFlushed() (see
  * kanban/ui/index.ts) is what that risk turns on, so the check below reads the
  * .capped class in the same synchronous pass as the render call, with no
  * setTimeout to paper over a race if one existed.
+ *
+ * Five columns until 19 Sep 2026, seven since: Tasks finished and Written
+ * reports were a tab of their own and sit at the two ends of this row now,
+ * Tasks finished leading it at twice a reference column's width. What
+ * they hold is kanban/test_reports.mjs's; what this suite adds about them is
+ * that they are there, that they fold like the rest, and that the row's tracks
+ * counted them.
  */
 import { spawn } from 'node:child_process'
 
@@ -103,19 +110,33 @@ check('the tab is locked', await evalJS(`state.locked === true`))
    and the point of the check is that it stays safe. */
 await evalJS(`state.view = 'overview'; renderView()`)
 
-/* ---- the shell: five columns, in reading order ---- */
+/* ---- the shell: seven columns, in reading order ---- */
 
-check('all five columns are drawn, in reading order', await evalJS(`
+check('all seven columns are drawn, in reading order', await evalJS(`
   [...document.querySelectorAll('.lists.split .col h3')].map(h => h.textContent).join('|')
-`) === 'Big rocks|This week|Quick wins|Delegate to Claude|Context')
+`) === 'Tasks finished|Big rocks|This week|Quick wins|Delegate to Claude|Context|Written reports',
+  await evalJS(`[...document.querySelectorAll('.lists.split .col h3')].map(h => h.textContent).join('|')`))
 
-check('the split grid carries five tracks', await evalJS(`
+check('the split grid carries seven tracks', await evalJS(`
   (document.querySelector('.lists.split').style.gridTemplateColumns.match(/minmax/g) || []).length
-`) === 5, await evalJS(`document.querySelector('.lists.split').style.gridTemplateColumns`))
+`) === 7, await evalJS(`document.querySelector('.lists.split').style.gridTemplateColumns`))
+
+/* The two report columns are wider than the four reference ones, and the row's
+   own floor has to add up to what it is actually holding rather than to a
+   count times one width. */
+check('and the row is as wide as the seven tracks it holds', await evalJS(`
+  document.querySelector('.lists.split').style.minWidth
+`) === (394 * 4 + 554 + 788 + 434) + 'px', await evalJS(`document.querySelector('.lists.split').style.minWidth`))
+
+/* Two reference columns and the gap between them, so the wide column lines up
+   with the pair beside it rather than being merely bigger than them. */
+check('Tasks finished leads the row at exactly two reference columns wide', await evalJS(`
+  document.querySelector('.lists.split').style.gridTemplateColumns.split(') ')[0] + ')'
+`) === 'minmax(774px, 2fr)', await evalJS(`document.querySelector('.lists.split').style.gridTemplateColumns`))
 
 check('a hint with a tag in it renders the tag as code, not literal backticks', await evalJS(`
-  document.querySelector('.lists.split .col:nth-child(2) .colhead-desc code')?.textContent
-`) === 'week', await evalJS(`document.querySelector('.lists.split .col:nth-child(2) .colhead-desc')?.innerHTML`))
+  document.querySelector('.lists.split .col:nth-child(3) .colhead-desc code')?.textContent
+`) === 'week', await evalJS(`document.querySelector('.lists.split .col:nth-child(3) .colhead-desc')?.innerHTML`))
 
 /* ---- each section counts what it holds ---- */
 
@@ -128,6 +149,44 @@ check('Big rocks counts the one L task', await countOf('Big rocks') === '1')
 check('This week counts the one week-tagged task', await countOf('This week') === '1')
 check('Quick wins counts the message task', await countOf('Quick wins') === '1')
 check('Delegate to Claude counts the one ai:full task', await countOf('Delegate to Claude') === '1')
+
+/* ---- the two report columns, at the end of the same row ---- */
+
+check('Tasks finished carries the window picker in its head', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return !!c?.querySelector('summary #reportWindow');
+})()`))
+/* The report columns carry `.reportsview`, which styles the folds inside the
+   Completed report — and those rules caught the column's own head the moment
+   the column became a <details> with a <summary> for one: 12.5px type and a
+   second chevron on a line of its own. They are scoped under `.colbody` now,
+   so the head is the same object as any other column's. */
+check('and its head is drawn exactly like a reference column\'s', await evalJS(`(() => {
+  const at = t => [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === t);
+  const shape = el => { const s = el.querySelector('summary'), cs = getComputedStyle(s);
+    return [cs.fontSize, cs.padding, getComputedStyle(s, '::before').content,
+            s.querySelectorAll('.colchev').length].join('/') };
+  return shape(at('Tasks finished')) === shape(at('Big rocks')) ? 'same' : shape(at('Tasks finished')) + ' vs ' + shape(at('Big rocks'));
+})()`) === 'same', await evalJS(`(() => {
+  const at = t => [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === t);
+  const s = at('Tasks finished').querySelector('summary'), cs = getComputedStyle(s);
+  return cs.fontSize + '/' + getComputedStyle(s, '::before').content;
+})()`))
+
+/* The head, used the way every other column on this row uses it: a count of
+   the thing the column holds, and one line saying what that is. */
+check('and a count and a description, like every other column here', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.colhead-right .count')?.textContent + '|' +
+    (c.querySelector('.colhead-desc')?.textContent || '').slice(0, 24);
+})()`) === '0|Everything ticked off in', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Tasks finished');
+  return c.querySelector('.colhead-right .count')?.textContent + '|' + c.querySelector('.colhead-desc')?.textContent;
+})()`))
+check('Written reports folds on the same key the other six use', await evalJS(`(() => {
+  const c = [...document.querySelectorAll('.lists.split .col')].find(c => c.querySelector('h3')?.textContent === 'Written reports');
+  return c?.tagName === 'DETAILS' && c.dataset.colcollapse === 'ov:Written reports';
+})()`))
 
 /* ---- the section with nothing to count ---- */
 
@@ -173,10 +232,10 @@ await evalJS(`localStorage.removeItem('todo-board-overview-closed')`)
 /* ---- Quick wins' own sort control, and Delegate to Claude's ranked rows ---- */
 
 check('Quick wins carries its own sort toggle, not the board\'s', await evalJS(`
-  !!document.querySelector('.lists.split .col:nth-child(3) [data-quicksort]')
+  !!document.querySelector('.lists.split .col:nth-child(4) [data-quicksort]')
 `))
 check('Delegate to Claude numbers its rows', await evalJS(`
-  document.querySelector('.lists.split .col:nth-child(4) .refnum')?.textContent
+  document.querySelector('.lists.split .col:nth-child(5) .refnum')?.textContent
 `) === '1')
 
 /* ---- delegation still opens a card from a React-rendered section ---- */
