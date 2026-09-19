@@ -27,7 +27,7 @@ button{cursor:pointer}
 /* ---------- button ---------- */
 .btn{
   border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-default);
-  border-radius:7px; padding:6px 11px; font-size: var(--tenon-typography-size-md); font-weight:520;
+  border-radius:7px; padding:6px 11px; font-size: var(--tenon-typography-size-sm); font-weight:520;
 }
 .btn:hover{border-color:var(--tenon-text-faint)}
 .btn.ghost{border-color:transparent; color:var(--tenon-text-subtle)}
@@ -60,7 +60,7 @@ button{cursor:pointer}
 .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
 .bucket{font-size: var(--tenon-typography-size-xs); font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
 .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
-.title{font-size: var(--tenon-typography-size-md); font-weight:570; line-height:1.35; letter-spacing:-.005em}
+.title{font-size: var(--tenon-typography-size-sm); font-weight:570; line-height:1.35; letter-spacing:-.005em}
 .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
 /* Urgent and due read as "look at this now", so they sit apart from the rest
    of the meta row, pinned to the right rather than wrapping in with it. */

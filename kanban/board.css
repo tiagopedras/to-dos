@@ -62,7 +62,7 @@
   .spacer{flex:1 1 auto}
   .btn{
     border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-default);
-    border-radius:var(--tenon-radius-default); padding:6px 11px; font-size: var(--tenon-typography-size-md); font-weight:520;
+    border-radius:var(--tenon-radius-default); padding:6px 11px; font-size: var(--tenon-typography-size-sm); font-weight:520;
   }
   .btn:hover{border-color:var(--tenon-text-faint)}
   .btn.primary{background:var(--tenon-background-accent); border-color:var(--tenon-stroke-accent); color:var(--tenon-text-on-accent)}
@@ -106,7 +106,7 @@
   .dropdown-panel.alignright{left:auto; right:0}
   .dropdown-item{
     display:block; width:100%; text-align:left; border:none; background:none;
-    color:var(--tenon-text-default); border-radius:var(--tenon-radius-default); padding:7px 9px; font-size: var(--tenon-typography-size-md); font-weight:520;
+    color:var(--tenon-text-default); border-radius:var(--tenon-radius-default); padding:7px 9px; font-size: var(--tenon-typography-size-sm); font-weight:520;
   }
   .dropdown-item:hover{background:var(--tenon-background-neutral)}
   .dropdown-item:disabled{color:var(--tenon-text-faint); cursor:default}
@@ -151,7 +151,7 @@
   .tabs{display:inline-flex; gap:3px; background:var(--tenon-background-neutral); padding:3px; border-radius:var(--tenon-radius-md)}
   .tab{
     border:1px solid transparent; background:transparent; border-radius:var(--tenon-radius-default);
-    padding:5px 11px; font-size: var(--tenon-typography-size-md); font-weight:560; color:var(--tenon-text-subtle);
+    padding:5px 11px; font-size: var(--tenon-typography-size-sm); font-weight:560; color:var(--tenon-text-subtle);
     display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
   }
   /* The Plans column's filter chips wanted a small size once, and became a
@@ -260,7 +260,7 @@
   .bkswatch.on{box-shadow:0 0 0 2px var(--tenon-background-raised), 0 0 0 4px var(--tenon-text-default)}
   .bkrow input[type="text"]{
     flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
-    border-radius:var(--tenon-radius-default); padding:5px 8px; font-size: var(--tenon-typography-size-md);
+    border-radius:var(--tenon-radius-default); padding:5px 8px; font-size: var(--tenon-typography-size-sm);
   }
   /* The brief button. Shrink-proof beside the name input, which takes the
      rest of the row — a two-line "Brief" is the one thing that would make
@@ -289,7 +289,7 @@
   .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--tenon-stroke-default)}
   .bkadd input{
     flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
-    border-radius:var(--tenon-radius-default); padding:6px 9px; font-size: var(--tenon-typography-size-md);
+    border-radius:var(--tenon-radius-default); padding:6px 9px; font-size: var(--tenon-typography-size-sm);
   }
   /* Always in the layout, so an error appearing does not shove the buttons down. */
   .bkerr{margin:11px 0 0; min-height:1.3em; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-error)}
@@ -378,7 +378,7 @@
     padding:9px 11px 11px; cursor:pointer; font:inherit; color:inherit;
   }
   .pcbody:hover{background:var(--tenon-background-neutral)}
-  .pctitle{display:block; font-size: var(--tenon-typography-size-md); font-weight:600; line-height:1.3}
+  .pctitle{display:block; font-size: var(--tenon-typography-size-sm); font-weight:600; line-height:1.3}
   .pcpath{display:block; font-size: var(--tenon-typography-size-sm); font-family:var(--mono, monospace); color:var(--tenon-text-faint); margin-top:2px}
   .pcblurb{display:block; font-size: var(--tenon-typography-size-sm); line-height:1.45; color:var(--tenon-text-subtle); margin-top:3px}
   .pcblurb:empty{display:none}
@@ -414,7 +414,7 @@
   /* What the project is, above everything else in the panel — read out of the
      folder's CLAUDE.md rather than typed anywhere. */
   .projabout:not(:empty){margin-bottom:16px}
-  .projname{font-size: var(--tenon-typography-size-md); font-weight:600; line-height:1.3; margin-bottom:4px}
+  .projname{font-size: var(--tenon-typography-size-sm); font-weight:600; line-height:1.3; margin-bottom:4px}
   .projblurb{font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle); margin:0}
   .projblurb.none{color:var(--tenon-text-faint)}
   .projwhen{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); margin-top:6px}
@@ -427,7 +427,7 @@
     text-align:left; width:100%; display:flex; flex-direction:column; gap:4px; color:var(--tenon-text-default);
   }
   .projrow:hover{border-color:var(--tenon-stroke-accent)}
-  .projrow .pt{font-size: var(--tenon-typography-size-md); font-weight:600; line-height:1.35}
+  .projrow .pt{font-size: var(--tenon-typography-size-sm); font-weight:600; line-height:1.35}
   .projrow.done .pt{color:var(--tenon-text-faint); text-decoration:line-through}
   .projrow .pw{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
 
@@ -643,7 +643,7 @@
      title still lines up with the ones that do have one. */
   .tlchevron{
     flex:none; width:16px; height:16px; padding:0; border:0; background:transparent;
-    color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-md); line-height:1; cursor:pointer;
+    color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center; transition:transform .12s;
   }
   .tlchevron:hover{color:var(--tenon-text-default)}
@@ -952,7 +952,7 @@
      a mistake rather than as a difference. */
   .tenon-column__head{
     padding:11px 13px 9px; min-height:41px; gap:8px;
-    font-size: var(--tenon-typography-size-md); font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+    font-size: var(--tenon-typography-size-sm); font-weight:700; letter-spacing:.03em; text-transform:uppercase;
   }
   /* Pushed apart rather than floated right — see colHTML(). The left group is
      what the column is called, the right group is what you do to it, and
@@ -1070,10 +1070,10 @@
      to `.tenon-column__body` so it stops at the columns that had it: the board's, Plans'
      and Execution's bodies hold cards, and a card sets its own type. */
   .tenon-column.prose .tenon-column__body{gap:0; display:block; padding:12px 14px 14px}
-  .tenon-column.prose .tenon-column__body h4{margin:14px 0 6px; font-size: var(--tenon-typography-size-md); font-weight:640}
-  .tenon-column.prose .tenon-column__body p{margin:0 0 9px; color:var(--tenon-text-subtle); font-size: var(--tenon-typography-size-md); line-height:1.55}
+  .tenon-column.prose .tenon-column__body h4{margin:14px 0 6px; font-size: var(--tenon-typography-size-sm); font-weight:640}
+  .tenon-column.prose .tenon-column__body p{margin:0 0 9px; color:var(--tenon-text-subtle); font-size: var(--tenon-typography-size-sm); line-height:1.55}
   .tenon-column.prose .tenon-column__body p:last-child{margin-bottom:0}
-  .tenon-column.prose .tenon-column__body li{font-size: var(--tenon-typography-size-md); line-height:1.5}
+  .tenon-column.prose .tenon-column__body li{font-size: var(--tenon-typography-size-sm); line-height:1.5}
   .tenon-column.prose .tenon-column__body code{background:var(--tenon-background-neutral); padding:1px 5px; border-radius:var(--tenon-radius-default); font-size: var(--tenon-typography-size-sm); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
   /* ---------- backups view ----------
@@ -1100,8 +1100,8 @@
   .backupsview .name{
     font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .backupsview .empty{color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-md); padding:6px 0 14px}
-  .backupsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-md)}
+  .backupsview .empty{color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); padding:6px 0 14px}
+  .backupsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm)}
   .backupsview .loadbtn{flex:none; font-size: var(--tenon-typography-size-sm); padding:4px 10px}
   @media (max-width:640px){
     .backupsview .row{flex-wrap:wrap}
@@ -1178,7 +1178,7 @@
     display:block; font-size: var(--tenon-typography-size-7xl); font-weight:700; line-height:.95;
     color:var(--tenon-text-default); letter-spacing:-.03em;
   }
-  .tenon-stat__caption{display:block; font-size: var(--tenon-typography-size-md); margin-top:7px}
+  .tenon-stat__caption{display:block; font-size: var(--tenon-typography-size-sm); margin-top:7px}
   /* The gap the h2 above it used to carry, kept where it belongs: this is the
      Reports layout's spacing, not the card's, and a statcard elsewhere sets
      its own. */
@@ -1192,14 +1192,14 @@
   .reportsview .row{display:flex; align-items:center; gap:12px; padding:9px 2px}
   .reportsview .bkname{
     display:flex; align-items:center; gap:8px; min-width:13em; flex:none;
-    font-size: var(--tenon-typography-size-md); font-weight:600; color:var(--tenon-text-default);
+    font-size: var(--tenon-typography-size-sm); font-weight:600; color:var(--tenon-text-default);
   }
   .reportsview .bkname i{width:9px; height:9px; border-radius:50%; background:var(--bc); flex:none}
   /* The bar is the comparison. It is scaled to the biggest bucket rather than to
      the total, so a quiet month still reads as a shape instead of four slivers. */
   .reportsview .bar{flex:1; min-width:60px; height:9px; background:var(--tenon-background-neutral); border-radius:var(--tenon-radius-default); overflow:hidden}
   .reportsview .bar span{display:block; height:100%; background:var(--bc); border-radius:var(--tenon-radius-default)}
-  .reportsview .n{min-width:2.5em; text-align:right; font-size: var(--tenon-typography-size-md); font-weight:660; color:var(--tenon-text-default)}
+  .reportsview .n{min-width:2.5em; text-align:right; font-size: var(--tenon-typography-size-sm); font-weight:660; color:var(--tenon-text-default)}
   /* Effort points, sitting between the count and the percentage. Quieter than
      the count on purpose: the count is still what the report is about, and this
      qualifies it rather than replacing it. */
@@ -1240,7 +1240,7 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   .reportsview .done .tt{
-    flex:1; min-width:0; font-size: var(--tenon-typography-size-md); line-height:1.4; color:var(--tenon-text-default);
+    flex:1; min-width:0; font-size: var(--tenon-typography-size-sm); line-height:1.4; color:var(--tenon-text-default);
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
   .reportsview .done .tt:hover{color:var(--tenon-text-accent); text-decoration:underline; text-underline-offset:2px}
@@ -1265,7 +1265,7 @@
   .reportsview .done .where.bk::before{
     content:''; width:7px; height:7px; border-radius:50%; background:var(--bc); flex:none;
   }
-  .reportsview .empty{color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-md); padding:6px 0 14px}
+  .reportsview .empty{color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); padding:6px 0 14px}
   /* One band per bucket rather than one stack per week. A stack only ever
      answers how many in total; the offset under each chunk moves every week,
      so a single bucket cannot be followed along the row. Overlaid curves can,
@@ -1331,7 +1331,7 @@
      "climbing", "flat" — as opposed to .help.listlead, which describes the
      report rather than concluding one. */
   .reportsview .note{margin:14px 0 0 !important; font-size: var(--tenon-typography-size-sm) !important; color:var(--tenon-text-faint) !important}
-  .reportsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-md)}
+  .reportsview .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:11px 13px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm)}
 
   /* The two report columns had a grid of their own, `.lists.rview`, while they
      were a tab. They are the last two columns of `.lists.split` since
@@ -1386,7 +1386,7 @@
      .empty is shared with the Reports view, which keeps its plain text. */
   .empty.boxed{
     padding:11px 13px; background:var(--tenon-background-default); border:1px dashed var(--tenon-stroke-default);
-    border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-md); color:var(--tenon-text-faint);
+    border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint);
   }
   /* Run now and Spend and clocks are `action` on their column's head now —
      see colHTML() — so the head shape they used to need is gone with
@@ -1405,7 +1405,7 @@
   .colfilter-btn{
     display:inline-flex; align-items:center; justify-content:space-between; gap:7px;
     border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:var(--tenon-radius-default);
-    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size: var(--tenon-typography-size-md); font-weight:400;
+    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size: var(--tenon-typography-size-sm); font-weight:400;
     text-transform:none; letter-spacing:0; white-space:nowrap; cursor:pointer;
   }
   .colfilter-btn:hover{border-color:var(--tenon-text-faint)}
@@ -1493,7 +1493,7 @@
   .fnow{
     display:flex; gap:10px; align-items:flex-start; padding:11px 13px;
     background:var(--tenon-background-success-subtle); border:1px solid color-mix(in srgb, var(--tenon-text-success) 25%, transparent);
-    border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-md); color:var(--tenon-text-default);
+    border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-default);
   }
   .fspin{
     flex:none; width:9px; height:9px; margin-top:5px; border-radius:50%;
@@ -1536,7 +1536,7 @@
      or it is not, and a third colour would only invite a maybe. */
   .schedhead .dot.on{background:var(--tenon-background-success)}
   .schedhead .dot.off{background:var(--tenon-text-faint)}
-  .schedname{font-size: var(--tenon-typography-size-md); font-weight:640; color:var(--tenon-text-default); flex:1; min-width:0}
+  .schedname{font-size: var(--tenon-typography-size-sm); font-weight:640; color:var(--tenon-text-default); flex:1; min-width:0}
   .schedstate{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
   .schedstate.on{color:var(--tenon-text-success)}
   .schedwhat{margin:7px 0 0; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-subtle); line-height:1.5}
@@ -1638,7 +1638,7 @@
   .ufold{margin:6px 0 0}
   .ufold summary{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); cursor:pointer; padding:4px 0}
   .ustats{display:flex; flex-wrap:wrap; gap:14px; margin:12px 0 10px; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
-  .ustats b{color:var(--tenon-text-default); font-weight:660; font-size: var(--tenon-typography-size-md)}
+  .ustats b{color:var(--tenon-text-default); font-weight:660; font-size: var(--tenon-typography-size-sm)}
   /* Thirty days is eighty-odd windows, which unrolled runs further down the
      page than everything else on the view put together. Scrolled inside the
      card instead, so the two cards stay the same height and the recent ones —
@@ -1795,7 +1795,7 @@
      inherits the sheet's own type rather than the browser's textarea default. */
   .redowhy{
     width:100%; box-sizing:border-box; margin:8px 0 0; padding:8px 10px;
-    font:inherit; font-size: var(--tenon-typography-size-md); color:var(--tenon-text-default);
+    font:inherit; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-default);
     background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:var(--tenon-radius-md);
     resize:vertical;
   }
@@ -1803,23 +1803,23 @@
 
   /* The standfirst is the whole point of the closed state: it should say what the
      report found, so opening it is a choice rather than the only way to know. */
-  .repsum{margin:6px 0 0; font-size: var(--tenon-typography-size-md); line-height:1.5; color:var(--tenon-text-subtle)}
+  .repsum{margin:6px 0 0; font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle)}
   /* Reused inside the modal's .mid — see openReportModal — so the typography
      is what's shared here, not any box styling of its own. */
   .repdoc h4{
-    margin:16px 0 6px !important; font-size: var(--tenon-typography-size-md) !important; font-weight:660 !important;
+    margin:16px 0 6px !important; font-size: var(--tenon-typography-size-sm) !important; font-weight:660 !important;
     color:var(--tenon-text-default) !important;
   }
   .repdoc h4:first-child{margin-top:0 !important}
-  .repdoc p{margin:0 0 10px; font-size: var(--tenon-typography-size-md); line-height:1.6; color:var(--tenon-text-subtle)}
+  .repdoc p{margin:0 0 10px; font-size: var(--tenon-typography-size-sm); line-height:1.6; color:var(--tenon-text-subtle)}
   .repdoc p:last-child{margin-bottom:0}
   .repdoc .repbul{margin:0 0 10px; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:5px}
-  .repdoc .repbul li{font-size: var(--tenon-typography-size-md); line-height:1.5; color:var(--tenon-text-subtle); padding-left:14px; position:relative}
+  .repdoc .repbul li{font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle); padding-left:14px; position:relative}
   .repdoc .repbul li::before{content:"\00b7"; position:absolute; left:3px; color:var(--tenon-text-faint); font-weight:700}
   /* Numbered lists keep the browser's own numbering — .repbul turns it off and
      draws a middot, which would swallow the step numbers a plan is written in. */
   .repdoc .repnum{margin:0 0 10px; padding-left:20px; display:flex; flex-direction:column; gap:5px}
-  .repdoc .repnum li{font-size: var(--tenon-typography-size-md); line-height:1.5; color:var(--tenon-text-subtle)}
+  .repdoc .repnum li{font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle)}
   .repdoc strong{color:var(--tenon-text-default)}
   @media (max-width:1000px){
     .lists.pview{grid-template-columns:1fr; min-width:0}
@@ -1858,7 +1858,7 @@
     cursor:pointer; background:color-mix(in srgb, var(--tenon-text-warning) 12%, var(--tenon-background-default));
     border-color:color-mix(in srgb, var(--tenon-text-warning) 60%, transparent);
   }
-  .msgtext{font-size: var(--tenon-typography-size-md); line-height:1.55; color:var(--tenon-text-default)}
+  .msgtext{font-size: var(--tenon-typography-size-sm); line-height:1.55; color:var(--tenon-text-default)}
   .msgtext a{color:var(--tenon-text-accent)}
   /* Copy is the one action worth reaching for without hovering first — the
      rest (Open in Claude, Raise in Jira, Dismiss) only earn their place once
@@ -1958,7 +1958,7 @@
   .ref.done .reftitle{text-decoration:line-through}
   .refhead{display:flex; align-items:flex-start; gap:7px}
   .reftitle{
-    flex:1; min-width:0; font-size: var(--tenon-typography-size-md); font-weight:570; line-height:1.4; color:var(--tenon-text-default);
+    flex:1; min-width:0; font-size: var(--tenon-typography-size-sm); font-weight:570; line-height:1.4; color:var(--tenon-text-default);
     background:transparent; border:0; padding:0; text-align:left; cursor:pointer;
   }
   .reftitle:hover{color:var(--tenon-text-accent); text-decoration:underline; text-underline-offset:2px}
@@ -2073,10 +2073,10 @@
   .chaincard.depnote .chaintitle{color:var(--tenon-text-subtle)}
   .chainwhere{margin:2px 0 0; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
   .chainholds{margin:6px 0 0; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-warning)}
-  .empty{font-size: var(--tenon-typography-size-md); color:var(--tenon-text-faint)}
+  .empty{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
   /* Context entries are facts, not work: no tick box, no link, nothing to open. */
   .ref.ctx{border-left-color:var(--tenon-stroke-default); padding:8px 11px}
-  .ctxtext{font-size: var(--tenon-typography-size-md); line-height:1.5; color:var(--tenon-text-subtle)}
+  .ctxtext{font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle)}
   /* A string with nowhere to wrap — a pasted URL in Context, a long slug in a
      message — used to run straight out through the side of its card. "anywhere"
      rather than "break-word" so it also stops that string forcing the whole
@@ -2148,7 +2148,7 @@
     display:flex; flex-wrap:wrap; align-items:baseline; gap:4px;
     margin-top:9px; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint);
   }
-  .tenon-card .tenon-card__summary, .repitem .tenon-card__summary{margin-top:11px; font-size: var(--tenon-typography-size-md); line-height:1.5; color:var(--tenon-text-subtle)}
+  .tenon-card .tenon-card__summary, .repitem .tenon-card__summary{margin-top:11px; font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-subtle)}
   .tenon-card__eyebrow + .tenon-card__head{margin-top:5px}
   .tenon-card.dragging{opacity:.4}
   /* Same as any other card — same width, radius, padding, shadow, left
@@ -2189,7 +2189,7 @@
      and that is the weight the merge took, so a title reads the same whichever
      kind of card it is on. */
   .title, .reptitle, .chaintitle{
-    font-size: var(--tenon-typography-size-md); font-weight:600; line-height:1.35; letter-spacing:-.005em;
+    font-size: var(--tenon-typography-size-sm); font-weight:600; line-height:1.35; letter-spacing:-.005em;
     min-width:0; flex:1;
   }
   .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
@@ -2286,7 +2286,7 @@
   }
   aside.open{transform:none}
   aside .dhead{padding:12px 14px; border-bottom:1px solid var(--tenon-stroke-default); display:flex; align-items:center; gap:8px}
-  aside .dhead strong{font-size: var(--tenon-typography-size-md); font-weight:650; white-space:nowrap}
+  aside .dhead strong{font-size: var(--tenon-typography-size-sm); font-weight:650; white-space:nowrap}
   /* The save line is a caption on the title, not a label above a field, so it
      drops the uppercase treatment .field > span.help carries. It is also the
      first thing to go: on a drawer dragged down to its 340px floor the three
@@ -2370,7 +2370,7 @@
   .bucketbtn{
     display:flex; align-items:center; gap:7px; width:100%; text-align:left;
     border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:var(--tenon-radius-default);
-    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size: var(--tenon-typography-size-md); cursor:pointer;
+    padding:5px 9px; min-height:33px; color:var(--tenon-text-default); font-size: var(--tenon-typography-size-sm); cursor:pointer;
   }
   .bucketbtn:disabled{cursor:default; color:var(--tenon-text-faint)}
   /* A dot and a name on their own read as a label rather than as something
@@ -2408,7 +2408,7 @@
   .field .noteview:hover{border-color:var(--tenon-text-faint)}
   .drawer.readonly .field .noteview{cursor:default}
   .drawer.readonly .field .noteview:hover{border-color:var(--tenon-stroke-default)}
-  .field .noteview .empty{font-size: var(--tenon-typography-size-md); color:var(--tenon-text-faint); margin:0}
+  .field .noteview .empty{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); margin:0}
   /* A note is written in headings and bullets far more often than a report
      is, and they sit closer together here than they do in a document read at
      full modal width. */
@@ -2501,12 +2501,12 @@
     cursor:pointer; list-style:none; display:flex; align-items:center; gap:5px;
   }
   details.field > summary::-webkit-details-marker, details.sugg > summary::-webkit-details-marker{display:none}
-  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size: var(--tenon-typography-size-md); display:inline-block}
+  details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size: var(--tenon-typography-size-sm); display:inline-block}
   details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
   .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint); opacity:.85; margin-left:6px}
   .substeps{display:flex; flex-direction:column; gap:1px}
   .sub{
-    display:flex; gap:7px; align-items:flex-start; font-size: var(--tenon-typography-size-md); padding:5px 6px; color:var(--tenon-text-default);
+    display:flex; gap:7px; align-items:flex-start; font-size: var(--tenon-typography-size-sm); padding:5px 6px; color:var(--tenon-text-default);
     border:1px solid transparent; border-radius:var(--tenon-radius-default); background:var(--tenon-background-default);
   }
   .sub:hover{border-color:var(--tenon-stroke-default)}
@@ -2515,7 +2515,7 @@
   .sub .subtext{flex:1; cursor:text}
   .sub .subtext:hover{color:var(--tenon-text-accent)}
   .sub.checked .subtext:hover{color:var(--tenon-text-faint)}
-  .sub .grip{cursor:grab; color:var(--tenon-text-faint); opacity:.45; font-size: var(--tenon-typography-size-md); line-height:1.5; user-select:none; flex:none}
+  .sub .grip{cursor:grab; color:var(--tenon-text-faint); opacity:.45; font-size: var(--tenon-typography-size-sm); line-height:1.5; user-select:none; flex:none}
   .sub:hover .grip{opacity:.9}
   .sub .subdel{
     flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
@@ -2545,7 +2545,7 @@
   }
   .subedit{
     flex:1; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-raised); color:var(--tenon-text-default);
-    border-radius:var(--tenon-radius-default); padding:2px 6px; font-size: var(--tenon-typography-size-md); font-family:inherit;
+    border-radius:var(--tenon-radius-default); padding:2px 6px; font-size: var(--tenon-typography-size-sm); font-family:inherit;
   }
   /* + Add subtask is .btn.dashed.small. What is left is where it sits. */
   .addsub{align-self:flex-start; margin-top:6px}
@@ -2560,7 +2560,7 @@
   .dpbtn{
     display:flex; align-items:center; gap:7px;
     border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-default); border-radius:var(--tenon-radius-default); padding:5px 9px;
-    min-height:33px; width:100%; text-align:left; font-size: var(--tenon-typography-size-md); color:var(--tenon-text-default);
+    min-height:33px; width:100%; text-align:left; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-default);
   }
   .dpbtn:hover{border-color:var(--tenon-text-faint)}
   .dpbtn.empty{color:var(--tenon-text-faint)}
@@ -2582,7 +2582,7 @@
   .calhead strong{font-size: var(--tenon-typography-size-sm); font-weight:650}
   .calnav{
     border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:var(--tenon-radius-default); width:24px; height:24px;
-    color:var(--tenon-text-subtle); font-size: var(--tenon-typography-size-md); line-height:1;
+    color:var(--tenon-text-subtle); font-size: var(--tenon-typography-size-sm); line-height:1;
   }
   .calnav:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
@@ -2690,8 +2690,8 @@
   /* ---------- start screen ---------- */
   .start{max-width:560px; margin:8vh auto; background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:var(--tenon-radius-lg); padding:26px; box-shadow:var(--tenon-elevation-overlay)}
   .start h2{margin:0 0 6px; font-size: var(--tenon-typography-size-lg); letter-spacing:-.01em}
-  .start p{color:var(--tenon-text-subtle); margin:0 0 16px; font-size: var(--tenon-typography-size-md)}
-  .start .drops{border:1.5px dashed var(--tenon-stroke-default); border-radius:var(--tenon-radius-md); padding:18px; text-align:center; color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-md); margin-top:14px}
+  .start p{color:var(--tenon-text-subtle); margin:0 0 16px; font-size: var(--tenon-typography-size-sm)}
+  .start .drops{border:1.5px dashed var(--tenon-stroke-default); border-radius:var(--tenon-radius-md); padding:18px; text-align:center; color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); margin-top:14px}
   .start .drops.over{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:9px 11px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm); margin-top:12px}
 
@@ -2759,7 +2759,7 @@
   .plantimeline q.pnote{font-style:italic}
   .plansummary{background:var(--tenon-background-neutral); border-radius:var(--tenon-radius-md); padding:12px 14px}
   .plansummary .planlabel{margin-bottom:6px}
-  .plansummary .repdoc p{font-size: var(--tenon-typography-size-md); color:var(--tenon-text-default)}
+  .plansummary .repdoc p{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-default)}
   .plantabs{align-self:flex-start}
   .plantabs .tab{cursor:pointer}
   .plantabs .tab[aria-selected="true"]{background:var(--tenon-background-raised); color:var(--tenon-text-default); border-color:var(--tenon-stroke-default); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
@@ -2786,7 +2786,7 @@
     color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-xl); line-height:1; padding:3px 7px; border-radius:var(--tenon-radius-default);
   }
   .mclose:hover{background:var(--tenon-background-neutral); color:var(--tenon-text-default)}
-  .sheet .msub{font-size: var(--tenon-typography-size-md); color:var(--tenon-text-subtle); margin:7px 0 0; line-height:1.5}
+  .sheet .msub{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-subtle); margin:7px 0 0; line-height:1.5}
   .sheet .mid{padding:14px 20px; overflow:auto; flex:1 1 auto}
   .sheet .foot{
     padding:13px 20px; border-top:1px solid var(--tenon-stroke-subtle);
@@ -2830,7 +2830,7 @@
   }
   .toast{
     background:var(--tenon-text-default); color:var(--tenon-background-raised); border-radius:var(--tenon-radius-md);
-    padding:10px 16px; font-size: var(--tenon-typography-size-md); line-height:1.4; text-align:center;
+    padding:10px 16px; font-size: var(--tenon-typography-size-sm); line-height:1.4; text-align:center;
     box-shadow:0 12px 28px rgba(10,12,16,.28), 0 2px 6px rgba(10,12,16,.16);
     opacity:0; transform:translateY(6px); transition:opacity .15s, transform .15s;
   }
@@ -2876,7 +2876,7 @@
   }
   .attachpick header{
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 16px; font-weight:600; font-size: var(--tenon-typography-size-md);
+    padding:14px 16px; font-weight:600; font-size: var(--tenon-typography-size-sm);
     border-bottom:1px solid var(--tenon-stroke-default);
   }
   .attachpick-close{
@@ -2892,7 +2892,7 @@
   .attachpick-row:hover{background:var(--tenon-background-neutral)}
   .attachpick-row:disabled{opacity:.5; cursor:default}
   .attachpick-title{
-    display:block; font-weight:600; font-size: var(--tenon-typography-size-md);
+    display:block; font-weight:600; font-size: var(--tenon-typography-size-sm);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .attachpick-meta{
@@ -2905,7 +2905,7 @@
   }
   .cvbody:hover{background:var(--tenon-background-neutral)}
   .cvtitle{
-    display:block; font-weight:600; font-size: var(--tenon-typography-size-md); line-height:1.35;
+    display:block; font-weight:600; font-size: var(--tenon-typography-size-sm); line-height:1.35;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
     overflow:hidden;
   }
@@ -2930,7 +2930,7 @@
   .cvclose{
     position:absolute; top:3px; right:3px; width:20px; height:20px; padding:0;
     border:0; border-radius:var(--tenon-radius-default); background:none; cursor:pointer; opacity:0;
-    color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-md); line-height:20px; text-align:center;
+    color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); line-height:20px; text-align:center;
   }
   .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
   .cvclose:hover{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
