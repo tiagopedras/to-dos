@@ -18,6 +18,18 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A new task lands in the first bucket in the file even when that bucket is
+  filtered out.** `defaultAddBucket()` (`kanban/js/07-render-board.js:33`)
+  returns `state.doc.buckets[0]` unconditionally, so adding a card while only
+  Design System is toggled on creates it in People, where the filter then hides
+  it. The note above that function says the fixed answer was chosen because
+  multi-select leaves no single bucket to infer from, and the answer to that is
+  to take the first toggled-on bucket in `state.doc.buckets` order rather than
+  the first bucket overall: one bucket on means that bucket, several on means
+  the leftmost of them, none on keeps today's `buckets[0]`. `state.bucketFilter`
+  is a `Set` of names so the order has to come from `state.doc.buckets`, not
+  from the set's own iteration order.
+
 - **Opening a task from a plan throws away the Plans view to do it.**
   `goToPlanTask()` (`kanban/js/13-plans.js:987`) sets `state.view = 'board'`
   before calling `openTaskByKey()`, so every one of its six callers — the plan
