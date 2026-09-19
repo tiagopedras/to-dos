@@ -97,11 +97,10 @@ const state = {
      anything; see updateLockUI for what it hides. */
   locked: false,
   lockedLabel: '',
-  /* Which of the three things locked the tab, since updateLockUI() draws a
-     different bar for each: '' or 'backup' for a real Backup Preview,
+  /* Which of the two things locked the tab, since updateLockUI() draws a
+     different bar for each: '' or 'backup' for a real Backup Preview, and
      'demo' is read off state.demo instead (it predates this field and
-     nothing forces the two to agree), 'chat' for a live conversation about
-     the whole list open in a separate Claude window. */
+     nothing forces the two to agree). */
   lockKind: '',
   /* Example data is standing in for a list that is not there. It is a kind of
      lock rather than a separate mode, so nothing it renders can be written

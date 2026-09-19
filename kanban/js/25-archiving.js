@@ -190,7 +190,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDataMen
 /* wiring */
 $('#download').onclick = () => downloadText(serializeDoc(state.doc), state.fileName);
 $('#backupsBtn').onclick = () => { state.view = 'backups'; renderView(); };
-$('#listChatBtn').onclick = openListChat;
 $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };

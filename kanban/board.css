@@ -227,14 +227,21 @@
   .dropdown-item:hover{background:var(--chip)}
   .dropdown-item:disabled{color:var(--ink-faint); cursor:default}
   .dropdown-item:disabled:hover{background:none}
-  /* The dataset switcher sits under its own rule inside the same panel —
-     picking from a select, not firing an action, so it reads as a distinct
-     row rather than one more item in the list above it. */
+  /* The lists sit under their own heading inside the same panel — which
+     list is being read is a different question from what to do to it, so the
+     rule and the label are what separate the two halves. */
   .dropdown-divider{
     margin-top:5px; padding:8px 9px 5px; border-top:1px solid var(--line-soft);
     display:flex; flex-direction:column; align-items:stretch; gap:6px;
   }
   .dropdown-label{font-size:12px; font-weight:520; color:var(--ink-soft)}
+  /* The lists themselves are rows in the panel like any other, so they run to
+     the panel's own edges rather than being indented by the divider's padding
+     — the tick column is what they line up on, not their left edge. */
+  #datasetList{margin:0 -9px -5px}
+  .dsitem{display:flex; align-items:center; gap:7px}
+  .dsitem.current{font-weight:620}
+  .dstick{width:11px; flex:none; text-align:center; color:var(--ink-soft)}
 
   /* ---------- the bucket strip ----------
      Its own bar between the header and the board, lined up with the columns it
@@ -2181,7 +2188,6 @@
     background:var(--chip); border-radius:7px; padding:6px 11px;
   }
   select#aiFilter{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 9px; min-height:33px}
-  select#datasetSelect{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:5px 8px; font-size:13px; font-weight:520; color:var(--ink); width:100%}
   /* ---------- card ----------
      One card, four kinds of thing on it. A task on the board, a plan written
      about one, a row in tonight's queue and a dependency in the chain were

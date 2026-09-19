@@ -25,22 +25,29 @@
 function setDataMenuLabel(name){
   $('#dataMenuBtn').textContent = name ? 'Data · ' + name + ' ▾' : 'Data ▾';
 }
+/* Every list is a row of its own under a "Lists" heading, rather than a name
+   inside a closed <select>. A picker that has to be opened to say what it
+   holds is one more click on a menu that is already open, and it hid how many
+   lists there even are — which for two or three rows is the whole of the
+   information. The current one is ticked and does nothing when clicked.
+
+   They are `dropdown-item`s, the same object as Undo and Backups above them,
+   because picking a list is an action the menu performs like any other. */
+function datasetItemHTML(name, current){
+  return '<button class="dropdown-item dsitem' + (current ? ' current' : '') + '"' +
+    ' role="menuitem" data-dataset="' + esc(name) + '"' +
+    (current ? ' aria-current="true"' : '') + '>' +
+    '<span class="dstick" aria-hidden="true">' + (current ? '\u2713' : '') + '</span>' +
+    esc(name) + '</button>';
+}
+
 async function loadDatasets(){
   try {
     const data = await getJSON(DATASETS_URL);
-    const sel = $('#datasetSelect');
-    sel.innerHTML = '';
-    (data.datasets || []).forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      if (name === data.current) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    const add = document.createElement('option');
-    add.value = '__new__';
-    add.textContent = '+ New list…';
-    sel.appendChild(add);
+    $('#datasetList').innerHTML =
+      (data.datasets || []).map(name => datasetItemHTML(name, name === data.current)).join('') +
+      '<button class="dropdown-item dsitem" role="menuitem" data-dataset="__new__">' +
+        '<span class="dstick" aria-hidden="true"></span>+ New list…</button>';
     state.datasets = true;
     setDataMenuLabel(data.current);
     if (!state.locked) $('#datasetMenu').classList.remove('hidden');
@@ -199,12 +206,16 @@ function welcomeIfEmpty(data){
   return true;
 }
 
-$('#datasetSelect').onchange = e => {
-  const name = e.target.value;
+$('#datasetList').onclick = e => {
+  const btn = e.target.closest('[data-dataset]');
+  if (!btn) return;
+  const name = btn.dataset.dataset;
   if (name === '__new__') { createDataset(); return; }
+  // The list already being read. Nothing to switch to, and reloading the page
+  // onto the same folder would only look like a fault.
+  if (btn.classList.contains('current')) return;
   if (state.dirty) {
     alert('You have unsaved changes on this list.\n\nSave or discard them first, then switch lists.');
-    loadDatasets();
     return;
   }
   switchDataset(name);

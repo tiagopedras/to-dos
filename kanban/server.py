@@ -1462,7 +1462,7 @@ def _open_terminal(argv, cwd=None):
     "Is this a project you trust?" prompt appears in the new window instead
     of a session — defaults to this repo's own root, which is always
     trusted since the board itself runs from there. See
-    open_terminal_session() and start_plan_session() for the two callers.
+    start_plan_session() for its one caller.
     """
     shell_cmd = "cd %s && %s" % (shlex.quote(cwd or ROOT),
                                   " ".join(shlex.quote(a) for a in argv))
@@ -1475,20 +1475,6 @@ def _open_terminal(argv, cwd=None):
     except OSError as exc:
         return None, {"error": "could not open a terminal: %s" % exc}
     return {"ok": True}, None
-
-
-def open_terminal_session(prompt, cwd=None):
-    """A real Terminal.app window, running an interactive `claude` session
-    seeded with `prompt` as its first turn — not the embedded `claude -p`
-    chat every task's own "New chat" opens (`PACKAGES/ai_chat_engine`'s
-    `Runner.run()`), because this one is a conversation about the whole list
-    rather than one card, and he asked for a real window for it.
-
-    The resulting session writes an ordinary transcript under
-    `~/.claude/projects/`, so it is findable later through the same
-    "Attach a session…" path any other one is.
-    """
-    return _open_terminal(["claude", prompt], cwd)
 
 
 def _plan_file_path(name):
@@ -1525,7 +1511,7 @@ def _set_plan_field(path, key, value):
 def start_plan_session(name):
     """Start, or return to, the implementing agent's session for one
     accepted plan — the second piece "Opening an accepted plan..." in
-    IMPROVEMENTS.md asked for, alongside open_terminal_session() above.
+    IMPROVEMENTS.md asked for, on _open_terminal() above.
 
     claude's own `--session-id` is what makes "return to it" possible at
     all: the id is known and written onto the plan the moment a fresh
@@ -2546,24 +2532,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "resolution": v.get("resolution", ""), "reason": payload.get("note") or "",
             })
             return self._json(code, out)
-        if path == "/session/open-terminal":
-            # A real window rather than a spend, so no confirm sheet the way
-            # /planning_agent/run gets one — worst case is an extra Terminal
-            # window, not money or a write.
-            if self.headers.get("X-Board") != "1":
-                return self._json(403, {"error": "not from the board"})
-            data = self._body()
-            try:
-                payload = json.loads((data or b"{}").decode("utf-8"))
-            except (UnicodeDecodeError, ValueError):
-                return self._json(400, {"error": "body was not valid JSON"})
-            prompt = payload.get("prompt") or "/pa"
-            got, err = open_terminal_session(prompt, cwd=payload.get("cwd"))
-            return self._json(500 if err else 200, err or got)
         if path == "/plans/start-session":
-            # No confirm sheet, same reasoning as /session/open-terminal:
-            # worst case is an extra window, not a spend — the money is
-            # only spent once he actually talks to the session it opens.
+            # A real window rather than a spend, so no confirm sheet the
+            # way /planning_agent/run gets one — worst case is an extra
+            # Terminal window, and the money is only spent once he actually
+            # talks to the session it opens.
             if self.headers.get("X-Board") != "1":
                 return self._json(403, {"error": "not from the board"})
             data = self._body()

@@ -473,6 +473,29 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **There is no way to talk to the PA while the board is in front of you.**
+  Every conversation the board can start belongs to one card — `AIChat.create()`
+  (`kanban/js/10-reference-sections.js:792`) resolves an owner through
+  `locate()` or a `plan:` prefix, and `newChat()` (`:1049`) seeds it from
+  `taskDescription()` — so a sitting about the whole list has nowhere to
+  happen. **Talk about the list** was the answer from 14 Sep 2026 until it was
+  removed: `openListChat()` opened a real `Terminal.app` window and locked the
+  board for the length of it, which put the list he was discussing behind a
+  lock bar. What this asks for instead is a persistent panel anchored to a
+  corner of the board, opened from a bubble, in the shape of a support chat —
+  a `/pa` conversation he can keep typing into while the cards stay live and
+  visible beside it. Most of the parts exist: `opts.windowed`
+  (`PACKAGES/ai_chat_engine/interface/chat.js`) already drops the centred,
+  scrim-backed modal for a window the host places, and `Runner.run()` already
+  passes `--resume` (`engine.py:465`), so a continuing session is not new work.
+  Two things are. The owner has to be the board rather than a task, which
+  `ownerLabel` and every `chatKeyFor()` caller currently assume. And the lock
+  cannot come with it: `pa` writes `todo.md` while this tab autosaves the same
+  file, which is exactly the race `state.locked` was set to win, so a panel
+  that sits alongside a live board needs a different answer — a per-write
+  reload, a dirty-check on send, or `pa` posting its changes back through the
+  board rather than to disk. That decision is what this entry is holding.
+
 - **Done is not a column, it is the tick read sideways, and that makes the tick
   carry two facts at once.** `DONE_COL` (`kanban/js/02-state.js:283`) is
   synthesised onto the end of the column list by `boardColumns()` (`:344`) and
@@ -1930,6 +1953,14 @@ they settled is written up in the README rather than left here:
   board.** The first click may show the macOS "Terminal wants to control
   Terminal" (or similar) permission dialog — allow it once and it should not
   ask again.
+
+  **Removed, 19 Sep 2026, in favour of a floating PA panel** — the Big entry
+  at the top of this file. The whole of it went: the `Data ▾` item, the
+  `/session/open-terminal` route, `open_terminal_session()` (`_open_terminal()`
+  stays, `start_plan_session()` is its one caller now), `openListChat()`,
+  `lockKind`'s `'chat'` branch, and the suite's block. The objection was the
+  lock rather than the terminal: a conversation about the list put the list
+  behind a lock bar for the length of it.
 
 - ~~**A report he defines once cannot be written down anywhere, so every
   written report is typed fresh from a prompt and comes out a slightly

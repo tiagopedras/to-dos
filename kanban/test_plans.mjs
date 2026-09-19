@@ -783,8 +783,8 @@ await evalJS(`(() => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 // Straight through with no confirm sheet of its own — the click posts
-// directly, same as /session/open-terminal: worst case is an extra window,
-// not a spend, so nothing here needs asking first.
+// directly: worst case is an extra window, not a spend, so nothing here
+// needs asking first.
 check('pressing it posts the plan by name', await evalJS(`
   window.__blocked.some(b => b.startsWith('POST /plans/start-session') && b.includes('"prod-none.md"'))
 `), await evalJS(`window.__blocked.join(' | ')`))

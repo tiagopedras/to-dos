@@ -118,8 +118,8 @@ function productionWord(p){
 
 /* Opening an accepted plan used to offer no way to start, or return to, the
    session actually carrying it out — the other half of that entry in
-   IMPROVEMENTS.md, alongside openListChat() above. A real Terminal window,
-   the same as that one, seeded with `/do` naming this plan's own task;
+   IMPROVEMENTS.md. A real Terminal window, seeded with `/do` naming this
+   plan's own task;
    `--session-id` is what makes a second click on the same card resume
    rather than start over, since the server writes the id it used back onto
    the plan the moment the window opens. Nothing here touches `state` or

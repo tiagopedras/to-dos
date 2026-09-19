@@ -36,14 +36,13 @@
       <button class="dropdown-item" id="undo" disabled role="menuitem" title="Undo the last change (⌘Z)">Undo</button>
       <button class="dropdown-item" id="download" role="menuitem">Download copy</button>
       <button class="dropdown-item" id="backupsBtn" role="menuitem">Backups</button>
-      <button class="dropdown-item" id="listChatBtn" role="menuitem" title="Open a Claude window for ad hoc changes across the whole list">Talk about the list</button>
       <!-- Which private folder under data/ the board is pointed at. Hidden
            until loadDatasets() hears back from /datasets.json — an older
            server with no such route leaves the board exactly as it was
            before this existed. -->
       <div class="dropdown-divider hidden" id="datasetMenu">
-        <label class="dropdown-label" for="datasetSelect">Switch list</label>
-        <select id="datasetSelect" title="Switch to-do lists"></select>
+        <span class="dropdown-label">Lists</span>
+        <div id="datasetList"></div>
       </div>
     </div>
   </span>

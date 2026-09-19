@@ -312,55 +312,10 @@ check('and it says so rather than showing an empty board', await evalJS(`
   window.__alerts.some(a => /no task buckets/.test(a))
 `), await evalJS(`window.__alerts.join(' | ')`))
 
-/* ---- Talk about the list: the same lock, a real Terminal window instead ---- */
-// openListChat() shares updateLockUI()/exitBackupPreview() with Backup Preview
-// rather than inventing its own bar, so this is the suite to catch either one
-// breaking the other. The window.fetch stub above already turns the one POST
-// it makes into a recorded, harmless {"ok":true} — nothing here ever reaches
-// osascript or opens a real window.
-
-await evalJS(`(() => { state.locked = false; state.lockKind = ''; state.dirty = true;
-  window.__alerts = []; })()`)
-await evalJS(`openListChat()`)
-check('unsaved edits refuse it before any fetch is made', await evalJS(`
-  !state.locked && window.__blocked.filter(b => b.includes('/session/open-terminal')).length === 0
-`))
-check('and says why', await evalJS(`
-  window.__alerts.some(a => /unsaved changes/.test(a))
-`), await evalJS(`window.__alerts.join(' | ')`))
-
-await evalJS(`(() => { state.dirty = false; })()`)
-await evalJS(`openListChat()`)
-await new Promise(r => setTimeout(r, 300))
-check('with nothing unsaved it posts the prompt', await evalJS(`
-  window.__blocked.some(b => b.startsWith('POST /session/open-terminal') && b.includes('"prompt":"/pa"'))
-`), await evalJS(`window.__blocked.join(' | ')`))
-check('and locks the tab under its own kind', await evalJS(`
-  state.locked === true && state.lockKind === 'chat'
-`))
-check('the bar names it a conversation rather than a backup', await evalJS(`
-  $('#lockBarKind').textContent === 'Conversation open' &&
-  $('#exitLock').textContent === 'Done — reload the list' &&
-  /nothing here saves until you reload/i.test($('#lockBarLabel').textContent)
-`), await evalJS(`$('#lockBarKind').textContent + ' | ' + $('#lockBarLabel').textContent`))
-check('and the Data menu is out of reach the same as any other lock', await evalJS(`
-  $('#dataMenu').classList.contains('hidden')
-`))
-
-await evalJS(`$('#exitLock').click()`)
-await new Promise(r => setTimeout(r, 600))
-check('leaving it the same way unlocks and drops the kind', await evalJS(`
-  state.locked === false && state.lockKind === ''
-`))
-check("and re-reads today's list the same way leaving a backup does", await evalJS(`
-  state.doc.buckets.flatMap(b => b.tiers.flatMap(t => t.tasks.map(x => x.title))).join('|')
-`) === "Today's only task")
-
 /* ---- the point of the second guard ---- */
 
-check('nothing in this whole suite wrote anything but the one chat-open post',
-      await evalJS(`window.__blocked.every(b => b.startsWith('POST /session/open-terminal'))
-        && window.__blocked.length === 1`),
+check('nothing in this whole suite wrote anything at all',
+      await evalJS(`window.__blocked.length === 0`),
       await evalJS(`window.__blocked.join(' | ')`))
 
 ws.close()
