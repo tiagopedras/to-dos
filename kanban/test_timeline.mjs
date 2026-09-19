@@ -106,6 +106,21 @@ check('the undated one sits in the tray', (await evalJS(`
   document.querySelector('.tltraycards .tltraycard')?.textContent
 `) || '').includes('Undated one'))
 
+/* The legend sits under the scale and above the tray — four swatches, and the
+   bucket one striped from the colours actually on screen rather than picking
+   a lane's. */
+check('the legend is drawn below the scale, above the tray', await evalJS(`(() => {
+  const leg = document.querySelector('.tllegend');
+  if (!leg) return false;
+  const scroll = document.querySelector('.tlscroll'), tray = document.querySelector('.tltray');
+  const after = scroll.compareDocumentPosition(leg) & Node.DOCUMENT_POSITION_FOLLOWING;
+  const before = !tray || (leg.compareDocumentPosition(tray) & Node.DOCUMENT_POSITION_FOLLOWING);
+  return !!after && !!before && leg.querySelectorAll('.tlswatch').length === 4;
+})()`))
+check('and its bucket swatch is striped from the lane colours', await evalJS(`
+  document.querySelector('.tllegend .tlswatch').style.background.includes('linear-gradient')
+`))
+
 /* ---- wireTimelineDrag() ran against the real, painted tray card ---- */
 
 check('the tray card is armed to drag, wired the moment the mount call returned', await evalJS(`

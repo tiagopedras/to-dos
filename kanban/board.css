@@ -58,6 +58,17 @@
     --bucket-8-light:#4550c9;  --bucket-8-dark:#9aa3ff;
     --bucket-9-light:#c23b3b;  --bucket-9-dark:#f28080;
     --bucket-10-light:#55606e; --bucket-10-dark:#aab4c0;
+    /* Urgency on the Timeline, and only there. The board's own --red and
+       --amber sit at the same saturation as the bucket ramp above — the
+       swatches are picked to be tellable apart from each other, which makes
+       --red a near neighbour of bucket 9 and --amber one of bucket 2, and a
+       12px bar carrying one of them said nothing. These two are pushed to
+       full chroma so the urgent bars read as a different kind of thing
+       rather than as another bucket. Text never uses them: they are bar and
+       diamond fills, so the contrast floor the -500/-300 steps exist for
+       does not apply. */
+    --tl-over-light:#ff1e2d;   --tl-over-dark:#ff3346;
+    --tl-soon-light:#ffa600;   --tl-soon-dark:#ffb81a;
 
     /* ---- primitives: radius, space and type ----
        The stylesheet carries 16 distinct border-radius values and 21 font
@@ -91,6 +102,7 @@
     --b4:var(--bucket-4-light); --b5:var(--bucket-5-light); --b6:var(--bucket-6-light);
     --b7:var(--bucket-7-light); --b8:var(--bucket-8-light); --b9:var(--bucket-9-light);
     --b10:var(--bucket-10-light);
+    --tl-over:var(--tl-over-light); --tl-soon:var(--tl-soon-light);
     --shadow:0 1px 2px rgba(16,20,28,.06), 0 4px 12px rgba(16,20,28,.05);
   }
 
@@ -115,6 +127,7 @@
       --b4:var(--bucket-4-dark); --b5:var(--bucket-5-dark); --b6:var(--bucket-6-dark);
       --b7:var(--bucket-7-dark); --b8:var(--bucket-8-dark); --b9:var(--bucket-9-dark);
       --b10:var(--bucket-10-dark);
+      --tl-over:var(--tl-over-dark); --tl-soon:var(--tl-soon-dark);
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
     }
   }
@@ -699,7 +712,18 @@
     border-right:1px solid var(--line-soft);
     display:flex; align-items:center; gap:2px; min-width:0;
   }
-  .tllabel:hover{background:var(--chip)}
+  /* Hovering anywhere on a task's row tints the whole row, label and track
+     together, rather than only the label the pointer is over — the row is the
+     unit being read, and a title lighting up on its own said less than it
+     looked like it did. The fill goes on .tlrow itself and is repeated on the
+     sticky .tllabel, which needs an opaque background of its own to keep the
+     dates from scrolling through it. It never goes on .tltrack: the weekend
+     stripes, the week lines and today's line are absolutely-positioned
+     siblings of the rows, so a track with a fill of its own would paint over
+     them for the one row under the pointer. The date header and the lane
+     headers are out — neither is a task, and both carry their own fill. */
+  .tlrow:not(.tlheader):not(.tllane):hover,
+  .tlrow:not(.tlheader):not(.tllane):hover .tllabel{background:var(--chip)}
   /* Draggable from anywhere on the row now, not just the dots — a native
      `draggable` ancestor still lets a plain click on .tllabeltext through as
      a click, same as the board's own cards already manage both at once. */
@@ -819,6 +843,19 @@
     letter-spacing:.03em; text-transform:uppercase; color:var(--accent); white-space:nowrap;
     pointer-events:none;
   }
+  /* .tltoday's own line and label, following the pointer instead of pinned
+     to today — see showTlHoverLine/hideTlHoverLine in 18-timeline.js. Grey
+     rather than accent, so the two are never mistaken for each other when
+     both happen to be on screen at once. */
+  .tlhoverline{
+    position:absolute; top:0; bottom:0; width:1px;
+    background:var(--ink-faint); z-index:1; pointer-events:none;
+  }
+  .tlhoverlabel{
+    position:absolute; top:2px; margin-left:4px; font-size:9.5px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--ink-faint); white-space:nowrap;
+    pointer-events:none;
+  }
   /* Shown only while dragging an undated tray card across the scale — see
      showTlTargetLine in 18-timeline.js. Dashed rather than solid so it never
      reads as .tltoday at a glance. */
@@ -848,9 +885,18 @@
     background-image:repeating-linear-gradient(45deg, var(--bc) 0 4px, transparent 4px 8px);
     opacity:.75;
   }
-  .tlbar.over{background:var(--red)}
-  .tlbar.soon{background:var(--amber)}
+  .tlbar.over{background:var(--tl-over)}
+  .tlbar.soon{background:var(--tl-soon)}
   .tlsub .tlbar{top:7px; height:10px}
+  /* The bar being drawn, live, while dragging a fresh start/due out of empty
+     track — see wireTlTrackClick in 18-timeline.js. Dashed and see-through
+     rather than solid, so it reads as "not committed yet" against the real
+     bars either side of it, and never blocks the pointer since the drag it
+     belongs to is already tracked from the track underneath. */
+  .tlghostbar{
+    background:color-mix(in srgb, var(--bc) 30%, transparent);
+    border:1.5px dashed var(--bc); cursor:inherit; pointer-events:none;
+  }
 
   /* A `due:` with no `start:` — most of the list. A diamond, not a bar backed
      by a start date nobody set. */
@@ -862,10 +908,21 @@
     margin-left:calc((var(--tldaypx, 28px) - 12px) / 2);
   }
   .tlmilestone:active{cursor:grabbing}
-  .tlmilestone.over{background:var(--red)}
-  .tlmilestone.soon{background:var(--amber)}
+  .tlmilestone.over{background:var(--tl-over)}
+  .tlmilestone.soon{background:var(--tl-soon)}
   .tlsub .tlmilestone{top:7px; width:9px; height:9px; cursor:pointer; margin-left:calc((var(--tldaypx, 28px) - 9px) / 2)}
 
+  /* Under the scale and above the tray — the last thing read rather than a
+     header the eye has to pass on every visit. */
+  .tllegend{
+    display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center;
+    margin-top:8px; font-size:11.5px; color:var(--ink-faint);
+  }
+  .tllegitem{display:flex; align-items:center; gap:6px}
+  .tlswatch{width:20px; height:8px; border-radius:3px; flex:none}
+  /* The same .55 the rows themselves fade to, so the swatch is the thing it
+     describes rather than an approximation of it. */
+  .tlswatch.dim{opacity:.55}
   .tltray{margin-top:12px; padding:10px 11px; border:1px dashed var(--line); border-radius:10px}
   .tltrayhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin-bottom:8px}
   .tltrayhead strong{font-size:12.5px; font-weight:700; color:var(--ink-soft)}
