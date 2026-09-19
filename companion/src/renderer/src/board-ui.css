@@ -27,12 +27,12 @@ button{cursor:pointer}
 /* ---------- button ---------- */
 .btn{
   border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); color:var(--tenon-text-default);
-  border-radius:7px; padding:6px 11px; font-size:13px; font-weight:520;
+  border-radius:7px; padding:6px 11px; font-size: var(--tenon-typography-size-md); font-weight:520;
 }
 .btn:hover{border-color:var(--tenon-text-faint)}
 .btn.ghost{border-color:transparent; color:var(--tenon-text-subtle)}
-.btn.mini{padding:3px 8px; font-size:12px; font-weight:560}
-.status{font-size:12px; color:var(--tenon-text-faint)}
+.btn.mini{padding:3px 8px; font-size: var(--tenon-typography-size-sm); font-weight:560}
+.status{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
 
 /* ---------- card ---------- */
 .card{
@@ -58,20 +58,20 @@ button{cursor:pointer}
 .card.planitem{border-top:3px solid var(--tenon-text-error)}
 .card.read{opacity:.82}
 .card .row1{display:flex; align-items:center; gap:6px; margin-bottom:5px}
-.bucket{font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
+.bucket{font-size: var(--tenon-typography-size-xs); font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--bc)}
 .card .row1 .right{margin-left:auto; display:flex; gap:5px; align-items:center}
-.title{font-size:13.5px; font-weight:570; line-height:1.35; letter-spacing:-.005em}
+.title{font-size: var(--tenon-typography-size-md); font-weight:570; line-height:1.35; letter-spacing:-.005em}
 .meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center}
 /* Urgent and due read as "look at this now", so they sit apart from the rest
    of the meta row, pinned to the right rather than wrapping in with it. */
 .meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
-.tag{font-size:11px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
+.tag{font-size: var(--tenon-typography-size-sm); font-weight:600; padding:2px 6px; border-radius:5px; background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
 .tag.due{background:var(--tenon-background-neutral)}
 .tag.due.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
 .tag.due.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
 .tag.urgent{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
 .tag.ai{background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550}
-.mini{font-style:normal; font-size:11px; font-weight:600; color:var(--tenon-text-faint); background:var(--tenon-background-neutral); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
+.mini{font-style:normal; font-size: var(--tenon-typography-size-sm); font-weight:600; color:var(--tenon-text-faint); background:var(--tenon-background-neutral); border-radius:4px; padding:1px 5px; margin-left:6px; white-space:nowrap}
 .mini.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
 .mini.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
-.notecount{font-size:11px; color:var(--tenon-text-faint); margin-top:6px}
+.notecount{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); margin-top:6px}

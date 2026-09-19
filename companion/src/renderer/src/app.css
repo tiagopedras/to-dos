@@ -16,7 +16,7 @@
   align-items: center;
   justify-content: center;
   color: var(--tenon-text-faint);
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
 }
 
 .screen {
@@ -46,7 +46,7 @@
   color: var(--tenon-text-subtle);
   border-radius: 7px;
   padding: 4px 9px;
-  font-size: 12px;
+  font-size: var(--tenon-typography-size-sm);
   font-weight: 560;
 }
 
@@ -56,7 +56,7 @@
 }
 
 .iconbtn-glyph {
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   line-height: 1;
 }
 
@@ -69,7 +69,7 @@ header {
 }
 
 .heading {
-  font-size: 15px;
+  font-size: var(--tenon-typography-size-lg);
   font-weight: 650;
   letter-spacing: -0.01em;
 }
@@ -80,13 +80,13 @@ header {
 
 .line {
   margin-top: 7px;
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   color: var(--tenon-text-subtle);
 }
 
 .error {
   margin-top: 7px;
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   color: var(--tenon-text-error);
 }
 
@@ -152,19 +152,19 @@ main {
 }
 
 .sectioncard-icon {
-  font-size: 15px;
+  font-size: var(--tenon-typography-size-lg);
   line-height: 1;
 }
 
 .sectioncard-count {
-  font-size: 24px;
+  font-size: var(--tenon-typography-size-2xl);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .sectioncard-title {
-  font-size: 11.5px;
+  font-size: var(--tenon-typography-size-sm);
   font-weight: 560;
   color: var(--tenon-text-subtle);
   line-height: 1.25;
@@ -173,7 +173,7 @@ main {
 .parked,
 .quiet {
   color: var(--tenon-text-faint);
-  font-size: 12px;
+  font-size: var(--tenon-typography-size-sm);
   padding: 2px 2px 0;
 }
 
@@ -182,7 +182,7 @@ main {
    would want to act on. */
 .nightline {
   color: var(--tenon-text-faint);
-  font-size: 12px;
+  font-size: var(--tenon-typography-size-sm);
   padding: 0 2px 2px;
 }
 
@@ -256,18 +256,18 @@ main {
   border: none;
   background: none;
   color: var(--tenon-text-accent);
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   font-weight: 560;
   padding: 2px 4px 2px 0;
 }
 
 .back-chevron {
-  font-size: 19px;
+  font-size: var(--tenon-typography-size-xl);
   line-height: 1;
 }
 
 .detail-title {
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   font-weight: 650;
 }
 
@@ -287,7 +287,7 @@ main {
   display: block;
   color: var(--tenon-text-subtle);
   text-transform: none;
-  font-size: 11px;
+  font-size: var(--tenon-typography-size-sm);
   letter-spacing: 0;
   padding-right: 22px;
   white-space: nowrap;
@@ -306,7 +306,7 @@ main {
 
 .copyhint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--tenon-typography-size-sm);
   color: var(--tenon-text-faint);
 }
 
@@ -317,7 +317,7 @@ main {
   border: none;
   background: none;
   color: var(--tenon-text-faint);
-  font-size: 15px;
+  font-size: var(--tenon-typography-size-lg);
   line-height: 1;
   padding: 2px 5px;
   border-radius: 5px;
@@ -337,7 +337,7 @@ main {
 }
 
 .group-title {
-  font-size: 11.5px;
+  font-size: var(--tenon-typography-size-sm);
   font-weight: 600;
   color: var(--tenon-text-subtle);
   padding: 0 2px;
@@ -353,7 +353,7 @@ main {
 }
 
 .meeting-count {
-  font-size: 11.5px;
+  font-size: var(--tenon-typography-size-sm);
   color: var(--tenon-text-subtle);
 }
 
@@ -371,7 +371,7 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--tenon-typography-size-sm);
   color: var(--tenon-text-subtle);
 }
 
@@ -393,14 +393,14 @@ main {
 }
 
 .agenda-topic {
-  font-size: 13px;
+  font-size: var(--tenon-typography-size-md);
   font-weight: 600;
   color: var(--tenon-text-default);
 }
 
 .agenda-context {
   margin-top: 3px;
-  font-size: 12.5px;
+  font-size: var(--tenon-typography-size-sm);
   line-height: 1.4;
   color: var(--tenon-text-subtle);
 }
