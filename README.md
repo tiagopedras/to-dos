@@ -276,10 +276,32 @@ until you save.
 
 ### Renaming and reordering the columns
 
-The second pencil, beside the first, opens the same kind of sheet for the
-columns — Backlog through Doing to Done — a task moves through inside a
-bucket. A column is a `### Name` heading, and like a bucket it has no id: it is
-whichever name a heading uses, read the same everywhere that name turns up.
+A pencil in each column's own head opens one sheet for all of the columns —
+Backlog through Doing to Done — a task moves through inside a bucket. It was a
+second pencil beside the bucket one until 19 Sep 2026, and then nothing at all:
+the column set is settled and shared by every bucket, so a button for editing it
+one click from the filter bar was claiming more of that bar than it earned. Per
+column is where it belongs, because that is where the question is asked. The
+sheet behind it is still the whole list — is this the right name next to the
+others, is this the right order, neither of which a per-column menu could show —
+and the pencil only puts the caret in the row you clicked.
+
+A column is a `### Name` heading, and like a bucket it has no id: it is whichever
+name a heading uses, read the same everywhere that name turns up.
+
+Five of them are read that way outside the board too. Backlog, To do, Doing,
+Waiting for review and Done are matched by their exact text by the companion, the
+planning agent, `core/todo.py` and the board's own recurring-task roll, so
+renaming one for real would leave a second, empty column of the old name behind.
+Typing a new name over one of those five sets a **label** instead: the heading in
+`todo.md` stays exactly as it was, the board draws the word you typed, and the
+row in the sheet shows the real heading in grey beside it so the two are never
+confused. Labels live in `data/<dataset>/column-names.json`, for the same reason
+`bucket-colors.json` is its own file — what a column is called on screen is a
+preference about looking at the list, not a fact the list carries, and `todo.md`
+has exactly one writer. Typing the real heading back clears the label. Nothing
+outside the board reads that file, so a renamed column is still "To do" to the
+companion and in every plan; that is the price of the rename costing nothing.
 
 Not every bucket carries every heading — Design System alone has a Blocked
 column, and Waiting for review, Doing, To do and Backlog are elsewhere — but the
@@ -303,7 +325,10 @@ cannot draw one with nothing to sort into.
 A brand new data set starts with the same four columns as every other one —
 Waiting for review, Doing, To do, Backlog — precisely so a second list's board
 reads the same as the first from the moment it exists, rather than falling
-back to a generic default nobody chose.
+back to a generic default nobody chose. An older list need not have them: the
+`personal` list was made before that and carries Doing, To do, For later and
+Blocked, which is fine — only the five names above are matched by their text,
+and a list is free not to have one.
 
 ### How the board prioritises
 

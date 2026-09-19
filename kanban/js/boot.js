@@ -12,6 +12,7 @@ loadFile();
 loadJira();
 loadDatasets();
 loadBucketColors();
+loadColumnNames();
 loadChatViewed();
 loadBriefings();
 // Says so in the console if stream.json and the column names here have drifted

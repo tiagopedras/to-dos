@@ -384,6 +384,13 @@
      rest of the row — a two-line "Brief" is the one thing that would make
      these rows different heights from one another. */
   .bkrow [data-brief]{flex:0 0 auto; white-space:nowrap}
+  /* The heading a reserved column still carries in todo.md, beside the name it
+     is shown under. Only drawn when the two differ, so a list that has renamed
+     nothing looks exactly as it did. */
+  .bkwas{
+    flex:0 0 auto; font-size:11px; color:var(--ink-faint); white-space:nowrap;
+    font:11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
   /* The brief itself, in its own wide sheet. Monospaced because it is Markdown
      being edited raw, where the drawer's Description renders at rest and this
      never does: a brief is read by agents far more often than by him, and the
@@ -1089,6 +1096,22 @@
     text-transform:inherit; color:inherit; min-width:0;
   }
   .colhead .count{font-weight:600; color:var(--ink-faint); font-size:12px; letter-spacing:0}
+  /* The per-column pencil. Smaller than the toolbar .iconbtn it borrows from,
+     because it sits in a row with a count and a sort toggle rather than on a
+     bar of its own. Hidden until the head is pointed at: renaming a column is
+     rarer than anything else in that row, and six of them drawn at rest is six
+     controls competing with the counts. pointer-events go with it, so the
+     invisible button cannot be clicked by accident. */
+  .colhead .coledit{
+    width:22px; height:22px; border-radius:6px;
+    opacity:0; pointer-events:none; transition:opacity .12s ease;
+  }
+  .colhead .coledit svg{width:14px; height:14px}
+  .colhead:hover .coledit, .colhead .coledit:focus-visible{opacity:1; pointer-events:auto}
+  /* Same rule .sortbtn lives under, and for the same reason: a touch screen
+     never hovers, so hidden would be the only state a phone ever saw. There it
+     is simply always drawn. */
+  @media (hover:none){ .colhead .coledit{opacity:1; pointer-events:auto} }
   /* What the column is for, in the column rather than above the row of them.
      Plans carries one on every column; the board carries none. Not uppercase
      and not the head's weight — it is a sentence, and the heading above it has

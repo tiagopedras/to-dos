@@ -45,6 +45,57 @@ function tierNameTaken(name, except){
 
 function cleanTierName(name){ return String(name).replace(/\s+/g, ' ').trim(); }
 
+/* What a column is called on screen, which is not always its heading.
+
+   The five in RESERVED_TIERS are matched by their exact text here and in every
+   other reader of the list, so renameTier() refuses them. A label is the way
+   round that for the one thing a rename was usually wanted for: the `### To do`
+   heading in todo.md stays as it is, and the board draws this instead. Nothing
+   outside the board sees it — the companion, the planning agent and every plan
+   still say "To do" — which is the cost of it being free of the file format.
+
+   Every other column can be renamed for real, so it has no use for a label and
+   the editor never sets one. Read it everywhere a column name is shown to him
+   and nowhere a column is matched, looked up or saved. */
+function tierLabel(name){
+  return (state.columnNames && state.columnNames[name]) || name;
+}
+
+/* The one write a label makes — straight to column-names.json, independent of
+   Done and of todo.md entirely, the same bargain setBucketColor() makes. A
+   label equal to the heading is not stored: typing the real name back is how
+   you clear one, and an entry saying "To do" is called "To do" is noise in a
+   file read by eye. */
+async function setTierLabel(name, label){
+  const clean = cleanTierName(label);
+  if (!clean) return 'A column needs a name.';
+  const clash = tierOrder().concat([DONE_COL, AI_COL])
+    .find(n => n !== name && tierLabel(n).toLowerCase() === clean.toLowerCase());
+  if (clash) return 'There is already a column called “' + clean + '”.';
+  if (!state.columnNames) state.columnNames = {};
+  if (clean === name) delete state.columnNames[name];
+  else state.columnNames[name] = clean;
+  refreshView();
+  try {
+    await postJSON('/column-names', state.columnNames);
+  } catch (err) {
+    showToast('Could not save that name: ' + (err.message || err), 'bad');
+  }
+  return '';
+}
+
+/* Loaded once alongside the other per-dataset side files (see boot.js). A
+   server too old to know the route, or a first run with no file yet, leaves
+   every column showing its own heading, which is what it always did. */
+async function loadColumnNames(){
+  try {
+    state.columnNames = await getJSON('/column-names.json');
+  } catch (err) {
+    state.columnNames = {};
+  }
+  if (state.doc) refreshView();
+}
+
 /* Makes every bucket carry exactly this set of columns, in this order —
    inventing an empty one wherever a bucket does not already have it. That
    sounds bigger than it is: the board already shows every column somewhere
@@ -160,7 +211,10 @@ function confirmDeleteTier(name, back){
 /* One sheet holding every column, same reasoning as the bucket editor: the
    questions are comparative — is this the right name next to the others, is
    this the right order — and a per-column menu could not show that. */
-function openTierEditor(){
+/* `focusOn` is the heading of the column whose pencil was clicked, if it came
+   from one. The sheet is still the whole list — that is the point of it — and
+   this only puts the caret in the row he asked about. */
+function openTierEditor(focusOn){
   if (state.locked || !state.doc) return;
   closeDrawer();
 
@@ -170,15 +224,20 @@ function openTierEditor(){
     const order = tierOrder();
     const rows = order.map((name, i) => {
       const n = tierTaskCount(name);
-      /* The five reserved names are refused by renameTier anyway, but refusing
-         a rename after it has been typed leaves the typed text sitting in the
-         field while the column keeps its real name — a field showing a name
-         nothing on the board has. So the rule goes on the field: there is
-         nothing to reject, and the reason is on the field that carries it. */
+      /* The five reserved names are refused by renameTier, and this field used
+         to be disabled for them, because refusing a rename after it has been
+         typed leaves the typed text sitting in a field while the column keeps
+         its real name. The field is live for all of them now and what it
+         writes is what differs: an ordinary column is renamed in todo.md, one
+         of the five keeps its heading and gets a label drawn over it. Either
+         way the field means the same thing — what this column is called on
+         screen — which is what he was reaching for in both cases. */
       const fixed = RESERVED_TIERS.indexOf(name) > -1;
       return '<div class="bkrow">' +
-        '<input type="text" data-tiername="' + i + '" value="' + esc(name) + '" aria-label="Column name"' +
-          (fixed ? ' disabled title="' + esc('The board matches “' + name + '” by this exact text, so it can’t be renamed.') + '"' : '') + '>' +
+        '<input type="text" data-tiername="' + i + '" value="' + esc(tierLabel(name)) + '" aria-label="Column name"' +
+          (fixed ? ' title="' + esc('Everything that reads the list matches “' + name + '” by this exact text, so the heading in todo.md stays as it is and this changes only what you see on the board.') + '"' : '') + '>' +
+          (fixed && tierLabel(name) !== name
+            ? '<span class="bkwas" title="the heading in todo.md, left as it is">' + esc(name) + '</span>' : '') +
         '<span class="bkn" title="tasks in it, across every bucket, finished ones included">' + n + '</span>' +
         moveDeleteButtonsHTML(i, order.length, {
           upAttr: 'data-tierback', downAttr: 'data-tierfwd', delAttr: 'data-tierdel',
@@ -191,8 +250,10 @@ function openTierEditor(){
       'The states every task moves through inside a bucket, left to right on the board. Every bucket ' +
       'shows every column, whether or not its own section has tasks in it, so a rename, reorder, add ' +
       'or delete here reaches every bucket the same way. Done sits fixed at the far right and is not ' +
-      'listed here, since it is never a heading, just where a ticked task lands. Nothing reaches the ' +
-      'file until you save.',
+      'listed here, since it is never a heading, just where a ticked task lands. Five of these names are ' +
+      'matched by their exact text by everything else that reads the list, so renaming one of those changes ' +
+      'what you see here and leaves its heading in the file alone — the grey word beside it is the heading ' +
+      'it still has. Nothing reaches the file until you save.',
       '<div class="bklist">' + rows + '</div>' +
       '<div class="bkadd">' +
         '<input type="text" id="tierNew" placeholder="New column name" aria-label="New column name">' +
@@ -207,7 +268,18 @@ function openTierEditor(){
     const order = tierOrder();
     modalEl.querySelectorAll('input[data-tiername]').forEach(inp => {
       const i = +inp.dataset.tiername;
+      /* Two writes behind one field. A reserved column keeps its heading and
+         takes a label; every other one is renamed for real, which is why
+         `order` is only updated in that branch — a label does not move the
+         column that the rest of this sheet is keyed by. */
       const apply = () => {
+        if (RESERVED_TIERS.indexOf(order[i]) > -1) {
+          setTierLabel(order[i], inp.value).then(msg => {
+            if (msg) { setErr(msg); inp.value = tierLabel(order[i]); }
+            else { setErr(''); draw(); }
+          });
+          return;
+        }
         const msg = renameTier(order[i], inp.value);
         if (msg) { setErr(msg); }
         else { setErr(''); order[i] = cleanTierName(inp.value); inp.value = order[i]; }
@@ -234,6 +306,14 @@ function openTierEditor(){
     };
     modalEl.querySelector('#tierAdd').onclick = add;
     modalEl.querySelector('#tierNew').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+    // Only on the way in, not after every redraw: a reorder or a rename would
+    // otherwise pull the caret back to the row it started on.
+    if (focusOn != null) {
+      const i = order.indexOf(focusOn);
+      const inp = i > -1 && modalEl.querySelector('input[data-tiername="' + i + '"]');
+      if (inp) { inp.focus(); inp.select(); }
+      focusOn = null;
+    }
   };
 
   draw();

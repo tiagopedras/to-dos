@@ -210,6 +210,25 @@ def bucket_colors_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
 
 
+def column_names_path(name=None):
+    """What a column is *called on screen*, when that differs from its heading.
+
+    Backlog, To do, Doing, Waiting for review and Done are matched by their
+    exact text all through the board and by every other reader of the list —
+    the companion, the planning agent, core/todo.py — so renameTier() refuses
+    to rename one. A label here is the way round that: the `### To do` heading
+    in todo.md stays exactly as it is and the board draws whatever word is set
+    for it, so nothing outside the board is affected and nothing is migrated.
+
+    A separate file for the same reason bucket-colors.json is one: what a
+    column is called on screen is a preference about looking at the list, not
+    a fact the list carries, and todo.md has exactly one writer. Keyed by the
+    real heading, so an entry is orphaned if that heading is ever renamed for
+    real — the same trade bucket-colors.json already makes.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "column-names.json")
+
+
 def bucket_brief_path(bucket, name=None):
     """A bucket's own brief, resolved the way the agents that read it resolve it.
 
@@ -2122,6 +2141,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way
                 # every bucket falls back to its position in the list.
                 return self._json(200, {})
+        if path == "/column-names.json":
+            try:
+                with open(column_names_path(), encoding="utf-8") as fh:
+                    labels = json.load(fh)
+                    return self._json(200, labels if isinstance(labels, dict) else {})
+            except (OSError, ValueError):
+                # No file yet, or one written by hand and broken. Either way
+                # every column falls back to its own heading, which is the
+                # only name that was ever load-bearing.
+                return self._json(200, {})
         if path == "/bucket-brief.json":
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
@@ -2426,6 +2455,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if not isinstance(k, str) or not isinstance(v, str) or len(k) > 200 or len(v) > 40:
                     return self._json(400, {"error": "bad name or colour"})
             path_out = bucket_colors_path()
+            os.makedirs(os.path.dirname(path_out), exist_ok=True)
+            tmp = path_out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path_out)
+            return self._json(200, {"ok": True})
+        if path == "/column-names":
+            # Same guard and same shape as /bucket-colors: the whole map is
+            # sent and written back whole, and the worst a bad one can do is
+            # put the wrong word above a column.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, dict) or len(payload) > 200:
+                return self._json(400, {"error": "expected a heading -> label map"})
+            for k, v in payload.items():
+                if not isinstance(k, str) or not isinstance(v, str) or len(k) > 200 or len(v) > 200:
+                    return self._json(400, {"error": "bad heading or label"})
+            path_out = column_names_path()
             os.makedirs(os.path.dirname(path_out), exist_ok=True)
             tmp = path_out + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="") as fh:

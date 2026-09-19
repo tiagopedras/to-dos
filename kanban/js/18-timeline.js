@@ -1150,7 +1150,7 @@ function renderColTabs(columns){
   strip.classList.remove('hidden');
   strip.innerHTML = columns.map((name, i) =>
     '<button type="button" class="coltab' + (i === 0 ? ' on' : '') +
-    '" data-coli="' + i + '">' + esc(name) + '</button>').join('');
+    '" data-coli="' + i + '">' + esc(tierLabel(name)) + '</button>').join('');
 
   const main = $('#main');
   const tabs = Array.from(strip.querySelectorAll('.coltab'));
@@ -1255,9 +1255,26 @@ function renderBoard(){
        descriptions are the same idea — but on the board the six column names
        carry their own meaning and the subtitle beside each was saying it a
        second time in smaller type. */
+    /* The pencil the head carries, one per column, since 19 Sep 2026. The
+       sheet behind it is the one that was reached from the filter bar until
+       the button there was hidden — comparative questions need every column
+       in front of you — so this opens the same sheet rather than a per-column
+       menu, and scrolls to the row for the column it was clicked on. Not on
+       Done or Handed to AI, neither of which is a row in it, and not on a
+       locked board, which can write nothing. */
+    const editBtn = (isDone || isAi || state.locked) ? '' :
+      '<button class="iconbtn coledit" data-editcol="' + esc(name) + '"' +
+      ' aria-label="Rename this column" title="Rename, reorder, add or remove columns">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' +
+      '</svg></button>';
+
     return colHTML({
-      title: name,
+      // What it is called on screen; `name` stays the heading everything else
+      // matches by, and is what data-tier below and every lookup still use.
+      title: tierLabel(name),
       sort: sortBtn,
+      action: editBtn,
       count: n,
       body: n ? cards : colEmptyHTML('Nothing here'),
       cls: (isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
@@ -1319,6 +1336,9 @@ function renderBoard(){
     });
     board.querySelectorAll('.addbtn').forEach(el => { el.onclick = () => addTask(el.dataset.add); });
   }
+  board.querySelectorAll('[data-editcol]').forEach(el => {
+    el.onclick = () => openTierEditor(el.dataset.editcol);
+  });
   board.querySelectorAll('.sortbtn').forEach(el => {
     el.onclick = () => {
       setSortMode(el.dataset.sort, sortMode(el.dataset.sort) === 'priority' ? 'manual' : 'priority');

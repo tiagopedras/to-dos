@@ -754,7 +754,10 @@ function openDrawer(id, focusTitle){
   // Neutral rather than a per-column palette — the columns themselves vary by
   // board and carry no fixed meaning beyond "further along", except the last
   // one, which always means done.
-  const tierStops = cols.map(n => ({ value: n, label: n, color: n === DONE_COL ? 'var(--green)' : 'var(--accent)' }));
+  // Labelled the way the board labels them, valued by the heading the document
+  // carries: this stepper is what moves a card on a phone, where there is no
+  // drag, so the two must read as the same column.
+  const tierStops = cols.map(n => ({ value: n, label: tierLabel(n), color: n === DONE_COL ? 'var(--green)' : 'var(--accent)' }));
   const subs = subSteps(t);
   const sugg = suggestions(t);
   const proj = taskProject(t);

@@ -85,9 +85,12 @@
 
          Hidden on every view. The column set is settled and shared by every
          bucket, so editing it is a rare, wide-reaching change that does not
-         belong one click from the filter bar it sits in. openTierEditor() and
-         the whole sheet are left intact, so putting it back is removing the
-         class rather than rebuilding anything. -->
+         belong one click from the filter bar it sits in. Since 19 Sep 2026 the
+         way in is a pencil in each column's own head, built in renderBoard()
+         (18-timeline.js) and opening this same openTierEditor() — the sheet is
+         still the whole list, and the pencil only says which row to focus.
+         Left here rather than deleted: removing the class is how a toolbar
+         button comes back if the per-column one ever turns out to be wrong. -->
     <button class="iconbtn hidden" id="editTiers" aria-label="Edit columns"
             title="Rename, reorder, add or remove the columns (states) tasks move through">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z"/></svg>

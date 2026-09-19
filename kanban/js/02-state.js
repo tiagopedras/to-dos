@@ -35,6 +35,9 @@ const state = {
      a fact the list itself needs to carry, and todo.md has exactly one writer
      already. */
   bucketColors: {},
+  // Heading -> what that column is called on screen, loaded from
+  // column-names.json alongside the document. See tierLabel() in 09-columns.js.
+  columnNames: {},
   /* Task key (stableId, falling back to title) -> a generated briefing —
      direction, what's done, what's still needed — written by the planning
      agent's own brief.py pass and read by loadBriefings() in
