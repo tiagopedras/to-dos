@@ -60,7 +60,15 @@ Two rules, at two different moments. Keep them separate. Tier one decides what i
 
 Every task gets two scores when it lands. `[impact:: high|med|low]` is how much it matters. `[effort:: S|M|L]` is how heavy the lift is. Nothing enters the list without both.
 
-**Suggest both scores rather than asking.** When the task looks like one already on the list, score it the same and name the comparison: "Scored this high/S, same as the sign-off chase note — one message, unblocks someone." When two similar tasks disagree, say so and pick one. Only ask him when nothing on the list is close, or when the two obvious comparisons point different ways.
+**Suggest both scores rather than asking.** When the task looks like one already on the list, score it the same and name the comparison. When two similar tasks disagree, say so and pick one. Only ask him when nothing on the list is close, or when the two obvious comparisons point different ways.
+
+Where the comparison is worth keeping, it goes on the task as a `score_reasoning:` note line, and the score itself stays out of it:
+
+```
+  - score_reasoning: same as the sign-off chase note, one message, unblocks someone.
+```
+
+The tags hold the values, so a line that repeats them is one fact in two places and one of the two goes stale. `CONVENTIONS.md` has the rule.
 
 Never leave a score blank to avoid asking. A blank reads as low on the board and the task quietly sinks. The board counts what is missing and shows a **needs scoring** marker, so a gap is visible rather than silent.
 

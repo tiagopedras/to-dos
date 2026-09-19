@@ -93,6 +93,18 @@ It is not the top of the impact-against-effort sort. It is chosen, usually becau
 
 Do not invent another tag to avoid writing a note. The test is whether one of the views needs it. If no view reads it, it is a note.
 
+### Why a task scored the way it did
+
+Where the score is worth explaining, it goes on a note line of its own, named the same way every other named note line is:
+
+```
+  - score_reasoning: same as the sign-off chase note, one message, unblocks someone.
+```
+
+**The score itself is not repeated in the line.** `[impact:: ]` and `[effort:: ]` already hold it, and a line that also says "med/S" is a second record of one fact, which then has to be corrected twice or goes quietly out of date. Write what the comparison was and why, and let the tags carry the values.
+
+Renamed across the file on 19 Sep 2026, from fifty note lines that opened "Scored med/S." or "Scored high/S:" in no consistent shape.
+
 ## Projects
 
 Added 26 Aug 2026. Some work carries more context than a task line can hold: a plan, a ticket history, source documents, a decision and the reason it went the way it did. That goes in `data/<dataset>/projects/<name>/`, one folder per project, with a `CLAUDE.md` inside holding the background and the source files beside it. Under `data/` rather than at the repo root, because a project folder is full of real names and real dates, and a folder cannot be forgotten by the ignore rules the way a new file can. It also puts the context in the Obsidian vault beside the list it belongs to.
