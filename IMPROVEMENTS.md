@@ -473,6 +473,23 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The Attach a session picker is sixty unsearchable rows and says nothing about
+  whether a session is still going.** `openAttachPicker()`
+  (`kanban/js/10-reference-sections.js:945`) draws one `.attachpick-row` per
+  session straight from `/claude/attachable.json` with no filter box above them,
+  and the list behind it is capped — `list_sessions(limit=60)` in
+  `PACKAGES/ai_chat_engine/engine.py:400` sorts every `.jsonl` under
+  `~/.claude/projects` by mtime and returns the newest sixty — so a search that
+  only filters what arrived would quietly miss anything older than that and the
+  cap has to be raised or the filtering pushed server-side. A date is already
+  there: the row's second line is `cvWhen(s.updated) + ' · ' + s.cwd`, that
+  mtime rendered relative. The status indicator is the part that needs deciding,
+  because the row carries no such field and nothing can supply one today —
+  `kanban/js/11-chat-cards.js:30` is explicit that the board has no live process
+  to ask, so "running", "idle" or "finished" would mean inventing a definition
+  off the transcript's last line and mtime and adding it to `list_sessions()`,
+  which is a shared package two other apps read.
+
 - **There is no way to talk to the PA while the board is in front of you.**
   Every conversation the board can start belongs to one card — `AIChat.create()`
   (`kanban/js/10-reference-sections.js:792`) resolves an owner through
