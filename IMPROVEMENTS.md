@@ -18,6 +18,18 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The string twins of Column and Card have no caller left in the app.**
+  `colHTML()`, `cardShellHTML()`, `cardHTML()`, `chipHTML()` and `colEmptyHTML()`
+  in `kanban/js/09-columns.js` were kept so a half-ported board drew one shape
+  in two languages. Every view is React now, so they are read only by
+  `kanban/ui/test_primitives.mjs` and by the parity check in
+  `kanban/test_board.mjs`, and the comments in `13-plans.js` and `19-drawer.js`
+  that mention `colHTML()`. `numberBadgeHTML()` is still live, since the Plans
+  tab badge uses it, and `setColCount()` still serves Projects. Deleting the
+  five and trimming `test_primitives.mjs` to the badge and the bundle check
+  removes about 250 lines. It also changes what `npm test` proves, so it wants
+  a decision rather than a tidy.
+
 - **Two inline Markdown renderers know different things.** `mdInline()`
   (`kanban/js/10-reference-sections.js:687`) understands `[text](url)` links
   and `[placeholder]` markers as well as code, bold and italics, and the board
@@ -509,23 +521,35 @@ they settled is written up in the README rather than left here:
   than a find and replace. The suites that read chip classes are
   `test_board.mjs`, `test_plans.mjs` and `test_overview.mjs`.
 
-- **Overview, Matrix and Timeline are components around bodies that are still HTML strings.**
-  `renderSections()` (`kanban/js/18-timeline.js:791`) hands `OverviewView`,
-  `MatrixView` and `TimelineView` a `{ bodyHTML, count, sortHTML, filtersHTML }`
-  per section, and each body comes from a string builder: `bigRocksSection()`,
-  `weekSection()`, `quickSection()`, `delegateSection()` and `chainSection()` in
-  `kanban/js/10-reference-sections.js`, `contextSection()` in
-  `kanban/js/11-chat-cards.js:341`, `matrixSection()` in `kanban/js/17-matrix.js:222`
-  and `timelineSection()` in `kanban/js/18-timeline.js:290`. `SectionsView.tsx`
-  draws all of them through `dangerouslySetInnerHTML`, so a card, a matrix dot or
-  a timeline bar inside them cannot be a Tenon component. Porting the bodies
-  means each builder returns props for a component instead of a string, and it
-  means the two things a prop cannot carry today get real homes: `capMsgCards()`
-  measuring `.ref .msg` after the paint, and `wireTimelineDrag()` and the
-  matrix dot's hover, which `#lists`'s own delegated listener wires. The suites
-  that catch a regression are `kanban/test_overview.mjs`, `test_matrix.mjs` and
-  `test_timeline.mjs`, and all three should pass unchanged. Decided 19 Sep 2026
-  to follow Plans and the Board view, not to go with them.
+- **The Timeline's body is still one HTML string.** `timelineSection()`
+  (`kanban/js/18-timeline.js:290`) returns markup for the lanes, the scale and
+  the tray of undated tasks, and `TimelineView` in `kanban/ui/SectionsView.tsx`
+  draws it through `dangerouslySetInnerHTML`. Porting it means the lanes and
+  their bars become props, and it means the drag wiring gets a home:
+  `wireTimelineDrag()` and `wireTlReorder()` arm native handlers on nodes found
+  by selector after the paint, and reuse the board's `dropLine`, which
+  `BoardView` no longer touches. The handlers can become props the way
+  `BoardView`'s did. `kanban/test_timeline.mjs` has 11 checks and would want
+  drag and reorder cases before anything moves, since the drag is the risk.
+
+- ~~**Overview, Matrix and Timeline are components around bodies that are still HTML strings.**~~
+  **Done for Overview and the Matrix, 20 Sep 2026; the Timeline is the next entry.**
+  Overview's four reference columns are `RefSection` and its Context column is
+  `ContextBody` (`kanban/ui/OverviewBodies.tsx`), each card a Tenon `Card` that
+  keeps the board's `ref` class. `bigRocksSection()`, `weekSection()`,
+  `quickSection()` and `delegateSection()` in `kanban/js/10-reference-sections.js`
+  and `contextSection()` in `kanban/js/11-chat-cards.js` return blocks of data,
+  and warnings are Tenon's `Alert` and empty states its `ColumnEmpty`. The
+  Matrix is `MatrixBody` and `ChainBody`, with each dependency ticket a `Card`,
+  and its hover preview draws `TaskCard`. Every control kept the attribute the
+  delegated listener in `kanban/js/25-archiving.js` reads (`data-tick`,
+  `data-open`, `data-unweek`, `data-quickdismiss`, `data-quickrestore`,
+  `data-quicksort`), and `capMsgCards()` still measures `.ref .msg`. What
+  stayed markup is the message, prompt, agenda and Jira note under a card,
+  which `messageHTML()`, `agendaHTML()` and `jiraHTML()` in
+  `kanban/js/11-chat-cards.js` draw for the drawer too, so they move with it.
+  `kanban/test_overview.mjs` grew from 24 checks to 34 and `test_matrix.mjs`
+  passed unchanged at 42.
 
 - **The drawer, the header chrome and the conflict modal are still strings, so Tenon's components cannot reach them.**
   Plans and the Board view went to React on 19 Sep 2026, and so did Projects,

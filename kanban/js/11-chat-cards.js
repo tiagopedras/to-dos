@@ -340,18 +340,17 @@ function contextBlock(){
 
 function contextSection(){
   const lines = contextBlock();
-  if (!lines.length) return '';
+  if (!lines.length) return null;
 
-  let html = '', group = '', items = [];
+  const groups = [];
+  let group = '', items = [];
   // Grouped facts collapse behind their heading — a dozen `###` sections is
   // most of the column's length, and only one is usually the one being read.
   // Anything before the first heading has no title to collapse behind, so it
   // stays open, plain, the way it always has.
   const flush = () => {
     if (!items.length) return;
-    html += group
-      ? '<details class="ctxgroup"><summary>' + esc(group) + '</summary>' + items.join('') + '</details>'
-      : items.join('');
+    groups.push({ title: group || null, items });
     items = [];
   };
 
@@ -364,24 +363,22 @@ function contextSection(){
     if (!b) return;
 
     const dm = CTX_DATE.exec(b[1]);
-    let chip = '';
+    let chip = null;
     if (dm) {
       const di = dueInfo(dm[2]);
       const past = di.days < 0;
-      chip = '<span class="tag due ' + (past ? '' : di.cls) + '">' +
-             (dm[1] === 'until' ? 'until ' : '') + esc(di.label) +
-             ' · ' + (past ? Math.abs(di.days) + 'd ago' : 'in ' + di.days + 'd') + '</span>';
+      chip = { cls: 'tag due ' + (past ? '' : di.cls),
+               text: (dm[1] === 'until' ? 'until ' : '') + di.label + ' \u00b7 ' +
+                     (past ? Math.abs(di.days) + 'd ago' : 'in ' + di.days + 'd') };
     }
-    items.push('<article class="ref ctx">' +
+    items.push({
       // Lifting the date out leaves "back on ." behind, so close the gap it left.
-      '<div class="ctxtext">' + mdInline(
-        b[1].replace(CTX_DATE, '').replace(/\s+([.,])/g, '$1').replace(/\s{2,}/g, ' ').trim()
-      ) + '</div>' +
-      (chip ? '<div class="meta">' + chip + '</div>' : '') +
-    '</article>');
+      textHTML: mdInline(b[1].replace(CTX_DATE, '').replace(/\s+([.,])/g, '$1').replace(/\s{2,}/g, ' ').trim()),
+      chip
+    });
   });
   flush();
-  return html;
+  return { body: BoardUI.h(BoardUI.ContextBody, { groups }) };
 }
 
 /* The tabs, in reading order. Plans and Execution are the two agent boards and

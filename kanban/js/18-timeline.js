@@ -819,13 +819,13 @@ function renderSections(viewId){
     const ctx = contextSection();
     // One section per column, left to right, the same way the board reads.
     BoardUI.mountFlushed(host, BoardUI.OverviewView({
-      bigRocks: Object.assign(toBody(bigRocksSection(items)), { open: overviewOpen('ov:Big rocks') }),
-      thisWeek: Object.assign(toBody(weekSection(items)), { open: overviewOpen('ov:This week') }),
-      quickWins: Object.assign(toBody(quickSection(items)), { open: overviewOpen('ov:Quick wins') }),
-      delegate: Object.assign(toBody(delegateSection(items)), { open: overviewOpen('ov:Delegate to Claude') }),
+      bigRocks: Object.assign(bigRocksSection(items), { open: overviewOpen('ov:Big rocks') }),
+      thisWeek: Object.assign(weekSection(items), { open: overviewOpen('ov:This week') }),
+      quickWins: Object.assign(quickSection(items), { open: overviewOpen('ov:Quick wins') }),
+      delegate: Object.assign(delegateSection(items), { open: overviewOpen('ov:Delegate to Claude') }),
       // The only section with nothing to count — it is standing prose, not a
       // list of anything — so it is left out entirely rather than drawn empty.
-      context: ctx ? { bodyHTML: ctx, open: overviewOpen('ov:Context') } : null,
+      context: ctx ? Object.assign(ctx, { open: overviewOpen('ov:Context') }) : null,
       // Tasks finished and Written reports, the two columns that were the
       // Reports tab until 19 Sep 2026. Everything they draw from is built in
       // 12-reports.js, this file's only dealing with them (see

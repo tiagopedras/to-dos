@@ -257,21 +257,20 @@ function byDue(a, b){
 
 /* ---- The small bordered card every reference renders as ---- */
 
-function refTags(it){
-  let out = '';
+function refChips(it){
+  const chips = [];
   /* First, because on a recurring task how often it comes round is what frames
      every other tag on the card: the deadline is the next occurrence. */
-  if (it.repeat) out += '<span class="tag repeat" title="Recurring ' +
-    esc(it.repeat.label) + '">' + esc(it.repeat.label) + '</span>';
+  if (it.repeat) chips.push({ cls: 'tag repeat', text: it.repeat.label, title: 'Recurring ' + it.repeat.label });
   const si = startInfo(it.start);
-  if (si) out += '<span class="tag startdate">' + esc(si.label) + ' · ' + esc(si.note) + '</span>';
+  if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
   const di = dueInfo(it.due, it.tier === WAIT_COL);
-  if (di) out += '<span class="tag due ' + di.cls + '">' + esc(di.label) + (di.note ? ' · ' + esc(di.note) : '') + '</span>';
-  if (it.urgent) out += '<span class="tag urgent">urgent</span>';
-  if (it.impact) out += '<span class="tag impact-' + esc(it.impact) + '" title="' + esc(it.impact) + ' impact">' + (IMPACT_EMOJI[it.impact] || esc(it.impact)) + '</span>';
-  if (it.effort) out += '<span class="tag">' + esc(it.effort) + '</span>';
-  if (it.ai && it.ai !== 'none') out += '<span class="tag ai ai-' + esc(it.ai) + '" title="' + esc(it.ai) + ' AI help">ai</span>';
-  return out;
+  if (di) chips.push({ cls: 'tag due ' + di.cls, text: di.label + (di.note ? ' · ' + di.note : '') });
+  if (it.urgent) chips.push({ cls: 'tag urgent', text: 'urgent' });
+  if (it.impact) chips.push({ cls: 'tag impact-' + it.impact, text: IMPACT_EMOJI[it.impact] || it.impact, title: it.impact + ' impact' });
+  if (it.effort) chips.push({ cls: 'tag', text: it.effort });
+  if (it.ai && it.ai !== 'none') chips.push({ cls: 'tag ai ai-' + it.ai, text: 'ai', title: it.ai + ' AI help' });
+  return chips;
 }
 
 /* These sections are the only place the five views exist now, so a card has to
@@ -279,15 +278,15 @@ function refTags(it){
    drop it out of the week here. The tick writes to the task or the sub-step,
    whichever the card was built from, so the board and the file agree instantly.
 
+   What one card says, as data for RefCard (kanban/ui/OverviewBodies.tsx).
    opts.message / opts.prompt say whether to include the body text. */
-function refCard(it, opts){
+function refModel(it, opts){
   opts = opts || {};
   /* This card is a copy shown away from its own column, so the column itself —
      what the board would otherwise say just by where the card sits — has to
      be spelled out here instead. Same "bucket · tier" order the matrix hover
      preview already uses, so the two read as the same fact. */
-  const where = [it.bucket, it.parent, it.done ? DONE_COL : it.tier].filter(Boolean).map(esc).join(' · ');
-  const target = it.sub ? ' data-sub="' + it.sub.line + '"' : '';
+  const where = [it.bucket, it.parent, it.done ? DONE_COL : it.tier].filter(Boolean).join(' · ');
   let body = '';
   if (opts.message && it.message) {
     body += messageHTML(it.message, { draft: it.draft });
@@ -306,29 +305,23 @@ function refCard(it, opts){
      unlike a message or a prompt this needs no opts flag to turn it on. */
   if (it.jira) body += jiraHTML(it.jira);
 
-  return '<article class="ref' + (it.done ? ' done' : '') + '" style="--bc:' + it.color + '">' +
-    '<div class="refhead">' +
-      '<button class="refbox" data-tick="' + it.id + '"' + target +
-        ' role="checkbox" aria-checked="' + it.done + '"' +
-        ' title="' + (it.done ? 'Mark as not done' : 'Mark as done') + '">' + (it.done ? '✓' : '') + '</button>' +
-      '<button class="reftitle" data-open="' + it.id + '" title="Open this task">' + mdInline(it.title) + '</button>' +
-      (opts.unweek
-        ? '<button class="refdrop" data-unweek="' + it.id + '"' + target + ' title="Take this out of the week">Not this week</button>'
-        : '') +
-      (opts.quickDismiss
-        ? '<button class="refdrop" data-quickdismiss="' + esc(quickKey(it)) + '" ' +
-          'title="Dismiss this suggestion. Nothing about the task changes — it just stops showing here until you bring it back.">Dismiss</button>'
-        : '') +
-    '</div>' +
-    '<div class="refwhere">' + where + '</div>' +
-    (refTags(it) ? '<div class="meta">' + refTags(it) + '</div>' : '') +
-    body +
-  '</article>';
+  return {
+    id: it.id,
+    sub: it.sub ? it.sub.line : null,
+    color: it.color,
+    done: !!it.done,
+    titleHTML: mdInline(it.title),
+    where,
+    chips: refChips(it),
+    bodyHTML: body,
+    unweek: !!opts.unweek,
+    quickDismiss: opts.quickDismiss ? quickKey(it) : null
+  };
 }
 
-function refGroup(label, cards){
-  if (!cards.length) return '';
-  return '<h4 class="refgroup">' + esc(label) + '</h4>' + cards.join('');
+/* One section's blocks, drawn by RefSection. `n` is what the head counts. */
+function refSectionBody(blocks, n, sort){
+  return { body: BoardUI.h(BoardUI.RefSection, { blocks }), count: n, sort: sort || null };
 }
 
 /* ---- Capping how many cards one Overview column shows ----
@@ -361,21 +354,20 @@ function capGroups(groups, limit){
   });
   return { shown, hidden };
 }
-function moreNote(hidden){
-  return hidden ? '<p class="refmore">+' + hidden + ' more not shown here — open the board to see the rest.</p>' : '';
-}
+function moreBlock(hidden){ return hidden ? [{ kind: 'more', hidden }] : []; }
 
 /* ---- The five sections, each built from its tag ---- */
 
 function weekSection(items){
   const live = items.filter(i => i.week).sort(byDue);
-  if (!live.length) return { html: '<p class="empty">Nothing is tagged <code>week</code> yet.</p>', n: 0 };
+  if (!live.length) return refSectionBody([{ kind: 'empty', which: 'week' }], 0);
   const m = live.filter(i => i.effort === 'M' && !i.done).length;
-  const warn = m > 2
-    ? '<p class="refwarn">' + m + ' M-effort items this week. The ceiling is two once meetings are counted.</p>'
-    : '';
+  const blocks = [];
+  if (m > 2) blocks.push({ kind: 'warn',
+    text: m + ' M-effort items this week. The ceiling is two once meetings are counted.' });
   const { shown, hidden } = capCards(live);
-  return { html: warn + shown.map(i => refCard(i, { unweek:true })).join('') + moreNote(hidden), n: live.length };
+  blocks.push({ kind: 'cards', cards: shown.map(i => refModel(i, { unweek:true })) });
+  return refSectionBody(blocks.concat(moreBlock(hidden)), live.length);
 }
 
 /* A quick win has to be something he can act on right now. Anything still
@@ -412,13 +404,16 @@ function setQuickSortMode(mode){
   quickSortState = mode === 'due' ? 'due' : 'priority';
   try { localStorage.setItem(QUICK_SORT_KEY, quickSortState); } catch (e) {}
 }
-function quickSortBtnHTML(){
+/* An attribute rather than a prop: the click is answered by the delegated
+   listener in 25-archiving.js, like every other control in these columns. */
+function quickSortBtn(){
   const due = quickSortMode() === 'due';
-  return '<button class="sortbtn' + (due ? ' on' : '') + '" type="button" data-quicksort' +
-    ' title="' + (due
+  return BoardUI.h('button', {
+    className: 'sortbtn' + (due ? ' on' : ''), type: 'button', 'data-quicksort': '',
+    title: due
       ? 'Showing the nearest deadline first, undated at the bottom. Click to sort by what is worth doing first.'
-      : 'Grouped by what it costs, worth doing first inside each. Click to sort by due date instead.') + '">' +
-    (due ? 'by due date' : 'grouped') + '</button>';
+      : 'Grouped by what it costs, worth doing first inside each. Click to sort by due date instead.'
+  }, due ? 'by due date' : 'grouped');
 }
 
 function quickSection(items){
@@ -441,12 +436,10 @@ function quickSection(items){
   const notDismissed = i => !dismissed.has(quickKey(i));
 
   const reasons = [];
-  if (heldByDep)  reasons.push('<strong>' + heldByDep + '</strong> waiting on another task');
-  if (heldByDate) reasons.push('<strong>' + heldByDate + '</strong> not startable yet');
-  if (heldByBacklog) reasons.push('<strong>' + heldByBacklog + '</strong> parked in ' + esc(HELD_TIER));
-  const note = reasons.length
-    ? '<p class="refheld">Left out: ' + reasons.join(' · ') + '.</p>'
-    : '';
+  if (heldByDep)  reasons.push({ n: heldByDep, text: 'waiting on another task' });
+  if (heldByDate) reasons.push({ n: heldByDate, text: 'not startable yet' });
+  if (heldByBacklog) reasons.push({ n: heldByBacklog, text: 'parked in ' + HELD_TIER });
+  const note = reasons.length ? [{ kind: 'held', parts: reasons }] : [];
 
   if (quickSortMode() === 'due') {
     /* Flat once sorted by due date: the four groups below answer "what kind of
@@ -457,22 +450,17 @@ function quickSection(items){
     const all = preAll.filter(notDismissed);
     const dismissedShown = preAll.length - all.length;
     const capped = capCards(all);
-    const cards = capped.shown.map(i => refCard(i, {
+    const cards = capped.shown.map(i => refModel(i, {
       agenda: !!(i.repeat && i.agenda && i.sub === null),
       message: !!i.message,
       quickDismiss: true
-    })).join('');
-    const dismissedNote = dismissedShown
-      ? '<p class="refmore">' + dismissedShown + ' dismissed. ' +
-        '<button type="button" class="reflink" data-quickrestore>Show them again</button></p>'
-      : '';
-    return {
-      html: cards
-        ? note + cards + moreNote(capped.hidden) + dismissedNote
-        : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>',
-      n: all.length,
-      sort: quickSortBtnHTML()
-    };
+    }));
+    const dismissedNote = dismissedShown ? [{ kind: 'dismissed', n: dismissedShown }] : [];
+    return refSectionBody(
+      cards.length
+        ? note.concat([{ kind: 'cards', cards }], moreBlock(capped.hidden), dismissedNote)
+        : note.concat(dismissedNote, [{ kind: 'empty', which: 'quick' }]),
+      all.length, quickSortBtn());
   }
 
   /* Meetings first, and before the messages, because a standing meeting is the
@@ -503,33 +491,31 @@ function quickSection(items){
   const capped = capGroups([meetings, messages, decide, talk]);
   const [sMeetings, sMessages, sDecide, sTalk] = capped.shown;
 
-  const out =
-    refGroup('Costs one paste, before the meeting', sMeetings.map(i => refCard(i, { agenda:true, quickDismiss:true }))) +
-    refGroup('Costs one message, already written', sMessages.map(i => refCard(i, { message:true, quickDismiss:true }))) +
-    refGroup('Costs one decision', sDecide.map(i => refCard(i, { quickDismiss:true }))) +
-    refGroup('Costs one conversation', sTalk.map(i => refCard(i, { quickDismiss:true })));
-  const dismissedNote = dismissedShown
-    ? '<p class="refmore">' + dismissedShown + ' dismissed. ' +
-      '<button type="button" class="reflink" data-quickrestore>Show them again</button></p>'
-    : '';
+  const out = [
+    { kind: 'group', label: 'Costs one paste, before the meeting',
+      cards: sMeetings.map(i => refModel(i, { agenda:true, quickDismiss:true })) },
+    { kind: 'group', label: 'Costs one message, already written',
+      cards: sMessages.map(i => refModel(i, { message:true, quickDismiss:true })) },
+    { kind: 'group', label: 'Costs one decision', cards: sDecide.map(i => refModel(i, { quickDismiss:true })) },
+    { kind: 'group', label: 'Costs one conversation', cards: sTalk.map(i => refModel(i, { quickDismiss:true })) }
+  ].filter(g => g.cards.length);
+  const dismissedNote = dismissedShown ? [{ kind: 'dismissed', n: dismissedShown }] : [];
   /* The count in the head is what is actually in the column — after the
      dismissals, before the cap, since a card hidden by the cap is still one of
      them and says so in its own "more" line. */
   const n = meetings.length + messages.length + decide.length + talk.length;
-  return {
-    html: out
-      ? note + out + moreNote(capped.hidden) + dismissedNote
-      : note + dismissedNote + '<p class="empty">Nothing small enough to clear in a gap.</p>',
-    n,
-    sort: quickSortBtnHTML()
-  };
+  return refSectionBody(
+    out.length
+      ? note.concat(out, moreBlock(capped.hidden), dismissedNote)
+      : note.concat(dismissedNote, [{ kind: 'empty', which: 'quick' }]),
+    n, quickSortBtn());
 }
 
 function bigRocksSection(items){
   const rocks = items.filter(i => i.sub === null && i.impact === 'high' && i.effort === 'L' && !i.done);
-  if (!rocks.length) return { html: '<p class="empty">No high impact, L effort tasks.</p>', n: 0 };
+  if (!rocks.length) return refSectionBody([{ kind: 'empty', which: 'rocks' }], 0);
   const { shown, hidden } = capCards(rocks);
-  return { html: shown.map(i => refCard(i)).join('') + moreNote(hidden), n: rocks.length };
+  return refSectionBody([{ kind: 'cards', cards: shown.map(i => refModel(i)) }].concat(moreBlock(hidden)), rocks.length);
 }
 
 /* An item's own impact. Sub-steps are never scored, so one takes the score of
@@ -622,7 +608,7 @@ function chainSection(items){
    itself. What's on the row now is its position in the order shown. */
 function delegateSection(items){
   const eligible = items.filter(i => i.ai === 'full' && !i.done);
-  if (!eligible.length) return { html: '<p class="empty">Nothing is tagged <code>ai:full</code>.</p>', n: 0 };
+  if (!eligible.length) return refSectionBody([{ kind: 'empty', which: 'delegate' }], 0);
 
   const ranked = eligible
     .map((i, idx) => ({ i, idx }))
@@ -630,12 +616,9 @@ function delegateSection(items){
     .map(x => x.i);
 
   const { shown, hidden } = capCards(ranked);
-  const html = '<div class="refrank">' + shown.map((i, n) =>
-    '<div class="refrow"><span class="refnum">' + (n + 1) + '</span>' +
-      refCard(i, { prompt:true }) +
-    '</div>'
-  ).join('') + '</div>';
-  return { html: html + moreNote(hidden), n: ranked.length };
+  return refSectionBody(
+    [{ kind: 'ranked', cards: shown.map(i => refModel(i, { prompt:true })) }].concat(moreBlock(hidden)),
+    ranked.length);
 }
 
 /* ---- Small shared renderers ---- */

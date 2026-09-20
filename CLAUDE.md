@@ -235,11 +235,12 @@ built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
 written against, plus `mount()`, `mountFlushed()` and `unmount()`. Eight views
 are ported: Projects, Backups, the two report columns, Overview, the Matrix and
-the Timeline, Plans, and the Board itself (19 Sep 2026, below). What is still
-built as strings is the drawer, the header chrome (headline, filter bar, both
-tab strips), the conflict modal, and the bodies inside Overview, the Matrix and
-the Timeline. All of it sits behind one `state` object every view's mutation
-still has to remember to re-render.
+the Timeline, Plans, and the Board itself (19 Sep 2026, below), and since
+20 Sep 2026 the bodies inside Overview and the Matrix are components too. What
+is still built as strings is the drawer, the header chrome (headline, filter
+bar, both tab strips), the conflict modal, the message, agenda and Jira notes
+under an Overview card, and the Timeline's body. All of it sits behind one
+`state` object every view's mutation still has to remember to re-render.
 
 The point of doing the primitives first is that a column is one object across
 the whole app, and the section above is what rests on it. So `Column` is not a
@@ -420,6 +421,18 @@ markup did not move. Overview and the Timeline had no suite before this —
 `capMsgCards()`'s or `wireTimelineDrag()`'s work, which is the point: if
 `mountFlushed()` ever stopped being synchronous, one of those two would fail
 immediately rather than flicker on a slow machine and pass on a fast one.
+
+**Overview's and the Matrix's bodies went next**, 20 Sep 2026. Each section
+builder returns data (`{ body, count, sort }`, with `body` a component built by
+`BoardUI.h`) instead of `{ html, n }`, and `SectionBody` in `SectionsView.tsx`
+takes nodes as well as markup, which the Timeline still uses the old way. Overview's
+cards are `RefCard` in `kanban/ui/OverviewBodies.tsx`, Tenon's `Card` with the
+board's `ref` class kept on it; the Matrix is `MatrixBody` and `ChainBody`.
+Every control on them is an attribute the one delegated listener in
+`25-archiving.js` reads, not a prop, because that listener serves the drawer
+and Plans too. The Hide Waiting for review checkbox is the exception, a prop,
+with its `data-mxfilter` kept for the suite. The Matrix's hover preview draws
+`TaskCard` in its `static` form, which is why `cardHTML()` has no caller left.
 
 ## Reports is two columns of Overview
 

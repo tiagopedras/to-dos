@@ -238,6 +238,70 @@ check('Delegate to Claude numbers its rows', await evalJS(`
   document.querySelector('.lists.split .tenon-column:nth-child(5) .refnum')?.textContent
 `) === '1')
 
+/* ---- the cards: Tenon's Card, with the attributes the delegated listener reads ---- */
+
+/* A reference card is Tenon's Card with the board's `ref` class kept on it, and
+   every control on it is an attribute rather than a prop, because one listener
+   on #lists answers them here, in the drawer and on Plans alike. */
+/* The file's own \`id:\` tokens are not honoured at load, so a card is found by
+   its title rather than by an id the fixture wrote. */
+await evalJS(`window.__ref = t => [...document.querySelectorAll('.lists.split article.ref')]
+  .find(a => a.querySelector('.reftitle')?.textContent === t)`)
+check('a reference card is a Tenon card that keeps the ref class', await evalJS(`
+  !!document.querySelector('.lists.split article.tenon-card.ref[style*="--bc"]')
+`))
+check('its tick box is a checkbox naming the task', await evalJS(`(() => {
+  const b = __ref('Ship the redesign')?.querySelector('[data-tick]');
+  return !!b && b.getAttribute('role') === 'checkbox' && b.getAttribute('aria-checked') === 'false';
+})()`))
+check('its title opens the task', await evalJS(`
+  !!__ref('Ship the redesign')?.querySelector('.reftitle[data-open]')
+`))
+check('where it lives is spelled out under the title', await evalJS(`
+  __ref('Ship the redesign').querySelector('.refwhere').textContent
+`) === 'Tasks · To do', await evalJS(`__ref('Ship the redesign').querySelector('.refwhere').textContent`))
+check('This week offers Not this week', await evalJS(`
+  __ref('Standup notes')?.querySelector('[data-unweek]')?.textContent
+`) === 'Not this week')
+check('Quick wins offers Dismiss, and says what was left out', await evalJS(`
+  !!document.querySelector('.lists.split [data-quickdismiss]') && !!document.querySelector('.lists.split .refheld, .lists.split .refgroup')
+`))
+
+/* Dismissing is a preference about the list, kept in localStorage, and the
+   note that says so carries the way back. Both go through the delegated
+   listener, and the suite puts it back so it leaves no mark. */
+await evalJS(`document.querySelector('.lists.split [data-quickdismiss]').click()`)
+await new Promise(r => setTimeout(r, 150))
+check('Dismiss takes the card out and says how many are dismissed', await evalJS(`
+  /^1 dismissed\\./.test(document.querySelector('.lists.split .refmore')?.textContent || '') &&
+  !!document.querySelector('.lists.split [data-quickrestore]')
+`))
+await evalJS(`document.querySelector('.lists.split [data-quickrestore]').click()`)
+await new Promise(r => setTimeout(r, 150))
+check('and Show them again puts it back', await evalJS(`
+  !document.querySelector('.lists.split [data-quickrestore]') && !!document.querySelector('.lists.split [data-quickdismiss]')
+`))
+check('the Context column draws its standing facts as cards', await evalJS(`
+  document.querySelector('.lists.split .ref.ctx .ctxtext')?.textContent
+`) === 'The team runs a fortnightly retro.')
+
+/* A sub-step is a card of its own, and its line is what the tick and Not this
+   week send back. Line zero is a real line, so it must not be dropped as empty. */
+await evalJS(`(() => {
+  load([
+    '# To-do', '', '## 1. Tasks', '', '### To do', '',
+    '- [ ] Parent \`id:ov0010\` [bucket:: People]',
+    '  - [ ] Step one \`week\`',
+    ''
+  ].join('\\n'), 'demo.md', {});
+  state.locked = true;
+  state.view = 'overview'; renderView();
+})()`)
+check('a sub-step card names its line, zero included', await evalJS(`
+  __ref('Step one')?.querySelector('[data-unweek]')?.dataset.sub + '/' +
+  __ref('Step one')?.querySelector('[data-tick]')?.dataset.sub
+`) === '0/0', await evalJS(`__ref('Step one')?.outerHTML.slice(0, 300)`))
+
 /* ---- delegation still opens a card from a React-rendered section ---- */
 
 await evalJS(`document.querySelector('.lists.split [data-open]').click()`)
