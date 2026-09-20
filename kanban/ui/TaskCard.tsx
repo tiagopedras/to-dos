@@ -46,9 +46,13 @@ export interface TaskCardProps {
   bucketLabel: string
   draggable: boolean
   dragging: boolean
-  onOpen: (id: string) => void
-  onDragStart: (e: DragEvent<HTMLElement>, id: string) => void
-  onDragEnd: (e: DragEvent<HTMLElement>, id: string) => void
+  /** A picture of the card rather than one to act on: no focus, no role, no
+   *  handlers. The matrix's hover preview is one, and must not land in the tab
+   *  order or take a click meant for whatever is under it. */
+  static?: boolean
+  onOpen?: (id: string) => void
+  onDragStart?: (e: DragEvent<HTMLElement>, id: string) => void
+  onDragEnd?: (e: DragEvent<HTMLElement>, id: string) => void
 }
 
 function ChipSpan({ c }: { c: Chip }) {
@@ -59,7 +63,8 @@ function ChipSpan({ c }: { c: Chip }) {
 
 export function TaskCard(props: TaskCardProps) {
   const { model: m, stripe, bucketLabel, draggable, dragging, onOpen, onDragStart, onDragEnd } = props
-  const open = () => onOpen(m.id)
+  const still = !!props.static
+  const open = () => { if (onOpen) onOpen(m.id) }
   const key = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
   }
@@ -87,15 +92,15 @@ export function TaskCard(props: TaskCardProps) {
     <Card
       className={(m.cls + (dragging ? ' dragging' : '')).trim()}
       accent={stripe}
-      draggable={draggable}
+      draggable={still ? false : draggable}
       dragging={dragging}
-      tabIndex={0}
-      role="button"
+      tabIndex={still ? undefined : 0}
+      role={still ? undefined : 'button'}
       data-id={m.id}
-      onClick={open}
-      onKeyDown={key}
-      onDragStart={e => onDragStart(e, m.id)}
-      onDragEnd={e => onDragEnd(e, m.id)}
+      onClick={still ? undefined : open}
+      onKeyDown={still ? undefined : key}
+      onDragStart={still || !onDragStart ? undefined : e => onDragStart(e, m.id)}
+      onDragEnd={still || !onDragEnd ? undefined : e => onDragEnd(e, m.id)}
       eyebrow={bucketLabel ? <span className="bucket">{bucketLabel}</span> : undefined}
       title={<span dangerouslySetInnerHTML={{ __html: m.titleHTML }} />}
       tags={tags}

@@ -2138,6 +2138,9 @@
      The asymmetry is deliberate: the stripe is a mark, not a margin, so the
      text has to clear it by the same amount it clears the other edge. */
   .tenon-card{cursor:grab}
+  /* A ticket in the dependency chain is a Tenon Card that opens a task rather
+     than one you carry, so it takes the pointer and not the hand. */
+  .tenon-card.chaincard{cursor:pointer}
   .tenon-card:hover, .repitem:hover{border-color:var(--tenon-text-faint)}
   /* A card with nothing to mark. The component leaves the stripe off rather
      than drawing it in the line colour, and that difference is the whole

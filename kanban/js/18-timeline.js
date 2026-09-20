@@ -840,8 +840,8 @@ function renderSections(viewId){
     // The chain sits beside the matrix: both answer "what can I actually start",
     // one by score and one by what is still waiting on something else.
     BoardUI.mountFlushed(host, BoardUI.MatrixView({
-      impactEffort: toBody(matrixSection()),
-      dependencyChain: toBody(chainSection(items)),
+      impactEffort: matrixSection(),
+      dependencyChain: chainSection(items),
     }));
   } else if (viewId === 'timeline') {
     BoardUI.mountFlushed(host, BoardUI.TimelineView({ timeline: toBody(timelineSection()) }));

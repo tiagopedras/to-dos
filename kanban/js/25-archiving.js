@@ -354,14 +354,6 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') unpinMatrixPreview(); });
 
-/* The Matrix's own filter. A change event rather than click, since this is a
-   real checkbox and click would fire before its checked state settled. */
-$('#lists').addEventListener('change', e => {
-  if (!e.target.closest('[data-mxfilter]')) return;
-  state.matrixHideWaiting = e.target.checked;
-  refreshView();
-});
-
 /* Copy a ready-written message to the clipboard. Used by the list views and by
    the two suggestion sections at the bottom of the panel.
 

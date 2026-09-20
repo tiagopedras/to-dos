@@ -59,10 +59,7 @@ function matrixDot(t, color){
     t.blocked ? 'blocked' : '',
     di ? 'due ' + di.label + (di.note ? ', ' + di.note : '') : 'no date'
   ].filter(Boolean).join(', ');
-  return '<button class="mdot' + (t.headline ? ' hl' : '') + (t.urgent ? ' urgent' : '') +
-    (t.muted ? ' muted' : '') +
-    '" data-open="' + t.id + '" style="--bc:' + color + '"' +
-    ' aria-label="' + esc(label) + '"></button>';
+  return { id: t.id, color, label, headline: !!t.headline, urgent: !!t.urgent, muted: !!t.muted };
 }
 
 /* ---- Hover preview ----
@@ -105,17 +102,22 @@ function showMatrixPreview(dot, pin){
   const el = matrixPreview();
   const color = bucketColor(loc.bucket.name, state.doc.buckets.indexOf(loc.bucket));
   const where = loc.bucket.name + ' · ' + (loc.task.done ? DONE_COL : loc.tier.name);
-  el.innerHTML = cardHTML(loc.task, color, where, { static: true, muted: loc.tier.name === WAIT_COL, tier: loc.tier.name }) +
-    (pin ? '<button type="button" class="mopen">Open this task</button>' : '');
+  /* The board's own card, drawn by the component the board draws it with, and
+     flushed because placeMatrixPreview() below measures it. */
+  BoardUI.mountFlushed(el, BoardUI.h(BoardUI.Fragment, null,
+    BoardUI.h(BoardUI.TaskCard, {
+      model: cardModel(loc.task, { muted: loc.tier.name === WAIT_COL, tier: loc.tier.name }),
+      stripe: color, bucketLabel: where, draggable: false, dragging: false, static: true
+    }),
+    pin ? BoardUI.h('button', {
+      type: 'button', className: 'mopen',
+      onClick: () => { unpinMatrixPreview(); openDrawer(dot.dataset.open); }
+    }, 'Open this task') : null));
   el.classList.toggle('pinned', !!pin);
   // Inert while it is only a hover preview, so it cannot intercept a click
   // meant for whatever is underneath it.
   el.setAttribute('aria-hidden', pin ? 'false' : 'true');
-  if (pin) {
-    mPinned = true;
-    const btn = el.querySelector('.mopen');
-    if (btn) btn.onclick = () => { unpinMatrixPreview(); openDrawer(dot.dataset.open); };
-  }
+  if (pin) mPinned = true;
   el.classList.add('on');
   placeMatrixPreview(dot);
 }
@@ -219,6 +221,9 @@ function matrixTasks(){
   return out;
 }
 
+/* Everything the first Matrix column shows, as data for MatrixBody
+   (kanban/ui/MatrixBody.tsx), plus its count and its one control. Deciding
+   what is placed, parked or hidden stays here; drawing it is the component's. */
 function matrixSection(){
   const all = matrixTasks();
   const hideWaiting = state.matrixHideWaiting;
@@ -229,92 +234,55 @@ function matrixSection(){
   const placed = tasks.filter(t => IMPACT_N[t.impact] && EFFORT_N[t.effort]);
   const missing = tasks.filter(t => !IMPACT_N[t.impact] || !EFFORT_N[t.effort]);
 
-  /* The legend says what the dots mean; the checkbox says which of them are
-     drawn. Since 12 Sep 2026 only the first is in the body — narrowing what a
-     column shows is the column header's Filters slot, the same slot Plans'
-     dropdown and Reports' window picker sit in, so it goes back with the
-     section rather than inside it. */
-  const legend = '<div class="mlegend">' +
-    '<span class="mkey mkeyhl"><i></i>the one thing</span>' +
-    '<span class="mkey mkeyurg"><i></i>urgent</span>' +
-    '<span class="mkey mkeymuted"><i></i>waiting or blocked</span>' +
-  '</div>';
-  const filters = '<label class="mxfilter"><input type="checkbox" data-mxfilter' +
-    (hideWaiting ? ' checked' : '') + '> Hide Waiting for review</label>';
-
-  let grid = '<div class="mgrid">' +
-    '<div class="mcorner">' +
-      '<span class="maxis">Effort →</span>' +
-      '<span class="maxis">↓ Impact</span>' +
-    '</div>' +
-    MATRIX_EFFORT.map(e => '<div class="mhead">' + esc(e) +
-      '<span class="mhint">' + esc(EFFORT_HINT[e]) + '</span></div>').join('');
-
-  MATRIX_IMPACT.forEach(imp => {
-    grid += '<div class="mside">' + esc(imp) + '</div>';
-    MATRIX_EFFORT.forEach(eff => {
+  const rows = MATRIX_IMPACT.map(imp => ({
+    impact: imp,
+    cells: MATRIX_EFFORT.map(eff => {
       const key = imp + '/' + eff;
-      const inCell = placed.filter(t => t.impact === imp && t.effort === eff);
-      const score = IMPACT_N[imp] / EFFORT_N[eff];
-      grid += '<div class="mcell' + (key === 'high/S' ? ' first' : '') +
-          (inCell.length ? '' : ' empty') + '" data-score="' + score.toFixed(2) + '"' +
-          ' style="--w:' + score.toFixed(2) + '">' +
-        '<div class="mcellhead">' +
-          '<span class="madvice">' + esc(CELL_ADVICE[key]) + '</span>' +
-          '<span class="mcount">' + inCell.length + '</span>' +
-        '</div>' +
-        '<div class="mdots">' + inCell.map(t => matrixDot(t, t.color)).join('') + '</div>' +
-      '</div>';
-    });
-  });
-  grid += '</div>';
-
-  const tray = missing.length
-    ? '<div class="mtray"><div class="mtrayhead">' +
-        '<strong>' + missing.length + ' not on the matrix</strong>' +
-        '<span>Missing an impact or an effort score, so they have no position. ' +
-        'Click one to score it.</span></div>' +
-        '<div class="mdots">' + missing.map(t => matrixDot(t, t.color)).join('') + '</div>' +
-      '</div>'
-    : '';
-
-  const holdTray = held.length
-    ? '<div class="mtray mhold"><div class="mtrayhead">' +
-        '<strong>' + held.length + ' in ' + esc(HELD_TIER) + '</strong>' +
-        '<span>Parked on purpose, so they are kept off the grid however they ' +
-        'score. Move one out of ' + esc(HELD_TIER) + ' and it takes its ' +
-        'cell.</span></div>' +
-        '<div class="mdots">' + held.map(t => matrixDot(t, t.color)).join('') + '</div>' +
-      '</div>'
-    : '';
+      return {
+        key,
+        advice: CELL_ADVICE[key],
+        score: (IMPACT_N[imp] / EFFORT_N[eff]).toFixed(2),
+        first: key === 'high/S',
+        dots: placed.filter(t => t.impact === imp && t.effort === eff).map(t => matrixDot(t, t.color))
+      };
+    })
+  }));
 
   const total = placed.length;
   /* Counted on what he could pick up today. A high impact, cheap task that is
      waiting on a review or on another task is not a place to start, so it is
      left out of the advice even though its dot is still in the cell. */
-  const cheapWins = placed.filter(t => t.impact === 'high' && t.effort === 'S' && !t.muted).length;
-  const cut = placed.filter(t => t.impact === 'low' && t.effort === 'L').length;
-  const heavy = placed.filter(t => t.effort === 'L').length;
-  const waiting = placed.filter(t => t.muted).length;
-  let read = '';
-  if (total) {
-    const bits = [];
-    bits.push(cheapWins
-      ? '<strong>' + cheapWins + '</strong> high impact and cheap — start there'
-      : 'nothing is both high impact and cheap right now');
-    bits.push('<strong>' + heavy + '</strong> of ' + total + ' need a week or more');
-    if (cut) bits.push('<strong>' + cut + '</strong> in the cut corner');
-    if (waiting) bits.push('<strong>' + waiting + '</strong> waiting or blocked');
-    read = '<p class="mread">' + bits.join(' · ') + '</p>';
-  }
+  const read = total ? {
+    total,
+    cheapWins: placed.filter(t => t.impact === 'high' && t.effort === 'S' && !t.muted).length,
+    heavy: placed.filter(t => t.effort === 'L').length,
+    cut: placed.filter(t => t.impact === 'low' && t.effort === 'L').length,
+    waiting: placed.filter(t => t.muted).length
+  } : null;
 
-  const hiddenNote = hiddenWaiting
-    ? '<p class="mhidden">' + hiddenWaiting + ' hidden, sitting in Waiting for review.</p>'
-    : '';
+  const model = {
+    efforts: MATRIX_EFFORT.map(e => ({ key: e, hint: EFFORT_HINT[e] })),
+    rows,
+    read,
+    hiddenWaiting,
+    unplaced: missing.map(t => matrixDot(t, t.color)),
+    held: held.length ? { tier: HELD_TIER, dots: held.map(t => matrixDot(t, t.color)) } : null
+  };
+
+  /* The legend says what the dots mean; the checkbox says which of them are
+     drawn. Since 12 Sep 2026 only the first is in the body — narrowing what a
+     column shows is the column header's Filters slot, the same slot Plans'
+     dropdown and Reports' window picker sit in, so it goes back with the
+     section rather than inside it. */
+  const filters = BoardUI.h('label', { className: 'mxfilter' },
+    BoardUI.h('input', {
+      type: 'checkbox', checked: hideWaiting, 'data-mxfilter': '',
+      onChange: e => { state.matrixHideWaiting = e.target.checked; refreshView(); }
+    }),
+    ' Hide Waiting for review');
 
   /* Counted on the grid rather than on the list behind it: the two trays under
      it say their own numbers, and a head count that included them would be a
      number matching nothing visible in the cells. */
-  return { html: legend + read + hiddenNote + grid + tray + holdTray, n: placed.length, filters };
+  return { body: BoardUI.h(BoardUI.MatrixBody, { model }), count: placed.length, filters };
 }
-

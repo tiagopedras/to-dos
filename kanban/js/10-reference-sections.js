@@ -594,43 +594,21 @@ function byPriority(items, list){
 
 function chainSection(items){
   const blocked = items.filter(i => i.blockedBy.length && !i.done);
-  if (!blocked.length) return { html: '<p class="empty">Nothing carries a <code>blocked-by:</code> tag.</p>', n: 0 };
-
   const { order, weight } = byPriority(items, blocked);
 
-  const html = order.map(i => {
-    const deps = i.blockedBy.map(slug => {
+  const ticket = it => ({
+    id: it.id, color: it.color, titleHTML: mdInline(it.title), done: !!it.done,
+    where: [it.bucket, it.done ? DONE_COL : it.tier].filter(Boolean).join(' \u00b7 ')
+  });
+  const entries = order.map(i => ({
+    target: ticket(i),
+    blockers: i.blockedBy.map(slug => {
       const src = itemBySlug(items, slug);
-      const card = src ? chainCard(src, { dep:true }) : chainMissing(slug);
-      return '<div class="chaindep">' + card + '<span class="chainarrow" aria-hidden="true">→</span></div>';
-    }).join('');
-    return '<div class="chainitem">' +
-      '<div class="chainrow">' +
-        '<div class="chainfrom">' + deps + '</div>' +
-        chainCard(i, { target:true }) +
-      '</div>' +
-      (weight.get(i) > itemImpact(i)
-        ? '<div class="chainholds">Holds up higher impact work</div>' : '') +
-    '</div>';
-  }).join('');
-  return { html, n: blocked.length };
-}
-
-/* One mini ticket in the chain — a blocker (dashed, dep:true) or the card
-   waiting on it (target:true). Both open the full task on click. */
-function chainCard(it, opts){
-  opts = opts || {};
-  const cls = 'chaincard' + (opts.dep ? ' dep' : '') + (opts.target ? ' target' : '') + (it.done ? ' done' : '');
-  return '<div class="' + cls + '" style="--bc:' + it.color + '" data-open="' + it.id + '" title="Open this task">' +
-    '<span class="chaintitle">' + mdInline(it.title) + (it.done ? ' ✓' : '') + '</span>' +
-    '<div class="chainwhere">' + esc([it.bucket, it.done ? DONE_COL : it.tier].filter(Boolean).join(' · ')) + '</div>' +
-  '</div>';
-}
-
-function chainMissing(slug){
-  return '<div class="chaincard dep missing" title="No task carries this slug">' +
-    '<span class="chaintitle">#' + esc(slug) + ' missing</span>' +
-  '</div>';
+      return src ? ticket(src) : { slug, color: '', titleHTML: '', where: '', done: false };
+    }),
+    holdsHigher: weight.get(i) > itemImpact(i)
+  }));
+  return { body: BoardUI.h(BoardUI.ChainBody, { entries }), count: blocked.length };
 }
 
 /* Only ai:full work belongs here, and the ai: tag is the gate. Manual

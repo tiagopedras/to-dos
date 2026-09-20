@@ -33,10 +33,15 @@ import {
    from `matrixSection()`, or a plainer version of the same shape from the
    Overview and Timeline builders. */
 export interface SectionBody {
-  bodyHTML: string
+  /** The body as markup a builder rendered, or as nodes. A section is one or
+   *  the other; the Matrix has moved to nodes and the rest have not. */
+  bodyHTML?: string
+  body?: ReactNode
   count?: number | null
   sortHTML?: string
+  sort?: ReactNode
   filtersHTML?: string
+  filters?: ReactNode
 }
 
 /* One column, built the way every one of the eight below is: a hardcoded
@@ -59,13 +64,13 @@ function Section(props: {
       title={title}
       desc={hint}
       count={body.count != null ? body.count : null}
-      sort={body.sortHTML ? <span dangerouslySetInnerHTML={{ __html: body.sortHTML }} /> : null}
-      filters={body.filtersHTML ? <span dangerouslySetInnerHTML={{ __html: body.filtersHTML }} /> : null}
+      sort={body.sort ?? (body.sortHTML ? <span dangerouslySetInnerHTML={{ __html: body.sortHTML }} /> : null)}
+      filters={body.filters ?? (body.filtersHTML ? <span dangerouslySetInnerHTML={{ __html: body.filtersHTML }} /> : null)}
       className="refcol prose"
       collapsible={collapsible}
       collapseKey={collapseKey}
       open={open}
-      children={<span dangerouslySetInnerHTML={{ __html: body.bodyHTML }} />}
+      children={body.body ?? <span dangerouslySetInnerHTML={{ __html: body.bodyHTML ?? '' }} />}
     />
   )
 }
