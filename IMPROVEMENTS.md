@@ -22,7 +22,10 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `PRODUCTION` (`agents/plan-agent/stream.py:83`) lists the four stages and `FM_KEYS` (`:84`)
   carries the key, but `agents/plan-agent/stream.json` names it under neither `fields` nor
   `states`. The board and `do` read it directly. To be discussed before anything is built: does
-  it belong in `fields`, or is it a second state axis that `CONTRACT.md` should name?
+  it belong in `fields`, or is it a second state axis that `CONTRACT.md` should name? Moot
+  since 21 Sep 2026: the sub-task entry at the top of Big makes the sub-tasks the only place
+  a plan's state lives, so `state:` and `production:` leave the plan documents. It closes
+  when stage 7 of `handover-one-board.md` lands.
 
 - **On a phone, Plans opens on its first column, an empty Backlog, with the plans waiting for review four columns to the right and nothing saying so.**
   Board has a column switcher on a phone, `renderColTabs()`
@@ -536,22 +539,75 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **An agent's part of a task has nowhere to live on the card, so planning and implementing are tracked on a separate board.**
+  Agreed 21 Sep 2026 between two sessions and Tiago: planning and implementing become
+  sub-tasks of the task they serve. Handing a task to the Plan agent moves the card to Doing
+  and adds four sub-tasks, each `blocked-by` the one before, on the dependency model the list
+  already has (`slug_states()` and `is_blocked()`, `core/todo.py:665`): Plan (Plan agent),
+  Review the plan (Tiago), Implement (Implement agent), Review the work (Tiago). A task that
+  already describes a way forward can be handed straight to the Implement agent, and then
+  gets only the last two. That handover does not let a runner take it alone: unattended runs
+  are still gated by the work-type list in the entry below. The board mints the four slugs
+  from the task's id plus the step (`ab12cd-plan`, `ab12cd-plan-review`, `ab12cd-implement`,
+  `ab12cd-work-review`), so they stay unique across the file and readable, as the slug rule
+  at `CONVENTIONS.md:80` asks. An agent ticks its own sub-task when it finishes, which
+  unblocks Tiago's review. Approving is ticking a review sub-task. Each review sub-task opens
+  a chat with the agent that did the work (`openPlanChat()`, `kanban/js/13-plans.js:390`),
+  and "Review the plan" carries a note pointing at the plan document, like the `Project:`
+  note, so the chat knows which plan to open. Sending back unticks the sub-task before it
+  with a `feedback` line, so the agent takes it up again and the review blocks again. The
+  card moves to Reviewing when Implement is ticked, back to Doing if Implement is unticked by
+  a send-back, and a ticked Plan leaves it in Doing. Ticking the parent still ticks every
+  sub-task (`kanban/js/04-tier-two-the-one-thing.js:457`). The hierarchy stays as
+  indentation under the parent (`subSteps()`, `kanban/js/06-dates-substeps.js:55`), one level
+  deep, with nothing written for "parent". A sub-task carries every tag a task does on its
+  own line, plus a six-character id as in `PACKAGES/work-streams/CONTRACT.md`, since a line
+  number shifts on every edit. Its only state tag is Doing, for an agent working on it now:
+  an unticked line is To do, the tick is Done, and "waiting on Tiago" is worked out (open,
+  assigned to him, blocker ticked). A field it does not carry takes its parent's (bucket,
+  project, due, impact, tags); state, assignee, `seen`, `feedback` and `resolution` never
+  inherit. The assignee is `[to::]`, the spelling Big 14's Delegate to uses. It is not the
+  contract's `owner`, which is who moves the item next, so the stream derives `owner` from
+  assignee plus state. Agents never write `todo.md`: each writes a request ("tick sub-task
+  <id>") to a queue file the board drains through its own edit path, the same route as
+  `attach-queue.json` (`drainAttachQueue()`, `kanban/js/10-reference-sections.js:832`). The
+  board applies a tick only from the agent the sub-task is assigned to, checked against
+  `[to::]`, so an agent cannot tick a review and approve itself. Nothing shows until the
+  board is next opened, and an unattended runner needs a ledger, as `agents/plan-agent` keeps
+  in `ledger.json`, so it does not pick up a sub-task whose tick is still unapplied. The card
+  shows "your move" in the accent colour when a sub-task assigned to Tiago is open with its
+  blocker ticked, and the Doing header counts those cards; this replaces Plans' Waiting for
+  review column. The card's progress bar stays as it is. A sub-task opens in the task drawer (`openDrawer()`, `kanban/js/19-drawer.js:820`) with its
+  inherited values greyed, and a button at its top left goes back to the parent. Built on the
+  `one-board` branch, planned in `handover-one-board.md`.
+
 - **The implementing agent only runs with Tiago in the room because nothing says which kinds of work it can do alone.**
   `do` (`agents/implement-agent/skills/do/SKILL.md`, "What this skill never does") forbids
   any schedule, decided 6 Sep 2026, and `implement-agent.md` relies on that: it holds Write
   and Edit but no Bash (line 4), and its only safety net is that it can stop and ask.
   `AGENTS/improve-agent` runs alone because its work is one type, code in a repo, and its
   guards fit that type: an `improve/<date>` branch, a clean-tree refusal, tests, no merge and
-  no push. The implementing agent's plans are several types (a drafted message, a lookup, a
-  document, a change to a skill), and only some of them can be guarded that way. The change is
-  a written list of work types it may do unattended, each either pre-approved, so a plan of
-  that type needs no accept step, or guarded, so it runs on a branch or in an isolated project
-  folder and lands in Review. Each type states where it may write, what it may never do and
-  what counts as finished. A plan then carries its type, `do` and any runner refuse a type not
-  on the list, and the runner is the schedule file and `run.sh` the
-  `agents/implement-agent/README.md` already describes, on the same `agent.json` contract
-  as `agents/plan-agent`. The handover-level entry (off, plan first, just do it) and the
-  entry on what the implementing agent produces are blocked on the same list of types.
+  no push. The implementing agent's plans are several types, and only some of them can be
+  guarded that way. Decided 21 Sep 2026: it may run without an accept step on six. Two are
+  pre-approved because they only add new files inside one project folder and send nothing: a
+  write-up (brief, audit, recommendations) and a draft to send (message, comment, ticket text).
+  Three are guarded because they may sit beside something that exists: a draft prompt or skill,
+  working data (YAML, JSON, spreadsheets) and a deck. They write into the project folder, never
+  replace an existing file, and follow a fixed version-naming rule. The sixth is Figma work,
+  guarded by four rules: it only works on a page it created empty, never on a page with existing
+  layers, never edits an existing main component or any text, colour or other style, and gives
+  variables as suggestions in text only. It also needs the desktop app open on the right file
+  with the Figma Console bridge paired, and `implement-agent.md` holds no Figma tools today
+  (line 4). Anything off the list stays with `do` and a person in the room. Still to decide:
+  the version-naming rule, and what starts a run without an accept step, either the planner
+  accepting a plan of a pre-approved type itself or the agent picking tasks by tag. The list
+  goes first. The runner follows it: the schedule file and `run.sh` that
+  `agents/implement-agent/README.md` describes, on the same `agent.json` contract as
+  `agents/plan-agent`. The handover-level entry (off, plan first, just do it) and the entry on
+  what the implementing agent produces are blocked on the same list of types. Approval is
+  carried by the review sub-tasks in the entry above this one, and this list decides which
+  work a runner may take on its own, including a task handed straight to the Implement
+  agent.
 
 - **The app and its data sit in one checkout, so the hosted web version can only ever show `demo.md` and cannot work on a data folder on the person's own machine.**
   `ROOT` and `DATA = "data"` (`kanban/server.py:41`, `:74`) put every dataset at
@@ -670,6 +726,11 @@ they settled is written up in the README rather than left here:
   task never passes through an agent step. Settled the same day: the four columns stand, but they
   say only the state of the card. Who does the work is the task's or sub-task's
   assignee, never the column (`AGENTS/ux_agent/knowledge/disputes/columns-by-whose-move.md`).
+  The columns, settled with Tiago later the same day: Backlog, To do, Doing, Reviewing, Done.
+  Backlog stays. Waiting for review is renamed Reviewing. Blocked goes, and its tasks move to
+  Reviewing. Handed to AI goes. Done becomes a real heading, a state like any other. A card
+  stays on the board for the whole life of its task, and the agents' part shows as sub-tasks
+  (entry at the top of Big). Sorting stays as it was before an agent picked the task up.
 
 - **Once a task is handed over, the card cannot say whether the agent has started, is stuck, is waiting on you or has finished.**
   The only signal on the card is the gear `colgear` draws in `kanban/js/09-columns.js:539`,
