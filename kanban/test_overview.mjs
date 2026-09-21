@@ -96,7 +96,7 @@ await evalJS(`(() => {
     '- [ ] Standup notes \`id:ov0002\` [bucket:: People] [impact:: med] [effort:: S] \`week\`',
     '- [ ] Reply to Sam \`id:ov0003\` [bucket:: People] [impact:: med] [effort:: S]',
     '  - Suggested message: "' + longMessage + '"',
-    '- [ ] Export the report \`id:ov0004\` [bucket:: People] [impact:: high] [effort:: M] \`ai:full\` \`rank:1\`',
+    '- [ ] Export the report \`id:ov0004\` [bucket:: People] [impact:: high] [effort:: M] [to:: Implement agent] \`rank:1\`',
     '',
     '## Context', '',
     '- The team runs a fortnightly retro.',
@@ -147,8 +147,10 @@ const countOf = title => evalJS(`(() => {
 
 check('Big rocks counts the one L task', await countOf('Big rocks') === '1')
 check('This week counts the one week-tagged task', await countOf('This week') === '1')
-check('Quick wins counts the message task', await countOf('Quick wins') === '1')
-check('Delegate to Claude counts the one ai:full task', await countOf('Delegate to Claude') === '1')
+/* The S task with nobody named is his, so it counts beside the message task.
+   Until 21 Sep 2026 an untagged task was skipped for having no `ai:`. */
+check('Quick wins counts the message task and the small one', await countOf('Quick wins') === '2')
+check('Delegate to Claude counts the one Implement agent task', await countOf('Delegate to Claude') === '1')
 
 /* ---- the two report columns, at the end of the same row ---- */
 

@@ -19,7 +19,7 @@ import vm from 'node:vm'
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url))
 const CORE = path.join(HERE, '..')
-const WANTED = ['parseTask', 'serializeTask', 'parseDoc', 'serializeDoc', 'mintId', 'idsInDoc']
+const WANTED = ['parseTask', 'serializeTask', 'parseDoc', 'serializeDoc', 'mintId', 'idsInDoc', 'agentOf']
 const board = vm.runInNewContext(
   fs.readFileSync(path.join(CORE, 'todo.js'), 'utf8') + '\n;({ ' + WANTED.join(', ') + ' });\n',
   {}, { filename: 'core/todo.js' })
@@ -30,7 +30,7 @@ const old = JSON.parse(fs.readFileSync(path.join(HERE, 'parse.json'), 'utf8'))
    the other shows up as a missing key rather than as nothing at all. `id` is
    not here: it is uid(), fresh every parse, and means nothing outside one tab. */
 const FIELDS = ['done', 'title', 'bold', 'impact', 'effort', 'due', 'start', 'doneOn',
-  'ai', 'to', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
+  'to', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
   'chat', 'repeat', 'stableId', 'cancelled', 'archived', 'extra']
 
 /* New cases, appended as the grammar grows. The existing lines are untouched
@@ -47,8 +47,20 @@ const NEW_LINES = [
   '- [ ] **An id in the other syntax is read too** [id:: qq11qq]',
   '- [ ] **An id is lowercased like a slug and a chat key** `id:AB12CD`',
   '- [ ] **An unknown tag still rides along beside an id** `id:ab12cd` `mystery:7`',
-  '- [x] **A finished task keeps its id** `done:2026-09-10` `id:ff00ff`'
+  '- [x] **A finished task keeps its id** `done:2026-09-10` `id:ff00ff`',
+  /* 21 Sep 2026: `[to::]` names who does the work, an agent included, and
+     `ai:` is dropped on read in either syntax, so it never comes back out. */
+  '- [ ] **Handed to the Plan agent** [impact:: med] [to:: Plan agent] `id:pl4n00`',
+  '- [ ] **Handed to the Implement agent** [to:: Implement agent] `rank:2`',
+  '- [ ] **A backup from before the assignee field** [impact:: high] [ai:: full] `rank:3`',
+  '- [ ] **The old syntax of the retired tag goes too** `ai:partial` [to:: Rita]'
 ]
+
+/* What agentOf() makes of whatever `[to::]` holds: an agent's canonical
+   spelling, or '' for a person or nobody. Both suites check todo.py's agent_of
+   against it. */
+const AGENT_INPUTS = ['Plan agent', 'Implement agent', 'plan AGENT', '  Implement agent ',
+  'Rita', '', 'Planning Agent', 'Claude']
 
 const caseFor = line => {
   const t = board.parseTask([line])
@@ -103,6 +115,7 @@ const docFor = d => {
 const out = {
   _: old._,
   fields: FIELDS,
+  agents: AGENT_INPUTS.map(to => ({ to, agent: board.agentOf(to) })),
   /* De-duplicated by line, so re-running this is idempotent. Without it the
      generator reads back its own output and appends the new cases a second
      time, which is quietly wrong rather than loud. */

@@ -4,6 +4,30 @@
    5. Drawer
    ========================================================================= */
 
+/* The names Delegate to offers after the two agents, read from the tables in
+   data/<dataset>/people.md by /people.json so nobody keeps a second list. Asked
+   for once per page load. Empty until it lands, or for good where there is no
+   server (the demo build), and then the dropdown offers the agents alone. */
+let peopleNames = [];
+fetch('/people.json', { cache: 'no-store' })
+  .then(r => r.ok ? r.json() : { people: [] })
+  .then(d => { peopleNames = (d && d.people || []).map(p => p.name).filter(Boolean); })
+  .catch(() => {});
+
+function delegateSelectHTML(value, dis){
+  const cur = String(value || '').trim();
+  const opt = (v, label) => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>';
+  /* A name already on the task that people.md does not list, "Ana" where the
+     file says "Ana da C.", stays offered as written rather than silently lost. */
+  const known = new Set(AGENT_NAMES.concat(peopleNames));
+  const people = peopleNames.slice();
+  if (cur && !agentOf(cur) && !known.has(cur)) people.unshift(cur);
+  return '<select id="f-to"' + dis + '>' + opt('', 'Nobody') +
+    '<optgroup label="Agents">' + AGENT_NAMES.map(a => opt(agentOf(cur) === a ? cur : a, a)).join('') + '</optgroup>' +
+    (people.length ? '<optgroup label="People">' + people.map(p => opt(p)).join('') + '</optgroup>' : '') +
+  '</select>';
+}
+
 function dedent(lines){ return lines.map(l => l.replace(/^ {1,2}/, '')).join('\n').replace(/\n+$/, ''); }
 function indent(text){
   return text.replace(/\s+$/,'').split('\n').map(l => l.trim() === '' ? '' : '  ' + l);
@@ -134,22 +158,15 @@ function calendarHTML(month, selected){
       '<button type="button" class="calsm" data-day="">Clear</button>' +
     '</div>';
 }
-/* ai:, impact:, effort: and the task's column all pick from a short, known
-   set of values, so all four are drawn with the same fixed-stop slider. Each
+/* impact:, effort: and the task's column all pick from a short, known
+   set of values, so all three are drawn with the same fixed-stop slider. Each
    caller supplies its own ordered list of {value, label, color} stops —
    color is optional, and only meaningful on the stop actually selected, so a
    trailing stop with no color just keeps whatever the previous one set.
 
    impact: and effort: keep a blank stop at position 0 rather than folding it
    into the lowest real value, because unscored is a real, load-bearing state
-   here — the matrix and the "needs scoring" count both key off it — where
-   ai:'s blank and ai:none were never told apart anywhere else, which is why
-   that slider only got three stops instead of four. */
-const AI_STOPS = [
-  { value: 'none', label: 'None', color: 'var(--tenon-text-faint)' },
-  { value: 'partial', label: 'Partial', color: 'var(--tenon-text-warning)' },
-  { value: 'full', label: 'Full', color: 'var(--tenon-text-success)' },
-];
+   here — the matrix and the "needs scoring" count both key off it. */
 const IMPACT_STOPS = [
   { value: '', label: '—', color: 'var(--tenon-text-faint)' },
   { value: 'low', label: 'Low', color: 'var(--tenon-text-faint)' },
@@ -936,12 +953,10 @@ function openDrawer(id, focusTitle){
       '<div class="field"><span>Effort</span>' + stepSliderHTML('f-effort', EFFORT_STOPS, t.effort, ro, 'Effort') + '</div>' +
     '</div>' +
     '<div class="grid2">' +
-      '<div class="field"><span>Who does it (ai:)</span>' + stepSliderHTML('f-ai', AI_STOPS, t.ai, ro, 'How much of this AI can do') + '</div>' +
-      /* A person, not Claude. Left blank on anything he is doing himself, which
-         is most of the list, so the card shows nothing until it is filled in. */
-      '<label class="field"><span>Delegated to</span>' +
-        '<input type="text" id="f-to" value="' + esc(t.to || '') + '" placeholder="Nobody"' + dis + '>' +
-        '<span class="help">A name. Shows on the card.</span>' +
+      /* One question, one field: who does the work. Left on Nobody for
+         anything he is doing himself, which is most of the list. */
+      '<label class="field"><span>Delegate to</span>' + delegateSelectHTML(t.to, dis) +
+        '<span class="help">The Plan agent plans it and stops. The Implement agent carries it out.</span>' +
       '</label>' +
     '</div>' +
     /* Two dates, because one was doing two jobs. "Can start" is when the work
@@ -1056,26 +1071,26 @@ function openDrawer(id, focusTitle){
   const touch = () => { t.dirty = true; markDirty(); refreshView(); };
 
   $('#f-title').oninput  = e => { t.title = e.target.value; touch(); };
-  // Not trimmed here, or a space between a first and last name would vanish as
-  // it is typed. serializeTask trims it on the way to the file.
-  $('#f-to').oninput     = e => { t.to = e.target.value; touch(); };
-  wireStepSlider('f-impact', IMPACT_STOPS, v => { t.impact = v; touch(); });
-  wireStepSlider('f-effort', EFFORT_STOPS, v => { t.effort = v; touch(); });
-  wireStepSlider('f-ai', AI_STOPS, v => {
-    t.ai = v;
-    if (t.ai !== 'full') {
+  $('#f-to').onchange = e => {
+    const was = agentOf(t.to);
+    t.to = e.target.value;
+    /* Taken back off the agents altogether: the prompt and the rank go with it,
+       or they read as a standing instruction to hand it over. */
+    if (was && !agentOf(t.to)) {
       const dropped = stripDelegation(t);
       if (dropped.length) {
         touch();
         openDrawer(id);
         $('#status').textContent = 'removed ' + dropped.length + ' prompt' +
-          (dropped.length > 1 ? 's' : '') + ' — no longer ai:full';
+          (dropped.length > 1 ? 's' : '') + ' — no longer with an agent';
         $('#status').classList.add('dirty');
         return;
       }
     }
     touch();
-  });
+  };
+  wireStepSlider('f-impact', IMPACT_STOPS, v => { t.impact = v; touch(); });
+  wireStepSlider('f-effort', EFFORT_STOPS, v => { t.effort = v; touch(); });
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };
   hlBtn.onclick = () => { if (t.headline) clearHeadline(false); else setHeadline(id); };
   wireDatePicker(t, touch, 'start');

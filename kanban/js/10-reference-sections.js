@@ -165,7 +165,7 @@ function allItems(){
         id: t.id, task: t, sub: null, color,
         bucket: b.name, tier: tier.name, parent: '',
         title: t.title, done: t.done,
-        due: t.due, start: t.start, ai: t.ai, impact: t.impact, effort: t.effort,
+        due: t.due, start: t.start, to: t.to, impact: t.impact, effort: t.effort,
         urgent: t.urgent, week: t.week, rank: t.rank,
         slug: t.slug, blockedBy: t.blockedBy || [],
         message: own.message, draft: own.draft, prompt: own.prompt, jira: own.jira,
@@ -182,7 +182,9 @@ function allItems(){
           /* A step cannot begin before the task it sits inside can, so it takes
              the later of its own start and its parent's. */
           start: laterOf(s.start, t.start),
-          ai: s.ai || t.ai, impact: '', effort: '',
+          /* Who does a step is the step's own answer, never the parent's: a
+             task handed to an agent does not hand every step in it over too. */
+          to: s.to, impact: '', effort: '',
           urgent: false, week: s.week, rank: s.rank,
           slug: s.slug, blockedBy: s.blockedBy,
           message: meta.message, draft: meta.draft, prompt: meta.prompt, jira: meta.jira,
@@ -269,7 +271,8 @@ function refChips(it){
   if (it.urgent) chips.push({ cls: 'tag urgent', text: 'urgent' });
   if (it.impact) chips.push({ cls: 'tag impact-' + it.impact, text: IMPACT_EMOJI[it.impact] || it.impact, title: it.impact + ' impact' });
   if (it.effort) chips.push({ cls: 'tag', text: it.effort });
-  if (it.ai && it.ai !== 'none') chips.push({ cls: 'tag ai ai-' + it.ai, text: 'ai', title: it.ai + ' AI help' });
+  if (it.to && it.to.trim()) chips.push({ cls: 'tag who', text: '→ ' + it.to.trim(),
+    title: 'Delegated to ' + it.to.trim() });
   return chips;
 }
 
@@ -291,7 +294,7 @@ function refModel(it, opts){
   if (opts.message && it.message) {
     body += messageHTML(it.message, { draft: it.draft });
   }
-  /* Switching a task to ai:full puts it here straight away, but the prompt is
+  /* Delegating a task to the Implement agent puts it here straight away, but the prompt is
      written by hand and lags behind the tag. Say so on the card, otherwise a
      task with nothing to paste looks the same as one that is ready to go. */
   if (opts.prompt) {
@@ -375,8 +378,8 @@ function weekSection(items){
    start — so it is left out. The count of what was held back is shown, because
    a section that quietly shrinks looks like a section with nothing in it.
 
-   Anything tagged ai:full is left out too. Delegate to Claude already lists
-   every one of them, ranked, and the two columns sit side by side on Overview —
+   Anything delegated to the Implement agent is left out too. Delegate to
+   Claude already lists every one of them, ranked, and the two columns sit side by side on Overview —
    the same card in both reads as two jobs when it is one. Quick wins is what is
    left for him to do himself.
 
@@ -417,9 +420,10 @@ function quickSortBtn(){
 }
 
 function quickSection(items){
-  // ai:full belongs to Delegate to Claude, and Backlog is not a real priority —
-  // neither belongs here.
-  const open = items.filter(i => !i.done && i.ai !== 'full' && i.tier !== HELD_TIER);
+  // The Implement agent's work belongs to Delegate to Claude, and Backlog is
+  // not a real priority — neither belongs here.
+  const implementing = i => agentOf(i.to) === 'Implement agent';
+  const open = items.filter(i => !i.done && !implementing(i) && i.tier !== HELD_TIER);
   // Two separate reasons something is not a quick win yet: it waits on another
   // task, or its start date has not arrived. Neither is about the deadline —
   // an overdue task is the most actionable thing on the list, not the least.
@@ -427,7 +431,7 @@ function quickSection(items){
   const live = quickSortMode() === 'due' ? actionableNow.slice().sort(byDue) : byPriority(items, actionableNow).order;
   const heldByDep = open.filter(i => !actionable(items, i)).length;
   const heldByDate = open.filter(i => actionable(items, i) && notYet(i.start)).length;
-  const heldByBacklog = items.filter(i => !i.done && i.ai !== 'full' && i.tier === HELD_TIER).length;
+  const heldByBacklog = items.filter(i => !i.done && !implementing(i) && i.tier === HELD_TIER).length;
   const isS = i => i.sub === null && i.effort === 'S';
   const seen = new Set();
   const take = arr => arr.filter(i => { const k = i.id + '|' + i.title; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -475,8 +479,10 @@ function quickSection(items){
      what says that, so a second answer to the same question is not wanted. */
   const preMeetings = take(live.filter(i => i.repeat && i.agenda && i.sub === null).sort(byDue));
   const preMessages = take(live.filter(i => i.message));
-  const preDecide   = take(live.filter(i => isS(i) && i.ai === 'partial'));
-  const preTalk     = take(live.filter(i => isS(i) && i.ai === 'none'));
+  /* A small task with the Plan agent comes back as a plan to say yes or no
+     to. Anything else small is his, or waits on the person it names. */
+  const preDecide   = take(live.filter(i => isS(i) && agentOf(i.to) === 'Plan agent'));
+  const preTalk     = take(live.filter(i => isS(i) && !agentOf(i.to)));
 
   /* Dismissed here, not filtered out of `open` above: a dismissal is a
      preference about this list, not a fact about the task, so it must not
@@ -597,7 +603,8 @@ function chainSection(items){
   return { body: BoardUI.h(BoardUI.ChainBody, { entries }), count: blocked.length };
 }
 
-/* Only ai:full work belongs here, and the ai: tag is the gate. Manual
+/* Only the Implement agent's work belongs here, and `[to:: Implement agent]`
+   is the gate. Manual
    drag-to-reorder on `rank:` (10 Sep 2026) came back out on a re-read: the
    automatic impact-against-effort score this entry originally asked for is
    what sorts it now, the same priorityScore() every other section already
@@ -607,7 +614,7 @@ function chainSection(items){
    re-ranking it and a stale rank next to a live sort would disagree with
    itself. What's on the row now is its position in the order shown. */
 function delegateSection(items){
-  const eligible = items.filter(i => i.ai === 'full' && !i.done);
+  const eligible = items.filter(i => agentOf(i.to) === 'Implement agent' && !i.done);
   if (!eligible.length) return refSectionBody([{ kind: 'empty', which: 'delegate' }], 0);
 
   const ranked = eligible

@@ -88,7 +88,7 @@ await evalJS(`(() => {
   const day = ms => new Date(ms).toISOString().slice(0, 10);
   window.__jobs = [
     { id:'plan-agent', name:'Plan agent', armed:false, state:'not installed',
-      what:'Plans every task tagged ai:full or ai:partial, one agent each.',
+      what:'Plans every task delegated to the Plan agent, one agent each.',
       schedule:'12 wakes, 19:00–06:00', next:'', last:'',
       recent:[], hint:'ln -s agents/plan-agent/x.plist ~/Library/LaunchAgents/' },
     { id:'companion', name:'Desktop companion', armed:true, state:'running',

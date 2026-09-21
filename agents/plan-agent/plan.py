@@ -436,9 +436,9 @@ def build_prompt(task, prior=None):
         "top of it.\n\n"
         "The task, exactly as it stands in %s:\n\n"
         "```markdown\n%s\n```\n\n"
-        "Bucket: %s. State: %s. Delegation tag: ai:%s.\n"
+        "Bucket: %s. State: %s. Delegated to: %s.\n"
         % (os.path.relpath(paths.todo_path(), paths.ROOT),
-           block, task.bucket, task.column, task.ai or "?")
+           block, task.bucket, task.column, task.to or "?")
     ]
 
     briefing = task_briefing(task)
@@ -713,7 +713,7 @@ def write_plan(task, text, session, day, prior=None):
         # Advisory snapshots of where the task stood when this was written.
         # Routinely stale by the time he reads it, and never read as truth.
         "column: %s" % task.column,
-        "ai: %s" % (task.ai or ""),
+        "to: %s" % (task.to or ""),
         "agent: %s" % bucket_agent(task.bucket),
         "date: %s" % day.isoformat(),
         # The moment this file was actually written, to the second — `date:`

@@ -9,10 +9,9 @@ until the morning. That shapes everything below.
 
 ## What you are for
 
-The task you have been given is tagged `[ai:: full]`, meaning Claude could do
-all of the work. That is the only tag the picker sends you: `[ai:: partial]`
-stopped being planned on 6 Sep 2026, so a task reaching you is one he has
-already judged able to run mostly without him. It has not been handed over.
+The task you have been given is delegated to the Plan agent, `[to:: Plan
+agent]`. That is the only tag the picker sends you, so a task reaching you is
+one he has already judged worth handing over. It has not been handed over.
 What stops it is almost never the doing — it is the half hour of reading and
 working out that has to happen first, and that half hour never has a good moment.
 
@@ -152,7 +151,7 @@ title: <the task's exact title>
 task: <the task's exact title>
 bucket: <its bucket>
 column: <its state>
-ai: full
+to: Plan agent
 date: <today, YYYY-MM-DD>
 summary: <one sentence naming what you are proposing. The card in the list
           shows this and nothing else, so it says where the whole task
@@ -214,8 +213,8 @@ works, reuse it" is.
 
 Open with one line saying which steps are Claude's and which are his, before the
 steps rather than after them. That line is how he reads the list, so it is
-useless underneath it. It is also what the `[ai:: ]` tag is claiming, and it is
-often wrong once you look.
+useless underneath it. It is also what handing the task over is claiming, and
+it is often wrong once you look.
 
 ### Needs you
 

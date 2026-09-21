@@ -210,7 +210,7 @@ function matrixTasks(){
       const blocked = !!it && !actionable(items, it);
       const waiting = tier.name === MATRIX_MUTED_TIER;
       out.push({ id: t.id, title: t.title, impact: t.impact, effort: t.effort,
-                 due: t.due, ai: t.ai, urgent: t.urgent, headline: !!t.headline,
+                 due: t.due, to: t.to, urgent: t.urgent, headline: !!t.headline,
                  bucket: b.name, tierName: tier.name, color,
                  held: tier.name === HELD_TIER,
                  blocked,

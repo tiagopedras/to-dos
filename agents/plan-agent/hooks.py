@@ -108,11 +108,9 @@ def items(target):
     only = target.get("only")
     todo_, skip = pick.select(text, day=dt.date.today(), use_ledger=not only, ledger=ledger, only=only)
     out = [_item(t, ledger) for t in todo_]
-    # Tasks not tagged ai:full are not candidates at all, and listing thirty of
-    # them every night would bury the handful worth reading.
+    # Only the Plan agent's tasks are candidates, so every skip is one of them.
     for t, why in skip:
-        if not why.startswith("tagged ai:"):
-            out.append(_item(t, ledger, skip=why))
+        out.append(_item(t, ledger, skip=why))
     _skipped[target["id"]] = len(skip)
     return out
 

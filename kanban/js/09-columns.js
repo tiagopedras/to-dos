@@ -22,7 +22,7 @@
 /* Left to right, the way the board actually draws them, with Done and Handed
    to AI left off — neither is ever a heading: Done is where a ticked task
    lands regardless of which column it sits under, and Handed to AI is where
-   an ai:full task lands regardless of which column it sits under. */
+   a task delegated to an agent lands regardless of which column it sits under. */
 function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL && n !== AI_COL); }
 
 function tierTaskCount(name){
@@ -362,7 +362,6 @@ function cardModel(t, opts){
   if (t.effort) chips.push({ cls: 'tag', text: t.effort });
   const si = startInfo(t.start);
   if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
-  if (t.ai && t.ai !== 'none') chips.push({ cls: 'tag ai ai-' + t.ai, text: 'ai', title: t.ai + ' AI help' });
   if (t.to && t.to.trim()) chips.push({ cls: 'tag who', text: '→ ' + t.to.trim(),
     title: 'Delegated to ' + t.to.trim() });
   /* A ticket waiting to be raised is a fact about the task worth seeing in the

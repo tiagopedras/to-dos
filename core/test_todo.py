@@ -421,6 +421,11 @@ def check_parse():
                 print("FAIL body of %r\n     got  %r\n     want %r"
                       % (t.title, t.body, w["body"]))
                 failures += 1
+    for case in PARSE["agents"]:
+        got = todo.agent_of(case["to"])
+        if got != case["agent"]:
+            print("FAIL agent_of(%r): got %r, board says %r" % (case["to"], got, case["agent"]))
+            failures += 1
     print("%d task lines, %d documents — %s"
           % (len(PARSE["cases"]), len(PARSE["docs"]),
              "all agree" if not failures else "%d failed" % failures))

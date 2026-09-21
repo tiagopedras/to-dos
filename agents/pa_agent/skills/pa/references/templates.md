@@ -108,7 +108,7 @@ formatting. If a template needs any of that, the skill is doing it wrong.
 | `headline_next_step` | The first unticked sub-step under it |
 
 **Lists**, each item carrying `title`, `bucket`, `state`, `impact`, `effort`,
-`ai`, `due` (long), `due_short` (`Fri 5 Sep`), `days` (whole days over or until,
+`to`, `due` (long), `due_short` (`Fri 5 Sep`), `days` (whole days over or until,
 never negative) and `who` (from `[to:: ]`, or a `Waiting on:` note).
 
 | List | What is in it |
@@ -123,7 +123,7 @@ never negative) and `who` (from `[to:: ]`, or a `Waiting on:` note).
 | `week` | Anything tagged `week`, tasks and sub-steps both |
 | `done_today` | Ticked with today's `done:` date |
 | `quick_wins` | S effort, unblocked, `start:` arrived, or carrying a message |
-| `delegate` | `[ai:: full]`, ranked by impact against effort — `rank:` is the planning agent's own queue order now, not this list's |
+| `delegate` | `[to:: Implement agent]`, ranked by impact against effort — `rank:` is the planning agent's own queue order now, not this list's |
 
 **Meetings**, each carrying the fields above plus `agenda_state`, which is
 `written` or `not written`.

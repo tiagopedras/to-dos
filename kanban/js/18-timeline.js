@@ -1219,15 +1219,15 @@ function renderBoard(){
         }));
       } else if (isAi) {
         // Not done yet and handed over — the same task a moment ago would
-        // have shown under its own tier; ai:full is what moves it here
-        // instead, the way t.done moves a task into Done.
+        // have shown under its own tier; an agent in [to::] is what moves it
+        // here instead, the way t.done moves a task into Done.
         bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
-          if (!t.done && t.ai === 'full' && matches(t, AI_COL)) entries.push({ t, color, label });
+          if (!t.done && agentOf(t.to) && matches(t, AI_COL)) entries.push({ t, color, label });
         }));
       } else {
         const tier = bucket.tiers.find(t => t.name === name);
         if (tier) tier.tasks.forEach(t => {
-          if (!t.done && t.ai !== 'full' && matches(t, name)) entries.push({ t, color, label });
+          if (!t.done && !agentOf(t.to) && matches(t, name)) entries.push({ t, color, label });
         });
       }
     });
@@ -1238,8 +1238,8 @@ function renderBoard(){
         .sort((a, b) => (priorityScore(b.e.t) - priorityScore(a.e.t)) || (a.i - b.i))
         .map(x => x.e);
     }
-    // A card lands in Handed to AI by its ai: tag rather than a drag, but it
-    // can be dragged back out: dropTask() sets the tag to none on the way.
+    // A card lands in Handed to AI by its [to::] tag, and can be dragged back
+    // out: dropTask() clears the tag on the way.
     const cards = entries.map(e => ({
       model: cardModel(e.t, { muted: name === WAIT_COL, tier: name }),
       stripe: e.color,
@@ -1401,12 +1401,13 @@ function dropTask(id, tierName, zone, clientY){
     if (state.openTask === id) openDrawer(id);
     return;
   }
-  // Handed to AI is not a section either — it is the ai: tag. A drop into it
-  // sets the tag and leaves the task under its own heading, since
-  // ensureTier() would otherwise write a real "Handed to AI" heading into the file.
+  // Handed to AI is not a section either — it is the [to::] tag. A drop into
+  // it hands the task to the Plan agent and leaves it under its own heading,
+  // since ensureTier() would otherwise write a real "Handed to AI" heading
+  // into the file.
   if (tierName === AI_COL) {
-    if (loc.task.ai === 'full' && !loc.task.done) return;
-    loc.task.ai = 'full';
+    if (agentOf(loc.task.to) && !loc.task.done) return;
+    loc.task.to = 'Plan agent';
     loc.task.dirty = true;
     setDone(loc.task, false);
     markDirty(); refreshView();
@@ -1414,10 +1415,10 @@ function dropTask(id, tierName, zone, clientY){
     return;
   }
   // Dragged out of Handed to AI onto a real column: taking the work back off
-  // Claude, the same as setting the drawer's AI slider to None, prompts and
+  // the agent, the same as clearing the drawer's Delegate to, prompts and
   // all. Onto Done it keeps the tag, since that is finishing it, not taking it back.
-  if (!loc.task.done && loc.task.ai === 'full') {
-    loc.task.ai = 'none';
+  if (!loc.task.done && agentOf(loc.task.to)) {
+    loc.task.to = '';
     stripDelegation(loc.task);
     loc.task.dirty = true;
   }
@@ -1446,18 +1447,18 @@ function dropTask(id, tierName, zone, clientY){
 function addTask(tierName){
   if (state.locked) return;
   const tier = ensureTier(defaultAddBucket(), tierName);
-  const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', ai:'', to:'',
+  const t = { id: uid(), done:false, title:'New task', bold:true, impact:'', effort:'', due:'', to:'',
               urgent:false, week:false, slug:'', blockedBy:[], rank:null, extra:[], body:[], raw:'', dirty:true };
   tier.tasks.push(t);
   markDirty(); refreshView(); openDrawer(t.id, true);
 }
 
 /* Taking work back off Claude has to take the prompt with it.
-   Delegate to Claude is generated from the ai: tag, so a task switched to
-   partial or none drops out of that list — but the prompt written for it would
+   Delegate to Claude is generated from `[to:: Implement agent]`, so a task
+   taken back drops out of that list — but the prompt written for it would
    stay behind on the task, still reading as an instruction to hand it over. The
    next person to rebuild the section would have a prompt with nothing asking for
-   it. A sub-step carrying its own ai:full is left alone, because it did not
+   it. A sub-step delegated in its own right is left alone, because it did not
    inherit the tag that just changed. Returns what was removed, so the change
    can be reported rather than happening silently. */
 function stripDelegation(t){
@@ -1469,7 +1470,7 @@ function stripDelegation(t){
     const m = SUB_RE.exec(line);
     if (m && (base === null || m[1].length <= base)) {
       base = m[1].length;
-      inherits = !hasField(m[3], 'ai');                    // no ai: of its own, so it follows the parent
+      inherits = !agentOf(readField(m[3], 'to'));          // not an agent's in its own right, so it follows the parent
       let text = m[3];
       if (inherits) text = text.replace(/\s*`rank:\d+`/g, '');
       out.push(m[1] + '- [' + m[2] + '] ' + text);

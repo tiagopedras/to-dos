@@ -284,9 +284,9 @@ function bucketColor(name, index){
 }
 const DONE_COL = 'Done';
 /* Synthetic the same way Done is — not a heading in todo.md, just where the
-   board draws a task tagged ai:full and not yet done. The ai: tag stays the
-   single source: nothing can be dragged into this column, only tagged into
-   it, and a task's real tier is untouched underneath. */
+   board draws a task delegated to an agent (`[to::]` naming the Plan or the
+   Implement agent) and not yet done. The tag stays the single source, and a
+   task's real tier is untouched underneath. */
 const AI_COL = 'Handed to AI';
 /* Not a special column the way Done is — just a tier the board tints, so a
    renamed section simply stops matching and goes back to looking normal. */
@@ -330,12 +330,12 @@ const TIER_HINT = {
   'Now':     'current focus',
   'Done':    'ticked off',
   'Blocked': "can't move until something changes",
-  'Handed to AI': 'tagged ai:: full, not done yet'
+  'Handed to AI': 'delegated to an agent, not done yet'
 };
 
 /* The file lists tiers Now → Backlog. The board shows them the other way
    round, with Done on the far right and a synthetic Handed to AI column
-   straight after Doing for anything tagged ai:full and not yet done. It sat
+   straight after Doing for anything delegated to an agent and not yet done. It sat
    ahead of Done until 17 Sep 2026; it moved because a task handed to AI is
    in progress, not waiting on anyone. A list with no Doing heading gets it
    ahead of Done as before. */

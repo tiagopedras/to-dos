@@ -75,6 +75,14 @@ function readField(text, key){
   if (!m) return '';
   return (m[1] != null ? m[1] : m[2]).trim();
 }
+/* The two agents a task can be handed to, spelt the way `[to::]` writes them.
+   Everything else in `[to::]` is a person. The Plan agent plans it and stops;
+   the Implement agent carries it out, and Delegate to Claude lists its tasks. */
+const AGENT_NAMES = ['Plan agent', 'Implement agent'];
+function agentOf(to){
+  const v = String(to || '').trim().toLowerCase();
+  return AGENT_NAMES.find(a => a.toLowerCase() === v) || '';
+}
 function hasField(text, key){
   return new RegExp('\\[' + key + '::|`' + key + ':', 'i').test(text);
 }
@@ -101,8 +109,11 @@ function parseTask(rawLines){
   const take = (whole, bk, bv, sk, sv) => {
     const k = bk != null ? bk : sk, v = bk != null ? bv : sv;
     const key = k.toLowerCase();
-    if (key === 'impact' || key === 'effort' || key === 'due' || key === 'ai' ||
+    if (key === 'impact' || key === 'effort' || key === 'due' ||
         key === 'start' || key === 'done' || key === 'to') tags[key] = v.trim();
+    /* Retired 21 Sep 2026. `[to::]` says who does the work, an agent included,
+       and a backup still carrying `ai:` loses it on the next save. */
+    else if (key === 'ai') {}
     else if (key === 'blocked-by') blockedBy = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'rank') rank = parseInt(v.trim(), 10);
     /* Where this task sits in its bucket's timeline lane — set by dragging a
@@ -162,11 +173,8 @@ function parseTask(rawLines){
        "finished a while ago" was unanswerable — which is exactly what archiving
        old finished work needs to know. Written when a task is ticked. */
     doneOn: tags.done || '',
-    ai: tags.ai || '',
-    /* Who this has been handed to. A person, not Claude — `ai:` already says
-       whether the machine is doing it, and the two answer different questions:
-       one task can be delegated to someone and still be drafted by Claude.
-       Optional, and blank on almost everything, so nothing shows when it is. */
+    /* Who does the work: one of AGENT_NAMES, or a person from people.md.
+       Blank means he is doing it himself, which is most of the list. */
     to: tags.to || '',
     urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId,
     cancelled, archived, extra,
@@ -238,7 +246,6 @@ function serializeTask(t){
     if (t.archived)  tags.push('`archived:' + t.archived + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
-    if (t.ai)     tags.push('[ai:: ' + t.ai + ']');
     if (t.to && t.to.trim()) tags.push('[to:: ' + t.to.trim() + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
@@ -384,7 +391,7 @@ function splitBody(t){
         text,
         due:   readField(text, 'due'),
         start: readField(text, 'start'),
-        ai:    readField(text, 'ai'),
+        to:    readField(text, 'to'),
         /* Half the blockers in the file are steps, not whole tasks. Without the
            slug here, a `blocked-by:` pointing at one never resolves, so anything
            waiting on it looks permanently stuck. */

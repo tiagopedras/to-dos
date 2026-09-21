@@ -94,25 +94,25 @@ DOC = """# List
 
 ### Waiting for review
 
-- [ ] **Sitting with someone** [impact:: high] [effort:: S] [ai:: full]
+- [ ] **Sitting with someone** [impact:: high] [effort:: S] [to:: Plan agent]
 
 ### Blocked
 
-- [ ] **Stuck** [impact:: high] [effort:: S] [ai:: full]
+- [ ] **Stuck** [impact:: high] [effort:: S] [to:: Plan agent]
 
 ### Doing
 
-- [ ] **Plain and plannable** [impact:: high] [effort:: M] [ai:: full]
-- [ ] **Only half of it** [impact:: high] [effort:: M] [ai:: partial]
-- [ ] **Not for Claude** [impact:: high] [effort:: S] [ai:: none]
-- [ ] **Already done** [impact:: high] [effort:: S] [ai:: full]
-- [ ] **Waits on another** [impact:: high] [effort:: S] [ai:: full] `blocked-by:gate`
-- [ ] **Not yet startable** [impact:: high] [effort:: S] [ai:: full] `start:2099-01-01`
-- [ ] **Startable now** [impact:: high] [effort:: S] [ai:: full] `start:2020-01-01`
+- [ ] **Plain and plannable** [impact:: high] [effort:: M] [to:: Plan agent]
+- [ ] **Only half of it** [impact:: high] [effort:: M] [to:: Implement agent]
+- [ ] **Not for Claude** [impact:: high] [effort:: S]
+- [ ] **Already done** [impact:: high] [effort:: S] [to:: Plan agent]
+- [ ] **Waits on another** [impact:: high] [effort:: S] [to:: Plan agent] `blocked-by:gate`
+- [ ] **Not yet startable** [impact:: high] [effort:: S] [to:: Plan agent] `start:2099-01-01`
+- [ ] **Startable now** [impact:: high] [effort:: S] [to:: Plan agent] `start:2020-01-01`
 
 ### To do
 
-- [ ] **The gate** [impact:: high] [effort:: S] [ai:: none] `#gate`
+- [ ] **The gate** [impact:: high] [effort:: S] `#gate`
 """
 
 DOC = DOC.replace("- [ ] **Already done**", "- [x] **Already done**")
@@ -127,15 +127,14 @@ def test_pick():
     check("eligible tasks", titles(plan_),
           ["Plain and plannable", "Startable now"])
 
-    # ai:partial is out as of 6 Sep 2026, and it is the one exclusion that says
-    # why on the board rather than being silently dropped.
+    # Only the Plan agent's tasks are planned. Anything else is not handed to
+    # it, so it is dropped quietly rather than named on the board.
     why = {t.title: w for t, w in skip}
-    check("partial is not planned", "Only half of it" in why, True)
-    check("and says why", why.get("Only half of it"), "tagged ai:partial, and only ai:full is planned")
-    check("ai:none is dropped quietly", "Not for Claude" in why, False)
+    check("the Implement agent's task is not planned", "Only half of it" in why, False)
+    check("his own task is dropped quietly", "Not for Claude" in why, False)
 
     # One task, one plan, 17 Sep 2026. The three rules below used to drop a task
-    # tagged ai:full without a word, so the board drew it in Handed to AI and
+    # handed over without a word, so the board drew it in Handed to AI and
     # Plans drew nothing — the two never agreed on a count. Each one names
     # itself now, and the card it produces sits in Plans' Backlog.
     check("parked says where it is sitting", why.get("Sitting with someone"),
@@ -334,16 +333,16 @@ RULES_DOC = """# List
 
 ### To do
 
-- [ ] **Undated low value** [impact:: low] [effort:: L] [ai:: full]
-- [ ] **Dated next week** [impact:: low] [effort:: L] [ai:: full] [due:: 2026-09-12]
+- [ ] **Undated low value** [impact:: low] [effort:: L] [to:: Plan agent]
+- [ ] **Dated next week** [impact:: low] [effort:: L] [to:: Plan agent] [due:: 2026-09-12]
 
 ## 2. DS
 
 ### To do
 
-- [ ] **Undated high value** [impact:: high] [effort:: S] [ai:: full]
-- [ ] **Overdue** [impact:: low] [effort:: L] [ai:: full] [due:: 2026-09-01]
-- [ ] **The one thing** [impact:: low] [effort:: L] [ai:: full] `headline:2026-09-04`
+- [ ] **Undated high value** [impact:: high] [effort:: S] [to:: Plan agent]
+- [ ] **Overdue** [impact:: low] [effort:: L] [to:: Plan agent] [due:: 2026-09-01]
+- [ ] **The one thing** [impact:: low] [effort:: L] [to:: Plan agent] `headline:2026-09-04`
 """
 
 
@@ -396,7 +395,7 @@ def test_folding():
     import tempfile
 
     task = todo.parse_task(["- [ ] **Improve the app** [impact:: high] "
-                            "[effort:: L] [ai:: partial]"])
+                            "[effort:: L] [to:: Implement agent]"])
     task.bucket, task.column = "Processes", "Backlog"
     day = dt.date(2026, 9, 5)
 
@@ -449,7 +448,7 @@ def test_one_file_per_task():
     import tempfile
 
     task = todo.parse_task(["- [ ] **Fix the thing** [impact:: high] "
-                            "[effort:: L] [ai:: full] `id:zz9988`"])
+                            "[effort:: L] [to:: Plan agent] `id:zz9988`"])
     task.bucket, task.column = "Processes", "Backlog"
     day1, day2 = dt.date(2026, 9, 1), dt.date(2026, 9, 3)
 
@@ -517,7 +516,7 @@ def test_prune():
         write("gone-old.md", "cccccc", old)        # orphaned, past the grace period
 
         live_task = todo.parse_task(
-            ["- [ ] **Still here** [impact:: high] [effort:: S] [ai:: full] `id:aaaaaa`"])
+            ["- [ ] **Still here** [impact:: high] [effort:: S] [to:: Plan agent] `id:aaaaaa`"])
         plan.prune(today, [live_task])
 
         left = sorted(os.listdir(tmp))
@@ -542,7 +541,7 @@ def test_briefing():
     module's own docstring.
     """
     task = todo.parse_task(
-        ["- [ ] **Ship the thing** [impact:: high] [effort:: M] [ai:: none] "
+        ["- [ ] **Ship the thing** [impact:: high] [effort:: M] "
          "`id:bb77cc`",
          "  - Project: data/projects/the-thing"])
     task.bucket, task.column = "BAU", "To do"
@@ -582,7 +581,7 @@ def test_briefing():
 
         task2 = todo.parse_task(
             ["- [ ] **Ship the thing, with more to it now** [impact:: high] "
-             "[effort:: M] [ai:: none] `id:bb77cc`"])
+             "[effort:: M] `id:bb77cc`"])
         check("but a task whose text moved is stale again, same id",
               brief.is_stale(task2, reloaded["briefed"]), True)
 
@@ -600,7 +599,7 @@ def test_briefing():
             plan.paths.briefings_path = real_bp
         never_briefed = todo.parse_task(
             ["- [ ] **Something else entirely** [impact:: low] [effort:: S] "
-             "[ai:: none] `id:dd99ee`"])
+             "`id:dd99ee`"])
         check("a task never briefed gets nothing added",
               plan.task_briefing(never_briefed), "")
     finally:

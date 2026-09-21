@@ -1744,8 +1744,8 @@ function releaseHeld(title){
    tonight's queue by hand, a task pick.py's own rules put here, or a plan
    already parked. All three drag back into To do.
 
-   The middle kind arrived 17 Sep 2026 with one task, one plan. A task tagged
-   `ai:: full` that is blocked, parked or waiting on a `start:` date used to be
+   The middle kind arrived 17 Sep 2026 with one task, one plan. A task
+   delegated to the Plan agent that is blocked, parked or waiting on a `start:` date used to be
    dropped by pick.py and drawn nowhere, so the board showed it in Handed to AI
    and this view showed nothing — the two never agreed on a count. It is a card
    here now, wearing the rule's own words, and dragging it into To do writes the
@@ -1834,14 +1834,12 @@ function renderBacklogList(){
   const held = plansShown(queueHeld);
   const planned = plannedTaskKeys();
   /* Two filters, and both are what keeps the count honest in one direction or
-     the other. `ai === 'full'` is the set the board draws in Handed to AI, and
-     pick.py's skipped list is wider than that — it names every `ai:: partial`
-     task too, which is 30 of them on the twinkl list and none of which has been
-     handed over at all. And a row whose task already has a plan card somewhere
-     on this view is that plan; drawing the row as well would be the same task
-     twice. */
+     the other. Only the Plan agent's tasks are planned, so a row for anything
+     else was never handed to this view. And a row whose task already has a
+     plan card somewhere on this view is that plan; drawing the row as well
+     would be the same task twice. */
   const skipped = plansShown(queueSkipped).filter(r =>
-    r.ai === 'full' && !planned.has(String(r.slug || r.title).trim().toLowerCase()));
+    agentOf(r.to) === 'Plan agent' && !planned.has(String(r.slug || r.title).trim().toLowerCase()));
   const parked = byTaskPriority(plansShown(planList).filter(p => planColumn(p) === PLAN_COL.backlog));
   /* A parked plan is the written half of the same instruction the held cards
      carry: the task is held, and this is what the agent had already worked

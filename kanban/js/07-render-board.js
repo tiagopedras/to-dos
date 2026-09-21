@@ -4,11 +4,15 @@
    4. Render board
    ========================================================================= */
 
+/* Who does it, from `[to::]`. `agent` is either agent, `me` is nobody named,
+   and anything else is an agent's own name. */
 function matchesAi(t){
   const f = state.aiFilter;
   if (!f) return true;
-  if (f === 'ai') return t.ai === 'full' || t.ai === 'partial';
-  return t.ai === f;
+  const agent = agentOf(t.to);
+  if (f === 'agent') return !!agent;
+  if (f === 'me') return !(t.to && t.to.trim());
+  return agent === f;
 }
 /* tierName is optional — every call site that knows which column a task is
    in (the board's own render, Matrix, Timeline) passes it; one that doesn't

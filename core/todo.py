@@ -69,7 +69,19 @@ ANY_TAG_RE = re.compile(r"\[([A-Za-z][\w-]*)::\s*([^\]]*)\]|`([A-Za-z][\w-]*):([
 SLUG_RE = re.compile(r"`#([a-z0-9][a-z0-9-]*)`", re.I)
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-INLINE_KEYS = {"impact", "effort", "due", "ai", "start", "done", "to"}
+INLINE_KEYS = {"impact", "effort", "due", "start", "done", "to"}
+
+# The two agents a task can be handed to, spelt the way `[to::]` writes them.
+# Anything else in `[to::]` is a person. `ai:` was retired on 21 Sep 2026 and is
+# dropped on read, the same as the board does. See AGENT_NAMES in core/todo.js.
+AGENT_NAMES = ("Plan agent", "Implement agent")
+PLAN_AGENT, IMPLEMENT_AGENT = AGENT_NAMES
+
+
+def agent_of(to):
+    """The agent `to` names, spelt canonically, or "" for a person or nobody."""
+    v = (to or "").strip().lower()
+    return next((a for a in AGENT_NAMES if a.lower() == v), "")
 
 
 class Task:
@@ -78,7 +90,7 @@ class Task:
     promoted to attributes; anything else stays in `extra` exactly as written."""
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
-                 "ai", "to", "urgent", "week", "slug", "blocked_by", "rank",
+                 "to", "urgent", "week", "slug", "blocked_by", "rank",
                  "tlrank", "headline", "chat", "repeat", "stable_id",
                  "cancelled", "archived", "extra",
                  "body", "raw", "bucket", "column")
@@ -87,7 +99,7 @@ class Task:
         self.done = False
         self.title = ""
         self.impact = self.effort = self.due = self.start = ""
-        self.done_on = self.ai = self.to = ""
+        self.done_on = self.to = ""
         self.urgent = self.week = False
         self.slug = self.headline = self.chat = self.repeat = ""
         # The task's own identity, minted once and written on the line. See
@@ -140,6 +152,8 @@ def parse_task(raw_lines):
             key, val = match.group(3), match.group(4)
         key = key.lower()
         val = val.strip()
+        if key == "ai":
+            return " "
         if key in INLINE_KEYS:
             setattr(task, "done_on" if key == "done" else key, val)
         elif key == "blocked-by":

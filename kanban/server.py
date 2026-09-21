@@ -132,6 +132,36 @@ def dataset_dir(name):
     return os.path.join(ROOT, DATA, name)
 
 
+def people_path(name=None):
+    return os.path.join(dataset_dir(name or current_dataset()), "people.md")
+
+
+def read_people(text):
+    """Every person in people.md's tables, in the order the file lists them.
+
+    Only a table headed `Name | Role`, so the GitHub usernames table beside
+    them, which lists some of the same people again, is not read twice.
+    Asterisks come off the name. What the drawer's Delegate to offers after
+    the two agents, so nobody keeps a second list of names by hand."""
+    people, seen, in_people = [], set(), False
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            in_people = False
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if cells and cells[0].lower() == "name":
+            in_people = len(cells) > 1 and cells[1].lower() == "role"
+            continue
+        if not in_people or set(cells[0]) <= set("-: "):
+            continue
+        name = cells[0].replace("**", "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            people.append({"name": name, "role": cells[1] if len(cells) > 1 else ""})
+    return people
+
+
 def todo_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "todo.md")
 
@@ -855,7 +885,7 @@ def _planning_agent_job():
     return {
         "id": "plan-agent",
         "name": "Plan agent",
-        "what": "Plans every task tagged ai:full or ai:partial, one agent each.",
+        "what": "Plans every task delegated to the Plan agent, one agent each.",
         "schedule": span or "not configured",
         "armed": loaded,
         "state": ("running" if loaded else
@@ -1367,7 +1397,7 @@ def _queue_row(task, ledger, position=0, state="queued", why=""):
         "title": task.title,
         "bucket": task.bucket,
         "column": task.column,
-        "ai": task.ai or "",
+        "to": task.to or "",
         "slug": task.slug or "",
         "impact": getattr(task, "impact", "") or "",
         "effort": getattr(task, "effort", "") or "",
@@ -2114,6 +2144,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # "nothing has been opened" is the honest answer and the next
                 # save fixes it.
                 return self._json(200, {"version": 1, "viewed": {}})
+        if path == "/people.json":
+            try:
+                with open(people_path(), encoding="utf-8") as fh:
+                    return self._json(200, {"people": read_people(fh.read())})
+            except OSError:
+                # A dataset with no people.md yet: nobody to offer but the agents.
+                return self._json(200, {"people": []})
         if path == "/attach-queue.json":
             try:
                 with open(attach_queue_path(), encoding="utf-8") as fh:

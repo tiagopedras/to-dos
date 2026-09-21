@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Which tasks tonight's run should plan.
 
-Every open, top-level task tagged `[ai:: full]`, minus three exclusions and minus
+Every open, top-level task delegated to the Plan agent, minus three exclusions and minus
 anything already planned whose text has not changed since.
 
 The three exclusions are the same ones companion/digest.py applies, deliberately:
@@ -14,7 +14,7 @@ either answer on its own.
   - A `start:` that has not arrived. It cannot begin yet.
 
 Since 17 Sep 2026 the three are advice rather than a gate. Every task tagged
-`[ai:: full]` has one card on Plans — one task, one plan — so an excluded task
+delegated to the Plan agent has one card on Plans — one task, one plan — so an excluded task
 is not missing from the view, it is a card in Backlog wearing the reason. Where
 the card sits is the instruction, and dragging it into To do plans it tonight
 regardless: that is the `force` list in `plans/queue-order.json`, which this
@@ -59,27 +59,19 @@ import paths  # noqa: E402
 
 PARKED = {"waiting for review", "blocked"}
 
-# Only `[ai:: full]`. `partial` was in here until 6 Sep 2026, on the reasoning
-# that a task Claude could half-do was still worth a night's research. It is
-# not: the tag is his own judgement about whether the work can run mostly
-# without him, and a task he has not judged that way should not be spending
-# overnight capacity ahead of one he has. Narrowing this is the whole change —
-# the queue ordering and the window budget below know nothing about the tag.
-PLANNABLE = {"full"}
-
-# The tags that claim Claude can do some of the work without claiming it can do
-# most of it. These are the ones worth naming on the board when they are passed
-# over: `ai:: none` is his own statement that the task is his, and a done,
-# parked or blocked task explains itself by where it sits, so listing either
-# would be noise in the "not eligible" fold.
-NEARLY = {"partial"}
-NOT_PLANNABLE_WHY = "tagged ai:%s, and only ai:full is planned"
+# Only a task delegated to the Plan agent, `[to:: Plan agent]`. It was
+# `[ai:: full]` until 21 Sep 2026, when `ai:` was retired for one field saying
+# who does the work. A task with the Implement agent already says how it is to
+# be done, so it is not planned. The queue ordering and the window budget below
+# know nothing about the tag.
+def plannable(task):
+    return todo.agent_of(task.to) == todo.PLAN_AGENT
 
 # The three reasons a task in Handed to AI starts its life on Plans in Backlog
 # rather than in tonight's queue. They read on the card, so each one says what
 # is true of the task rather than what this file did about it.
 #
-# They are advice now, not a gate. Every task tagged `ai:: full` has a card on
+# They are advice now, not a gate. Every task delegated to the Plan agent has a card on
 # Plans — one task, one plan — and where that card sits is the instruction, so
 # dragging it into To do plans it tonight whatever these say. That is the
 # `force` list below, and it is why nothing here removes a task any more.
@@ -117,9 +109,8 @@ def eligible(tasks, day, slugs=None, drops=None):
     """The tasks worth planning, before the ledger has its say.
 
     `drops`, when given, collects (task, why) for every exclusion the board has
-    to draw: an `ai:: partial` task, which is the one worth naming in the "not
-    eligible" fold, and the three below, each of which is a card in Backlog
-    rather than a task off the view. A done task and an `ai:: none` one are
+    to draw: the three below, each of which is a card in Backlog rather than a
+    task off the view. A done task and one not delegated to the Plan agent are
     neither — they are not handed over, so there is nothing on Plans to place.
     """
     slugs = slugs if slugs is not None else todo.slug_states(tasks)
@@ -127,11 +118,7 @@ def eligible(tasks, day, slugs=None, drops=None):
     for t in tasks:
         if t.done:
             continue
-        if t.ai not in PLANNABLE:
-            if (drops is not None and t.ai in NEARLY
-                    and t.column.strip().lower() not in PARKED
-                    and not todo.is_blocked(t, slugs)):
-                drops.append((t, NOT_PLANNABLE_WHY % t.ai))
+        if not plannable(t):
             continue
         # Past this line the task is in Handed to AI on the board, so it has a
         # card on Plans whatever happens next. Each exclusion below says why the
@@ -415,7 +402,7 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
     # still wins, since save_order() will not write a title into both.
     rescued = [t for t, _ in drops
                if key(key_of(t)) in forced and key(key_of(t)) not in held
-               and t.ai in PLANNABLE]
+               and plannable(t)]
     rescued_keys = {key(key_of(t)) for t in rescued}
     drops = [(t, why) for t, why in drops if key(key_of(t)) not in rescued_keys]
     cand = rescued + cand
@@ -446,7 +433,7 @@ def _report(plan, skip):
         print("%d to plan, in order:\n" % len(plan))
         for i, t in enumerate(plan, 1):
             print("  %2d. %-14s %-8s %-40s %s" % (
-                i, t.column, t.ai, t.title[:40], t.bucket))
+                i, t.column, t.to, t.title[:40], t.bucket))
     if skip:
         print("\n%d skipped:" % len(skip))
         for t, why in skip:
@@ -463,7 +450,7 @@ def main(argv):
     if "--json" in argv:
         print(json.dumps([{
             "title": t.title, "bucket": t.bucket, "column": t.column,
-            "ai": t.ai, "slug": t.slug, "fingerprint": fingerprint(t),
+            "to": t.to, "slug": t.slug, "fingerprint": fingerprint(t),
             "raw": t.raw, "body": t.body,
         } for t in plan], indent=2))
         return 0

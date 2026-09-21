@@ -112,7 +112,7 @@ function Empty({ which }: { which: EmptyKind }) {
     case 'week': return <ColumnEmpty>Nothing is tagged <code>week</code> yet.</ColumnEmpty>
     case 'rocks': return <ColumnEmpty>No high impact, L effort tasks.</ColumnEmpty>
     case 'quick': return <ColumnEmpty>Nothing small enough to clear in a gap.</ColumnEmpty>
-    case 'delegate': return <ColumnEmpty>Nothing is tagged <code>ai:full</code>.</ColumnEmpty>
+    case 'delegate': return <ColumnEmpty>Nothing is delegated to the Implement agent.</ColumnEmpty>
   }
 }
 

@@ -41,15 +41,13 @@ Every top-level task carries impact, effort and a delegation tag. Dates only whe
 - `[impact:: high]` / `med` / `low` — how much it moves the needle for the team, the design system or the business
 - `[effort:: S]` / `M` / `L` — S is under half a day, M is one to three days, L is a week or more
 - `[due:: YYYY-MM-DD]` — the deadline. When it has to be finished by. Only when there is a genuine date.
-- `[ai:: full]` — hand to Claude, review the output. The work is reading, comparing, extracting, formatting or generating from a source that already exists.
-- `[ai:: partial]` — Claude does the heavy lift, judgement or delivery stays his. Usually Claude drafts, he decides.
-- `[ai:: none]` — inherently his. Conversations, decisions, relationships, anything whose value is that it came from him.
+- `[to:: ]` — who does the work. `Plan agent` plans it and stops. `Implement agent` carries it out, because the task already says how. Anything else is a person's name as `people.md` writes it. Left off when he is doing it himself, which is most of the list. It replaced `[ai:: ]` on 21 Sep 2026, and a line still carrying `ai:` loses it on the next save.
 - `start:YYYY-MM-DD` — the earliest it can begin. Optional, and only where something real gates it.
 - `urgent` — time-critical with no fixed date. Never combine with `due`, they are alternatives.
 - `done:YYYY-MM-DD` — the day it was ticked off. Written by the board, not by hand. Never add it to an open task, and never remove it from a ticked one: it is what decides when finished work is old enough to be archived out of the file.
 - `repeat:wed-9:15` — how often this task comes round: a three-letter weekday with an optional time, a day of the month, a working day of the month, the nth weekday of the month (`repeat:tue2` for the 2nd Tuesday), any of those with a `/n` after it for a longer cycle (`repeat:wed/2` fortnightly, `repeat:15/3` quarterly), and any of those with a `~` in front where the day is the usual shape rather than a rule. See recurring tasks below.
 
-Sub-steps carry their own `[due:: ]` where the parent needs back-planning, and their own `[ai:: ]` tag where it differs from the parent. Most probation steps do differ, which is the whole point of tagging at that level.
+Sub-steps carry their own `[due:: ]` where the parent needs back-planning, and their own `[to:: ]` where somebody other than the task's owner does that step. Most probation steps do differ, which is the whole point of tagging at that level.
 
 ### Two tag syntaxes, and which one to write
 

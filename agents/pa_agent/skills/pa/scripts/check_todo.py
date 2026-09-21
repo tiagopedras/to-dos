@@ -4,7 +4,7 @@
 Catches the mechanical mistakes that are easy to make by hand and awkward to
 spot by eye: deadlines landing on weekends or public holidays, sub-step dates
 running past their parent, a blocked-by: pointing at a task that does not exist,
-an ai:full task with no prompt to hand over, a week that is over-committed, and a
+an Implement agent task with no prompt to hand over, a week that is over-committed, and a
 queried tag written in a form Dataview cannot read.
 
 The file used to carry five sections copied out of the buckets, and most of this
@@ -78,12 +78,14 @@ DUE = field_re("due", DATE)
 DUE_LOOSE = field_re("due", DATE, loose=True)
 IMPACT = field_re("impact", r"high|med|low")
 EFFORT = field_re("effort", r"[SML]")
-AI_TAG = field_re("ai", r"full|partial|none")
+TO_TAG = field_re("to")
+# Retired 21 Sep 2026: `[to::]` says who does the work, the two agents included.
+RETIRED_AI = re.compile(r"\[ai::[^\]]*\]|`ai:[^`]*`", re.I)
 
 # The four that have to be inline fields to be queryable, written the old way.
 # Harmless to every reader in this repo, invisible to Dataview, which is the
 # whole reason the syntax changed.
-OLD_SPAN = re.compile(r"`(impact|effort|due|ai):([^`]*)`", re.I)
+OLD_SPAN = re.compile(r"`(impact|effort|due|to):([^`]*)`", re.I)
 
 BOLD_TITLE = re.compile(r"\*\*(.+?)\*\*")
 TASK_LINE = re.compile(r"^(\s*)- \[( |x)\] (.*)$")
@@ -574,7 +576,7 @@ def parse_tasks(lines):
         slug_m = SLUG.search(body)
         blocked_m = BLOCKED_BY.search(body)
         rank_m = RANK.search(body)
-        ai_m = AI_TAG.search(body)
+        to_m = TO_TAG.search(body)
         impact_m = IMPACT.search(body)
         effort_m = EFFORT.search(body)
         entry = {
@@ -598,7 +600,7 @@ def parse_tasks(lines):
                 else []
             ),
             "rank": int(rank_m.group(1)) if rank_m else None,
-            "ai": field_value(ai_m).lower() if ai_m else None,
+            "agent": todo.agent_of(field_value(to_m)) if to_m else "",
             "prompt": prompt_under(lines, i, len(indent)),
             "subs": [],
         }
@@ -719,10 +721,18 @@ def check_tag_hygiene(lines, tasks):
                 findings.append(
                     Finding(task["line"], "CHECK", f"\"{task['title']}\" is missing an {name}: tag.")
                 )
-        if task["ai"] is None:
-            findings.append(
-                Finding(task["line"], "CHECK", f"\"{task['title']}\" is missing an ai: tag.")
+    retired = [i for i, line in enumerate(lines, start=1)
+               if TASK_LINE.match(line) and RETIRED_AI.search(line)]
+    if retired:
+        findings.append(
+            Finding(
+                retired[0],
+                "FIX",
+                f"{len(retired)} task line(s) still carry `ai:`, which was retired on "
+                f"21 Sep 2026. Say who does the work with [to:: Plan agent], "
+                f"[to:: Implement agent] or a person's name, and drop the tag.",
             )
+        )
     return findings
 
 
@@ -849,22 +859,22 @@ def check_slugs(tasks):
 
 
 def check_prompt_coverage(tasks):
-    """Every live ai:full item carries its own prompt, on the task.
+    """Every live item with the Implement agent carries its own prompt, on the task.
 
     Prompts used to live only in Delegate to Claude, which made them the one
     thing in the file that could not be rebuilt from the buckets. They live on
-    the task now, so an ai:full item without one breaks the rebuild.
+    the task now, so an Implement agent item without one breaks the rebuild.
     """
     findings = []
     for entry in all_entries(tasks):
-        if entry["ai"] != "full" or entry["checked"]:
+        if entry["agent"] != todo.IMPLEMENT_AGENT or entry["checked"]:
             continue
         if not entry["prompt"]:
             findings.append(
                 Finding(
                     entry["line"],
                     "FIX",
-                    f"\"{entry['title'][:50]}\" is ai:full but carries no Prompt: note. "
+                    f"\"{entry['title'][:50]}\" is with the Implement agent but carries no Prompt: note. "
                     f"Delegate to Claude is built from these, so it will rebuild without it.",
                 )
             )
@@ -998,6 +1008,9 @@ def check_ranks(tasks):
     findings = []
     entries = all_entries(tasks)
     ranked = [e for e in entries if e["rank"] is not None]
+    # A step under a ticked task is finished with it, whatever its own box says.
+    finished = {e["line"] for t in tasks for e in [t] + t["subs"]
+                if e["checked"] or t["checked"]}
 
     seen = {}
     for entry in ranked:
@@ -1013,24 +1026,13 @@ def check_ranks(tasks):
         seen[entry["rank"]] = entry["line"]
 
     for entry in ranked:
-        if entry["ai"] != "full":
+        if not entry["agent"] and entry["line"] not in finished:
             findings.append(
                 Finding(
                     entry["line"],
                     "FIX",
                     f"\"{entry['title'][:50]}\" carries rank:{entry['rank']} but is not "
-                    f"ai:full. Only fully delegable work belongs in that list.",
-                )
-            )
-
-    for entry in entries:
-        if entry["ai"] == "full" and not entry["checked"] and entry["rank"] is None:
-            findings.append(
-                Finding(
-                    entry["line"],
-                    "CHECK",
-                    f"\"{entry['title'][:50]}\" is ai:full with no rank:, so it will not "
-                    f"appear in Delegate to Claude.",
+                    f"delegated to an agent. Only an agent's work is ranked.",
                 )
             )
 

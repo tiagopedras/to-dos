@@ -147,12 +147,11 @@ export function OverviewView(props: OverviewViewProps) {
         <Section title="This week" hint={<>Everything tagged <code>week</code>, soonest first.</>}
           body={thisWeek} collapsible collapseKey="ov:This week" open={thisWeek.open} />
         <Section title="Quick wins"
-          hint={<>Yours to do: meeting agendas, <code>effort:S</code> and written messages. Anything{' '}
-            <code>ai:full</code> sits in Delegate instead.</>}
+          hint={<>Yours to do: meeting agendas, <code>effort:S</code> and written messages. Anything delegated
+            to the Implement agent sits in Delegate instead.</>}
           body={quickWins} collapsible collapseKey="ov:Quick wins" open={quickWins.open} />
         <Section title="Delegate to Claude"
-          hint={<>Everything tagged <code>ai:full</code>, in <code>rank:</code> order. Drag a number to
-            move that task up or down the queue.</>}
+          hint={<>Everything delegated to the Implement agent, worth doing first at the top.</>}
           body={delegate} collapsible collapseKey="ov:Delegate to Claude" open={delegate.open} />
         {context ? (
           <Section title="Context" hint="Standing facts, not tasks. Edit these in todo.md."

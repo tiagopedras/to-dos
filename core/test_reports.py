@@ -34,15 +34,15 @@ DOC = """## 1. Design System
 
 ### To do
 
-- [ ] **A task due tomorrow** [impact:: high] [effort:: M] [ai:: none] `due:2026-09-15`
-- [ ] **A quick win** [impact:: med] [effort:: S] [ai:: partial]
-- [ ] **The headline task** [impact:: high] [effort:: L] [ai:: none] `headline:2026-09-11` `week`
-  - [ ] Not yet started [ai:: none]
-  - [ ] Also open [ai:: none]
-- [ ] **Delegated, high priority** [impact:: high] [effort:: S] [ai:: full]
-- [ ] **Delegated, low priority** [impact:: low] [effort:: L] [ai:: full]
-- [ ] **A blocked quick win** [impact:: med] [effort:: S] [ai:: none] `blocked-by:gate` #other
-- [ ] **Weekly design review** [impact:: med] [effort:: S] [ai:: none] `due:2026-09-14` `repeat:mon`
+- [ ] **A task due tomorrow** [impact:: high] [effort:: M] `due:2026-09-15`
+- [ ] **A quick win** [impact:: med] [effort:: S] [to:: Plan agent]
+- [ ] **The headline task** [impact:: high] [effort:: L] `headline:2026-09-11` `week`
+  - [ ] Not yet started
+  - [ ] Also open
+- [ ] **Delegated, high priority** [impact:: high] [effort:: S] [to:: Implement agent]
+- [ ] **Delegated, low priority** [impact:: low] [effort:: L] [to:: Implement agent]
+- [ ] **A blocked quick win** [impact:: med] [effort:: S] `blocked-by:gate` #other
+- [ ] **Weekly design review** [impact:: med] [effort:: S] `due:2026-09-14` `repeat:mon`
   - Agenda:
     - Rebrand colours
       - Confirm the palette before Friday.
@@ -51,24 +51,24 @@ DOC = """## 1. Design System
 
 ### Doing
 
-- [ ] **In progress right now** [impact:: high] [effort:: M] [ai:: none]
+- [ ] **In progress right now** [impact:: high] [effort:: M]
 
 ### Waiting for review
 
-- [ ] **Sitting with someone else** [impact:: high] [effort:: S] [ai:: none] `due:2026-09-10`
+- [ ] **Sitting with someone else** [impact:: high] [effort:: S] `due:2026-09-10`
 
 ### Blocked
 
-- [ ] **Cannot move yet** [impact:: med] [effort:: M] [ai:: none]
+- [ ] **Cannot move yet** [impact:: med] [effort:: M]
 
 ### Backlog
 
-- [ ] **Not for now** [impact:: low] [effort:: S] [ai:: full]
+- [ ] **Not for now** [impact:: low] [effort:: S] [to:: Implement agent]
 
 ### Done
 
-- [x] **Finished this morning** [impact:: med] [effort:: S] [ai:: none] `done:2026-09-14`
-- [x] **Finished last week** [impact:: high] [effort:: M] [ai:: none] `done:2026-09-08`
+- [x] **Finished this morning** [impact:: med] [effort:: S] `done:2026-09-14`
+- [x] **Finished last week** [impact:: high] [effort:: M] `done:2026-09-08`
 
 ## Context
 
@@ -110,10 +110,10 @@ def test_today_view():
     check("a quick win is S effort and unblocked", "A quick win" in quick_titles, True)
     check("a blocked one is not, whatever its effort",
           "A blocked quick win" in quick_titles, False)
-    check("ai:full is Delegate's, not Quick wins'",
+    check("the Implement agent's work is Delegate's, not Quick wins'",
           "Delegated, high priority" in quick_titles, False)
 
-    check("delegate is ai:full regardless of column, ranked by impact against effort",
+    check("delegate is the Implement agent's regardless of column, ranked by impact against effort",
           [r["title"] for r in v["delegate"]],
           ["Delegated, high priority", "Not for now", "Delegated, low priority"])
 
@@ -147,8 +147,8 @@ def test_agenda_topics():
 
 ARCHIVE = """### Design System · Done
 
-- [x] **An archived task** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-01`
-- [x] **Outside the window** [impact:: med] [effort:: S] [ai:: none] `done:2026-01-01`
+- [x] **An archived task** [impact:: high] [effort:: M] `done:2026-08-01`
+- [x] **Outside the window** [impact:: med] [effort:: S] `done:2026-01-01`
 """
 
 # A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), and
@@ -157,9 +157,9 @@ ARCHIVE = """### Design System · Done
 # covered: one still in the live file and one in the archive.
 CANCELLED_ARCHIVE = """### Design System · Done
 
-- [x] **Really finished, in the archive** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-01`
-- [x] **Cancelled, in the archive** [impact:: high] [effort:: M] [ai:: none] `done:2026-08-02` `cancelled:2026-08-02`
-- [x] **Archived away, in the archive** [impact:: low] [effort:: S] [ai:: none] `done:2026-08-03` `archived:2026-08-03`
+- [x] **Really finished, in the archive** [impact:: high] [effort:: M] `done:2026-08-01`
+- [x] **Cancelled, in the archive** [impact:: high] [effort:: M] `done:2026-08-02` `cancelled:2026-08-02`
+- [x] **Archived away, in the archive** [impact:: low] [effort:: S] `done:2026-08-03` `archived:2026-08-03`
 """
 
 CANCELLED_DOC = """# To-do
@@ -168,9 +168,9 @@ CANCELLED_DOC = """# To-do
 
 ### Done
 
-- [x] **Really finished, live** [impact:: high] [effort:: M] [ai:: none] `done:2026-09-02`
-- [x] **Cancelled, live** [impact:: high] [effort:: M] [ai:: none] `done:2026-09-02` `cancelled:2026-09-02`
-- [x] **Archived away, live** [impact:: low] [effort:: S] [ai:: none] `done:2026-09-02` `archived:2026-09-02`
+- [x] **Really finished, live** [impact:: high] [effort:: M] `done:2026-09-02`
+- [x] **Cancelled, live** [impact:: high] [effort:: M] `done:2026-09-02` `cancelled:2026-09-02`
+- [x] **Archived away, live** [impact:: low] [effort:: S] `done:2026-09-02` `archived:2026-09-02`
 """
 
 

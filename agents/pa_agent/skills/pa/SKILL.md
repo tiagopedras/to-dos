@@ -120,7 +120,7 @@ So the whole update is the tag:
 | --- | --- |
 | How much it matters, how heavy it is | `[impact:: high\|med\|low]` plus `[effort:: S\|M\|L]` |
 | When it must be finished | `[due:: YYYY-MM-DD]` |
-| What Claude does | `[ai:: full\|partial\|none]`, plus `rank:N` where it is full |
+| Who does it | `[to:: Plan agent\|Implement agent\|<a name from people.md>]`, plus `rank:N` on an agent's |
 | When it can first be started | `start:YYYY-MM-DD`, only where something real gates it |
 | The one thing for now | `headline:YYYY-MM-DD`, the date it was set |
 | What is in this week | `week` |

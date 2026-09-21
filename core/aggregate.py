@@ -63,7 +63,7 @@ def _row(task, today, due_override=None):
     days = abs((due - today).days) if due else ""
     return {
         "title": task.title, "bucket": task.bucket, "state": task.column,
-        "impact": task.impact, "effort": task.effort, "ai": task.ai,
+        "impact": task.impact, "effort": task.effort, "to": task.to,
         "due": _fmt_long(due), "due_short": _fmt_short(due),
         "days": days, "who": _who(task),
     }
@@ -139,7 +139,7 @@ def today_view(tasks, today=None):
 
     quick_wins = []
     for t in open_tasks:
-        if t.ai == "full" or t.column == BACKLOG:
+        if todo.agent_of(t.to) == todo.IMPLEMENT_AGENT or t.column == BACKLOG:
             continue
         if not _actionable(t, slugs, today):
             continue
@@ -147,7 +147,7 @@ def today_view(tasks, today=None):
             quick_wins.append(_row(t, today))
 
     delegate = sorted(
-        (t for t in open_tasks if t.ai == "full"),
+        (t for t in open_tasks if todo.agent_of(t.to) == todo.IMPLEMENT_AGENT),
         key=todo.priority_score, reverse=True)
     delegate = [_row(t, today) for t in delegate]
 

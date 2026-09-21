@@ -38,7 +38,7 @@ const fixture = name =>
    reading it off the context object here would give undefined. So the file is
    evaluated with a trailing expression naming what this suite uses, and the
    value of that expression is what comes back. */
-const WANTED = ['TASK_RE', 'SUB_RE', 'MSG_NOTE', 'parseTask', 'serializeTask',
+const WANTED = ['TASK_RE', 'SUB_RE', 'MSG_NOTE', 'parseTask', 'serializeTask', 'agentOf',
                 'parseDoc', 'serializeDoc', 'splitBody', 'quoted', 'readRepeat',
                 'occurrenceFrom', 'occurrenceAfter', 'unscored', 'priorityScore'];
 const source = fs.readFileSync(path.join(HERE, 'todo.js'), 'utf8')
@@ -184,7 +184,11 @@ function checkParse() {
       fail(`parseDoc — ${d.why}\n     got  ${JSON.stringify(got)}\n     want ${JSON.stringify(d.tasks)}`);
       continue;
     }
-    if (board.serializeDoc(doc) !== text) fail(`parseDoc did not round-trip — ${d.why}`);
+    if (d.roundTrips && board.serializeDoc(doc) !== text) fail(`parseDoc did not round-trip — ${d.why}`);
+  }
+  for (const { to, agent } of table.agents) {
+    const got = board.agentOf(to);
+    if (got !== agent) fail(`agentOf(${JSON.stringify(to)}): got ${JSON.stringify(got)}, want ${JSON.stringify(agent)}`);
   }
   console.log(`${table.cases.length} task lines, ${table.docs.length} documents — ${failures > before ? 'see above' : 'all agree'}`);
 }
