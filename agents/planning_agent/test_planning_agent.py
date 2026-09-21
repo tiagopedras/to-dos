@@ -1304,37 +1304,17 @@ def test_usage_chart():
 
 
 def test_runner():
-    """Two things about run.sh that cannot be checked by running it.
-
-    Running it spends real money on a real agent, so these read the script
-    instead. Both pin a bug that actually happened rather than a hypothetical.
+    """The night is the shared runner's since 21 Sep 2026 (PACKAGES/agents_engine,
+    whose own tests hold the lock, the stops and the daily log). What is pinned
+    here is this agent's side of it: the lock sits where the board looks for
+    it, and the tools each planner is given.
     """
-    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-
-    # `exec` replaces the shell, and a replaced shell never runs its EXIT trap,
-    # so the lock was held for the full staleness window after every successful
-    # run and every wake in between refused to work. It looked fine until there
-    # was a second run to block.
-    body = sh.split("# --- 3. the window", 1)[-1]
-    check("run.sh does not exec plan.py, or the lock leaks",
-          "exec " in body.replace("exec $?", ""), False)
-    # An EXIT trap until 19 Sep 2026, when one wake started taking one lock per
-    # list: a trap fires once, so releasing is a function the loop calls on its
-    # way out of each list and traps for a signal arriving mid-list.
-    release = sh.split("_release() {", 1)[-1].split("\n", 1)[0]
-    check("and it does clear the lock on the way out", 'rmdir "$LOCK"' in release, True)
-    # The PID file lives inside the lock directory, so rmdir fails while it is
-    # there and the lock outlives the run that took it.
-    check("clearing the PID file with it", '"$PIDFILE"' in release, True)
-    check("and it is called after plan.py returns, not only on a signal",
-          sh.count("_release") >= 3, True)
-    check("with the signal traps still set", "trap '_release' INT TERM" in sh, True)
-
-    # Staleness asks whether the holder is alive before it asks how old the
-    # lock is. A laptop asleep mid-batch suspends the holder rather than
-    # killing it, so age alone held the lock from 6 to 8 September 2026.
-    check("run.sh records the holder's PID with the lock", 'echo $$ > "$PIDFILE"' in sh, True)
-    check("and tests it before trusting the mtime", 'kill -0 "$HOLDER"' in sh, True)
+    import hooks
+    check("the runner's lock is the path the board checks",
+          hooks.lock_path("twinkl"), os.path.join(ROOT, "data", ".planning-agent-twinkl.lock"))
+    opts = hooks.options({"task": type("T", (), {"bucket": "Design System"})()}, {"id": "twinkl"})
+    check("the planner gets ~/Code added", "~/Code" in opts["dirs"], True)
+    check("and no Bash among its tools", "Bash" in opts["tools"], False)
 
     # The agents are told to read ~/Code/CLAUDE.md, SKILLS.md and
     # DS-KNOWN-ISSUES.md. Without --add-dir claude -p cannot see any of them,
@@ -1546,15 +1526,19 @@ def test_max_plans():
     check("and stops the batch on it, beside the budget check",
           "args.max_plans and len(written) >= args.max_plans" in src, True)
 
-    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-    check("run.sh reads the schedule's max_plans, for the list it is running",
-          "schedule.load(sys.argv[2])" in sh and "max_plans" in sh, True)
-    check("and passes it to plan.py as --max-plans", "--max-plans" in sh, True)
-    # --task plans exactly one and has no batch loop for max_plans to stop, so
-    # the schedule-reading block is gated on MANUAL, the same flag --task sets.
-    sched_block = sh.split("# --- 3. the schedule's own budget", 1)[-1]
-    check("the schedule-reading block is skipped for a --task run",
-          'if [ "$MANUAL" -eq 0 ]; then' in sched_block, True)
+    import hooks
+    schedule = hooks.schedule
+    real_path = schedule.path
+    tmp = tempfile.mkdtemp()
+    try:
+        schedule.path = lambda: os.path.join(tmp, "schedule.json")
+        hooks.save_settings("twinkl", {"max_items": 4, "hours": [1, 2]})
+        check("the runner's item cap is saved as the schedule's max_plans",
+              schedule.load("twinkl")["max_plans"], 4)
+        check("and read back as the runner's max_items", hooks.load_settings("twinkl")["max_items"], 4)
+    finally:
+        schedule.path = real_path
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def test_runner_root():
@@ -1568,25 +1552,20 @@ def test_runner_root():
     shape a bug can have in something nobody watches.
     """
     sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-    check("run.sh goes two levels up to the repo root",
-          'ROOT="$(dirname "$(dirname "$HERE")")"' in sh, True)
-    check("and makes the lock's parent before taking the lock",
-          'mkdir -p "$(dirname "$LOCK")"' in sh, True)
-    # The paths ROOT is used for have to exist from the root it cd's to, which
-    # is the check that would have caught it.
+    # The paths ROOT is used for have to exist from the root the hooks name,
+    # which is the check that would have caught it.
+    import hooks
     for rel in ("core/windows.py", "data"):
-        check("%s exists under the root run.sh cd's to" % rel,
-              os.path.exists(os.path.join(ROOT, rel)), True)
-    check("run.sh asks schedule.py rather than a hardcoded clock",
-          "schedule.py\" --due" in sh, True)
-    check("and no longer has the 19/7 hours written into it",
-          "-lt 19 " in sh, False)
-    # The plist is dumb now. Twelve wakes there would silently override whatever
-    # the dashboard wrote into the schedule file.
-    plist = open(os.path.join(HERE, "com.tiagopedras.todos-planning-agent.plist"),
-                 encoding="utf-8").read()
-    check("the plist wakes all twenty-four hours",
-          plist.count("<key>Hour</key>"), 24)
+        check("%s exists under the root the hooks use" % rel,
+              os.path.exists(os.path.join(hooks.ROOT, rel)), True)
+    # run.sh is kept only so the board's Run now still works.
+    check("run.sh hands a named list to the runner, now",
+          '--now "${TARGET[@]+"${TARGET[@]}"}"' in sh and '--target "$ONLY"' in sh, True)
+    check("and a bare wake to the runner's wake", '--wake' in sh, True)
+    import json as _json
+    desc = _json.load(open(os.path.join(HERE, "agent.json"), encoding="utf-8"))
+    check("the shared hourly wake reaches this agent through agent.json",
+          desc.get("wake"), ["python3", "run.py", "--wake"])
 
 
 def test_carry_over():
@@ -1800,25 +1779,11 @@ def test_per_dataset_schedule():
     src = open(os.path.join(HERE, "dashboard.py"), encoding="utf-8").read()
     check("the dashboard never reads the dataset pointer",
           "paths.dataset()" in src or "paths.pointer()" in src, False)
-    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-    forced = sh.split("--enabled", 1)[-1].split("else", 1)[0]
-    check("and a forced run with nothing armed stops rather than taking the live list",
-          "paths.dataset()" in forced, False)
-
-    # run.sh's half: one lock per list, and a loop rather than a single run.
-    sh = open(os.path.join(HERE, "run.sh"), encoding="utf-8").read()
-    check("run.sh locks per list, so one overrunning does not cost the other its night",
-          '.planning-agent-$DS.lock' in sh, True)
-    check("and asks which lists want this hour", "--due-now" in sh, True)
-    check("exporting the name so paths.py resolves to that list",
-          'export PLANNING_DATASET="$DS"' in sh, True)
-    check("a forced run takes the armed lists rather than every list on disk",
-          "--enabled" in sh, True)
-    check("and one card's Run now names its list", "--dataset" in sh, True)
-    # bash 3.2 is what ships with macOS: no mapfile, and an empty array under
-    # `set -u` is an error rather than a length of zero.
-    check("the list of lists avoids mapfile, which macOS bash does not have",
-          "mapfile -t" in sh, False)
+    import hooks
+    check("the runner gets one target per list on disk",
+          sorted(t["id"] for t in hooks.targets()), sorted(paths.datasets()))
+    check("and one lock per list, so one overrunning does not cost the other its night",
+          hooks.lock_path("a") != hooks.lock_path("b"), True)
 
 
 def main():

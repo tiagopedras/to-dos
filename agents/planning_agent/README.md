@@ -20,9 +20,33 @@ python3 core/windows.py --history the last 30 days of usage windows
 python3 agents/planning_agent/test_planning_agent.py   the schedule, the picker and the runner
 ```
 
+## Since 21 Sep 2026: the shared runner
+
+The night is run by the shared runner in `PACKAGES/agents_engine` (`RUNNER.md`
+there), the same one the UX agent and `improve_agent` use. The shared hourly
+wake calls `run.py --wake`, and `hooks.py` is this agent's side of it. The
+runner owns the wake, the lock, the budget and item cap, the stops and the
+dashboard's commands. The hooks call the same functions as before for
+everything else, so every file the board reads is written exactly as it was:
+the lines in `planning-agent.log`, the plans, `ledger.json`, the day's
+`index.md` and `run.json`, `window.json` and the companion's notification. The
+lock is still `data/.planning-agent-<list>.lock`.
+
+`run.sh` stays as a small file that hands its flags to `run.py`, so the board's
+Run now and the commands above still work. The runner also writes its own daily
+log per list, in `data/runner/planning-agent/<list>/runs/<date>.md`: what was
+planned, what was not and why, and what failed.
+
+`plan.py`'s own `run()` loop and the four commands in `dashboard.py` are no
+longer called by anything but the tests. `dashboard.py`'s card is still used,
+through the `card` hook.
+
+The sections below describe the rules as they were written. Where they name
+`run.sh` doing the checking, it is the runner doing it now, with the same rule.
+
 ## When it runs, and why the hours are the whole answer
 
-The schedule is the gate. `run.sh` is woken hourly, asks `schedule.py` whether
+The schedule is the gate. The runner is woken hourly, asks `schedule.py` whether
 this is one of tonight's hours, takes the lock, and runs. Nothing else votes.
 
 It was not always this way, and the history is worth keeping because the removed
@@ -74,9 +98,9 @@ mtime window is now only the fallback for a lock that names no holder.
 ### Which hours, and who decides
 
 `schedule.py` and `data/planning-agent-schedule.json`, edited from the agents
-dashboard at `~/Code/agents-dashboard`. The plist wakes this all twenty-four
-hours and holds no policy at all, because a plist that only woke between certain
-hours would silently override whatever the dashboard said.
+dashboard at `~/Code/agents-dashboard`. The shared wake runs every hour and holds
+no policy at all, because a wake that only fired between certain hours would
+silently override whatever the dashboard said.
 
 Before 9 September 2026 the hours were written twice — twelve entries in the
 plist and a `19:00–06:59` clock check in `run.sh` — and changing them meant
@@ -442,23 +466,10 @@ task afresh instead of skipping it for looking unchanged.
 
 ## Installing the schedule
 
-```bash
-ln -s ~/Code/to-dos/agents/planning_agent/com.tiagopedras.todos-planning-agent.plist \
-      ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
-launchctl load ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
-```
-
-`RunAtLoad` is deliberately absent, so loading it at 10am starts nothing. The
-schedule guard in `run.sh` would refuse anyway, and two guards on the same
-mistake is the right number for something that spends money unattended.
-
-Reloading is only needed when the plist itself changes, which is now almost
-never — the hours are a file the dashboard writes, not a plist to edit.
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
-launchctl load   ~/Library/LaunchAgents/com.tiagopedras.todos-planning-agent.plist
-```
+There is nothing of this agent's own to install. The hourly wake is shared by
+every agent, and `RUNNER.md` in `PACKAGES/agents_engine` says how it is
+installed. Its own plist was retired on 21 Sep 2026. Nothing runs until a list
+is switched on and its hour comes round.
 
 ## Open questions
 
