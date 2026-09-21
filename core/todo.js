@@ -45,6 +45,14 @@ const HR_RE     = /^---\s*$/;
    core/todo.py holds the same table. */
 const TIER_RENAMED = { 'Waiting review': 'Reviewing', 'Waiting for review': 'Reviewing' };
 
+/* The heading a finished task lives under. It is first in a bucket, because the
+   board draws a bucket's headings in the reverse order and Done is its far
+   right. Until 21 Sep 2026 it was never a heading, only what a ticked task
+   looked like wherever it sat; now the tick and the place agree, and
+   gatherDone() below is what makes an older file agree too. core/todo.py holds
+   the same name. */
+const DONE_HEADING = 'Done';
+
 let uidCounter = 0;
 const uid = () => 't' + (++uidCounter);
 
@@ -347,7 +355,46 @@ function parseDoc(text){
     doc.buckets.push(bucket);
   }
   doc.post = lines.slice(i);
+  gatherDone(doc);
   return doc;
+}
+
+/* A ticked task belongs under its bucket's Done heading. A file written before
+   that was true has them under whichever heading they were ticked in, so they
+   are gathered here, on every read: an old backup lands the same way as a list
+   not yet rewritten, and the next save writes them where they now live, the way
+   a renamed heading is (TIER_RENAMED). The order is the file's own, appended
+   after what Done already held; when a bucket has no Done heading yet one is
+   made, first, and only if something ticked needs it. core/todo.py's parse_doc
+   gathers in the same order, which is what the fixtures compare.
+
+   The tick still means finished and the heading means where it is. A task in
+   Done that is not ticked is left alone. */
+function gatherDone(doc){
+  doc.buckets.forEach(b => {
+    const stray = [];
+    b.tiers.forEach(tier => {
+      if (tier.name === DONE_HEADING) return;
+      const keep = tier.tasks.filter(t => !t.done);
+      if (keep.length === tier.tasks.length) return;
+      tier.tasks.forEach(t => { if (t.done) stray.push(t); });
+      tier.tasks = keep;
+      if (!keep.length) {
+        /* Emptied: what is left is a heading with the blank line under it, the
+           shape parseDoc gives a column it finds empty. Prose that sat after
+           the last task is not ours to drop. */
+        tier.lead = tier.lead && tier.lead.length ? tier.lead : [''];
+        tier.tail = tier.tail.some(l => l.trim() !== '') ? tier.tail : [];
+      }
+    });
+    if (!stray.length) return;
+    let done = b.tiers.find(t => t.name === DONE_HEADING);
+    if (!done) {
+      done = { name: DONE_HEADING, raw: null, lead: [''], tasks: [], tail: [''] };
+      b.tiers.unshift(done);
+    }
+    stray.forEach(t => { done.tasks.push(t); });
+  });
 }
 
 function serializeDoc(doc){

@@ -91,7 +91,14 @@ const NEW_DOCS = [
   { why: 'Waiting for review became Reviewing on 21 Sep 2026, and a list or a '
        + 'backup still carrying the old heading reads as the new one. It does '
        + 'not round-trip either.',
-    text: '## 1. People\n\n### Waiting for review\n\n- [ ] Sent over, waiting on comments\n' }
+    text: '## 1. People\n\n### Waiting for review\n\n- [ ] Sent over, waiting on comments\n' },
+  { why: 'a ticked task is read under its bucket\'s Done heading wherever the file '
+       + 'has it, appended after what Done already held, and a bucket with no Done '
+       + 'heading gets one, first. A task in Done that is not ticked stays. It does '
+       + 'not round-trip: the next save writes them where they now live.',
+    text: '## 1. People\n\n### Doing\n\n- [x] Finished in Doing\n- [ ] Still going\n\n### To do\n\n'
+        + '- [x] Finished in To do\n\n### Done\n\n- [x] Already there\n- [ ] Unticked in Done\n\n'
+        + '## 2. BAU\n\n### To do\n\n- [ ] Open\n- [x] Ticked, and there is no Done heading\n' }
 ]
 
 const docText = d => d.file

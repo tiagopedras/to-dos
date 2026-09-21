@@ -281,7 +281,10 @@ function bucketColor(name, index){
   return (state.bucketColors && state.bucketColors[name]) ||
     BUCKET_COLOR[((index % BUCKET_COLOR.length) + BUCKET_COLOR.length) % BUCKET_COLOR.length];
 }
-const DONE_COL = 'Done';
+/* A real heading since 21 Sep 2026: first in a bucket, far right on the board,
+   and where a ticked task lives. The name comes from core/todo.js, which reads
+   and writes it too. */
+const DONE_COL = DONE_HEADING;
 /* Not a special column the way Done is — just a tier the board tints, so a
    renamed section simply stops matching and goes back to looking normal. It
    was Waiting for review until 21 Sep 2026: a column says the state of the
@@ -306,8 +309,8 @@ const DOING_TIER = 'Doing';
    todo.js and todo.py read, which is a bigger job than this is. So instead
    the Edit Columns editor simply refuses to rename any of the five away from
    this exact text (see tierNameTaken() in 09-columns.js) — the same
-   protection DONE_COL already gets by never being a real heading at all,
-   extended to the four of these that are. Any other tier a bucket adds
+   protection every other load-bearing name here gets, extended to Done now
+   that it is a heading too. Any other tier a bucket adds
    stays freely renamable. */
 const RESERVED_TIERS = [BACKLOG_TIER, TODO_TIER, DOING_TIER, WAIT_COL, DONE_COL];
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
@@ -326,12 +329,13 @@ const TIER_HINT = {
   'Done':    'ticked off'
 };
 
-/* The file lists tiers Now → Backlog. The board shows them the other way
-   round, with Done on the far right. Who is doing a task is its assignee
-   (`[to::]`), never a column of its own: Handed to AI went on 21 Sep 2026, and
-   a task an agent has stays in To do or Doing like any other. */
+/* The file lists tiers Done → Backlog. The board shows them the other way
+   round, so Done is on the far right. allTiers() keeps Done first whatever
+   order the buckets happen to hold their headings in. Who is doing a task is
+   its assignee (`[to::]`), never a column of its own: Handed to AI went on 21
+   Sep 2026, and a task an agent has stays in To do or Doing like any other. */
 function boardColumns(){
-  return allTiers().slice().reverse().concat([DONE_COL]);
+  return allTiers().slice().reverse();
 }
 
 /* The four names above, and the synthetic Done column, are also written down in

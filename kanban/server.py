@@ -523,16 +523,18 @@ def project_listing():
     return out
 
 
-# Same four states every other data set starts with, so a brand new list's
+# Same five states every other data set starts with, so a brand new list's
 # columns read the same on the board as any other's from the first save —
-# not because these four are special to the board (any heading works, and
-# the Columns editor can rename, add to, or remove from them), but because
-# nothing is more confusing than a second list whose board looks unlike the
-# first for no reason anyone chose.
-NEW_DATASET_COLUMNS = ("Reviewing", "Doing", "To do", "Backlog")
+# not because these are special to the board (any heading works, and the
+# Columns editor can rename, add to, or remove from all but Done), but
+# because nothing is more confusing than a second list whose board looks
+# unlike the first for no reason anyone chose. Done is first because the
+# board draws a bucket's headings the other way round.
+NEW_DATASET_COLUMNS = ("Done", "Reviewing", "Doing", "To do", "Backlog")
 NEW_DATASET_TEMPLATE = (
     "# To-do\n\n"
     "## 1. Tasks\n\n"
+    "### Done\n\n"
     "### Reviewing\n\n"
     "### Doing\n\n"
     "### To do\n\n"

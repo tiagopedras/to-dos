@@ -1205,9 +1205,13 @@ function renderBoard(){
       const color = bucketColor(bucket.name, state.doc.buckets.indexOf(bucket));
       const label = many ? bucket.name : '';
       if (isDone) {
-        bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
-          if (t.done && matches(t, DONE_COL)) entries.push({ t, color, label });
-        }));
+        /* Its own heading now, so this reads the tier like any other. What the
+           tick moves there is setDone()'s job, and gatherDone() in core/todo.js
+           does the same for a file written before that was true. */
+        const tier = bucket.tiers.find(t => t.name === DONE_COL);
+        if (tier) tier.tasks.forEach(t => {
+          if (matches(t, DONE_COL)) entries.push({ t, color, label });
+        });
       } else {
         const tier = bucket.tiers.find(t => t.name === name);
         if (tier) tier.tasks.forEach(t => {
@@ -1371,7 +1375,7 @@ function dropTask(id, tierName, zone, clientY){
   const loc = locate(id);
   if (!loc) return;
 
-  // Done is not a section in the file — it is the tick box on the task.
+  // Dropping on Done ticks the task, and setDone() moves it under the heading.
   if (tierName === DONE_COL) {
     const msg = blockedMessage(allItems(), loc.task.blockedBy);
     if (msg) { showToast(msg, 'blocked'); return; }
@@ -1381,7 +1385,7 @@ function dropTask(id, tierName, zone, clientY){
   }
   // A column says where the card is, never who has it, so a drop leaves
   // `[to::]` alone.
-  setDone(loc.task, false);                       // dragged back out of Done
+  setDone(loc.task, false, { stay: true });       // dragged back out of Done
 
   const targetTier = ensureTier(loc.bucket, tierName);
 

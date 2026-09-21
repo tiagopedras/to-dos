@@ -1176,6 +1176,26 @@
       "roundTrips": true,
       "tasks": [
         {
+          "title": "Wrap up the Q2 hiring retro notes",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Send Priya's skip-level notes to HR",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Pick the venue for the team offsite",
+          "bucket": "People",
+          "column": "Done",
+          "body": [
+            "  - Ticked before the board started dating finished work, so it has no `done:` tag — Reports counts it as a gap rather than guessing."
+          ]
+        },
+        {
           "title": "Run Alex Rivera's probation review",
           "bucket": "People",
           "column": "Doing",
@@ -1217,18 +1237,6 @@
           ]
         },
         {
-          "title": "Wrap up the Q2 hiring retro notes",
-          "bucket": "People",
-          "column": "Doing",
-          "body": []
-        },
-        {
-          "title": "Send Priya's skip-level notes to HR",
-          "bucket": "People",
-          "column": "Doing",
-          "body": []
-        },
-        {
           "title": "Set up monthly growth conversations with the team",
           "bucket": "People",
           "column": "To do",
@@ -1261,12 +1269,22 @@
           ]
         },
         {
-          "title": "Pick the venue for the team offsite",
-          "bucket": "People",
-          "column": "Backlog",
-          "body": [
-            "  - Ticked before the board started dating finished work, so it has no `done:` tag — Reports counts it as a gap rather than guessing."
-          ]
+          "title": "Sign off the empty-state pattern",
+          "bucket": "Design oversight",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Approve the nav redesign for release",
+          "bucket": "Design oversight",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Close out the icon audit ticket",
+          "bucket": "Design oversight",
+          "column": "Done",
+          "body": []
         },
         {
           "title": "Unblock the checkout redesign",
@@ -1282,18 +1300,6 @@
         },
         {
           "title": "Review the onboarding flow before it ships",
-          "bucket": "Design oversight",
-          "column": "Doing",
-          "body": []
-        },
-        {
-          "title": "Sign off the empty-state pattern",
-          "bucket": "Design oversight",
-          "column": "Doing",
-          "body": []
-        },
-        {
-          "title": "Approve the nav redesign for release",
           "bucket": "Design oversight",
           "column": "Doing",
           "body": []
@@ -1321,9 +1327,21 @@
           "body": []
         },
         {
-          "title": "Close out the icon audit ticket",
-          "bucket": "Design oversight",
-          "column": "Backlog",
+          "title": "Retire the legacy colour palette",
+          "bucket": "Design System",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Publish the v2 badge component",
+          "bucket": "Design System",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Ship the spacing token migration",
+          "bucket": "Design System",
+          "column": "Done",
           "body": []
         },
         {
@@ -1345,12 +1363,6 @@
             "    - Prompt: \"Run the ds-snapshot skill from the ds-snapshots folder to capture today's library, then tell me which button variants exist in Figma and not in Storybook. Do not compare against an old snapshot, take a new one first.\"",
             "  - [ ] Agree the naming with the Web team `blocked-by:checkout`"
           ]
-        },
-        {
-          "title": "Retire the legacy colour palette",
-          "bucket": "Design System",
-          "column": "Doing",
-          "body": []
         },
         {
           "title": "Raise the button variant gap on the contributions board",
@@ -1381,21 +1393,21 @@
           ]
         },
         {
-          "title": "Publish the v2 badge component",
-          "bucket": "Design System",
-          "column": "To do",
-          "body": []
-        },
-        {
           "title": "Move the icon set onto variables",
           "bucket": "Design System",
           "column": "Backlog",
           "body": []
         },
         {
-          "title": "Ship the spacing token migration",
-          "bucket": "Design System",
-          "column": "Backlog",
+          "title": "Finish the Q2 adoption readout",
+          "bucket": "Strategic",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Circulate the tooling budget proposal",
+          "bucket": "Strategic",
+          "column": "Done",
           "body": []
         },
         {
@@ -1408,12 +1420,6 @@
           ]
         },
         {
-          "title": "Finish the Q2 adoption readout",
-          "bucket": "Strategic",
-          "column": "Doing",
-          "body": []
-        },
-        {
           "title": "Test whether AI review speeds up design QA",
           "bucket": "Strategic",
           "column": "To do",
@@ -1421,12 +1427,6 @@
         },
         {
           "title": "Sketch a rough shape for the design ops role",
-          "bucket": "Strategic",
-          "column": "To do",
-          "body": []
-        },
-        {
-          "title": "Circulate the tooling budget proposal",
           "bucket": "Strategic",
           "column": "To do",
           "body": []
@@ -1455,11 +1455,60 @@
     {
       "why": "Waiting for review became Reviewing on 21 Sep 2026, and a list or a backup still carrying the old heading reads as the new one. It does not round-trip either.",
       "text": "## 1. People\n\n### Waiting for review\n\n- [ ] Sent over, waiting on comments\n",
+      "roundTrips": false,
       "tasks": [
         {
           "title": "Sent over, waiting on comments",
           "bucket": "People",
           "column": "Reviewing",
+          "body": []
+        }
+      ]
+    },
+    {
+      "why": "a ticked task is read under its bucket's Done heading wherever the file has it, appended after what Done already held, and a bucket with no Done heading gets one, first. A task in Done that is not ticked stays. It does not round-trip: the next save writes them where they now live.",
+      "text": "## 1. People\n\n### Doing\n\n- [x] Finished in Doing\n- [ ] Still going\n\n### To do\n\n- [x] Finished in To do\n\n### Done\n\n- [x] Already there\n- [ ] Unticked in Done\n\n## 2. BAU\n\n### To do\n\n- [ ] Open\n- [x] Ticked, and there is no Done heading\n",
+      "tasks": [
+        {
+          "title": "Still going",
+          "bucket": "People",
+          "column": "Doing",
+          "body": []
+        },
+        {
+          "title": "Already there",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Unticked in Done",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Finished in Doing",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Finished in To do",
+          "bucket": "People",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Ticked, and there is no Done heading",
+          "bucket": "BAU",
+          "column": "Done",
+          "body": []
+        },
+        {
+          "title": "Open",
+          "bucket": "BAU",
+          "column": "To do",
           "body": []
         }
       ],

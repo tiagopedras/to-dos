@@ -19,9 +19,9 @@
    heading at all. See syncTierShapes for the rest of this.
    ========================================================================= */
 
-/* Left to right, the way the board actually draws them, with Done left off:
-   it is never a heading, it is where a ticked task lands regardless of which
-   column it sits under. */
+/* Left to right, the way the board actually draws them, with Done left off: it
+   is fixed at the far right and not one of the columns that can be renamed,
+   reordered or deleted, so every editor here works from this list. */
 function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL); }
 
 function tierTaskCount(name){
@@ -107,7 +107,8 @@ async function loadColumnNames(){
    the blind spot, so reordering, adding and deleting all do this rather than
    only touching the buckets a column already happened to be in. */
 function syncTierShapes(order){
-  const fileOrder = order.slice().reverse();   // boardColumns() reverses allTiers()
+  // boardColumns() reverses allTiers(), and Done is first in the file
+  const fileOrder = [DONE_COL].concat(order.slice().reverse());
   state.doc.buckets.forEach(b => {
     const byName = {};
     b.tiers.forEach(t => { byName[t.name] = t; });
@@ -247,7 +248,7 @@ function openTierEditor(focusOn){
       'The states every task moves through inside a bucket, left to right on the board. Every bucket ' +
       'shows every column, whether or not its own section has tasks in it, so a rename, reorder, add ' +
       'or delete here reaches every bucket the same way. Done sits fixed at the far right and is not ' +
-      'listed here, since it is never a heading, just where a ticked task lands. Five of these names are ' +
+      'listed here: it is where a ticked task lands. Four of these names are ' +
       'matched by their exact text by everything else that reads the list, so renaming one of those changes ' +
       'what you see here and leaves its heading in the file alone — the grey word beside it is the heading ' +
       'it still has. Nothing reaches the file until you save.',

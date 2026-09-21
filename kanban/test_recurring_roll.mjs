@@ -138,8 +138,8 @@ try {
   check('so it keeps its agenda rather than filing it',
     at('Monthly, held in Done', 'agenda') === true &&
     at('Monthly, held in Done', 'prev') === false)
-  check('and it stays where it was',
-    at('Monthly, held in Done', 'tier') === 'Backlog', at('Monthly, held in Done', 'tier'))
+  check('and it stays in Done, where its tick put it',
+    at('Monthly, held in Done', 'tier') === 'Done', at('Monthly, held in Done', 'tier'))
 
   check('a card parked in Backlog whose day is tomorrow is brought into To do',
     at('Parked, its day is tomorrow', 'tier') === 'To do', at('Parked, its day is tomorrow', 'tier'))
@@ -155,13 +155,13 @@ try {
 
   check('three rolled, and the held one is not one of them',
     out.res.n === 3, String(out.res.n))
-  // `moved` counts a decision rather than a move: the weekly five days out was
-  // parked in Backlog from Backlog, and the applier skips a move to the tier a
-  // card is already in. Two cards actually change column, which is what the
-  // counts below are.
+  // Every ticked card in the fixture is read as sitting in Done, so all three
+  // decisions are real moves: two rolled cards leave Done, one for Backlog and
+  // one for To do, and the parked one whose day is tomorrow comes across from
+  // Backlog. The held one stays in Done, and none is in two columns at once.
   check('three placements decided', out.res.moved === 3, String(out.res.moved))
-  check('two cards actually changed column, and none is in two at once',
-    out.counts.join(' ') === 'Backlog:4 To do:2', out.counts.join(' '))
+  check('three cards actually changed column, and none is in two at once',
+    out.counts.join(' ') === 'Done:1 Backlog:3 To do:2', out.counts.join(' '))
 
   const blocked = await evalJS(`window.__blocked`)
   check('nothing was written', blocked.length === 0, blocked.join(', '))

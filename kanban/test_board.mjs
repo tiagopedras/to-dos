@@ -236,6 +236,14 @@ await wait(150)
 check('a card dropped on Done is ticked', await evalJS(`
   !!document.querySelector('#board .tenon-column[data-tier="Done"] .tenon-card.done[data-id="bd0002"]')
 `))
+check('and it now sits under the bucket\'s Done heading, at the top', await evalJS(`__order('Done')`) === 'Beta', await evalJS(`__order('Done')`))
+check('Done is the first heading in the bucket', await evalJS(`state.doc.buckets[0].tiers[0].name`) === 'Done')
+check('and it left the heading it was ticked under', await evalJS(`__order('To do')`) === 'Gamma,Alpha,Delta', await evalJS(`__order('To do')`))
+check('unticking a card in Done sends it to the top of To do', await evalJS(`(() => {
+  setDone(locate('bd0002').task, false);
+  return __order('To do') + ' / done=' + __order('Done');
+})()`) === 'Beta,Gamma,Alpha,Delta / done=', await evalJS(`__order('To do') + ' / done=' + __order('Done')`))
+await evalJS(`setDone(locate('bd0002').task, true); refreshView()`)
 
 /* ---- sorting ---- */
 

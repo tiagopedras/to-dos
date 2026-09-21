@@ -1095,9 +1095,9 @@ function openDrawer(id, focusTitle){
   wireDatePicker(t, touch, 'due');
   wireTagChips(t);
 
-  /* Done is the tick box in the file, not a section, so picking it here ticks
-     the task off and picking anything else unticks it — exactly what dragging a
-     card in or out of the Done column does. */
+  /* Picking Done here ticks the task off, which moves it under the Done heading,
+     and picking anything else unticks it into that column — exactly what
+     dragging a card in or out of the Done column does. */
   wireStepPicker('f-tier', tierStops, pick => {
     if (pick === DONE_COL) {
       const msg = blockedMessage(allItems(), t.blockedBy);
@@ -1106,7 +1106,7 @@ function openDrawer(id, focusTitle){
       markDirty(); refreshView(); openDrawer(id);
       return;
     }
-    setDone(t, false);
+    setDone(t, false, { stay: true });
     const target = ensureTier(loc.bucket, pick);
     if (target !== loc.tier) {
       loc.tier.tasks.splice(loc.index, 1);

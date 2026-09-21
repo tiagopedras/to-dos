@@ -25,6 +25,15 @@ chip both show up somewhere too.
 
 ## 1. People
 
+### Done
+
+- [x] **Wrap up the Q2 hiring retro notes** [impact:: med] [effort:: S] `done:2026-07-14`
+
+- [x] **Send Priya's skip-level notes to HR** [impact:: low] [effort:: S] `done:2026-08-28`
+
+- [x] **Pick the venue for the team offsite** [impact:: low] [effort:: S]
+  - Ticked before the board started dating finished work, so it has no `done:` tag — Reports counts it as a gap rather than guessing.
+
 ### Reviewing
 
 ### Doing
@@ -55,10 +64,6 @@ chip both show up somewhere too.
   - [ ] Nudge Priya and Sam [due:: 2026-08-25] `week`
     - Suggested message: "Hey 👋 Quick nudge on the 360 for Alex, I still need yours to close the pack. It is five questions and takes about ten minutes. Could you get it back to me by Tuesday? Happy to talk it through if that is easier than writing it."
 
-- [x] **Wrap up the Q2 hiring retro notes** [impact:: med] [effort:: S] `done:2026-07-14`
-
-- [x] **Send Priya's skip-level notes to HR** [impact:: low] [effort:: S] `done:2026-08-28`
-
 ### To do
 
 - [ ] **Set up monthly growth conversations with the team** [impact:: high] [effort:: M] `start:2026-08-20`
@@ -76,12 +81,17 @@ chip both show up somewhere too.
 - [ ] **Rewrite the design career framework** [impact:: med] [effort:: L] [to:: Plan agent]
   - Deferred until the probation round is finished. Revisit 2026-10-01.
 
-- [x] **Pick the venue for the team offsite** [impact:: low] [effort:: S]
-  - Ticked before the board started dating finished work, so it has no `done:` tag — Reports counts it as a gap rather than guessing.
-
 ---
 
 ## 2. Design oversight
+
+### Done
+
+- [x] **Sign off the empty-state pattern** [impact:: med] [effort:: M] `done:2026-08-19`
+
+- [x] **Approve the nav redesign for release** [impact:: high] [effort:: S] `done:2026-09-01`
+
+- [x] **Close out the icon audit ticket** [impact:: med] [effort:: S] `done:2026-07-21`
 
 ### Reviewing
 
@@ -96,10 +106,6 @@ chip both show up somewhere too.
 
 - [ ] **Review the onboarding flow before it ships** [impact:: high] [effort:: S] [due:: 2026-08-28] `week`
 
-- [x] **Sign off the empty-state pattern** [impact:: med] [effort:: M] `done:2026-08-19`
-
-- [x] **Approve the nav redesign for release** [impact:: high] [effort:: S] `done:2026-09-01`
-
 ### To do
 
 - [ ] **Write up how design reviews should run** [impact:: med] [effort:: M] [to:: Implement agent] `rank:3`
@@ -112,11 +118,17 @@ chip both show up somewhere too.
 
 - [ ] **Audit which projects have no design owner** [impact:: med] [effort:: S] [to:: Plan agent]
 
-- [x] **Close out the icon audit ticket** [impact:: med] [effort:: S] `done:2026-07-21`
-
 ---
 
 ## 3. Design System
+
+### Done
+
+- [x] **Retire the legacy colour palette** [impact:: med] [effort:: S] `done:2026-08-11`
+
+- [x] **Publish the v2 badge component** [impact:: med] [effort:: M] `done:2026-08-25`
+
+- [x] **Ship the spacing token migration** [impact:: high] [effort:: M] `done:2026-07-28`
 
 ### Reviewing
 
@@ -131,8 +143,6 @@ chip both show up somewhere too.
   - [ ] Pull a fresh snapshot [due:: 2026-08-27] [to:: Implement agent] `rank:2`
     - Prompt: "Run the ds-snapshot skill from the ds-snapshots folder to capture today's library, then tell me which button variants exist in Figma and not in Storybook. Do not compare against an old snapshot, take a new one first."
   - [ ] Agree the naming with the Web team `blocked-by:checkout`
-
-- [x] **Retire the legacy colour palette** [impact:: med] [effort:: S] `done:2026-08-11`
 
 ### To do
 
@@ -149,17 +159,19 @@ chip both show up somewhere too.
 - [ ] **Run a token clean-up pass** [impact:: low] [effort:: M] [to:: Plan agent]
   - Stream: improvements.
 
-- [x] **Publish the v2 badge component** [impact:: med] [effort:: M] `done:2026-08-25`
-
 ### Backlog
 
 - [ ] **Move the icon set onto variables** [impact:: low] [effort:: L] [to:: Jordan]
 
-- [x] **Ship the spacing token migration** [impact:: high] [effort:: M] `done:2026-07-28`
-
 ---
 
 ## 4. Strategic
+
+### Done
+
+- [x] **Finish the Q2 adoption readout** [impact:: high] [effort:: M] `done:2026-08-04`
+
+- [x] **Circulate the tooling budget proposal** [impact:: med] [effort:: S] `done:2026-08-30`
 
 ### Reviewing
 
@@ -169,15 +181,11 @@ chip both show up somewhere too.
   - [ ] Pull last quarter's numbers together [to:: Implement agent] `rank:5`
     - Prompt: "Summarise the adoption numbers in [path] into five sentences I can put in front of the leadership team. Say what moved, what did not, and what the honest read is. Do not pad it with recommendations."
 
-- [x] **Finish the Q2 adoption readout** [impact:: high] [effort:: M] `done:2026-08-04`
-
 ### To do
 
 - [ ] **Test whether AI review speeds up design QA** [impact:: med] [effort:: M] [to:: Plan agent]
 
 - [ ] **Sketch a rough shape for the design ops role** [impact:: low] [effort:: L] [to:: Plan agent]
-
-- [x] **Circulate the tooling budget proposal** [impact:: med] [effort:: S] `done:2026-08-30`
 
 ### Backlog
 

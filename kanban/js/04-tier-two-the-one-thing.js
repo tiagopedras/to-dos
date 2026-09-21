@@ -262,7 +262,7 @@ function rollRecurring(doc){
       moved++;
     }
 
-    setDone(t, false);
+    setDone(t, false, { stay: true });
     /* And every sub-step with it. A recurring task's steps are the work of one
        occurrence — send the nudge, review what came back — so a step still
        ticked from last time reads as already done for a cycle it has never seen.
@@ -407,7 +407,13 @@ function putJSON(url, data){ return sendJSON('PUT', url, data); }
 function allTiers(){
   const names = [];
   (state.doc ? state.doc.buckets : []).forEach(b => b.tiers.forEach(t => { if (names.indexOf(t.name) < 0) names.push(t.name); }));
-  if (!names.length) return ['Now','Next','Later','Parked'];
+  if (!names.length) return [DONE_COL, 'Now','Next','Later','Parked'];
+  /* Done is always the first heading, so it is the far right of the board. A
+     bucket that has the heading somewhere else would otherwise decide where the
+     scan above finds it, and a bucket with none has no say at all. */
+  const at = names.indexOf(DONE_COL);
+  if (at > -1) names.splice(at, 1);
+  names.unshift(DONE_COL);
   return names;
 }
 /* A bucket may not have every column heading yet (e.g. an empty "Now").
@@ -438,13 +444,20 @@ function locate(id){
 }
 /* The single way a task's tick is changed. Five places used to set .done by hand,
    and every one of them would now have to remember to date it — so they all go
-   through here instead. Returns true if anything actually changed. */
-function setDone(t, on){
+   through here instead. Returns true if anything actually changed.
+
+   The tick and the Done heading move together: a ticked task goes to the top of
+   its bucket's Done, so the newest is the first one you see, and one unticked
+   while it sits there goes to the top of To do. The caller that places the task
+   itself, having captured where it was — a drop on a column, the drawer's Column
+   field, the recurring roll — passes `stay` and does its own move. */
+function setDone(t, on, opts){
   if (state.locked) return false;
   if (t.done === on) return false;
   t.done = on;
   t.doneOn = on ? ymd(today()) : '';
   t.dirty = true;
+  if (!(opts && opts.stay)) moveForTick(t, on);
   // Ticking the card off ticks its sub-steps too — a card in Done with open
   // steps under it reads as unfinished work, which it no longer is. Going the
   // other way leaves steps alone: dragging a card back out of Done doesn't
@@ -458,6 +471,16 @@ function setDone(t, on){
      no plans behind it costs a lookup and no request. */
   if (on && typeof planFinishedWithTask === 'function') planFinishedWithTask(t);
   return true;
+}
+
+function moveForTick(t, on){
+  const loc = locate(t.id);
+  if (!loc) return;
+  const inDone = loc.tier.name === DONE_COL;
+  if (on === inDone) return;
+  const to = ensureTier(loc.bucket, on ? DONE_COL : TODO_TIER);
+  loc.tier.tasks.splice(loc.index, 1);
+  to.tasks.unshift(t);
 }
 
 function markDirty(){

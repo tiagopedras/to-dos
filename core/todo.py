@@ -55,6 +55,12 @@ TIER_RE = re.compile(r"^###\s+(.*)$")
 TIER_RENAMED = {"Waiting review": "Reviewing", "Waiting for review": "Reviewing"}
 
 
+# The heading a finished task lives under, the same name as DONE_HEADING in
+# core/todo.js. A ticked task is read as sitting under it wherever the file has
+# it, which is what the board does on load and writes on the next save.
+DONE_HEADING = "Done"
+
+
 def column_name(heading):
     """A column heading as the board names it, old names translated."""
     heading = heading.strip()
@@ -218,17 +224,23 @@ def parse_doc(text):
     no reader outside the board has needed one yet — and a step has no state of
     its own anyway, it inherits its parent's.
 
+    A ticked task is in Done wherever the file has it, and comes out in the
+    order the board gathers them: see gather_done().
+
     Anything above the first `## N. Name` heading, and the Context section
     below the last bucket, are skipped: they are prose, not work."""
     lines = re.sub(r"\r\n?", "\n", text).split("\n")
     tasks = []
     bucket = column = ""
+    tiers = []          # [column, [tasks]] for the bucket being read, in file order
     i = 0
     in_buckets = False
     while i < len(lines):
         line = lines[i]
         bm = BUCKET_RE.match(line)
         if bm:
+            gather_done(tiers, tasks)
+            tiers = []
             bucket, column, in_buckets = bm.group(2).strip(), "", True
             i += 1
             continue
@@ -250,6 +262,7 @@ def parse_doc(text):
         tm = TIER_RE.match(line)
         if tm:
             column = column_name(tm.group(1))
+            tiers.append([column, []])
             i += 1
             continue
         if in_buckets and TASK_RE.match(line):
@@ -275,10 +288,40 @@ def parse_doc(text):
                 break
             task = parse_task(raw)
             task.bucket, task.column = bucket, column
-            tasks.append(task)
+            if not tiers:
+                tiers.append([column, []])
+            tiers[-1][1].append(task)
             continue
         i += 1
+    gather_done(tiers, tasks)
     return tasks
+
+
+def gather_done(tiers, out):
+    """Appends one bucket's tasks to `out`, ticked ones gathered under Done.
+
+    The same rule as gatherDone() in core/todo.js, in the order the board ends
+    up with: each heading's own open tasks, and every ticked one appended to
+    Done after what it already held. A bucket with no Done heading gets one,
+    first, but only if something ticked needs it. A task in Done that is not
+    ticked stays put."""
+    stray, kept = [], []
+    for name, ts in tiers:
+        if name == DONE_HEADING:
+            kept.append([name, list(ts)])
+            continue
+        stray.extend(t for t in ts if t.done)
+        kept.append([name, [t for t in ts if not t.done]])
+    if stray:
+        target = next((k for k in kept if k[0] == DONE_HEADING), None)
+        if target is None:
+            target = [DONE_HEADING, []]
+            kept.insert(0, target)
+        for t in stray:
+            t.column = DONE_HEADING
+        target[1].extend(stray)
+    for _, ts in kept:
+        out.extend(ts)
 
 
 def parse_date(s):
