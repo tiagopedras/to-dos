@@ -172,9 +172,62 @@ try {
     __parent.body.find(l => l.includes('aa0002'))`) === '  - [ ] Review the plan \`#ab12cd-plan-review\` [to:: Implement agent] \`blocked-by:ab12cd-plan\` \`id:aa0002\`', await evalJS(`__parent.body.find(l => l.includes('aa0002'))`))
   await evalJS(`state.locked = true`)
 
+  /* ---- the agents' queue ---- */
+
+  await evalJS(`(() => {
+    const real = window.__realFetch || (window.__realFetch = window.fetch);
+    window.__queue = [
+      { id: 'q1', sub: 'p00001', by: 'Plan agent', note: 'plan written' },
+      { id: 'q2', sub: 'i00001', by: 'Implement agent' },
+      { id: 'q3', sub: 'r00001', by: 'Plan agent' },
+      { id: 'q4', sub: 'nope00', by: 'Plan agent' }
+    ];
+    window.__posted = [];
+    window.fetch = (u, o) => {
+      const m = (o && o.method) || 'GET';
+      if (String(u).startsWith('/tick-queue.json') && m === 'GET') return Promise.resolve(new Response(JSON.stringify(window.__queue), { status: 200 }));
+      if (m !== 'GET') { window.__posted.push(m + ' ' + u + ' ' + (o && o.body || '')); return Promise.resolve(new Response('{}', { status: 200 })) }
+      return real(u, o);
+    };
+    load([
+      '# To-do', '', '## 1. Tasks', '',
+      '### Doing', '',
+      '- [ ] **Handed over** \`id:hh0001\` [impact:: high]',
+      '  - [ ] Plan [to:: Plan agent] \`doing\` \`#hh-plan\` \`id:p00001\`',
+      '  - [ ] Review the plan [to:: Tiago] \`#hh-review\` \`blocked-by:hh-plan\` \`id:r00001\`',
+      '  - [ ] Implement [to:: Implement agent] \`#hh-impl\` \`blocked-by:hh-review\` \`id:i00001\`',
+      '',
+      '### Reviewing', '',
+      ''
+    ].join('\\n'), 'demo.md', {});
+    state.locked = false;
+  })()`)
+  await evalJS(`drainTickQueue()`)
+  await new Promise(r => setTimeout(r, 300))
+  const line = id => evalJS(`(() => { const t = state.doc.buckets[0].tiers.flatMap(x => x.tasks).find(t => t.title === 'Handed over'); return t.body.find(l => l.includes('${id}')) })()`)
+  check('a tick from the agent the sub-task is assigned to is applied, dated today', /^  - \[x\] Plan .*done:\d{4}-\d{2}-\d{2}/.test(await line('p00001')) && !/doing/.test(await line('p00001')), await line('p00001'))
+  check('a tick from an agent for a sub-task that is not its own is refused', /\[ \] Review the plan/.test(await line('r00001')))
+  check('a tick for one still waiting on a blocker is refused too', /\[ \] Implement/.test(await line('i00001')))
+  check('a ticked Plan leaves the card in Doing', await evalJS(`locate(state.doc.buckets[0].tiers.flatMap(x => x.tasks).find(t => t.title === 'Handed over').id).tier.name`) === 'Doing')
+  check('what was dealt with is taken out of the queue by id, and the one it could not find stays', await evalJS(`window.__posted.filter(p => p.startsWith('POST /tick-queue.json')).map(p => p.split(' ')[2]).join()`) === '{"done":["q1","q2","q3"]}')
+  check('and the tab has something to save', await evalJS(`state.dirty === true`))
+
+  await evalJS(`(() => {
+    const t = state.doc.buckets[0].tiers.flatMap(x => x.tasks).find(t => t.title === 'Handed over');
+    const at = t.body.findIndex(l => l.includes('r00001'));
+    const f = readSub(t, at); f.done = true; f.doneOn = '2026-09-22'; writeSub(t, at, f);
+    window.__queue = [{ id: 'q5', sub: 'i00001', by: 'Implement agent' }];
+    window.__posted = [];
+  })()`)
+  await evalJS(`drainTickQueue()`)
+  await new Promise(r => setTimeout(r, 300))
+  check('once its blocker is ticked, the Implement agent\'s tick is applied', /\[x\] Implement/.test(await line('i00001')), await line('i00001'))
+  check('and it is the one that moves the card, into Reviewing', await evalJS(`locate(state.doc.buckets[0].tiers.flatMap(x => x.tasks).find(t => t.title === 'Handed over').id).tier.name`) === 'Reviewing')
+  await evalJS(`state.locked = true`)
+
   /* ---- the point of the guard ---- */
 
-  check('nothing was written', await evalJS(`window.__blocked.length === 0`), await evalJS(`window.__blocked.join(' | ')`))
+  check('nothing reached todo.md', await evalJS(`window.__blocked.length === 0 && window.__posted.every(p => p.startsWith('POST /tick-queue.json'))`), await evalJS(`window.__blocked.concat(window.__posted).join(' | ')`))
 } finally {
   ws.close()
   chrome.kill()

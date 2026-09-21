@@ -37,6 +37,7 @@ sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
 import pick  # noqa: E402
+import tick_queue  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
 
@@ -779,6 +780,22 @@ def queue_attach(task, session):
         log("  attach failed for %r: %s" % (task.title, exc))
 
 
+def queue_plan_tick(task, plan_file):
+    """Says the plan is written, on the Plan sub-task it was written for.
+
+    Through the board's queue like everything else the agent wants changed in
+    the list: it never writes todo.md. Nothing to do for a task handed over the
+    old way, which has no Plan sub-task to tick. The ledger row records the
+    sub-task too, so tomorrow night does not plan it again while the board has
+    yet to be opened and apply the tick.
+    """
+    if not getattr(task, "plan_sub", ""):
+        return
+    tick_queue.append(task.plan_sub, "Plan agent",
+                      note="plan written to %s" % plan_file,
+                      path=paths.tick_queue_path())
+
+
 def write_index(day, written, skipped, stopped):
     lines = ["---",
              "title: Plans for %s" % day.strftime("%A %-d %B %Y"),
@@ -1182,6 +1199,7 @@ def run(argv=None):
 
         out, summary, folded = write_plan(task, body, session, day, prior=prior)
         queue_attach(task, session)
+        queue_plan_tick(task, os.path.basename(out))
         written.append((os.path.basename(out), task.title, summary, folded))
         if folded:
             log("  folded  %-50s needs a decision from him first" % task.title[:50])
@@ -1200,6 +1218,7 @@ def run(argv=None):
             "owner": "me",
             "seen": False,
             "resolution": "",
+            "sub": getattr(task, "plan_sub", ""),
         }
         pick.save_ledger(ledger)
         log("  planned %-50s %3ds  $%.2f" % (task.title[:50], took, cost or 0.0))

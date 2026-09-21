@@ -130,6 +130,11 @@ opening it.
 **Then hand it back, and do not mark it finished yourself.** Finished is his
 word, not yours: your half ends when you have written the report.
 
+You do not tick your own sub-task either. When the task carries one, assigned to
+you, the session that invoked you queues the tick once your report is in, through
+`core/tick_queue.py`, and the board applies it. Say in the report that the work
+is finished, so that is what it acts on.
+
 You do not move the card. You never could — you hold no Bash tool, so you cannot
 run the writer — and until 13 September 2026 this file told you to anyway, which
 left every finished run sitting in `review` looking exactly like a session that

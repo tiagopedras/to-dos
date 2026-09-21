@@ -335,6 +335,17 @@ def attach_queue_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "attach-queue.json")
 
 
+def tick_queue_path(name=None):
+    """Where an agent asks for a sub-task to be ticked. See core/tick_queue.py.
+
+    The board reads it on load and applies each request through its own edit
+    path, so no agent ever writes todo.md. It takes entries out by id rather than
+    rewriting the list, which is why the write route below is a removal and not
+    a replacement.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "tick-queue.json")
+
+
 def reports_dir(name=None):
     # Written reports live beside the list they're about rather than in the
     # repo, because a report names people, dates and internal decisions — the
@@ -2162,6 +2173,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way an
                 # empty queue is the honest answer.
                 return self._json(200, [])
+        if path == "/tick-queue.json":
+            import tick_queue
+            return self._json(200, tick_queue.read(tick_queue_path()))
         if path == "/briefings.json":
             try:
                 with open(briefings_path(), encoding="utf-8") as fh:
@@ -2550,6 +2564,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 os.fsync(fh.fileno())
             os.replace(tmp, path_out)
             return self._json(200, {"ok": True})
+        if path == "/tick-queue.json":
+            # The board says which requests it dealt with, applied or refused,
+            # and they come out. Anything an agent queued since it read the
+            # list stays. Same guard as /attach-queue.json.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            ids = payload.get("done") if isinstance(payload, dict) else None
+            if not isinstance(ids, list):
+                return self._json(400, {"error": "expected {\"done\": [ids]}"})
+            import tick_queue
+            return self._json(200, {"removed": tick_queue.remove([str(i) for i in ids], tick_queue_path())})
         if ai_chat and path == "/claude/assign":
             if not ai_chat.guard_ok(self):
                 return self._json(403, {"error": "not from the board"})

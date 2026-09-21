@@ -111,6 +111,15 @@ Two things to check before you call it done:
   tool, so it cannot run a subprocess, and every finished run sat in `review`
   looking exactly like a session that had died mid-work. The board asks and the
   stream writes, everywhere else in this repo; this is the same rule.
+- **Queue the tick on the Implement sub-task**, when the task has one: a
+  sub-task assigned `[to:: Implement agent]` with its id written on the line.
+  `python3 ~/Code/to-dos/core/tick_queue.py tick <sub-id> --by "Implement agent"
+  --note "report written"`. It is the agent's own tick, made through the board's
+  queue because nobody but the board writes the list, and the board applies it
+  the next time it loads, moving the card to Reviewing and unblocking his review
+  of the work. The board refuses it if the sub-task is not the Implement agent's
+  or is still waiting on his review of the plan, so run it only once the report
+  is in. A task with no such sub-task has nothing to tick.
 - **Append the report to the plan**, under a `## What the implementing agent did`
   heading, and put its one-line summary in `production_summary:`. The report is
   the only record of what was actually produced, and before the fold it lived in

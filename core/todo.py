@@ -100,7 +100,7 @@ class Task:
                  "to", "urgent", "week", "doing", "slug", "blocked_by", "rank",
                  "tlrank", "headline", "chat", "repeat", "stable_id",
                  "cancelled", "archived", "extra",
-                 "body", "raw", "bucket", "column")
+                 "body", "raw", "bucket", "column", "plan_sub")
 
     def __init__(self):
         self.done = False
@@ -126,6 +126,9 @@ class Task:
         self.raw = ""
         self.bucket = ""
         self.column = ""
+        # Set by the planning agent's picker, never by the parser: the id of the
+        # Plan agent's sub-task this task is being planned for, or "".
+        self.plan_sub = ""
 
     def __repr__(self):
         return "<Task %r %s %s>" % (self.title, self.column, self.due or "-")

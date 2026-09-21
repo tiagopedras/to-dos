@@ -128,6 +128,7 @@ async function loadFile(){
     updateLockUI();
     applyPendingTask();
     drainAttachQueue();
+    drainTickQueue();
   } catch (err) {
     if (await loadDemo()) return;
     showErr('<strong>Could not read todo.md.</strong><br>Close this tab and start the board by ' +

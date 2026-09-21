@@ -859,6 +859,71 @@ async function drainAttachQueue(){
     ' attached from ' + (filed === 1 ? 'the terminal' : 'terminal sessions') + ' — save to apply';
 }
 
+/* What an agent asks of a sub-task, applied through the board's own edit path.
+   An agent never writes todo.md, so when it finishes it leaves "tick sub-task
+   <id>" in data/<dataset>/tick-queue.json (core/tick_queue.py) and this reads
+   the file on every load.
+
+   Three rules decide what happens to each request. It is applied only when it
+   comes from the agent the sub-task is assigned to (`[to::]`), so no agent can
+   tick a review and approve its own work; a request from anyone else is refused
+   and cleared, since waiting would not change the answer. A sub-task still
+   waiting on an unfinished blocker is refused the same way, and one already
+   ticked is cleared without a word. And the Implement agent's tick is the one
+   that moves the card, to Reviewing: a ticked Plan leaves it in Doing, because
+   the work has only started.
+
+   A request whose sub-task is not in this list is left where it is rather than
+   dropped, the way attach-queue.json leaves a title that has been renamed. What
+   was dealt with is removed by id, so a request that arrived while this ran is
+   not written over. */
+async function drainTickQueue(){
+  if (state.locked || !state.doc) return;
+  let items;
+  try {
+    items = await getJSON('/tick-queue.json');
+  } catch (err) { return; }
+  if (!Array.isArray(items) || !items.length) return;
+
+  const dealt = [];
+  let ticked = 0, refused = 0, moved = 0;
+  for (const it of items) {
+    if (!it || !it.id) continue;
+    const found = locateSub(String(it.sub || '').trim().toLowerCase());
+    if (!found) continue;
+    const { loc, step } = found;
+    const t = loc.task;
+    const f = readSub(t, step.line);
+    const who = agentOf(it.by);
+    if (!f || f.done) { dealt.push(it.id); continue; }
+    if (!who || agentOf(f.to) !== who ||
+        blockedMessage(allItems(), (f.blockedBy || []).concat(t.blockedBy || []))) {
+      dealt.push(it.id); refused++; continue;
+    }
+    f.done = true; f.doneOn = ymd(today()); f.doing = false;
+    writeSub(t, step.line, f);
+    ticked++;
+    dealt.push(it.id);
+    if (who === 'Implement agent' && !t.done) {
+      const cur = locate(t.id);
+      if (cur && cur.tier.name !== WAIT_COL && cur.tier.name !== DONE_COL) {
+        cur.tier.tasks.splice(cur.index, 1);
+        ensureTier(cur.bucket, WAIT_COL).tasks.unshift(t);
+        moved++;
+      }
+    }
+  }
+  if (!dealt.length) return;
+  if (ticked) { markDirty(); refreshView(); }
+  await postJSON('/tick-queue.json', { done: dealt }).catch(() => {});
+  if (ticked || refused) {
+    $('#status').textContent = (ticked
+      ? 'agents ticked ' + ticked + ' sub-task' + (ticked === 1 ? '' : 's') +
+        (moved ? ', ' + moved + ' card' + (moved === 1 ? '' : 's') + ' into ' + WAIT_COL : '') + ' — save to apply'
+      : '') + (refused ? (ticked ? '; ' : '') + refused + ' request' + (refused === 1 ? '' : 's') + ' refused' : '');
+  }
+}
+
 /* The task's key, writing one onto the line if this is the first chat on it.
    That marks the list dirty, which is right — a task that has conversations
    under it is a task whose line has changed. */

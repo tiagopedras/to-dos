@@ -64,8 +64,29 @@ PARKED = {"reviewing"}
 # who does the work. A task with the Implement agent already says how it is to
 # be done, so it is not planned. The queue ordering and the window budget below
 # know nothing about the tag.
-def plannable(task):
-    return todo.agent_of(task.to) == todo.PLAN_AGENT
+def plannable(task, slugs=None):
+    """Whether the Plan agent has work on this task, and the id of the sub-task.
+
+    Returns (yes, sub_id). A task whose sub-tasks name an agent has been handed
+    over the new way, and the Plan agent's part of it is its Plan sub-task: open,
+    assigned to it, and with what it waits on ticked. Nothing else on the task
+    is planned while that is not so, because a ticked Plan means the plan is
+    written and a blocked one is not its turn. A task handed over the old way,
+    `[to:: Plan agent]` on the task itself with no agent's sub-task under it,
+    is planned as it always was, so the list keeps working until its tasks are
+    handed over again. `sub_id` is empty for those, and for a sub-task with no id
+    written on its line, which cannot be ticked by name.
+    """
+    steps = [s["task"] for s in todo.split_body(task)[1]]
+    agents = [s for s in steps if todo.agent_of(s.to)]
+    if not agents:
+        return todo.agent_of(task.to) == todo.PLAN_AGENT, ""
+    slugs = slugs if slugs is not None else todo.slug_states([task])
+    for s in agents:
+        if (not s.done and todo.agent_of(s.to) == todo.PLAN_AGENT
+                and not todo.is_blocked(s, slugs)):
+            return True, s.stable_id
+    return False, ""
 
 # The three reasons a task delegated to the Plan agent starts its life on Plans in Backlog
 # rather than in tonight's queue. They read on the card, so each one says what
@@ -118,8 +139,10 @@ def eligible(tasks, day, slugs=None, drops=None):
     for t in tasks:
         if t.done:
             continue
-        if not plannable(t):
+        ok, sub_id = plannable(t, slugs)
+        if not ok:
             continue
+        t.plan_sub = sub_id
         # Past this line the task is the Plan agent's, so it has a card on
         # Plans whatever happens next. Each exclusion below says why the
         # card starts in Backlog instead of in tonight's queue; none of them
@@ -402,7 +425,7 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
     # still wins, since save_order() will not write a title into both.
     rescued = [t for t, _ in drops
                if key(key_of(t)) in forced and key(key_of(t)) not in held
-               and plannable(t)]
+               and plannable(t, slugs)[0]]
     rescued_keys = {key(key_of(t)) for t in rescued}
     drops = [(t, why) for t, why in drops if key(key_of(t)) not in rescued_keys]
     cand = rescued + cand

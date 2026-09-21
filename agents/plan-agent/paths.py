@@ -99,6 +99,11 @@ def todo_path():
     return os.path.join(data_dir(), "todo.md")
 
 
+def tick_queue_path():
+    """Where a finished sub-task is asked to be ticked. See core/tick_queue.py."""
+    return os.path.join(data_dir(), "tick-queue.json")
+
+
 def buckets_dir():
     """This dataset's bucket briefs, one folder per stream inside it.
 

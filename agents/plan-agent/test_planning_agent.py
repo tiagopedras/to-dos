@@ -28,6 +28,7 @@ import paths  # noqa: E402
 import pick  # noqa: E402
 import plan  # noqa: E402
 import report  # noqa: E402
+import tick_queue  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
 
@@ -240,6 +241,71 @@ def test_pick():
     # --task finds one by exact title, ignoring every other rule.
     only, _ = pick.select(DOC, only="stuck")
     check("--task reaches a blocked task", titles(only), ["Stuck"])
+
+
+SUB_DOC = """# List
+
+## 1. People
+
+### Doing
+
+- [ ] **Handed over the new way** [impact:: high] [effort:: M] `id:ab12cd`
+  - [ ] Plan [to:: Plan agent] `doing` `#ab12cd-plan` `id:aa0001`
+  - [ ] Review the plan [to:: Tiago] `#ab12cd-plan-review` `blocked-by:ab12cd-plan` `id:aa0002`
+  - [ ] Implement [to:: Implement agent] `#ab12cd-implement` `blocked-by:ab12cd-plan-review` `id:aa0003`
+  - [ ] Review the work [to:: Tiago] `#ab12cd-work-review` `blocked-by:ab12cd-implement` `id:aa0004`
+- [ ] **Plan already written** [impact:: high] [effort:: M] `id:ef34gh`
+  - [x] Plan [to:: Plan agent] `done:2026-09-21` `#ef34gh-plan` `id:bb0001`
+  - [ ] Review the plan [to:: Tiago] `#ef34gh-plan-review` `blocked-by:ef34gh-plan` `id:bb0002`
+- [ ] **Plan waiting its turn** [impact:: high] [effort:: M] `id:ij56kl`
+  - [ ] Plan [to:: Plan agent] `blocked-by:gate` `#ij56kl-plan` `id:cc0001`
+- [ ] **Straight to the Implement agent** [impact:: high] [effort:: M] `id:mn78op`
+  - [ ] Implement [to:: Implement agent] `#mn78op-implement` `id:dd0001`
+  - [ ] Review the work [to:: Tiago] `blocked-by:mn78op-implement` `id:dd0002`
+- [ ] **Handed over the old way** [impact:: high] [effort:: M] [to:: Plan agent] `id:qr90st`
+
+### To do
+
+- [ ] **The gate** [impact:: high] [effort:: S] `#gate`
+"""
+
+
+def test_sub_tasks():
+    """The Plan agent plans a task through its Plan sub-task, and asks for it to
+    be ticked through the board's queue rather than writing the list itself."""
+    plan_, skip = pick.select(SUB_DOC, day=dt.date(2026, 9, 22), use_ledger=False)
+    check("a task is planned through its open, unblocked Plan sub-task, and the old way still works",
+          titles(plan_), ["Handed over the new way", "Handed over the old way"])
+    by = {t.title: t.plan_sub for t in plan_}
+    check("the sub-task it is being planned for is remembered", by["Handed over the new way"], "aa0001")
+    check("and a task handed over the old way has none", by["Handed over the old way"], "")
+    check("a ticked Plan is not planned again, nor one waiting on something, nor one for the other agent",
+          any(t.title in ("Plan already written", "Plan waiting its turn",
+                          "Straight to the Implement agent") for t in plan_), False)
+
+    tmp = tempfile.mkdtemp()
+    try:
+        q = os.path.join(tmp, "tick-queue.json")
+        task = next(t for t in plan_ if t.title == "Handed over the new way")
+        old = paths.tick_queue_path
+        paths.tick_queue_path = lambda: q
+        try:
+            plan.queue_plan_tick(task, "2026-09-22-handed-over.md")
+            plan.queue_plan_tick(next(t for t in plan_ if t.title == "Handed over the old way"), "x.md")
+        finally:
+            paths.tick_queue_path = old
+        got = tick_queue.read(q)
+        check("a finished plan queues one tick, on the Plan sub-task, by the Plan agent",
+              [(e["sub"], e["by"], e["note"]) for e in got],
+              [("aa0001", "Plan agent", "plan written to 2026-09-22-handed-over.md")])
+
+        later = tick_queue.append("bb0001", "Implement agent", path=q)
+        check("the board takes out only what it dealt with",
+              (tick_queue.remove([got[0]["id"]], q), [e["id"] for e in tick_queue.read(q)]),
+              (1, [later["id"]]))
+        check("an unreadable queue is an empty one", tick_queue.read(os.path.join(tmp, "nothing.json")), [])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def test_order():
@@ -1793,6 +1859,7 @@ def main():
     test_max_plans()
     test_per_dataset_schedule()
     test_pick()
+    test_sub_tasks()
     test_order()
     test_rules()
     test_folding()
