@@ -81,6 +81,8 @@ Added 10 Aug 2026. Before this, whether a task was in this week's plan, what it 
 
 `#slug` works on sub-steps as well as tasks, and several blockers in the file are steps rather than whole tasks. A `blocked-by:` pointing at a step resolves normally when that step is ticked.
 
+**A sub-step carries every tag a task does**, on its own line, and reads them the way a task's are read (`readTags()` in `core/todo.js`, `parse_task()` in `core/todo.py`). Two things are specific to it. A step may carry `id:` (six characters, the same shape as a task's) so something outside the file can point at it, and a bare `` `doing` `` tag, the one state a step has of its own: an agent is working on it now. Unticked is To do and the tick is Done, so there is no other state tag, and a task's column is never copied down. What a step does not carry it takes from its task: the due date, the impact, `urgent` and `week` (`inheritedFields()` and `inherited_fields()`), plus the bucket and the project. The assignee, `seen`, `feedback`, `resolution` and the state never come down: a task handed to an agent does not hand its steps over too.
+
 ### The one thing
 
 Added 11 Aug 2026. Tier two of how he prioritises.

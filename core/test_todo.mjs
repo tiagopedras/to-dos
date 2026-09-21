@@ -40,7 +40,7 @@ const fixture = name =>
    value of that expression is what comes back. */
 const WANTED = ['TASK_RE', 'SUB_RE', 'MSG_NOTE', 'parseTask', 'serializeTask', 'agentOf',
                 'parseDoc', 'serializeDoc', 'splitBody', 'quoted', 'readRepeat',
-                'occurrenceFrom', 'occurrenceAfter', 'unscored', 'priorityScore'];
+                'occurrenceFrom', 'occurrenceAfter', 'unscored', 'priorityScore', 'inheritedFields'];
 const source = fs.readFileSync(path.join(HERE, 'todo.js'), 'utf8')
   + '\n;({ ' + WANTED.join(', ') + ' });\n';
 const board = vm.runInNewContext(source, {}, { filename: 'core/todo.js' });
@@ -185,6 +185,27 @@ function checkParse() {
       continue;
     }
     if (d.roundTrips && board.serializeDoc(doc) !== text) fail(`parseDoc did not round-trip — ${d.why}`);
+  }
+  /* Sub-tasks: what splitBody() reads out of a task's body, and what each takes
+     from the task it sits under. todo.py's split_body() is held to the same. */
+  for (const entry of table.steps) {
+    const parent = board.parseTask(entry.lines);
+    const steps = board.splitBody(parent).steps;
+    if (steps.length !== entry.steps.length) {
+      fail(`steps — ${entry.why}\n     got ${steps.length}, want ${entry.steps.length}`);
+      continue;
+    }
+    steps.forEach((s, i) => {
+      const want = entry.steps[i];
+      for (const field of Object.keys(want).filter(k => k !== 'inherits')) {
+        let got = s[field];
+        if (typeof got === 'number' && isNaN(got)) got = null;
+        if (got === undefined) got = null;
+        if (!same(got, want[field])) fail(`step of ${JSON.stringify(entry.lines[0].slice(0, 50))}\n     ${field}: got ${JSON.stringify(got)}, want ${JSON.stringify(want[field])}`);
+      }
+      const inherits = board.inheritedFields(parent, s);
+      if (!same(inherits, want.inherits)) fail(`inherited fields of a step of ${JSON.stringify(entry.lines[0].slice(0, 50))}\n     got ${JSON.stringify(inherits)}, want ${JSON.stringify(want.inherits)}`);
+    });
   }
   for (const { to, agent } of table.agents) {
     const got = board.agentOf(to);

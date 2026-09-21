@@ -104,10 +104,11 @@ function stripTags(text){
    blocked-by: and rank: — are the sole source for the sections above the board,
    so they are parsed as first-class fields rather than left in `extra`. Anything
    still unrecognised goes to `extra` and is written back untouched. */
-function parseTask(rawLines){
-  const first = rawLines[0];
-  const m = TASK_RE.exec(first);
-  let rest = m[2];
+/* What a task line says once its tick box is off: every tag it carries and the
+   title left over. The one reading a top-level task and a sub-task share, so a
+   sub-task has every tag a task has and the two cannot drift. It makes no id and
+   touches no counter, since a sub-task is read again on every render. */
+function readTags(rest){
   const tags = {};
   const extra = [];                                   // any tag we don't know about, kept verbatim
   let blockedBy = [], rank = null, tlrank = null, slug = '', headline = '', chat = '', repeat = '';
@@ -164,12 +165,14 @@ function parseTask(rawLines){
   let urgent = false, week = false;
   rest = rest.replace(/`urgent`/g, () => { urgent = true; return ' '; });
   rest = rest.replace(/`week`/g, () => { week = true; return ' '; });
+  /* A sub-task an agent is working on right now. The only state a sub-task
+     carries: unticked is To do, the tick is Done, and this is Doing. */
+  let doing = false;
+  rest = rest.replace(/`doing`/g, () => { doing = true; return ' '; });
   let title = rest.replace(/\s+/g, ' ').trim();
   const bold = /^\*\*[\s\S]*\*\*$/.test(title);
   if (bold) title = title.slice(2, -2).trim();
   return {
-    id: uid(),
-    done: m[1].toLowerCase() === 'x',
     title, bold,
     impact: tags.impact || '',
     effort: tags.effort || '',
@@ -185,12 +188,16 @@ function parseTask(rawLines){
     /* Who does the work: one of AGENT_NAMES, or a person from people.md.
        Blank means he is doing it himself, which is most of the list. */
     to: tags.to || '',
-    urgent, week, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId,
-    cancelled, archived, extra,
-    body: rawLines.slice(1),
-    raw: first,
-    dirty: false
+    urgent, week, doing, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId,
+    cancelled, archived, extra
   };
+}
+
+function parseTask(rawLines){
+  const first = rawLines[0];
+  const m = TASK_RE.exec(first);
+  return Object.assign({ id: uid(), done: m[1].toLowerCase() === 'x' }, readTags(m[2]),
+    { body: rawLines.slice(1), raw: first, dirty: false });
 }
 
 /* Whether a ticked task counts as work that was done. A cancellation is a tick
@@ -224,8 +231,12 @@ function idsInDoc(doc){
   const out = new Set();
   for (const b of doc.buckets)
     for (const tier of b.tiers)
-      for (const t of tier.tasks)
+      for (const t of tier.tasks) {
         if (t.stableId) out.add(t.stableId);
+        /* A sub-task carries an id of its own, so one minted for a task must not
+           collide with one already written on a step under it. */
+        for (const st of splitBody(t).steps) if (st.stableId) out.add(st.stableId);
+      }
   return out;
 }
 
@@ -255,6 +266,7 @@ function serializeTask(t){
     if (t.archived)  tags.push('`archived:' + t.archived + '`');
     if (t.urgent) tags.push('`urgent`');
     if (t.week)   tags.push('`week`');
+    if (t.doing)  tags.push('`doing`');
     if (t.to && t.to.trim()) tags.push('[to:: ' + t.to.trim() + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
@@ -433,10 +445,18 @@ function splitBody(t){
     if (m && (base === null || m[1].length <= base)) {
       base = m[1].length;
       const text = m[3];
+      /* A sub-task carries every tag a task does, read by the same function.
+         What follows this call keeps the names the board already reads a step
+         by; what it adds is the rest of the tags, under the names a task has. */
+      const r = readTags(text);
       steps.push({
         line: idx,                           // index back into the body, so it can be ticked
         done: m[2].toLowerCase() === 'x',
         text,
+        impact: r.impact, effort: r.effort, doneOn: r.doneOn, urgent: r.urgent,
+        headline: r.headline, chat: r.chat, tlrank: r.tlrank, repeat: r.repeat,
+        stableId: r.stableId, doing: r.doing, cancelled: r.cancelled, archived: r.archived,
+        extra: r.extra,
         due:   readField(text, 'due'),
         start: readField(text, 'start'),
         to:    readField(text, 'to'),
@@ -473,6 +493,24 @@ function splitBody(t){
     if (line.trim()) notes.push(line);
   });
   return { notes, steps };
+}
+/* What a sub-task takes from the task it sits under when it does not carry its
+   own: the due date, the impact, and the two bare tags. Bucket and project come
+   with them, from where the task is filed, and are the caller's to add. State (the
+   tick, `doing`), the assignee, `seen`, `feedback` and `resolution` are never
+   taken — a task handed to an agent does not hand its sub-tasks over too — and
+   nor is anything else a step reads by its own name (effort, start, slug,
+   blocked-by, rank, id), because those describe the step. core/todo.py's
+   inherited_fields() is the same list in the same order. */
+const INHERITED = ['due', 'impact', 'urgent', 'week'];
+function inheritedFields(parent, step){
+  const out = {}, took = [];
+  INHERITED.forEach(key => {
+    if (step[key]) out[key] = step[key];
+    else { out[key] = parent[key]; if (parent[key]) took.push(key); }
+  });
+  out.inherited = took;
+  return out;
 }
 function leadIndent(l){ return l.length - l.replace(/^\s+/, '').length; }
 

@@ -22,7 +22,8 @@
     "stableId",
     "cancelled",
     "archived",
-    "extra"
+    "extra",
+    "doing"
   ],
   "agents": [
     {
@@ -86,7 +87,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Every tag at once** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed`"
     },
@@ -114,7 +116,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **A finished one** [impact:: low] [effort:: S] `done:2026-09-02`"
     },
@@ -142,7 +145,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] A title with no bold on it [impact:: med] [effort:: L]"
     },
@@ -170,7 +174,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Trailing whitespace and runs** [effort:: S]"
     },
@@ -198,7 +203,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **No space after the box** [effort:: S]"
     },
@@ -228,7 +234,8 @@
         "archived": "",
         "extra": [
           "`nonsense:kept`"
-        ]
+        ],
+        "doing": false
       },
       "roundTrip": "- [ ] **An unknown tag rides along** [impact:: high] [effort:: S] `nonsense:kept`"
     },
@@ -258,7 +265,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Blocked by one thing** `blocked-by:solo`"
     },
@@ -290,7 +298,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Blocked by three, spaced** `blocked-by:a,b,c`"
     },
@@ -318,7 +327,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] ****"
     },
@@ -346,7 +356,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **"
     },
@@ -374,7 +385,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] ***"
     },
@@ -402,7 +414,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **x**"
     },
@@ -430,7 +443,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Rank with junk on it** `rank:3`"
     },
@@ -458,7 +472,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Rank that is pure junk**"
     },
@@ -486,7 +501,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Rank written as a decimal** `rank:3`"
     },
@@ -514,7 +530,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Timeline rank with junk on it** `tlrank:2`"
     },
@@ -542,7 +559,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Slug is lowercased** `#mixedcase`"
     },
@@ -570,7 +588,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Chat key is lowercased** `chat:7vysow`"
     },
@@ -598,7 +617,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Repeat is lowercased** `repeat:wed2/3`"
     },
@@ -626,7 +646,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **A capital X ticks too** [effort:: S]"
     },
@@ -654,7 +675,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Empty inline field** [effort:: S]"
     },
@@ -685,7 +707,8 @@
         "stableId": "ab12cd",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Every tag at once, with an id** `#allsorts` [impact:: high] [effort:: M] `start:2026-09-01` [due:: 2026-09-11] `urgent` `week` [to:: Alex] `blocked-by:one,two` `rank:4` `tlrank:2` `headline:the one thing` `chat:7vysow` `repeat:wed` `id:ab12cd`"
     },
@@ -713,7 +736,8 @@
         "stableId": "zz9zz9",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **An id and nothing else** `id:zz9zz9`"
     },
@@ -741,7 +765,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **No id at all, the way every task looked before today** [impact:: low]"
     },
@@ -769,7 +794,8 @@
         "stableId": "qq11qq",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **An id in the other syntax is read too** `id:qq11qq`"
     },
@@ -797,7 +823,8 @@
         "stableId": "ab12cd",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **An id is lowercased like a slug and a chat key** `id:ab12cd`"
     },
@@ -827,7 +854,8 @@
         "archived": "",
         "extra": [
           "`mystery:7`"
-        ]
+        ],
+        "doing": false
       },
       "roundTrip": "- [ ] **An unknown tag still rides along beside an id** `id:ab12cd` `mystery:7`"
     },
@@ -855,7 +883,8 @@
         "stableId": "ff00ff",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **A finished task keeps its id** `done:2026-09-10` `id:ff00ff`"
     },
@@ -883,7 +912,8 @@
         "stableId": "",
         "cancelled": "2026-09-15",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **A cancelled task is ticked and says so** `done:2026-09-15` `cancelled:2026-09-15`"
     },
@@ -911,7 +941,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "2026-09-14",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **An archived task is the other half of the same rule** `done:2026-09-15` `archived:2026-09-14`"
     },
@@ -939,7 +970,8 @@
         "stableId": "",
         "cancelled": "2026-09-15",
         "archived": "2026-09-15",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **Both at once, which is odd but has to round-trip** `done:2026-09-15` `cancelled:2026-09-15` `archived:2026-09-15`"
     },
@@ -967,7 +999,8 @@
         "stableId": "",
         "cancelled": "2026-09-15",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [x] **The other syntax reads too** `done:2026-09-15` `cancelled:2026-09-15`"
     },
@@ -995,7 +1028,8 @@
         "stableId": "",
         "cancelled": "2026-09-15",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Unticked, so the tag is kept for him to fix rather than dropped** `cancelled:2026-09-15`"
     },
@@ -1023,7 +1057,8 @@
         "stableId": "pl4n00",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Handed to the Plan agent** [impact:: med] [to:: Plan agent] `id:pl4n00`"
     },
@@ -1051,7 +1086,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **Handed to the Implement agent** [to:: Implement agent] `rank:2`"
     },
@@ -1079,7 +1115,8 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **A backup from before the assignee field** [impact:: high] `rank:3`"
     },
@@ -1107,9 +1144,99 @@
         "stableId": "",
         "cancelled": "",
         "archived": "",
-        "extra": []
+        "extra": [],
+        "doing": false
       },
       "roundTrip": "- [ ] **The old syntax of the retired tag goes too** [to:: Rita]"
+    },
+    {
+      "line": "- [ ] **Plan** `doing` [to:: Plan agent] `#ab12cd-plan` `id:pl0001`",
+      "expect": {
+        "done": false,
+        "title": "Plan",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "to": "Plan agent",
+        "urgent": false,
+        "week": false,
+        "slug": "ab12cd-plan",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "pl0001",
+        "cancelled": "",
+        "archived": "",
+        "extra": [],
+        "doing": true
+      },
+      "roundTrip": "- [ ] **Plan** `#ab12cd-plan` `doing` [to:: Plan agent] `id:pl0001`"
+    },
+    {
+      "line": "- [ ] **Review the plan** [to:: Tiago] `blocked-by:ab12cd-plan` `#ab12cd-plan-review` `id:pl0002`",
+      "expect": {
+        "done": false,
+        "title": "Review the plan",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "",
+        "to": "Tiago",
+        "urgent": false,
+        "week": false,
+        "slug": "ab12cd-plan-review",
+        "blockedBy": [
+          "ab12cd-plan"
+        ],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "pl0002",
+        "cancelled": "",
+        "archived": "",
+        "extra": [],
+        "doing": false
+      },
+      "roundTrip": "- [ ] **Review the plan** `#ab12cd-plan-review` [to:: Tiago] `blocked-by:ab12cd-plan` `id:pl0002`"
+    },
+    {
+      "line": "- [x] **Implement** [to:: Implement agent] `done:2026-09-21` `#ab12cd-implement` `id:pl0003`",
+      "expect": {
+        "done": true,
+        "title": "Implement",
+        "bold": true,
+        "impact": "",
+        "effort": "",
+        "due": "",
+        "start": "",
+        "doneOn": "2026-09-21",
+        "to": "Implement agent",
+        "urgent": false,
+        "week": false,
+        "slug": "ab12cd-implement",
+        "blockedBy": [],
+        "rank": null,
+        "tlrank": null,
+        "headline": "",
+        "chat": "",
+        "repeat": "",
+        "stableId": "pl0003",
+        "cancelled": "",
+        "archived": "",
+        "extra": [],
+        "doing": false
+      },
+      "roundTrip": "- [x] **Implement** `#ab12cd-implement` `done:2026-09-21` [to:: Implement agent] `id:pl0003`"
     }
   ],
   "docs": [
@@ -1468,6 +1595,7 @@
     {
       "why": "a ticked task is read under its bucket's Done heading wherever the file has it, appended after what Done already held, and a bucket with no Done heading gets one, first. A task in Done that is not ticked stays. It does not round-trip: the next save writes them where they now live.",
       "text": "## 1. People\n\n### Doing\n\n- [x] Finished in Doing\n- [ ] Still going\n\n### To do\n\n- [x] Finished in To do\n\n### Done\n\n- [x] Already there\n- [ ] Unticked in Done\n\n## 2. BAU\n\n### To do\n\n- [ ] Open\n- [x] Ticked, and there is no Done heading\n",
+      "roundTrips": false,
       "tasks": [
         {
           "title": "Still going",
@@ -1511,8 +1639,383 @@
           "column": "To do",
           "body": []
         }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "why": "a step carries every tag a task does, and Doing on top",
+      "lines": [
+        "- [ ] **Parent** [impact:: high] [effort:: L] [due:: 2026-09-30] `week`",
+        "  - [ ] Plain step",
+        "  - [ ] A step with everything `#ab12cd-plan` [impact:: low] [effort:: S] `start:2026-09-22` [due:: 2026-09-25] `urgent` `doing` [to:: Plan agent] `blocked-by:one,two` `rank:3` `tlrank:1` `headline:2026-09-21` `chat:7vysow` `id:ab12cd`",
+        "  - [x] A ticked step `done:2026-09-20` `cancelled:2026-09-20`"
       ],
-      "roundTrips": false
+      "steps": [
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "",
+          "slug": "",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-09-30",
+            "impact": "high",
+            "urgent": false,
+            "week": true,
+            "inherited": [
+              "due",
+              "impact",
+              "week"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "2026-09-25",
+          "start": "2026-09-22",
+          "to": "Plan agent",
+          "slug": "ab12cd-plan",
+          "blockedBy": [
+            "one",
+            "two"
+          ],
+          "rank": 3,
+          "week": false,
+          "impact": "low",
+          "effort": "S",
+          "urgent": true,
+          "doneOn": "",
+          "headline": "2026-09-21",
+          "chat": "7vysow",
+          "tlrank": 1,
+          "repeat": "",
+          "stableId": "ab12cd",
+          "doing": true,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-09-25",
+            "impact": "low",
+            "urgent": true,
+            "week": true,
+            "inherited": [
+              "week"
+            ]
+          }
+        },
+        {
+          "done": true,
+          "due": "",
+          "start": "",
+          "to": "",
+          "slug": "",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "2026-09-20",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "",
+          "doing": false,
+          "cancelled": "2026-09-20",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-09-30",
+            "impact": "high",
+            "urgent": false,
+            "week": true,
+            "inherited": [
+              "due",
+              "impact",
+              "week"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "why": "what a step does not carry it takes from its task: due, impact and the two bare tags, and nothing else",
+      "lines": [
+        "- [ ] **Parent** [impact:: med] [effort:: M] [due:: 2026-10-01] `urgent` `week` [to:: Implement agent] `blocked-by:gate` `rank:9`",
+        "  - [ ] Bare step",
+        "  - [ ] Step with its own date [due:: 2026-09-25]",
+        "  - [ ] Step with its own impact [impact:: low]"
+      ],
+      "steps": [
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "",
+          "slug": "",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-10-01",
+            "impact": "med",
+            "urgent": true,
+            "week": true,
+            "inherited": [
+              "due",
+              "impact",
+              "urgent",
+              "week"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "2026-09-25",
+          "start": "",
+          "to": "",
+          "slug": "",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-09-25",
+            "impact": "med",
+            "urgent": true,
+            "week": true,
+            "inherited": [
+              "impact",
+              "urgent",
+              "week"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "",
+          "slug": "",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "low",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "2026-10-01",
+            "impact": "low",
+            "urgent": true,
+            "week": true,
+            "inherited": [
+              "due",
+              "urgent",
+              "week"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "why": "the four sub-tasks of a task handed to the Plan agent, each blocked by the one before",
+      "lines": [
+        "- [ ] **Write the handover** [impact:: high] [effort:: M] `id:ab12cd`",
+        "  - [x] Plan [to:: Plan agent] `done:2026-09-21` `#ab12cd-plan` `id:aa0001`",
+        "  - [ ] Review the plan [to:: Tiago] `#ab12cd-plan-review` `blocked-by:ab12cd-plan` `id:aa0002`",
+        "  - [ ] Implement [to:: Implement agent] `doing` `#ab12cd-implement` `blocked-by:ab12cd-plan-review` `id:aa0003`",
+        "  - [ ] Review the work [to:: Tiago] `#ab12cd-work-review` `blocked-by:ab12cd-implement` `id:aa0004`"
+      ],
+      "steps": [
+        {
+          "done": true,
+          "due": "",
+          "start": "",
+          "to": "Plan agent",
+          "slug": "ab12cd-plan",
+          "blockedBy": [],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "2026-09-21",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "aa0001",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "",
+            "impact": "high",
+            "urgent": false,
+            "week": false,
+            "inherited": [
+              "impact"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "Tiago",
+          "slug": "ab12cd-plan-review",
+          "blockedBy": [
+            "ab12cd-plan"
+          ],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "aa0002",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "",
+            "impact": "high",
+            "urgent": false,
+            "week": false,
+            "inherited": [
+              "impact"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "Implement agent",
+          "slug": "ab12cd-implement",
+          "blockedBy": [
+            "ab12cd-plan-review"
+          ],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "aa0003",
+          "doing": true,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "",
+            "impact": "high",
+            "urgent": false,
+            "week": false,
+            "inherited": [
+              "impact"
+            ]
+          }
+        },
+        {
+          "done": false,
+          "due": "",
+          "start": "",
+          "to": "Tiago",
+          "slug": "ab12cd-work-review",
+          "blockedBy": [
+            "ab12cd-implement"
+          ],
+          "rank": null,
+          "week": false,
+          "impact": "",
+          "effort": "",
+          "urgent": false,
+          "doneOn": "",
+          "headline": "",
+          "chat": "",
+          "tlrank": null,
+          "repeat": "",
+          "stableId": "aa0004",
+          "doing": false,
+          "cancelled": "",
+          "archived": "",
+          "extra": [],
+          "inherits": {
+            "due": "",
+            "impact": "high",
+            "urgent": false,
+            "week": false,
+            "inherited": [
+              "impact"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

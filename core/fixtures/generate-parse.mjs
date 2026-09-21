@@ -19,7 +19,8 @@ import vm from 'node:vm'
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url))
 const CORE = path.join(HERE, '..')
-const WANTED = ['parseTask', 'serializeTask', 'parseDoc', 'serializeDoc', 'mintId', 'idsInDoc', 'agentOf']
+const WANTED = ['parseTask', 'serializeTask', 'parseDoc', 'serializeDoc', 'mintId', 'idsInDoc', 'agentOf',
+  'splitBody', 'inheritedFields']
 const board = vm.runInNewContext(
   fs.readFileSync(path.join(CORE, 'todo.js'), 'utf8') + '\n;({ ' + WANTED.join(', ') + ' });\n',
   {}, { filename: 'core/todo.js' })
@@ -31,7 +32,7 @@ const old = JSON.parse(fs.readFileSync(path.join(HERE, 'parse.json'), 'utf8'))
    not here: it is uid(), fresh every parse, and means nothing outside one tab. */
 const FIELDS = ['done', 'title', 'bold', 'impact', 'effort', 'due', 'start', 'doneOn',
   'to', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
-  'chat', 'repeat', 'stableId', 'cancelled', 'archived', 'extra']
+  'chat', 'repeat', 'stableId', 'cancelled', 'archived', 'extra', 'doing']
 
 /* New cases, appended as the grammar grows. The existing lines are untouched
    and the list is de-duplicated below, so re-running this is idempotent. */
@@ -53,8 +54,58 @@ const NEW_LINES = [
   '- [ ] **Handed to the Plan agent** [impact:: med] [to:: Plan agent] `id:pl4n00`',
   '- [ ] **Handed to the Implement agent** [to:: Implement agent] `rank:2`',
   '- [ ] **A backup from before the assignee field** [impact:: high] [ai:: full] `rank:3`',
-  '- [ ] **The old syntax of the retired tag goes too** `ai:partial` [to:: Rita]'
+  '- [ ] **The old syntax of the retired tag goes too** `ai:partial` [to:: Rita]',
+  /* 21 Sep 2026: a sub-task carries every tag a task does, on its own line,
+     and Doing is the one state tag it has of its own. The same grammar, so the
+     lines are cases here and the two suites read them the way they read any
+     other. */
+  '- [ ] **Plan** `doing` [to:: Plan agent] `#ab12cd-plan` `id:pl0001`',
+  '- [ ] **Review the plan** [to:: Tiago] `blocked-by:ab12cd-plan` `#ab12cd-plan-review` `id:pl0002`',
+  '- [x] **Implement** [to:: Implement agent] `done:2026-09-21` `#ab12cd-implement` `id:pl0003`'
 ]
+
+/* Sub-tasks, read out of a task's body. Each entry is a task line and the
+   lines under it, and what lands in the table is what splitBody() makes of the
+   steps and what inheritedFields() says each takes from the task. Python's
+   split_body() and inherited_fields() are held to the same answers. */
+const STEP_TASKS = [
+  { why: 'a step carries every tag a task does, and Doing on top',
+    lines: [
+      '- [ ] **Parent** [impact:: high] [effort:: L] [due:: 2026-09-30] `week`',
+      '  - [ ] Plain step',
+      '  - [ ] A step with everything `#ab12cd-plan` [impact:: low] [effort:: S] `start:2026-09-22` [due:: 2026-09-25] `urgent` `doing` [to:: Plan agent] `blocked-by:one,two` `rank:3` `tlrank:1` `headline:2026-09-21` `chat:7vysow` `id:ab12cd`',
+      '  - [x] A ticked step `done:2026-09-20` `cancelled:2026-09-20`'
+    ] },
+  { why: 'what a step does not carry it takes from its task: due, impact and the two bare tags, and nothing else',
+    lines: [
+      '- [ ] **Parent** [impact:: med] [effort:: M] [due:: 2026-10-01] `urgent` `week` [to:: Implement agent] `blocked-by:gate` `rank:9`',
+      '  - [ ] Bare step',
+      '  - [ ] Step with its own date [due:: 2026-09-25]',
+      '  - [ ] Step with its own impact [impact:: low]'
+    ] },
+  { why: 'the four sub-tasks of a task handed to the Plan agent, each blocked by the one before',
+    lines: [
+      '- [ ] **Write the handover** [impact:: high] [effort:: M] `id:ab12cd`',
+      '  - [x] Plan [to:: Plan agent] `done:2026-09-21` `#ab12cd-plan` `id:aa0001`',
+      '  - [ ] Review the plan [to:: Tiago] `#ab12cd-plan-review` `blocked-by:ab12cd-plan` `id:aa0002`',
+      '  - [ ] Implement [to:: Implement agent] `doing` `#ab12cd-implement` `blocked-by:ab12cd-plan-review` `id:aa0003`',
+      '  - [ ] Review the work [to:: Tiago] `#ab12cd-work-review` `blocked-by:ab12cd-implement` `id:aa0004`'
+    ] }
+]
+
+const STEP_FIELDS = ['done', 'due', 'start', 'to', 'slug', 'blockedBy', 'rank', 'week', 'impact', 'effort',
+  'urgent', 'doneOn', 'headline', 'chat', 'tlrank', 'repeat', 'stableId', 'doing', 'cancelled', 'archived', 'extra']
+const stepsFor = d => {
+  const task = board.parseTask(d.lines)
+  return {
+    why: d.why, lines: d.lines,
+    steps: board.splitBody(task).steps.map(s => {
+      const got = {}
+      STEP_FIELDS.forEach(f => { got[f] = s[f] })
+      return { ...got, inherits: board.inheritedFields(task, s) }
+    })
+  }
+}
 
 /* What agentOf() makes of whatever `[to::]` holds: an agent's canonical
    spelling, or '' for a person or nobody. Both suites check todo.py's agent_of
@@ -139,7 +190,8 @@ const out = {
      reason the cases are de-duplicated by line. */
   docs: [...old.docs,
          ...DOC_FILES.filter(f => !old.docs.some(d => d.file === f.file)),
-         ...NEW_DOCS.filter(n => !old.docs.some(d => d.text === n.text))].map(docFor)
+         ...NEW_DOCS.filter(n => !old.docs.some(d => d.text === n.text))].map(docFor),
+  steps: STEP_TASKS.map(stepsFor)
 }
 fs.writeFileSync(path.join(HERE, 'parse.json'), JSON.stringify(out, null, 2) + '\n')
 console.log(`parse.json: ${out.cases.length} cases (${old.cases.length} kept, ${NEW_LINES.length} new), ${out.docs.length} docs, ${FIELDS.length} fields`)

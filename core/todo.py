@@ -97,7 +97,7 @@ class Task:
     promoted to attributes; anything else stays in `extra` exactly as written."""
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
-                 "to", "urgent", "week", "slug", "blocked_by", "rank",
+                 "to", "urgent", "week", "doing", "slug", "blocked_by", "rank",
                  "tlrank", "headline", "chat", "repeat", "stable_id",
                  "cancelled", "archived", "extra",
                  "body", "raw", "bucket", "column")
@@ -107,7 +107,7 @@ class Task:
         self.title = ""
         self.impact = self.effort = self.due = self.start = ""
         self.done_on = self.to = ""
-        self.urgent = self.week = False
+        self.urgent = self.week = self.doing = False
         self.slug = self.headline = self.chat = self.repeat = ""
         # The task's own identity, minted once and written on the line. See
         # `id` in core/todo.js, which is where it is generated.
@@ -208,6 +208,11 @@ def parse_task(raw_lines):
     if "`week`" in rest:
         task.week = True
         rest = rest.replace("`week`", " ")
+    # The only state a sub-task carries: an agent is working on it now. See
+    # `doing` in readTags() in core/todo.js.
+    if "`doing`" in rest:
+        task.doing = True
+        rest = rest.replace("`doing`", " ")
     title = re.sub(r"\s+", " ", rest).strip()
     # The board's guard is a regex needing four characters to match at all
     # (`^\*\*[\s\S]*\*\*$`), so `****` is an empty title there and `***` is
@@ -624,6 +629,31 @@ def split_body(task):
             into_steps = False
         (steps[-1]["notes"] if steps and into_steps else notes).append(line)
     return notes, steps
+
+
+# What a sub-task takes from the task it sits under when it does not carry its
+# own, the same list and the same order as INHERITED in core/todo.js. Bucket and
+# project come with it too, from where the task is filed, and are the caller's to
+# add. State (the tick, `doing`), the assignee, `seen`, `feedback` and
+# `resolution` are never taken: a task handed to an agent does not hand its
+# sub-tasks over too.
+INHERITED = ("due", "impact", "urgent", "week")
+
+
+def inherited_fields(parent, step):
+    """The effective due, impact, urgent and week of a sub-task, and which of
+    them came from the parent. `parent` and `step` are Tasks."""
+    out, took = {}, []
+    for key in INHERITED:
+        own, theirs = getattr(step, key), getattr(parent, key)
+        if own:
+            out[key] = own
+        else:
+            out[key] = theirs
+            if theirs:
+                took.append(key)
+    out["inherited"] = took
+    return out
 
 
 def lead_indent(line):

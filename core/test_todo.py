@@ -392,6 +392,9 @@ PRIORITY = fixture("priority.json")
 # is a writer's question.
 PY_FIELD = {"doneOn": "done_on", "blockedBy": "blocked_by", "stableId": "stable_id"}
 SKIP_FIELD = {"bold"}
+STEP_FIELDS = ["done", "due", "start", "to", "slug", "blockedBy", "rank", "week", "impact", "effort",
+               "urgent", "doneOn", "headline", "chat", "tlrank", "repeat", "stableId", "doing",
+               "cancelled", "archived", "extra"]
 
 
 def check_parse():
@@ -420,6 +423,29 @@ def check_parse():
             if t.body != w["body"]:
                 print("FAIL body of %r\n     got  %r\n     want %r"
                       % (t.title, t.body, w["body"]))
+                failures += 1
+    # Sub-tasks: what the board's splitBody() reads out of a task's body, and
+    # what each takes from the task it sits under.
+    for entry in PARSE["steps"]:
+        parent = todo.parse_task(entry["lines"])
+        _, steps = todo.split_body(parent)
+        if len(steps) != len(entry["steps"]):
+            print("FAIL steps — %s\n     got %d, board says %d"
+                  % (entry["why"], len(steps), len(entry["steps"])))
+            failures += 1
+            continue
+        for s, want in zip(steps, entry["steps"]):
+            task = s["task"]
+            for field in STEP_FIELDS:
+                got = getattr(task, PY_FIELD.get(field, field))
+                if got != want[field]:
+                    print("FAIL step of %r\n     %s: got %r, board says %r"
+                          % (entry["lines"][0][:50], field, got, want[field]))
+                    failures += 1
+            got = todo.inherited_fields(parent, task)
+            if got != want["inherits"]:
+                print("FAIL inherited fields of a step of %r\n     got  %r\n     board says %r"
+                      % (entry["lines"][0][:50], got, want["inherits"]))
                 failures += 1
     for case in PARSE["agents"]:
         got = todo.agent_of(case["to"])

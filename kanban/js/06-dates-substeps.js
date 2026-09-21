@@ -57,11 +57,18 @@ function subSteps(t){
   t.body.forEach((line, i) => {
     const m = SUB_RE.exec(line);
     if (!m) return;
+    /* Every tag a task carries is read by the same function that reads a task's
+       (readTags in core/todo.js), so the drawer can open a sub-task and show it
+       the way it shows one. The four fields the drawer already used keep their
+       names and their reading. */
+    const r = readTags(m[3]);
     out.push({
       line: i, indent: m[1], done: m[2].toLowerCase() === 'x', text: m[3],
       due: readField(m[3], 'due'),
       doneOn: readField(m[3], 'done'),
-      clean: stripTags(m[3]).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim()
+      clean: stripTags(m[3]).replace(/\s+/g, ' ').replace(/\s*—\s*$/, '').trim(),
+      to: r.to, doing: r.doing, stableId: r.stableId, slug: r.slug, blockedBy: r.blockedBy,
+      impact: r.impact, effort: r.effort, urgent: r.urgent, week: r.week, start: r.start
     });
   });
   return out;
