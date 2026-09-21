@@ -793,7 +793,7 @@ def queue_plan_tick(task, plan_file):
         return
     tick_queue.append(task.plan_sub, "Plan agent",
                       note="plan written to %s" % plan_file,
-                      path=paths.tick_queue_path())
+                      path=paths.tick_queue_path(), plan=plan_file)
 
 
 def write_index(day, written, skipped, stopped):
@@ -1199,7 +1199,7 @@ def run(argv=None):
 
         out, summary, folded = write_plan(task, body, session, day, prior=prior)
         queue_attach(task, session)
-        queue_plan_tick(task, os.path.basename(out))
+        queue_plan_tick(task, os.path.relpath(out, paths.plans_dir()))
         written.append((os.path.basename(out), task.title, summary, folded))
         if folded:
             log("  folded  %-50s needs a decision from him first" % task.title[:50])

@@ -614,7 +614,10 @@ function chainSection(items){
    re-ranking it and a stale rank next to a live sort would disagree with
    itself. What's on the row now is its position in the order shown. */
 function delegateSection(items){
-  const eligible = items.filter(i => agentOf(i.to) === 'Implement agent' && !i.done);
+  /* The Implement sub-task of a handover is briefed by its plan and run through
+     the `do` skill, not from a prompt pasted out of this list, so it is not here. */
+  const eligible = items.filter(i => agentOf(i.to) === 'Implement agent' && !i.done &&
+    !(i.sub && /-implement$/.test(i.slug || '')));
   if (!eligible.length) return refSectionBody([{ kind: 'empty', which: 'delegate' }], 0);
 
   const ranked = eligible
@@ -903,6 +906,16 @@ async function drainTickQueue(){
     f.done = true; f.doneOn = ymd(today()); f.doing = false;
     writeSub(t, step.line, f);
     ticked++;
+    /* A plan that has been written says where, on the review waiting behind it,
+       so opening that review can read it: a `Plan:` note, like `Project:`. */
+    const rel = String(it.plan || '').trim();
+    if (rel && /^[\w./-]+\.md$/.test(rel) && f.slug) {
+      const rv = subSteps(t).find(x => (x.blockedBy || []).indexOf(f.slug) > -1);
+      if (rv) {
+        const now = stepNoteText(t, rv.line).split('\n').filter(l => !/^- Plan:/i.test(l));
+        setStepNoteText(t, rv.line, now.concat('- Plan: plans/' + rel).filter(Boolean).join('\n'));
+      }
+    }
     dealt.push(it.id);
     if (who === 'Implement agent' && !t.done) {
       const cur = locate(t.id);

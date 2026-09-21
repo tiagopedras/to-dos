@@ -442,6 +442,115 @@ function locate(id){
   }
   return null;
 }
+/* ---- Handing a task to an agent, and the two reviews that follow ----
+   Handing a task over is his act, and it becomes sub-tasks on the card rather than
+   a column of its own. To the Plan agent it is four, each blocked by the one
+   before: Plan (Plan agent), Review the plan (him), Implement (Implement agent),
+   Review the work (him). Straight to the Implement agent, because the task
+   already says how it is to be done, it is the last two. The board mints the
+   slugs from the task's id and the step (`ab12cd-plan`, `ab12cd-plan-review`,
+   `ab12cd-implement`, `ab12cd-work-review`) so they are unique across the file
+   and readable, and gives every sub-task an id of its own for an agent to name
+   when it asks for a tick. The card moves to Doing if it was in To do or Backlog.
+   `[to::]` on the task itself records who has it. */
+const HANDOVER_STEPS = {
+  'plan':        { title: 'Plan',            to: 'Plan agent' },
+  'plan-review': { title: 'Review the plan', to: OWNER_NAME },
+  'implement':   { title: 'Implement',       to: 'Implement agent' },
+  'work-review': { title: 'Review the work', to: OWNER_NAME }
+};
+function handOver(t, agent){
+  if (state.locked || !agentOf(agent)) return false;
+  agent = agentOf(agent);
+  t.to = agent;
+  t.dirty = true;
+  /* Already laid out when a sub-task carries the slug a handover makes. An
+     ordinary step that happens to be assigned to an agent is a step it does, not
+     a handover. */
+  const made = new RegExp('^' + (t.stableId || '-') + '-(plan|implement)$');
+  if (subSteps(t).some(s => agentOf(s.to) && made.test(s.slug))) return false;
+  const taken = idsInDoc(state.doc);
+  if (!t.stableId) { t.stableId = mintId(taken); taken.add(t.stableId); }
+  const kinds = agent === 'Plan agent'
+    ? ['plan', 'plan-review', 'implement', 'work-review']
+    : ['implement', 'work-review'];
+  const existing = subSteps(t);
+  const indent = existing.length ? existing[0].indent : '  ';
+  let before = '';
+  kinds.forEach(kind => {
+    const id = mintId(taken); taken.add(id);
+    const slug = t.stableId + '-' + kind;
+    const f = { done: false, bold: false, title: HANDOVER_STEPS[kind].title, to: HANDOVER_STEPS[kind].to,
+                slug, blockedBy: before ? [before] : [], stableId: id, body: [], dirty: true, extra: [] };
+    t.body.push(indent + serializeTask(f)[0]);
+    before = slug;
+  });
+  const loc = locate(t.id);
+  if (loc && (loc.tier.name === TODO_TIER || loc.tier.name === BACKLOG_TIER)) {
+    loc.tier.tasks.splice(loc.index, 1);
+    ensureTier(loc.bucket, DOING_TIER).tasks.unshift(t);
+  }
+  return true;
+}
+
+/* Where a card goes for the state of its sub-tasks, and only these two ways:
+   Implement ticked puts it in Reviewing, and unticked by a send-back puts it
+   back in Doing. A ticked Plan leaves it where it is. */
+function moveCardTo(t, tierName){
+  const loc = locate(t.id);
+  if (!loc || loc.tier.name === tierName || loc.tier.name === DONE_COL) return;
+  loc.tier.tasks.splice(loc.index, 1);
+  ensureTier(loc.bucket, tierName).tasks.unshift(t);
+}
+
+/* The sub-task a review sits behind: the one its `blocked-by` names. */
+function stepBefore(t, review){
+  const slug = (review.blockedBy || [])[0];
+  return slug ? subSteps(t).find(s => s.slug === slug) || null : null;
+}
+
+/* Approving is ticking the review. */
+function approveReview(t, line){
+  const cur = readSub(t, line);
+  if (!cur || cur.done) return '';
+  const msg = blockedMessage(allItems(), (cur.blockedBy || []).concat(t.blockedBy || []));
+  if (msg) return msg;
+  cur.done = true; cur.doneOn = ymd(today()); cur.doing = false;
+  writeSub(t, line, cur);
+  markDirty();
+  return '';
+}
+
+/* Sending back unticks the sub-task before the review, with what was wrong as a
+   `feedback:` note under it, so the agent takes it up again and the review
+   blocks again. Sending back the work also puts the card back in Doing. */
+function sendBack(t, line, why){
+  const cur = readSub(t, line);
+  const prev = cur && stepBefore(t, cur);
+  if (!prev) return false;
+  if (cur.done) { cur.done = false; cur.doneOn = ''; writeSub(t, line, cur); }
+  const back = readSub(t, prev.line);
+  back.done = false; back.doneOn = ''; back.doing = false;
+  writeSub(t, prev.line, back);
+  const said = String(why || '').trim();
+  if (said) {
+    const now = stepNoteText(t, prev.line);
+    setStepNoteText(t, prev.line, (now ? now + '\n' : '') + '- feedback: ' + said.replace(/\n+/g, ' '));
+  }
+  if (agentOf(back.to) === 'Implement agent') moveCardTo(t, DOING_TIER);
+  markDirty();
+  return true;
+}
+
+/* Whether a sub-task assigned to him is open with its blocker ticked, which is
+   the whole of "your move". Worked out every time, never stored. Blockers are
+   looked up among the task's own sub-tasks, which is where a handover puts them. */
+function yourMove(t){
+  const steps = subSteps(t);
+  return steps.some(s => !s.done && s.to === OWNER_NAME &&
+    (s.blockedBy || []).every(sl => { const b = steps.find(x => x.slug === sl); return b && b.done; }));
+}
+
 /* A sub-task by the id written on its line, the six characters that survive a
    line number shifting. Returns the task it sits under, where that task is, and
    the step as subSteps() reads it, or null when nothing carries that id. */

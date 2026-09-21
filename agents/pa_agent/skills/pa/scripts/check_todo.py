@@ -846,6 +846,10 @@ def check_slugs(tasks):
     # that is not there, which is worse than no slug at all.
     pointed_at = {s for e in entries for s in e["blocked_by"]}
     for entry in entries:
+        # The last sub-task of a handover, Review the work, ends its chain and
+        # has nothing behind it by design.
+        if (entry["slug"] or "").endswith("-work-review"):
+            continue
         if entry["slug"] and entry["slug"] not in pointed_at:
             findings.append(
                 Finding(
@@ -868,6 +872,15 @@ def check_prompt_coverage(tasks):
     findings = []
     for entry in all_entries(tasks):
         if entry["agent"] != todo.IMPLEMENT_AGENT or entry["checked"]:
+            continue
+        # A handover's Implement sub-task is briefed by the plan its review
+        # points at, or by the task itself when it went straight to the agent, so
+        # it needs no prompt of its own. Its slug is the id of its task and
+        # `-implement`. Since 22 Sep 2026.
+        if (entry["slug"] or "").endswith("-implement"):
+            continue
+        # Nor does the task those sub-tasks sit under.
+        if any((sub["slug"] or "").endswith("-implement") for sub in entry.get("subs", [])):
             continue
         if not entry["prompt"]:
             findings.append(

@@ -339,6 +339,11 @@ function cardModel(t, opts){
      both point back at the bar rather than duplicating it. */
   if (t.headline) chips.push({ cls: 'tag onething', text: 'the one thing',
     title: 'This is the headline — pinned at the top as the one thing' });
+  /* A sub-task assigned to him is open and what it waits on is ticked, so the
+     next move on this card is his. Worked out from the sub-tasks each time; the
+     column head counts the cards carrying it. */
+  if (!t.done && yourMove(t)) chips.push({ cls: 'tag yourmove', text: 'your move',
+    title: 'A sub-task on this card is waiting on you' });
   /* First, because it says which piece of work this belongs to, and that frames
      everything after it. Clicking it opens the project rather than the card —
      see the capture-phase handler on [data-project]. */

@@ -1253,6 +1253,7 @@ function renderBoard(){
       title: tierLabel(name),
       className: ((isDone ? 'donecol ' : '') +
                   (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : '')).trim(),
+      note: (n => n ? n + ' your move' : '')(entries.filter(e => !e.t.done && yourMove(e.t)).length),
       sort: isDone ? null : mode,
       canEdit: !(isDone || state.locked),
       canAdd: !(isDone || state.locked),

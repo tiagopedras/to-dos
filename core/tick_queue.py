@@ -11,7 +11,7 @@ through its own edit path, the way it drains attach-queue.json.
 Each entry is one request:
 
     {"id": "3f9a1c2b", "sub": "aa0001", "by": "Plan agent",
-     "at": "2026-09-22T02:14:09", "note": "plan written to plans/…"}
+     "at": "2026-09-22T02:14:09", "note": "plan written", "plan": "2026-09-22/ab12cd-x.md"}
 
 `sub` is the six-character id written on the sub-task's line, and `by` is who is
 asking. The board applies a tick only when `by` is the agent the sub-task is
@@ -84,8 +84,12 @@ def _write(path, items):
     os.replace(tmp, path)
 
 
-def append(sub, by, note="", path=None, now=None):
-    """Asks the board to tick sub-task `sub`, on behalf of `by`. Returns the entry."""
+def append(sub, by, note="", path=None, now=None, plan=""):
+    """Asks the board to tick sub-task `sub`, on behalf of `by`. Returns the entry.
+
+    `plan` is the path of a plan just written, relative to the plans folder. The
+    board puts it on the review waiting behind the sub-task as a `Plan:` note,
+    so that opening the review can read it."""
     path = path or queue_path()
     entry = {
         "id": uuid.uuid4().hex[:8],
@@ -94,6 +98,8 @@ def append(sub, by, note="", path=None, now=None):
         "at": (now or dt.datetime.now()).replace(microsecond=0).isoformat(),
         "note": note,
     }
+    if plan:
+        entry["plan"] = str(plan)
     with _Locked(path):
         items = read(path)
         items.append(entry)
@@ -119,9 +125,10 @@ def main(argv):
     ap.add_argument("sub", help="the six-character id on the sub-task's line")
     ap.add_argument("--by", required=True, help='who is asking: "Plan agent" or "Implement agent"')
     ap.add_argument("--note", default="")
+    ap.add_argument("--plan", default="", help="a plan just written, relative to the plans folder")
     ap.add_argument("--dataset")
     args = ap.parse_args(argv)
-    entry = append(args.sub, args.by, args.note, path=queue_path(args.dataset))
+    entry = append(args.sub, args.by, args.note, path=queue_path(args.dataset), plan=args.plan)
     print("queued: tick %s by %s (%s)" % (entry["sub"], entry["by"], entry["id"]))
     return 0
 

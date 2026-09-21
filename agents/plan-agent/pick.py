@@ -78,11 +78,15 @@ def plannable(task, slugs=None):
     written on its line, which cannot be ticked by name.
     """
     steps = [s["task"] for s in todo.split_body(task)[1]]
-    agents = [s for s in steps if todo.agent_of(s.to)]
-    if not agents:
+    # A handover mints its sub-tasks' slugs from the task's id and the step, so
+    # that is what marks a task as handed over the new way. An ordinary step that
+    # happens to be assigned to an agent is a step the agent does, not a handover.
+    made = [s for s in steps if task.stable_id and todo.agent_of(s.to)
+            and re.fullmatch(re.escape(task.stable_id) + r"-(plan|implement)", s.slug or "")]
+    if not made:
         return todo.agent_of(task.to) == todo.PLAN_AGENT, ""
     slugs = slugs if slugs is not None else todo.slug_states([task])
-    for s in agents:
+    for s in made:
         if (not s.done and todo.agent_of(s.to) == todo.PLAN_AGENT
                 and not todo.is_blocked(s, slugs)):
             return True, s.stable_id

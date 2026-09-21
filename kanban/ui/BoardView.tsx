@@ -38,6 +38,8 @@ export interface BoardColumn {
   /** What it is called on screen, which is not always the heading. */
   title: string
   className: string
+  /** One line under the title: how many cards in it are waiting on you. */
+  note?: string
   /** Null on the two columns with no sort toggle. */
   sort: 'priority' | 'manual' | null
   canEdit: boolean
@@ -132,6 +134,7 @@ export function BoardView(props: BoardViewProps) {
               </button>
             ) : undefined}
             count={col.cards.length}
+            desc={col.note ? <span className="yourmovecount">{col.note}</span> : undefined}
             action={col.canEdit ? (
               <button
                 className="iconbtn coledit"

@@ -1080,6 +1080,18 @@ function openDrawer(id, focusTitle){
   $('#f-title').oninput  = e => { t.title = e.target.value; touch(); };
   $('#f-to').onchange = e => {
     const was = agentOf(t.to);
+    /* Choosing an agent is the handover: the sub-tasks are laid out on the card
+       and it moves to Doing. See handOver() in 04-tier-two-the-one-thing.js. */
+    if (agentOf(e.target.value)) {
+      const laid = handOver(t, e.target.value);
+      touch();
+      openDrawer(id);
+      if (laid) {
+        $('#status').textContent = 'handed to the ' + agentOf(e.target.value) + ' — sub-tasks added, and the card is in Doing';
+        $('#status').classList.add('dirty');
+      }
+      return;
+    }
     t.to = e.target.value;
     /* Taken back off the agents altogether: the prompt and the rank go with it,
        or they read as a standing instruction to hand it over. */
@@ -1382,6 +1394,25 @@ function openDrawer(id, focusTitle){
    for one takes it out of the faded state. The button at the top left goes back
    to the task. Every edit reads the line, changes a field and writes the line
    back (readSub() and writeSub()), so the tags come out the way a task's do. */
+let subSendBackFor = null;   // the sub-task whose "send it back" box is open
+
+/* The plan a review points at, read in a sheet. Fetched off the plans folder
+   every time, since a plan is rewritten when it is sent back. */
+async function openPlanReader(rel, title){
+  showModal(title || 'The plan', '', '<p class="empty">Loading…</p>', [{ label: 'Close' }], { wide: true, cls: 'planmodal' });
+  let html;
+  try {
+    const res = await fetch('/data/plans/' + rel + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const text = (await res.text()).replace(/^---[\s\S]*?\n---\s*\n/, '');
+    html = mdBlocks(text);
+  } catch (err) {
+    html = '<p class="empty">The plan could not be read.</p>';
+  }
+  const mid = modalEl && modalEl.querySelector('.sheet.planmodal .mid');
+  if (mid) mid.innerHTML = '<div class="planmain">' + html + '</div>';
+}
+
 function openSubtaskDrawer(found){
   const { loc, step } = found;
   const t = loc.task, line = step.line, subId = step.stableId;
@@ -1422,8 +1453,30 @@ function openSubtaskDrawer(found){
       (src ? mdInline(src.title) + (src.done ? ' — done' : ' — open') : esc('#' + slug + ' is not in the list')) + '</div>';
   }).join('');
 
+  /* The two reviews of a handover, which are his to answer: read what was made,
+     talk it through, and either approve it, which ticks this, or send it back,
+     which unticks the sub-task before it with what was wrong. */
+  const kind = /-plan-review$/.test(f.slug) ? 'plan' : (/-work-review$/.test(f.slug) ? 'work' : '');
+  const planRel = kind === 'plan' ? ((stepNoteText(t, line).match(/^-\s*Plan:\s*`?plans\/([^\s`]+\.md)/mi) || [])[1] || '') : '';
+  const waiting = (f.blockedBy || []).some(sl => { const b = itemBySlug(allItems(), sl); return !b || !b.done; });
+  const reviewHTML = !kind ? '' :
+    '<div class="field"><span>' + (kind === 'plan' ? 'The plan' : 'The work') + '</span>' +
+      '<div class="reviewbtns">' +
+        (planRel ? '<button type="button" class="btn small" id="f-readplan">Read the plan</button>' : '') +
+        '<button type="button" class="btn small" id="f-chatrev">Talk it through</button>' +
+        '<button type="button" class="btn small agree" id="f-approve"' + (ro || f.done || waiting ? ' disabled' : '') + '>Approve</button>' +
+        '<button type="button" class="btn small reject" id="f-sendback"' + (ro || waiting && !f.done ? ' disabled' : '') + '>Send back</button>' +
+      '</div>' +
+      (waiting && !f.done ? '<span class="help">' + (kind === 'plan' ? 'The plan is not written yet.' : 'The work is not finished yet.') + '</span>' : '') +
+      (subSendBackFor === subId
+        ? '<textarea id="f-sendback-text" placeholder="What should change? The agent reads this when it takes it up again."></textarea>' +
+          '<button type="button" class="btn small reject" id="f-sendback-go">Send it back</button>'
+        : '') +
+    '</div>';
+
   $('#dbody').innerHTML = '<div class="dcols"><div class="dcol dcol-main">' +
     '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(f.title) + '"' + dis + '></label>' +
+    reviewHTML +
     '<div class="field"><span>State</span>' + stepPickerHTML('f-substate', SUB_STATES, now, ro, 'State') + '</div>' +
     '<label class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis) + '</label>' +
     '<div class="grid2">' +
@@ -1452,7 +1505,15 @@ function openSubtaskDrawer(found){
     (proj ? '<div class="field inherited"><span>Project</span><span class="dpbtn" style="cursor:default">' + esc(proj) + '</span></div>' : '') +
   '</div></div>';
 
-  $('#dheadBack').onclick = () => openDrawer(t.id);
+  $('#dheadBack').onclick = () => { subSendBackFor = null; openDrawer(t.id); };
+  if (kind) {
+    const readBtn = $('#f-readplan');
+    if (readBtn) readBtn.onclick = () => openPlanReader(planRel, t.title);
+    $('#f-chatrev').onclick = () => askFromPrompt(t.id, kind === 'plan'
+      ? 'Here is the plan for "' + t.title + '". ' + (planRel ? 'It is in plans/' + planRel + '. ' : '') +
+        'Go through it with me before I decide.\n\n'
+      : 'Here is the work done on "' + t.title + '". Go through what was produced with me before I decide.\n\n', null);
+  }
 
   if (!ro) {
     /* One edit: read the line as it is now, change what changed, write it back.
@@ -1465,6 +1526,18 @@ function openSubtaskDrawer(found){
       markDirty(); refreshView();
     };
     const again = () => openDrawer(subId);
+    if (kind) {
+      $('#f-approve').onclick = () => {
+        const msg = approveReview(t, line);
+        if (msg) { showToast(msg, 'blocked'); return; }
+        subSendBackFor = null; refreshView(); again();
+      };
+      $('#f-sendback').onclick = () => { subSendBackFor = subSendBackFor === subId ? null : subId; again(); };
+      const go = $('#f-sendback-go');
+      if (go) go.onclick = () => {
+        if (sendBack(t, line, $('#f-sendback-text').value)) { subSendBackFor = null; refreshView(); again(); }
+      };
+    }
 
     $('#f-title').oninput = e => edit(cur => { cur.title = e.target.value; });
     $('#f-to').onchange = e => { edit(cur => { cur.to = e.target.value; }); again(); };

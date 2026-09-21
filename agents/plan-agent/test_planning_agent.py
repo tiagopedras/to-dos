@@ -263,6 +263,11 @@ SUB_DOC = """# List
   - [ ] Implement [to:: Implement agent] `#mn78op-implement` `id:dd0001`
   - [ ] Review the work [to:: Tiago] `blocked-by:mn78op-implement` `id:dd0002`
 - [ ] **Handed over the old way** [impact:: high] [effort:: M] [to:: Plan agent] `id:qr90st`
+- [ ] **An ordinary step for an agent** [impact:: high] [effort:: M] [to:: Plan agent] `id:uv12wx`
+  - [ ] Pull the numbers [to:: Implement agent]
+- [ ] **Handed over, with a Plan step of its own kind beside** [impact:: high] [effort:: M] `id:yz34ab`
+  - [x] Plan [to:: Plan agent] `done:2026-09-21` `#yz34ab-plan` `id:ee0001`
+  - [ ] Draft the deck [to:: Plan agent]
 
 ### To do
 
@@ -275,7 +280,7 @@ def test_sub_tasks():
     be ticked through the board's queue rather than writing the list itself."""
     plan_, skip = pick.select(SUB_DOC, day=dt.date(2026, 9, 22), use_ledger=False)
     check("a task is planned through its open, unblocked Plan sub-task, and the old way still works",
-          titles(plan_), ["Handed over the new way", "Handed over the old way"])
+          titles(plan_), ["An ordinary step for an agent", "Handed over the new way", "Handed over the old way"])
     by = {t.title: t.plan_sub for t in plan_}
     check("the sub-task it is being planned for is remembered", by["Handed over the new way"], "aa0001")
     check("and a task handed over the old way has none", by["Handed over the old way"], "")
@@ -290,14 +295,15 @@ def test_sub_tasks():
         old = paths.tick_queue_path
         paths.tick_queue_path = lambda: q
         try:
-            plan.queue_plan_tick(task, "2026-09-22-handed-over.md")
+            plan.queue_plan_tick(task, "2026-09-22/handed-over.md")
             plan.queue_plan_tick(next(t for t in plan_ if t.title == "Handed over the old way"), "x.md")
         finally:
             paths.tick_queue_path = old
         got = tick_queue.read(q)
         check("a finished plan queues one tick, on the Plan sub-task, by the Plan agent",
-              [(e["sub"], e["by"], e["note"]) for e in got],
-              [("aa0001", "Plan agent", "plan written to 2026-09-22-handed-over.md")])
+              [(e["sub"], e["by"], e["note"], e.get("plan")) for e in got],
+              [("aa0001", "Plan agent", "plan written to 2026-09-22/handed-over.md",
+                "2026-09-22/handed-over.md")])
 
         later = tick_queue.append("bb0001", "Implement agent", path=q)
         check("the board takes out only what it dealt with",
