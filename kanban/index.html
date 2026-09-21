@@ -148,6 +148,9 @@
        are all decisions about the task as a whole, so they are one group at the
        other end, drawn at one size (see .dhead .btn in the stylesheet). -->
   <div class="dhead">
+    <!-- Only on a sub-task, and first so it sits top left: the way back to the
+         task it belongs to. See openSubtaskDrawer() in 19-drawer.js. -->
+    <button class="btn ghost hidden" id="dheadBack" type="button">← Back to task</button>
     <strong id="drawerTitle">Edit task</strong>
     <span class="help" id="dheadHelp">Changes save automatically</span>
     <span class="spacer"></span>

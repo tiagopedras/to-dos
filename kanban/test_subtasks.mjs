@@ -133,6 +133,45 @@ try {
   check('the assignee and the tick are never taken', await evalJS(`
     (() => { const f = inheritedFields(__parent, __steps[1]); return ('to' in f) || ('done' in f) || ('doing' in f); })()`) === false)
 
+  /* ---- the drawer ---- */
+
+  await evalJS(`state.view = 'board'; renderView(); openDrawer(__parent.id)`)
+  check('a task with sub-tasks offers to open each one that has an id', await evalJS(`document.querySelectorAll('#f-subs .subopen').length`) === 4)
+  check('and the task\'s own drawer has no way back', await evalJS(`document.querySelector('#dheadBack').classList.contains('hidden')`))
+
+  await evalJS(`openDrawer('aa0002')`)
+  check('openDrawer takes a sub-task\'s id and shows its title', await evalJS(`document.querySelector('#f-title').value`) === 'Review the plan')
+  check('the drawer says it is a sub-task, with the way back top left', await evalJS(`
+    document.querySelector('#drawerTitle').textContent === 'View sub-task (read-only)' &&
+    !document.querySelector('#dheadBack').classList.contains('hidden') &&
+    document.querySelector('.dhead').firstElementChild.id === 'dheadBack'`))
+  check('what it takes from its task is faded, and what it has of its own is not', await evalJS(`
+    [...document.querySelectorAll('#dbody .field')].filter(f => f.classList.contains('inherited'))
+      .map(f => f.querySelector('span').textContent).join('|')`) === 'Impact|Due|Flags|Task|Bucket')
+  check('the assignee and the state are its own', await evalJS(`
+    document.querySelector('#f-to').value === 'Tiago' || document.querySelector('#f-to').selectedOptions[0].textContent === 'Tiago'`))
+  check('the delete and headline controls are hidden for it', await evalJS(`
+    getComputedStyle(document.querySelector('#del')).display === 'none' && getComputedStyle(document.querySelector('#dheadHl')).display === 'none'`))
+  check('what it is waiting on is named', await evalJS(`document.querySelector('.subwait')?.textContent`) === 'Plan — done')
+
+  await evalJS(`openDrawer('aa0003')`)
+  check('one with a date of its own does not fade it', await evalJS(`
+    ![...document.querySelectorAll('#dbody .field.inherited')].some(f => f.querySelector('span').textContent === 'Due')`))
+  check('and the state shows Doing', await evalJS(`document.querySelector('#f-substate').getAttribute('aria-valuetext')`) === 'Doing')
+
+  await evalJS(`document.querySelector('#dheadBack').click()`)
+  check('the button goes back to the task', await evalJS(`state.openTask === __parent.id && document.querySelector('#f-title').value === 'Write the handover'`))
+  check('and a sub-task\'s id is not a task\'s', await evalJS(`locate('aa0002') === null && locateSub('aa0002') !== null`))
+  await evalJS(`closeDrawer()`)
+
+  /* ---- editing one, on a tab that is allowed to ---- */
+
+  await evalJS(`state.locked = false; window.__saved = []; window.fetch = (u, o) => { window.__saved.push(((o && o.method) || 'GET') + ' ' + u); return Promise.resolve(new Response('{}', { status: 200 })) }; openDrawer('aa0002')`)
+  await evalJS(`(() => { const sel = document.querySelector('#f-to'); sel.value = 'Implement agent'; sel.onchange({ target: sel }); })()`)
+  check('changing the assignee rewrites its line in the tag order of a task and keeps every tag', await evalJS(`
+    __parent.body.find(l => l.includes('aa0002'))`) === '  - [ ] Review the plan \`#ab12cd-plan-review\` [to:: Implement agent] \`blocked-by:ab12cd-plan\` \`id:aa0002\`', await evalJS(`__parent.body.find(l => l.includes('aa0002'))`))
+  await evalJS(`state.locked = true`)
+
   /* ---- the point of the guard ---- */
 
   check('nothing was written', await evalJS(`window.__blocked.length === 0`), await evalJS(`window.__blocked.join(' | ')`))

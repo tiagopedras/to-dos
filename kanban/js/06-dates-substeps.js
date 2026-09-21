@@ -73,6 +73,20 @@ function subSteps(t){
   });
   return out;
 }
+/* One sub-task's line as the fields a task has, and back. The way the drawer
+   edits one: read the line, change a field, write the line, so a sub-task is
+   held to the same tag grammar as a task and its tags come out in the order a
+   task's do. Its indent and its notes underneath are left where they were. */
+function readSub(t, line){
+  const m = SUB_RE.exec(t.body[line]);
+  if (!m) return null;
+  return Object.assign({ indent: m[1], done: m[2].toLowerCase() === 'x' }, readTags(m[3]));
+}
+function writeSub(t, line, f){
+  if (state.locked) return;
+  t.body[line] = f.indent + serializeTask(Object.assign({}, f, { dirty: true, body: [] }))[0];
+  t.dirty = true;
+}
 function noteLines(t){
   return t.body.filter(l => l.trim() !== '' && !SUB_RE.test(l)).length;
 }

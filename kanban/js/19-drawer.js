@@ -836,8 +836,16 @@ let openStepNote = null;
 
 function openDrawer(id, focusTitle){
   const loc = locate(id);
-  if (!loc) return;
+  if (!loc) {
+    /* Not a task, so it may be the id written on a sub-task's line. */
+    const found = locateSub(id);
+    if (found) openSubtaskDrawer(found);
+    return;
+  }
   state.openTask = id;
+  state.openSubParent = null;
+  $('#drawer').classList.remove('subview');
+  $('#dheadBack').classList.add('hidden');
   const t = loc.task;
   // A backup preview opens the same panel to look at a task, but nothing in it
   // may change — every field below is disabled and nothing is wired to it.
@@ -1015,6 +1023,7 @@ function openDrawer(id, focusTitle){
              the block renderer. */
           '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + mdInline(s.clean) +
           (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
+          (s.stableId ? '<button type="button" class="subopen" data-sub="' + esc(s.stableId) + '" title="Open this sub-task">↗</button>' : '') +
           (ro ? '' : '<button type="button" class="noteicon' + (note ? ' has-note' : '') + '" data-line="' + s.line +
             '" title="' + (note ? 'Edit the note on this step' : 'Add a note to this step') + '">💬</button>') +
           (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
@@ -1139,6 +1148,9 @@ function openDrawer(id, focusTitle){
         if (e.target.closest('a')) return;
         editSubtext(span, t, +span.dataset.line, id);
       };
+    });
+    subsEl.querySelectorAll('.subopen').forEach(btn => {
+      btn.onclick = e => { e.stopPropagation(); openDrawer(btn.dataset.sub); };
     });
     subsEl.querySelectorAll('.subdel').forEach(btn => {
       btn.onclick = e => {
@@ -1356,8 +1368,147 @@ function openDrawer(id, focusTitle){
   syncHash(true);
 }
 
+/* ---- The panel, showing a sub-task ----
+   Opened by the id written on its line: `openDrawer(id)` takes either a task's
+   or a sub-task's, and the two cannot be confused, since a task's is a number
+   this tab made and a sub-task's is six characters from the file.
+
+   The same panel with fewer things in it. A sub-task has a title, a state (To
+   do, Doing, Done: the tick, and the one tag an agent's work carries), an
+   assignee, and the rest of the tags a task has. What it does not carry it takes
+   from its task, and those are drawn faded with a note saying so: the due
+   date, impact, urgent and week (inheritedFields() in core/todo.js), and the
+   bucket and project, which are only ever the task's. Picking a value of its own
+   for one takes it out of the faded state. The button at the top left goes back
+   to the task. Every edit reads the line, changes a field and writes the line
+   back (readSub() and writeSub()), so the tags come out the way a task's do. */
+function openSubtaskDrawer(found){
+  const { loc, step } = found;
+  const t = loc.task, line = step.line, subId = step.stableId;
+  state.openTask = subId;
+  state.openSubParent = t.id;
+  const ro = state.locked;
+  const dis = ro ? ' disabled' : '';
+  const f = readSub(t, line);
+  const inh = inheritedFields(t, step);
+  const took = k => inh.inherited.indexOf(k) > -1;
+  const proj = taskProject(t);
+
+  state.openProject = null;
+  $('#drawer').classList.remove('projectview');
+  $('#drawer').classList.add('subview');
+  $('#drawer').classList.toggle('readonly', ro);
+  $('#drawerTitle').textContent = ro ? 'View sub-task (read-only)' : 'Sub-task';
+  $('#dheadHl').classList.add('hidden');
+  $('#dheadBack').classList.remove('hidden');
+  const help = $('#dheadHelp');
+  help.textContent = ro ? 'Read-only — from a backup, nothing here can be changed.' : 'Changes save automatically';
+  help.title = help.textContent;
+
+  const SUB_STATES = [
+    { value: 'todo', label: 'To do', color: 'var(--tenon-text-accent)' },
+    { value: 'doing', label: 'Doing', color: 'var(--tenon-text-running)' },
+    { value: 'done', label: 'Done', color: 'var(--tenon-text-success)' }
+  ];
+  const now = f.done ? 'done' : (f.doing ? 'doing' : 'todo');
+  /* A field that is not the step's own reads as the task's, faded, and says so. */
+  const field = (k, label, body) =>
+    '<div class="field' + (took(k) ? ' inherited' : '') + '"><span>' + label + '</span>' + body +
+    (took(k) ? '<span class="help">From the task. Pick one here to give this its own.</span>' : '') + '</div>';
+
+  const waitingOn = (f.blockedBy || []).map(slug => {
+    const src = itemBySlug(allItems(), slug);
+    return '<div class="subwait' + (src && src.done ? ' done' : '') + '">' +
+      (src ? mdInline(src.title) + (src.done ? ' — done' : ' — open') : esc('#' + slug + ' is not in the list')) + '</div>';
+  }).join('');
+
+  $('#dbody').innerHTML = '<div class="dcols"><div class="dcol dcol-main">' +
+    '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(f.title) + '"' + dis + '></label>' +
+    '<div class="field"><span>State</span>' + stepPickerHTML('f-substate', SUB_STATES, now, ro, 'State') + '</div>' +
+    '<label class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis) + '</label>' +
+    '<div class="grid2">' +
+      field('impact', 'Impact', stepSliderHTML('f-impact', IMPACT_STOPS, inh.impact, ro, 'Impact')) +
+      '<div class="field"><span>Effort</span>' + stepSliderHTML('f-effort', EFFORT_STOPS, f.effort, ro, 'Effort') + '</div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="field"><span>Can start</span>' +
+        '<button type="button" class="dpbtn' + (parseDue(f.start) ? '' : ' empty') + '" id="f-start"' + dis + '>' +
+          esc(f.start ? dueLabel(f.start) : 'Any time') + '</button></div>' +
+      field('due', 'Due', '<button type="button" class="dpbtn' + (parseDue(inh.due) ? '' : ' empty') + '" id="f-due"' + dis + '>' +
+          esc(dueLabel(inh.due)) + '</button>') +
+    '</div>' +
+    '<div class="cal hidden" id="f-cal-start"></div>' +
+    '<div class="cal hidden" id="f-cal-due"></div>' +
+    '<div class="field' + (took('urgent') || took('week') ? ' inherited' : '') + '"><span>Flags</span>' +
+      '<label class="toggle"><input type="checkbox" id="f-urgent"' + (inh.urgent ? ' checked' : '') + dis + '> urgent</label>' +
+      '<label class="toggle"><input type="checkbox" id="f-week"' + (inh.week ? ' checked' : '') + dis + '> this week</label>' +
+      (took('urgent') || took('week') ? '<span class="help">Any that is ticked and faded is the task\'s.</span>' : '') +
+    '</div>' +
+    (waitingOn ? '<div class="field"><span>Waiting on</span>' + waitingOn + '</div>' : '') +
+    '<details class="field" data-collapse="subnote" open><summary>Note</summary>' +
+      '<textarea id="f-subnote" spellcheck="false"' + dis + '>' + esc(stepNoteText(t, line)) + '</textarea></details>' +
+    '<div class="field inherited"><span>Task</span><span class="dpbtn" style="cursor:default">' + mdInline(t.title) + '</span></div>' +
+    '<div class="field inherited"><span>Bucket</span><span class="dpbtn" style="cursor:default">' + esc(loc.bucket.name) + '</span></div>' +
+    (proj ? '<div class="field inherited"><span>Project</span><span class="dpbtn" style="cursor:default">' + esc(proj) + '</span></div>' : '') +
+  '</div></div>';
+
+  $('#dheadBack').onclick = () => openDrawer(t.id);
+
+  if (!ro) {
+    /* One edit: read the line as it is now, change what changed, write it back.
+       Read again every time, since another edit may have rewritten it. */
+    const edit = fn => {
+      const cur = readSub(t, line);
+      if (!cur) return;
+      fn(cur);
+      writeSub(t, line, cur);
+      markDirty(); refreshView();
+    };
+    const again = () => openDrawer(subId);
+
+    $('#f-title').oninput = e => edit(cur => { cur.title = e.target.value; });
+    $('#f-to').onchange = e => { edit(cur => { cur.to = e.target.value; }); again(); };
+    wireStepPicker('f-substate', SUB_STATES, pick => {
+      const cur = readSub(t, line);
+      if (pick === 'done' && !cur.done) {
+        const msg = blockedMessage(allItems(), (cur.blockedBy || []).concat(t.blockedBy || []));
+        if (msg) { showToast(msg, 'blocked'); again(); return; }
+      }
+      edit(c => {
+        c.doing = pick === 'doing';
+        if (pick === 'done' && !c.done) { c.done = true; c.doneOn = ymd(today()); }
+        else if (pick !== 'done' && c.done) { c.done = false; c.doneOn = ''; }
+      });
+      again();
+    });
+    wireStepSlider('f-impact', IMPACT_STOPS, v => { edit(cur => { cur.impact = v; }); again(); });
+    wireStepSlider('f-effort', EFFORT_STOPS, v => { edit(cur => { cur.effort = v; }); again(); });
+    /* The date pickers read and write one field of whatever they are given, and
+       reopen the drawer by state.openTask, which is this sub-task's id. */
+    const dates = {
+      get start(){ return readSub(t, line).start; }, set start(v){ edit(cur => { cur.start = v; }); },
+      get due(){ return inh.due; }, set due(v){ edit(cur => { cur.due = v; }); }
+    };
+    wireDatePicker(dates, () => {}, 'start');
+    wireDatePicker(dates, () => {}, 'due');
+    $('#f-urgent').onchange = e => { edit(cur => { cur.urgent = e.target.checked; }); again(); };
+    $('#f-week').onchange = e => { edit(cur => { cur.week = e.target.checked; }); again(); };
+    const note = $('#f-subnote');
+    const saved = note.value;
+    note.onblur = () => { if (note.value !== saved) { setStepNoteText(t, line, note.value); refreshView(); } };
+    note.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); note.blur(); } };
+  }
+
+  $('#drawer').classList.add('open');
+  $('#scrim').classList.add('open');
+  syncHash(true);
+}
+
 function closeDrawer(){
   state.openTask = null;
+  state.openSubParent = null;
+  $('#dheadBack').classList.add('hidden');
+  $('#drawer').classList.remove('subview');
   state.openProject = null;
   $('#drawer').classList.remove('open');
   $('#drawer').classList.remove('projectview');
@@ -1381,6 +1532,9 @@ function openProjectDrawer(name){
   // same reason opening a card does.
   syncHash(true);
 
+  state.openSubParent = null;
+  $('#dheadBack').classList.add('hidden');
+  $('#drawer').classList.remove('subview');
   $('#drawer').classList.add('projectview');
   $('#drawer').classList.toggle('readonly', state.locked);
   $('#drawerTitle').textContent = name;

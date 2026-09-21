@@ -442,6 +442,19 @@ function locate(id){
   }
   return null;
 }
+/* A sub-task by the id written on its line, the six characters that survive a
+   line number shifting. Returns the task it sits under, where that task is, and
+   the step as subSteps() reads it, or null when nothing carries that id. */
+function locateSub(subId){
+  if (!subId || !state.doc) return null;
+  for (const b of state.doc.buckets)
+    for (const tier of b.tiers)
+      for (let i = 0; i < tier.tasks.length; i++) {
+        const step = subSteps(tier.tasks[i]).find(s => s.stableId === subId);
+        if (step) return { loc: locate(tier.tasks[i].id), step };
+      }
+  return null;
+}
 /* The single way a task's tick is changed. Five places used to set .done by hand,
    and every one of them would now have to remember to date it — so they all go
    through here instead. Returns true if anything actually changed.

@@ -82,6 +82,10 @@ const state = {
   sort: {},           /* column name -> 'priority'; absent means his own order */
   view: 'overview',   /* the view the file opens on */
   openTask: null,
+  /* Set while the drawer shows a sub-task: the task it belongs to, which is where
+     the Back button goes. openTask holds the sub-task's own id then, the six
+     characters written on its line. */
+  openSubParent: null,
   /* The same panel, showing a project folder instead of a task. Only ever one
      of the two is set. */
   openProject: null,
