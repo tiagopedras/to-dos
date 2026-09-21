@@ -5,7 +5,7 @@ by hand against the same rules every time.
 See IMPROVEMENTS.md, "Every report the PA sends is rendered by hand, so the
 templates are instructions rather than code." The arithmetic mostly already
 existed, in two half-written, hand-agreeing copies: check_overdue() in
-check_todo.py and the headline-first ranking in agents/planning_agent/pick.py. This is
+check_todo.py and the headline-first ranking in agents/plan-agent/pick.py. This is
 the one copy, built on core/todo.py the way both of those already read the
 file, and it produces the whole of a template's context — not asked to know
 about Mustache, chevron or any particular skill.

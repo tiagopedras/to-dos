@@ -13,11 +13,11 @@ and working out that has to happen before the handover, and that half hour never
 has a good moment. This does it at two in the morning instead.
 
 ```
-agents/planning_agent/run.sh --dry-run          what it would do tonight, no spend, any hour
-python3 agents/planning_agent/pick.py           the queue, in the order it would be worked
-agents/planning_agent/run.sh --task "Some task" one task by hand, now
+agents/plan-agent/run.sh --dry-run          what it would do tonight, no spend, any hour
+python3 agents/plan-agent/pick.py           the queue, in the order it would be worked
+agents/plan-agent/run.sh --task "Some task" one task by hand, now
 python3 core/windows.py --history the last 30 days of usage windows
-python3 agents/planning_agent/test_planning_agent.py   the schedule, the picker and the runner
+python3 agents/plan-agent/test_planning_agent.py   the schedule, the picker and the runner
 ```
 
 ## Since 21 Sep 2026: the shared runner
@@ -28,13 +28,13 @@ wake calls `run.py --wake`, and `hooks.py` is this agent's side of it. The
 runner owns the wake, the lock, the budget and item cap, the stops and the
 dashboard's commands. The hooks call the same functions as before for
 everything else, so every file the board reads is written exactly as it was:
-the lines in `planning-agent.log`, the plans, `ledger.json`, the day's
+the lines in `plan-agent.log`, the plans, `ledger.json`, the day's
 `index.md` and `run.json`, `window.json` and the companion's notification. The
-lock is still `data/.planning-agent-<list>.lock`.
+lock is still `data/.plan-agent-<list>.lock`.
 
 `run.sh` stays as a small file that hands its flags to `run.py`, so the board's
 Run now and the commands above still work. The runner also writes its own daily
-log per list, in `data/runner/planning-agent/<list>/runs/<date>.md`: what was
+log per list, in `data/runner/plan-agent/<list>/runs/<date>.md`: what was
 planned, what was not and why, and what failed.
 
 `plan.py`'s own `run()` loop and the four commands in `dashboard.py` are no
@@ -97,7 +97,7 @@ mtime window is now only the fallback for a lock that names no holder.
 
 ### Which hours, and who decides
 
-`schedule.py` and `data/planning-agent-schedule.json`, edited from the agents
+`schedule.py` and `data/plan-agent-schedule.json`, edited from the agents
 dashboard at `~/Code/agents-dashboard`. The shared wake runs every hour and holds
 no policy at all, because a wake that only fired between certain hours would
 silently override whatever the dashboard said.
@@ -163,8 +163,8 @@ next, the same pair every queue in `~/Code` now shares:
 | State and owner | What it means |
 | --- | --- |
 | `review` / `me` | Waiting on him. `seen:` says whether he has opened it yet |
-| `ready` / `implementing-agent` | Approved to be carried out. `implementing-agent` picks these up, and the picker leaves the task alone until the work is done |
-| `ready` / `planning-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
+| `ready` / `implement-agent` | Approved to be carried out. `implement-agent` picks these up, and the picker leaves the task alone until the work is done |
+| `ready` / `plan-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
 | `done` / `me` | Finished, with `resolution:` saying how: `actioned`, or `superseded` where a later plan replaced it |
 
 Five separate words did this until 11 September 2026: `unread`, `read`,
@@ -173,17 +173,17 @@ an agent has the green light — and differed only in which agent. Folding them
 into one state with an owner is what stops a third agent needing a sixth word.
 
 They are no longer known in several places that have to be edited together. The
-vocabulary lives in `agents/planning_agent/stream.json`, this stream's manifest,
+vocabulary lives in `agents/plan-agent/stream.json`, this stream's manifest,
 and the shape it belongs to is `PACKAGES/work_streams/CONTRACT.md`. The one
-thing that writes it is `agents/planning_agent/stream.py --apply`, which writes the
+thing that writes it is `agents/plan-agent/stream.py --apply`, which writes the
 plan file and its ledger row in the same call because the two are read by
 different things and neither can be derived from the other.
 
-The acting half is `implementing-agent`, in `agents/implementing_agent/`. There is one
+The acting half is `implement-agent`, in `agents/implement-agent/`. There is one
 of it rather than one per bucket, because the per-bucket knowledge lives in the
 briefs both halves read. It runs from a live session through the `do` skill,
 never on a schedule, and it never writes `todo.md`: a change to the list is asked
-for in its report and made by the `pa` skill. See `agents/implementing_agent/README.md`
+for in its report and made by the `pa` skill. See `agents/implement-agent/README.md`
 and `../CLAUDE.md`.
 
 ## The bucket briefs
@@ -307,7 +307,7 @@ seen.
 
 ## Watching a run
 
-The same view's second column reads `data/.planning-agent.lock` and `plans/planning-agent.log`
+The same view's second column reads `data/.plan-agent.lock` and `plans/plan-agent.log`
 together, which is the only honest way — the agents are subprocesses of a shell
 `launchd` started and nothing can ask them anything. The lock says whether a
 batch is going; the log says what it has got through. A log with a task in
@@ -326,7 +326,7 @@ and exiting cleanly, which from a button is indistinguishable from starting.
 
 ## The sub-agents
 
-One per bucket, `planning-<stream>.md` in this folder, symlinked into
+One per bucket, `<dataset>-<stream>-agent.md` in this folder, symlinked into
 `.claude/agents/` **in this repo** rather than `~/.claude/`, so they version
 alongside the runner that invokes them. They moved in here on 7 Sep 2026 from the
 root of `agents/`, dropping the `pa-` prefix they had carried: they belong to the
@@ -337,12 +337,12 @@ adds what its bucket needs.
 
 | Bucket | Agent |
 | --- | --- |
-| People | `planning-people` — dates beat scores, sensitive things stay drafts, five skills already exist |
-| DS | `planning-ds` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
-| BAU | `planning-bau` — who holds it, and what would move it |
-| Strategic | `planning-strategic` — usually a decision wearing a task's clothes |
-| Processes | `planning-processes` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
-| anything else | `planning-general` — the fallback, which says so in its output |
+| People | `twinkl-people-agent` — dates beat scores, sensitive things stay drafts, five skills already exist |
+| DS | `twinkl-ds-agent` — the snapshot/inventory/audit split, `DS-KNOWN-ISSUES.md`, the `ds-*` skills |
+| BAU | `twinkl-bau-agent` — who holds it, and what would move it |
+| Strategic | `twinkl-strategic-agent` — usually a decision wearing a task's clothes |
+| Processes | `twinkl-processes-agent` — this repo, `IMPROVEMENTS.md`, the one-writer rule |
+| anything else | `twinkl-general-agent` — the fallback, which says so in its output |
 
 Buckets are renameable on the board, so the mapping in `plan.py` is by name with
 a fallback rather than a hard five. A task landing on the fallback is logged,
@@ -405,7 +405,7 @@ a window's capacity dies overnight, a week's does not.
 ## What lands where
 
 ```
-data/planning-agent-schedule.json   on/off, the hours, the nightly budget
+data/plan-agent-schedule.json   on/off, the hours, the nightly budget
 data/<dataset>/plans/
   2026-09-05/            one folder a night
     index.md             what was planned, what was skipped and why
@@ -414,7 +414,7 @@ data/<dataset>/plans/
   actioned/              plans he acted on, kept when the night is pruned
   ledger.json            what has been planned, and whether it was actioned
   window.json            the usage-window clock
-  planning-agent.log            every wake, every run, what it cost
+  plan-agent.log            every wake, every run, what it cost
 ```
 
 The schedule sits beside the datasets rather than inside one, because when the
@@ -475,10 +475,10 @@ is switched on and its hour comes round.
 
 **Does Design System want splitting into its five streams?** It is much the
 biggest bucket: 14 of the 19 plans written on the first real night came from
-`planning-ds`. The split, if it happens, is along the streams the
+`twinkl-ds-agent`. The split, if it happens, is along the streams the
 bucket already has — ways of working, audits, improvements, documentation,
 enablement — which each task's first note line names, and which
-`planning-ds.md` already describes in one place. It is not a small
+`twinkl-ds-agent.md` already describes in one place. It is not a small
 edit: `STREAMS` in `plan.py` names both the agent and the brief, so five
 streams means five agent definitions and five brief files. The cheaper
 experiment is to fill in `data/twinkl/buckets/ds/ds.md` first and see

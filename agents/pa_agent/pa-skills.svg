@@ -89,7 +89,7 @@
 
   <!-- ============ the implementing agent ============ -->
   <rect class="ghost" x="920" y="150" width="240" height="88" rx="10"/>
-  <text class="name" x="940" y="180">implementing-agent</text>
+  <text class="name" x="940" y="180">implement-agent</text>
   <text class="sub" x="940" y="201">Carries out the plan. Only</text>
   <text class="sub" x="940" y="218">ever from a live session.</text>
   <path class="flow" d="M880 194 H916" marker-end="url(#a)"/>

@@ -43,8 +43,8 @@ MANIFEST = os.path.join(HERE, "stream.json")
 # item nothing will ever pick up.
 OWNERS = {
     "backlog":  ("me",),
-    "ready":    ("me", "planning-agent", "implementing-agent"),
-    "doing":    ("planning-agent", "implementing-agent"),
+    "ready":    ("me", "plan-agent", "implement-agent"),
+    "doing":    ("plan-agent", "implement-agent"),
     "review":   ("me",),
     # Accepting a plan used to be the last move he made on it: what happened
     # next was the run it minted, on a board of its own, so the implementing
@@ -52,7 +52,7 @@ OWNERS = {
     # 13 Sep 2026 there is no second document, and the same card comes back to
     # him the moment the agent reports — so `accepted` is owned by whichever of
     # the two is next to move, and `production` below says which that is.
-    "accepted": ("implementing-agent", "me"),
+    "accepted": ("implement-agent", "me"),
     "done":     ("me",),
 }
 # `completed` arrived with the `accepted` state on 12 Sep 2026. Until then
@@ -146,7 +146,7 @@ def apply(req):
     item = req.get("item") or {}
     name = item.get("name")
     state = req.get("to")
-    owner = req.get("owner") or ("implementing-agent" if state == "accepted"
+    owner = req.get("owner") or ("implement-agent" if state == "accepted"
                                  else "me" if state in ("review", "done", "backlog") else None)
     seen = req.get("seen")
     resolution = req.get("resolution", "")
@@ -158,7 +158,7 @@ def apply(req):
     #
     # Still one flattened line. `feedback:` is read back by a regex on a single
     # frontmatter line in three places (plan_meta() in kanban/server.py, the
-    # /do skill, implementing-agent.md), and a block scalar would be a format
+    # /do skill, implement-agent.md), and a block scalar would be a format
     # change all three would have to learn at once for no gain a reader can
     # see.
     reason = " ".join((req.get("reason") or "").split())[:4000]
@@ -182,7 +182,7 @@ def apply(req):
     # A rejection with no reason is the one thing the loop cannot use: the next
     # run would plan the task again with nothing to go on and write much the
     # same plan, having spent the money twice.
-    if state == "ready" and owner == "planning-agent" and not reason:
+    if state == "ready" and owner == "plan-agent" and not reason:
         return {"ok": False, "error": "sending a plan back needs a reason"}
     # Same rule, different direction: a declined plan is the end of the idea, and
     # the reason is the only thing left of it worth reading.

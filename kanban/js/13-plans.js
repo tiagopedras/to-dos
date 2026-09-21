@@ -12,7 +12,7 @@
    A plan is a work item like any other and carries the shape every stream in
    here now shares: a `state`, an `owner` who is expected to move it next, and a
    `seen` flag. PACKAGES/work_streams/CONTRACT.md is the authority, and
-   agents/planning_agent/stream.json is this stream's manifest, holding its own word
+   agents/plan-agent/stream.json is this stream's manifest, holding its own word
    for each state.
 
    Since 12 Sep 2026 this view has the same four columns as the board itself,
@@ -20,7 +20,7 @@
    label describing one. Backlog, To do, Waiting for review, Done.
 
      backlog / me               leave it alone; the planning agent does not touch it
-     ready   / planning-agent      plan it tonight, with the reason he gave
+     ready   / plan-agent      plan it tonight, with the reason he gave
      review  / me               the agent has written one; `seen` says if he looked
      done    / me               he accepts it, and the implementing agent's half starts
 
@@ -49,7 +49,7 @@
 let planList = [];
 
 /* A folded plan is one whose agent stopped and asked rather than guessing —
-   see the folding rule in agents/planning_agent/PLAN-BRIEF.md. It is marked here rather than
+   see the folding rule in agents/plan-agent/PLAN-BRIEF.md. It is marked here rather than
    left to read like any other, because the two want opposite things from him:
    a plan wants reading, a fold wants answering. */
 function planClass(p){
@@ -65,7 +65,7 @@ function planClass(p){
   if (p.state === 'accepted') return ' agreed';
   if (p.state === 'backlog') return ' parked';
   if (p.state === 'doing') return '';
-  if (p.state === 'ready') return p.owner === 'planning-agent' ? ' redo' : ' agreed';
+  if (p.state === 'ready') return p.owner === 'plan-agent' ? ' redo' : ' agreed';
   return p.seen ? ' read' : '';
 }
 
@@ -92,7 +92,7 @@ function planWord(p){
   if (p.state === 'accepted') return 'accepted';
   if (p.state === 'backlog') return 'parked';
   if (p.state === 'doing') return 'being planned';
-  if (p.state === 'ready') return p.owner === 'planning-agent' ? 'planning again' : 'handed over';
+  if (p.state === 'ready') return p.owner === 'plan-agent' ? 'planning again' : 'handed over';
   return p.seen ? 'read' : 'new';
 }
 
@@ -181,7 +181,7 @@ const PLAN_COL_LABEL = { backlog:'Backlog', todo:'To do', doing:'Doing',
                          producing:'Producing', done:'Done' };
 function planColumn(p){
   if (p.state === 'backlog') return PLAN_COL.backlog;
-  if (p.state === 'ready' && p.owner === 'planning-agent') return PLAN_COL.todo;
+  if (p.state === 'ready' && p.owner === 'plan-agent') return PLAN_COL.todo;
   if (p.state === 'doing') return PLAN_COL.doing;
   if (p.state === 'review') return PLAN_COL.review;
   /* `done` covers both halves of finished: work that got carried out, and a
@@ -194,7 +194,7 @@ function planColumn(p){
   if (p.state === 'done' &&
       (p.resolution === 'completed' || p.resolution === 'superseded' ||
        p.resolution === 'declined')) return PLAN_COL.done;
-  /* `accepted`, and the `ready / implementing-agent` a plan agreed before
+  /* `accepted`, and the `ready / implement-agent` a plan agreed before
      11 Sep 2026 still carries. Both mean he has accepted it and the work has
      not finished, which is what Ready to be produced says. It is also the
      fallback, so a state this view has never heard of is drawn rather than
@@ -212,13 +212,13 @@ function planColumn(p){
    agent is a plan he sent back; `ready` owned by the implementing agent is one he
    approved. Both mean the same thing about the plan, which is why they are one
    state and not two. */
-const isRedo = p => p.state === 'ready' && p.owner === 'planning-agent';
+const isRedo = p => p.state === 'ready' && p.owner === 'plan-agent';
 /* Accepted, and the work not finished. `accepted` is the state that says so
-   since 12 Sep 2026; `ready / implementing-agent` is what it was called for the
+   since 12 Sep 2026; `ready / implement-agent` is what it was called for the
    day between the six states arriving and this one, and plans written in that
    window are still on disk saying it. */
 const isAgreed = p => p.state === 'accepted' ||
-  (p.state === 'ready' && p.owner === 'implementing-agent') ||
+  (p.state === 'ready' && p.owner === 'implement-agent') ||
   (p.state === 'done' && p.resolution === 'actioned');
 
 /* When a plan was actually written, to the minute — `generated:` if the file
@@ -526,7 +526,7 @@ function acceptPlan(p){
      `feedback` — the same key a replan's one-sentence reason uses, because
      they are the same thing at two lengths: what he has to say about the plan.
      On an accepted plan it is what he wants kept in mind while it is built,
-     which is what /do and implementing-agent.md now read it as. */
+     which is what /do and implement-agent.md now read it as. */
   const said = planChatFeedback(p);
   showModal('Accept this plan?', esc(p.title),
     '<div class="repdoc">' +
@@ -537,7 +537,7 @@ function acceptPlan(p){
       (said ? '<p>What you said in the chat goes with it, as notes for the build.</p>' : '') +
     '</div>',
     [{ label:'Move to Ready to be produced', primary:true, run: () => {
-        movePlan(p, 'accepted', 'implementing-agent', said ? { reason: said } : {});
+        movePlan(p, 'accepted', 'implement-agent', said ? { reason: said } : {});
         delete planChatLog[p.url];
       } },
      { label:'Cancel' }]);
@@ -565,7 +565,7 @@ function producePlan(p){
     '</div>',
     [{ label:'Yes, it is being made', primary:true,
        run: async () => {
-         if (await movePlan(p, 'accepted', 'implementing-agent', { production:'doing' })) {
+         if (await movePlan(p, 'accepted', 'implement-agent', { production:'doing' })) {
            await startPlanSession(p);
          }
        } },
@@ -577,7 +577,7 @@ function producePlan(p){
    first and the window opens only if that move landed — producePlan()'s rule,
    without its question, since pressing the button already answered it. */
 async function startProducing(p){
-  if (await movePlan(p, 'accepted', 'implementing-agent', { production:'doing' })) {
+  if (await movePlan(p, 'accepted', 'implement-agent', { production:'doing' })) {
     await startPlanSession(p);
   }
 }
@@ -660,7 +660,7 @@ function replanPlan(p){
            summarise a conversation he just had. */
         const why = redoText.trim() || planChatFeedback(p);
         if (!why) return showToast('A plan going back needs a reason.', 'bad');
-        movePlan(p, 'ready', 'planning-agent', { reason: why, release: true });
+        movePlan(p, 'ready', 'plan-agent', { reason: why, release: true });
         delete planChatLog[p.url];
       } },
      { label:'Cancel' }]);
@@ -675,7 +675,7 @@ function replanPlan(p){
 
 /* Backlog. Not a verdict on the plan at all — it is him saying the agent should
    leave this task be. So it does two things rather than one: the plan is parked,
-   and the task itself joins the hold list, which is the only thing agents/planning_agent/pick.py
+   and the task itself joins the hold list, which is the only thing agents/plan-agent/pick.py
    actually reads. Parking the plan and leaving the task queued would have
    tonight write a fresh plan for a task he just took off the agent.
 
@@ -692,7 +692,7 @@ function parkPlan(p){
    nothing about the plan — it says the task is live again. So no reason, no
    sheet, and the hold comes off the task with it. */
 function unparkPlan(p){
-  movePlan(p, 'ready', 'planning-agent', { release: true });
+  movePlan(p, 'ready', 'plan-agent', { release: true });
 }
 
 /* The two sections of a plan that are not for him. `Context` is the night's
@@ -896,7 +896,7 @@ async function movePlan(p, state, owner, opts){
     // counting it until the next render.
     if (opts.quiet) setPlansBadge(countPlansAwaiting(planList));
     /* The task behind the plan, and the hold list that decides whether tonight
-       touches it. A plan's own state means nothing to agents/planning_agent/pick.py — it reads
+       touches it. A plan's own state means nothing to agents/plan-agent/pick.py — it reads
        the ledger and the hold list — so a move that says "leave this alone" has
        to say it where the picker looks. */
     if (opts.hold || opts.release) {
@@ -1029,7 +1029,7 @@ const DONE_FILTERS = [
 /* Whether a plan he sent back has already been answered by a later one.
 
    Sending a plan back does not park the task: `is_stale()`
-   (agents/planning_agent/pick.py) treats `redo` as a reason to plan it again, so
+   (agents/plan-agent/pick.py) treats `redo` as a reason to plan it again, so
    the task goes straight back into the queue and the next run writes a fresh
    plan under its own night. The rejected file keeps `status: redo` for good,
    because the note on it is the only written record of what he asked for —
@@ -1391,7 +1391,7 @@ function renderPlanDone(){
    one" without editing todo.md, which this view must never do.
 
    Neither the order nor the hold list decides what the queue contains. Every
-   rule in agents/planning_agent/pick.py still does that. A title in the file that has since
+   rule in agents/plan-agent/pick.py still does that. A title in the file that has since
    been ticked off, blocked or renamed is simply never matched, which is why
    nothing here ever needs pruning.
    ------------------------------------------------------------------------- */

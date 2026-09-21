@@ -4,6 +4,10 @@
 The folders became `agents/planning_agent/` and `agents/implementing_agent/` on
 12 Sep 2026, and the names they write into their own documents went with them:
 `night-agent` is `planning-agent`, `execution-agent` is `implementing-agent`.
+On 21 Sep 2026 they were renamed again, to `agents/plan-agent/` and
+`agents/implement-agent/`, owners `plan-agent` and `implement-agent`, and the
+bucket planners became `<dataset>-<stream>-agent` (`planning-ds` is
+`twinkl-ds-agent`).
 Plans and runs already on disk still carry the old spellings in `owner:` and
 `agent:`, and `ledger.json` carries them in `owner`, so this rewrites them.
 
@@ -28,8 +32,10 @@ DATA = os.path.join(ROOT, "data")
 
 # Longest first, so `pa-plan-design-system` is not left as `pa-planning-...`.
 OWNERS = {
-    "night-agent": "planning-agent",
-    "execution-agent": "implementing-agent",
+    "night-agent": "plan-agent",
+    "execution-agent": "implement-agent",
+    "planning-agent": "plan-agent",
+    "implementing-agent": "implement-agent",
 }
 # The `agent:` field says which brief wrote a plan. It is display-only — the
 # board prints it in the card's meta line and nothing matches on it — which is
@@ -38,8 +44,11 @@ OWNERS = {
 STREAMS = ("design-system", "general", "people", "processes", "strategic", "work-oversight")
 AGENTS = {}
 for s in STREAMS:
-    AGENTS["pa-plan-%s" % s] = "planning-%s" % s
-    AGENTS["plan-%s" % s] = "planning-%s" % s
+    AGENTS["pa-plan-%s" % s] = "twinkl-%s-agent" % s
+    AGENTS["plan-%s" % s] = "twinkl-%s-agent" % s
+for s in ("bau", "ds", "general", "people", "processes", "strategic"):
+    AGENTS["planning-%s" % s] = "twinkl-%s-agent" % s
+AGENTS["planning-personal-tasks"] = "personal-tasks-agent"
 AGENTS.update(OWNERS)
 
 

@@ -3,7 +3,7 @@
 One folder per bucket in `data/<dataset>/buckets/`, holding the work I actually
 do in it and the skills that do it. Both halves of the planning agent read the
 brief — the `plan-*` agent that researches a task overnight, and
-`implementing-agent`, the one agent allowed to act on a plan once I have agreed
+`implement-agent`, the one agent allowed to act on a plan once I have agreed
 it — and so do I.
 
 ```
@@ -58,7 +58,7 @@ dataset's own `buckets/README.md`, gitignored with everything else.
 Because two different agents need the same knowledge. Put it in the planner and
 the implementing agent has to be told it again; write it twice and the two drift, and
 a plan researched against one understanding gets carried out against another.
-`agents/planning_agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
+`agents/plan-agent/PLAN-BRIEF.md` is the same idea for the half that is shared across
 every bucket.
 
 It also means the knowledge is mine to edit without opening an agent definition,
@@ -99,9 +99,9 @@ bucket they actually apply.
 
 ## How a brief is found
 
-`bucket_stream()` in `agents/planning_agent/plan.py` gives a bucket heading a
+`bucket_stream()` in `agents/plan-agent/plan.py` gives a bucket heading a
 stream name, and the agent, the folder and the brief are all named off it: the
-agent is `planning-<stream>` and the brief is
+agent is `<dataset>-<stream>-agent` and the brief is
 `data/<dataset>/buckets/<stream>/<stream>.md`, with the dataset coming from
 `paths.buckets_dir()`.
 
@@ -129,7 +129,7 @@ scaffold the folder as they go, through `POST /bucket/scaffold`.
 
 `general` is still the fallback, and what reaches it now is only a bucket whose
 heading slugifies to nothing. What is logged loudly instead is a stream with no
-`agents/planning_agent/planning-<stream>.md` on disk, which is the same signal
+`agents/plan-agent/<dataset>-<stream>-agent.md` on disk, which is the same signal
 one step later and a stronger one: it names the file to write rather than a
 table row to add.
 

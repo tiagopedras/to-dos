@@ -154,7 +154,7 @@ def window_path():
 
 
 def log_path():
-    return os.path.join(plans_dir(), "planning-agent.log")
+    return os.path.join(plans_dir(), "plan-agent.log")
 
 
 def attach_queue_path():

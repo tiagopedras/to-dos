@@ -13,7 +13,7 @@ This skill owns the to-do list. Everything that changes the file happens here, w
 
 `todo.md` has one writer and this is it. The board holds the whole document in the browser and writes all of it back when it saves, within seconds of anything marking the document dirty. So a second thing editing the file underneath an open tab is overwritten silently, and it has taken the real list twice.
 
-Every other part of this system is arranged around that. The companion reads and never writes. The planning agent writes plans and a queue file. `pa-attach` writes a queue file the board drains. `implementing-agent` carries out an agreed plan and asks for the list change in its report rather than making it. The other `pa-*` skills hold the conversation and hand the outcome here.
+Every other part of this system is arranged around that. The companion reads and never writes. The planning agent writes plans and a queue file. `pa-attach` writes a queue file the board drains. `implement-agent` carries out an agreed plan and asks for the list change in its report rather than making it. The other `pa-*` skills hold the conversation and hand the outcome here.
 
 That means two things for you. Apply what you are handed rather than re-opening the decision, since the conversation already happened. And never spawn a subagent to do the writing: a subagent cannot stop and ask, and it would be a second writer.
 
@@ -321,7 +321,7 @@ template that tried to would be a second copy of them.
 - `scripts/check_todo.py` — the mechanical checker. Run it before delivering.
 - `data/<dataset>/backups/todo-backup-*.md` — written by the board, one per run, before its first save. Useful if something is clobbered.
 - `data/<dataset>/backups/done-archive.md` — finished work the board has lifted out of `todo.md` once it had been ticked off for more than 30 days. Append-only and never pruned. **A task missing from the list is not necessarily a task that never existed — look here before concluding anything was lost, and never re-add something from here to todo.md unless he asks.**
-- `data/<dataset>/briefings.json` — a generated briefing per task (direction, what's done, what's still needed), written overnight by `agents/planning_agent/brief.py` and read by `newChat()` and by this skill. Never write this file by hand; refresh one entry with `python3 agents/planning_agent/brief.py --task "<title>"` after a groom that changes what a task is actually asking for — worth doing so the next chat or plan on it starts from what you just settled rather than what the overnight pass last saw.
+- `data/<dataset>/briefings.json` — a generated briefing per task (direction, what's done, what's still needed), written overnight by `agents/plan-agent/brief.py` and read by `newChat()` and by this skill. Never write this file by hand; refresh one entry with `python3 agents/plan-agent/brief.py --task "<title>"` after a groom that changes what a task is actually asking for — worth doing so the next chat or plan on it starts from what you just settled rather than what the overnight pass last saw.
 
 **Answering "what is on this week" means reading the `week` tags**, not looking for a section. Same for the other four views. If you find yourself wanting to write one of them into the file to answer a question, answer in chat instead.
 
@@ -335,5 +335,5 @@ template that tried to would be a second copy of them.
 | `pa-focus` | Walks To do and Doing, asking what is honestly in flight. Hands you what goes back to Backlog. |
 | `pa-review-plans` | Goes through the planning agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
 | `pa-mobile` | Any of the above, from a phone, asked as multiple choice and reported from the mobile templates. Hands you the same changes. |
-| `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
+| `do` | Hands an agreed plan to `implement-agent`. That agent never writes the list, so anything it needs changed comes to you as a request in its report. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Nothing reaches you. |

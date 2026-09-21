@@ -121,8 +121,8 @@ def test_notify_queue():
     notify.ROOT = tmp
     try:
         os.makedirs(os.path.join(tmp, "data", "x"))
-        notify.queue("Planning agent", "3 plans waiting", dataset="x")
-        notify.queue("Planning agent", "and another", dataset="x")
+        notify.queue("Plan agent", "3 plans waiting", dataset="x")
+        notify.queue("Plan agent", "and another", dataset="x")
         with open(notify.queue_path("x"), encoding="utf-8") as fh:
             items = json.load(fh)
         check("both are queued, in order",
@@ -140,7 +140,7 @@ def test_notify_queue():
 
         # Where the banner goes when it is pressed. Absent rather than null when
         # there is nowhere in particular to send it.
-        notify.queue("Planning agent", "3 plans waiting", dataset="x", view="plans")
+        notify.queue("Plan agent", "3 plans waiting", dataset="x", view="plans")
         notify.queue("Due today", "The audit", dataset="x", task="ds-audit")
         with open(notify.queue_path("x"), encoding="utf-8") as fh:
             items = json.load(fh)

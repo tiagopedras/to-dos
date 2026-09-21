@@ -17,10 +17,10 @@ switch, hours and budget. Until 19 Sep 2026 it sent exactly one, for whichever
 list `data/.current` pointed at, which meant planning the personal list took
 switching the board over and leaving it switched.
 
-    python3 agents/planning_agent/dashboard.py --state     what the page should draw
-    python3 agents/planning_agent/dashboard.py --apply     one change, on stdin
-    python3 agents/planning_agent/dashboard.py --run       one action, on stdin
-    python3 agents/planning_agent/dashboard.py --activity  what it did in a window, on stdin
+    python3 agents/plan-agent/dashboard.py --state     what the page should draw
+    python3 agents/plan-agent/dashboard.py --apply     one change, on stdin
+    python3 agents/plan-agent/dashboard.py --run       one action, on stdin
+    python3 agents/plan-agent/dashboard.py --activity  what it did in a window, on stdin
 """
 
 import argparse
@@ -224,7 +224,7 @@ def merged_log(n):
 
 def running():
     """Whether any list is mid-run. One lock per list since 19 Sep 2026."""
-    return any(os.path.isdir(os.path.join(ROOT, "data", ".planning-agent-%s.lock" % n))
+    return any(os.path.isdir(os.path.join(ROOT, "data", ".plan-agent-%s.lock" % n))
                for n in paths.datasets())
 
 
@@ -239,8 +239,8 @@ def _summary(all_schedules):
 def state():
     all_schedules = schedule.load_all()
     return {
-        "id": "planning-agent",
-        "name": "to-dos planning agent",
+        "id": "plan-agent",
+        "name": "Plan agent",
         "blurb": "works out overnight what each task on the list would take, and writes a plan for each — nothing it produces has been done",
         "summary": _summary(all_schedules),
         "job": launchd(PLIST),
@@ -513,7 +513,7 @@ def activity(body):
                 woke |= seen[0]
                 worked |= seen[1]
     runs.sort(key=lambda r: str(r.get("started") or ""))
-    out = {"id": "planning-agent", "name": "to-dos planning agent",
+    out = {"id": "plan-agent", "name": "Plan agent",
            "since": since.isoformat(), "cost": round(spent, 4), "unit": "$",
            "runs": runs,
            "note": "every one of these is a proposal; nothing here has been carried out"}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Runs one planning agent per task and files what comes back.
 
-The middle of the planning agent. `agents/planning_agent/schedule.py` says whether it
+The middle of the planning agent. `agents/plan-agent/schedule.py` says whether it
 may start, `core/windows.py` says how much of the current usage window is left,
 `pick.py` says on what, and this runs the agents and writes the results.
 
@@ -15,9 +15,9 @@ given read-only tools and told not to write todo.md, and then the file is hashed
 before the batch and checked after every single task anyway. Belt and braces is
 warranted when the failure is silent and the file is irreplaceable.
 
-    python3 agents/planning_agent/plan.py --dry-run       what it would do, no spend
-    python3 agents/planning_agent/plan.py                 the batch
-    python3 agents/planning_agent/plan.py --task "..."    one task, by hand
+    python3 agents/plan-agent/plan.py --dry-run       what it would do, no spend
+    python3 agents/plan-agent/plan.py                 the batch
+    python3 agents/plan-agent/plan.py --task "..."    one task, by hand
 """
 
 import argparse
@@ -61,7 +61,7 @@ import windows  # noqa: E402
 # fallback for a bucket that has never been through the editor, which is what
 # lets a hand-written todo.md keep working unchanged.
 FALLBACK_STREAM = "general"
-FALLBACK_AGENT = "planning-general"
+FALLBACK_AGENT = "twinkl-general-agent"
 
 # The line every bucket brief ships with, and the one line that has to come out
 # before the brief counts as written. See BUCKETS.md.
@@ -148,7 +148,16 @@ def bucket_stream(bucket):
 
 
 def bucket_agent(bucket):
-    return "planning-%s" % bucket_stream(bucket)
+    """The planner's name: `<dataset>-<stream>-agent`, `twinkl-ds-agent`.
+
+    Named after the list as well as the bucket, since each list has its own
+    buckets. A stream that already starts with the list's name keeps one copy
+    of it, so `personal-tasks` in `personal` is `personal-tasks-agent`.
+    """
+    stream, ds = bucket_stream(bucket), paths.dataset()
+    if stream == ds or stream.startswith(ds + "-"):
+        return "%s-agent" % stream
+    return "%s-%s-agent" % (ds, stream)
 
 
 def agent_on_disk(agent):
@@ -373,7 +382,7 @@ def rejection(prior):
     if not prior:
         return None
     sent_back = (prior.get("state") == "ready"
-                 and prior.get("owner") == "planning-agent") or prior.get("status") == "redo"
+                 and prior.get("owner") == "plan-agent") or prior.get("status") == "redo"
     if not sent_back:
         return None
     path = plan_path(prior)
@@ -389,7 +398,7 @@ def rejection(prior):
 
 
 def task_briefing(task):
-    """The cached briefing agents/planning_agent/brief.py wrote for this task, or "".
+    """The cached briefing agents/plan-agent/brief.py wrote for this task, or "".
 
     Not re-validated against the task's current fingerprint here — a slightly
     stale orientation is still an orientation, and the verbatim block below it
@@ -422,7 +431,7 @@ def build_prompt(task, prior=None):
     """
     block = "\n".join([task.raw] + list(task.body))
     parts = [
-        "Plan this one task from the to-do list. Read agents/planning_agent/PLAN-BRIEF.md first "
+        "Plan this one task from the to-do list. Read agents/plan-agent/PLAN-BRIEF.md first "
         "for the format and the rules, then your own agent definition applies on "
         "top of it.\n\n"
         "The task, exactly as it stands in %s:\n\n"
@@ -499,10 +508,10 @@ EXTRA_DIRS = ["~/Code"]
 def planner_for(bucket):
     """The planner a bucket's tasks actually run against.
 
-    The bucket's own where its file is on disk, `planning-general` where it is
+    The bucket's own where its file is on disk, `twinkl-general-agent` where it is
     not. Worked out here and only here: the main loop used to swap in the
     fallback itself while `run_agent()` worked the name out again, so the log
-    said `planning-general` and `claude` was still asked for the missing one.
+    said `twinkl-general-agent` and `claude` was still asked for the missing one.
     """
     agent = bucket_agent(bucket)
     return agent if agent_on_disk(agent) else FALLBACK_AGENT
@@ -1048,7 +1057,7 @@ def announce(written, skipped, stopped):
     # night, and Execution when the only news is the backlog of runs — either
     # is where the thing it is announcing actually lives.
     view = "plans" if written else "execution"
-    notify.queue("Planning agent", body, view=view)
+    notify.queue("Plan agent", body, view=view)
 
 
 def run(argv=None):
@@ -1082,7 +1091,7 @@ def run(argv=None):
         orphans = sorted({t.bucket for t in plan if not agent_on_disk(bucket_agent(t.bucket))})
         if orphans:
             print("\n%d bucket(s) have no planner: %s" % (len(orphans), ", ".join(orphans)))
-            print("Write agents/planning_agent/planning-<stream>.md for each, and symlink it "
+            print("Write agents/plan-agent/<dataset>-<stream>-agent.md for each, and symlink it "
                   "into .claude/agents/.")
         for title, why in skipped:
             print("  skip  %-58s %s" % (title[:58], why))
@@ -1138,7 +1147,7 @@ def run(argv=None):
         # plan at all.
         if not agent_on_disk(agent):
             log("  NO PLANNER for bucket %r — planning %r with the fallback. "
-                "Write agents/planning_agent/%s.md." % (task.bucket, task.title[:50], agent))
+                "Write agents/plan-agent/%s.md." % (task.bucket, task.title[:50], agent))
             agent = planner_for(task.bucket)
         # Logged before the run, not only after. An agent takes minutes, so
         # without this the log — and the board's Schedule view, which reads it —

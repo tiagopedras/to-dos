@@ -1,7 +1,7 @@
 {
   "contract": "1.7",
-  "id": "planning-agent",
-  "name": "to-dos planning agent",
+  "id": "plan-agent",
+  "name": "Plan agent",
   "cwd": ".",
   "wake": ["python3", "run.py", "--wake"],
   "state": ["python3", "run.py", "--state"],

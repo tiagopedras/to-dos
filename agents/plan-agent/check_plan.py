@@ -11,8 +11,8 @@ Shown means what the board's plan modal renders: everything but the frontmatter,
 Context and History. Those three are written for the next night and for the
 implementing agent, and he never sees them, so they cost him nothing.
 
-    python3 agents/planning_agent/check_plan.py data/twinkl/plans/*/*.md
-    python3 agents/planning_agent/check_plan.py --self-test
+    python3 agents/plan-agent/check_plan.py data/twinkl/plans/*/*.md
+    python3 agents/plan-agent/check_plan.py --self-test
 
 This file owns its own section splitter rather than importing `plan.py`'s, so the
 dependency runs one way: `plan.py` imports this, and this imports nothing of the

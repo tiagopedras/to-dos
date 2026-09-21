@@ -91,7 +91,7 @@ export interface PlanRef {
 }
 
 /** The newest night's run.json, counted up — see companion/src/main/night.ts
-    and write_run_record() in agents/planning_agent/plan.py. `recorded: false` is
+    and write_run_record() in agents/plan-agent/plan.py. `recorded: false` is
     a night whose folder holds plans but no record, which means the agent did
     not get to the end of its own run; every other field is empty there. */
 export interface NightRun {

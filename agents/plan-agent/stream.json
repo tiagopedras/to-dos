@@ -10,7 +10,7 @@
       "index.md",
       "ledger.json",
       "queue-order.json",
-      "planning-agent.log",
+      "plan-agent.log",
       "run.json"
     ]
   },
@@ -33,14 +33,16 @@
   },
   "owners": [
     "me",
-    "planning-agent",
-    "implementing-agent"
+    "plan-agent",
+    "implement-agent"
   ],
   "owner_legacy": {
-    "note": "the two agents were renamed on 12 Sep 2026 \u2014 night-agent for the hour it ran, execution-agent for the job, onto one axis as planning-agent and implementing-agent. core/migrations/migrate-agent-names.py rewrites what is on disk; this is what reads a document that migration never reached, such as one restored from a backup.",
+    "note": "the two agents were renamed on 12 Sep 2026 \u2014 night-agent for the hour it ran, execution-agent for the job, onto one axis as planning-agent and implementing-agent, and on 21 Sep 2026 to plan-agent and implement-agent. core/migrations/migrate-agent-names.py rewrites what is on disk; this is what reads a document that migration never reached, such as one restored from a backup.",
     "map": {
-      "night-agent": "planning-agent",
-      "execution-agent": "implementing-agent"
+      "night-agent": "plan-agent",
+      "execution-agent": "implement-agent",
+      "planning-agent": "plan-agent",
+      "implementing-agent": "implement-agent"
     }
   },
   "hints": {
@@ -93,7 +95,7 @@
     "holds": true
   },
   "writer": {
-    "who": "planning-agent",
+    "who": "plan-agent",
     "how": {
       "kind": "subprocess",
       "cwd": ".",
@@ -103,7 +105,7 @@
         "--apply"
       ]
     },
-    "lock": "data/.planning-agent.lock"
+    "lock": "data/.plan-agent.lock"
   },
   "views": [
     "plans"
@@ -124,17 +126,17 @@
       },
       "agreed": {
         "state": "accepted",
-        "owner": "implementing-agent",
+        "owner": "implement-agent",
         "seen": true
       },
       "redo": {
         "state": "ready",
-        "owner": "planning-agent",
+        "owner": "plan-agent",
         "seen": true
       },
       "actioned": {
         "state": "accepted",
-        "owner": "implementing-agent",
+        "owner": "implement-agent",
         "seen": true,
         "resolution": "actioned"
       }

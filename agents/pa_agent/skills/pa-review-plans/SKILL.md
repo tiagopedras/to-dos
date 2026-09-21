@@ -7,7 +7,7 @@ description: Go through the plans the planning agent wrote against the owner's m
 
 **Read `~/Code/to-dos/agents/pa_agent/PA.md` first, then `~/Code/to-dos/CONVENTIONS.md`.** The first holds who he is, where the list lives, how he prioritises, the standing rules and the tone. The second holds the file format. Neither is repeated below.
 
-Read `~/Code/to-dos/agents/planning_agent/README.md` too, at least the part describing what a
+Read `~/Code/to-dos/agents/plan-agent/README.md` too, at least the part describing what a
 plan is. A plan proposes and never executes, so nothing in this session is a
 status report on work that happened — it is a review of suggestions, and the
 only thing that changes as a result is what the list says.
@@ -17,8 +17,8 @@ only thing that changes as a result is what the list says.
 The obvious reading of this skill is that it helps him get through a folder of
 plans. That is the smaller half.
 
-`agents/planning_agent/pick.py` hashes each task **including its notes**, and re-plans anything
-whose hash has moved. `agents/planning_agent/plan.py` pastes the task's title line and its
+`agents/plan-agent/pick.py` hashes each task **including its notes**, and re-plans anything
+whose hash has moved. `agents/plan-agent/plan.py` pastes the task's title line and its
 notes into the agent's prompt verbatim, because that is where the reasoning
 lives. Put those two together and a note written here does three things in one
 move:
@@ -60,7 +60,7 @@ when the board is shut.
 
 Open with the numbers before anything else: how many plans, from which night,
 how many still unread, and across which buckets. If a night stopped early on
-budget, `index.md` and `plans/planning-agent.log` say so — name that here, because a
+budget, `index.md` and `plans/plan-agent.log` say so — name that here, because a
 short night is a fact about the list, not a fault to investigate.
 
 One or two sentences. "9 plans from last night, 7 unread, 6 of them Design
@@ -157,7 +157,7 @@ curl -s -X POST http://127.0.0.1:8765/stream/apply \
        "to":"review","owner":"me","seen":true}'
 ```
 
-That reaches `agents/planning_agent/stream.py`, which writes the frontmatter **and**
+That reaches `agents/plan-agent/stream.py`, which writes the frontmatter **and**
 the ledger `pick.py` reads, together. Neither can be derived from the other, and
 editing the file by hand does half the job and leaves the picker believing
 something it should not.

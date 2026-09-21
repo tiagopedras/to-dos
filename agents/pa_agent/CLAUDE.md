@@ -21,7 +21,7 @@ everything else feeds it.
 | `pa-checkout` | Walks Doing, Waiting for review and Blocked. Reviews and asks; `pa` writes. |
 | `pa-focus` | Walks To do and Doing, trimming what is not really in flight. Reviews and asks; `pa` writes. |
 | `pa-review-plans` | Triages the planning agent's plans. Writes plan statuses through the board's own routes, hands task notes to `pa`. |
-| `do` | Hands an agreed plan to `implementing-agent`. That agent never writes the list, so its requested changes come back through `pa`. |
+| `do` | Hands an agreed plan to `implement-agent`. That agent never writes the list, so its requested changes come back through `pa`. |
 | `pa-attach` | Files a conversation against a task through `attach-queue.json`, which the board drains. Touches nothing else. |
 | `pa-reports` | Makes a report off the list from its catalogue of types and sends it. Reads only; screenshots go through a locked headless board. |
 
@@ -33,7 +33,7 @@ wrong, rather than six copies that drift.
 
 **Why `pa` is a skill and not a subagent.** Writing means stopping to ask, and a
 subagent cannot: it runs in its own context and returns one report, so every
-question becomes a guess. It is the same reason `implementing-agent` only ever runs
+question becomes a guess. It is the same reason `implement-agent` only ever runs
 from a session he is in. The one job here that would suit an agent is a
 read-only status read, which `PA-PLAN.md` calls `board-read` and nothing has
 needed yet.
@@ -41,7 +41,7 @@ needed yet.
 ## What lives where
 
 - `PA.md` — standing behaviour, read by every skill and by the planning agent's six
-  planners and `implementing-agent`. It stayed a plain file rather than folding into
+  planners and `implement-agent`. It stayed a plain file rather than folding into
   `pa` precisely because those seven read it and never write anything.
 - `../../CONVENTIONS.md` — the file format.
 - `skills/pa/scripts/check_todo.py` — the mechanical checker. It lived under

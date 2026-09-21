@@ -122,7 +122,7 @@ async function renderNextRun(){
     const res = await fetch('/schedule.json?t=' + Date.now(), { cache:'no-store' });
     if (!res.ok) return;
     const jobs = (await res.json()).jobs || [];
-    const job = jobs.find(j => j.id === 'planning-agent');
+    const job = jobs.find(j => j.id === 'plan-agent');
     nextRunAt = (job && job.next) || '';
     if (nextRunAt) renderStatus(lastUsage);
   } catch (err) { /* silent, see above */ }

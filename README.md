@@ -49,7 +49,7 @@ Per data set rather than one shared set at the root, because a brief is only tru
 of one list: `twinkl` and `personal` have different buckets, different processes
 and different people. It moved in here on 8 Sep 2026.
 
-The planning agent's planners and `implementing-agent` both read the brief, and so do I.
+The planning agent's planners and `implement-agent` both read the brief, and so do I.
 [BUCKETS.md](BUCKETS.md) is the tracked half — what a brief is for, how one is
 found, and the template to start from — so a fresh clone can rebuild the shape
 without carrying any of the content.
@@ -535,7 +535,7 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 ### Plans
 
 A separate tab and a separate folder. Plans are written
-overnight by the planning agent in `agents/planning_agent/` — one per task tagged
+overnight by the planning agent in `agents/plan-agent/` — one per task tagged
 `[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
 involves and proposing a course of action. **Nothing in a plan has been done.**
 
@@ -564,7 +564,7 @@ task afresh rather than skipping it for looking unchanged, which is how a task h
 has moved on from gets a new plan.
 
 The full account of how the planning agent decides what to plan and when it is
-allowed to spend is in [agents/planning_agent/README.md](agents/planning_agent/README.md). The short version
+allowed to spend is in [agents/plan-agent/README.md](agents/plan-agent/README.md). The short version
 of the part that matters: it runs at the hours its schedule file names and at no
 others, with a floor in `schedule.py` that refuses the working day whatever that
 file says. The usage-window rule that used to sit alongside those hours was
@@ -584,7 +584,7 @@ look, and "did the nightly job actually run" had no answer short of reading a lo
 It reads two sources, and they are not alternatives. **Live** — `launchctl print`,
 the plist's own wake times, the companion's lock file — says whether a job is
 armed and when it fires next, which no log can know, since a log will happily
-describe a job that was unloaded a week ago. **The ledger** — `plans/planning-agent.log`,
+describe a job that was unloaded a week ago. **The ledger** — `plans/plan-agent.log`,
 `companion.json`, the backup listing — says what it actually did, which
 `launchctl` cannot. A job that is not installed says so and gives the command to
 install it.
@@ -1356,7 +1356,7 @@ time its result matters. So rather than each growing its own way to speak, they
 append to one file and the companion drains it on its next tick:
 
 ```
-python3 companion/notify.py --view plans "Planning agent" "3 plans waiting"
+python3 companion/notify.py --view plans "Plan agent" "3 plans waiting"
 python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
 ```
 
@@ -1447,7 +1447,7 @@ Two reference files sit behind all nine skills, and neither is packaged inside
 one of them. `agents/pa_agent/PA.md` is standing behaviour: who the list belongs
 to, where it lives, how he prioritises, the rules that hold whatever skill is
 running, and the tone. It stayed a plain file rather than folding into `pa`
-because the planning agent's six planners and `implementing-agent` read it too and
+because the planning agent's six planners and `implement-agent` read it too and
 never write anything. `CONVENTIONS.md` at the repo root is the file format. Every
 skill reads both before it does anything, which is why none of them restate
 either. `pa/references/audit-checklist.md` is what to check by hand that the

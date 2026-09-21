@@ -87,10 +87,10 @@ await evalJS(`(() => {
   const iso = ms => new Date(ms).toISOString();
   const day = ms => new Date(ms).toISOString().slice(0, 10);
   window.__jobs = [
-    { id:'planning-agent', name:'Planning agent', armed:false, state:'not installed',
+    { id:'plan-agent', name:'Plan agent', armed:false, state:'not installed',
       what:'Plans every task tagged ai:full or ai:partial, one agent each.',
       schedule:'12 wakes, 19:00–06:00', next:'', last:'',
-      recent:[], hint:'ln -s agents/planning_agent/x.plist ~/Library/LaunchAgents/' },
+      recent:[], hint:'ln -s agents/plan-agent/x.plist ~/Library/LaunchAgents/' },
     { id:'companion', name:'Desktop companion', armed:true, state:'running',
       what:'One briefing each working morning.',
       schedule:'08:30 on a working day', next:iso(now + 864e5),
@@ -200,7 +200,7 @@ check('and nothing on it reads as a verdict any more', await evalJS(`
 `))
 // The usage card itself carries no explanatory prose: the Status line
 // (elsewhere now) says what there is to spend and
-// agents/planning_agent/README.md holds the reasoning.
+// agents/plan-agent/README.md holds the reasoning.
 check('the usage card explains itself with the chart, not a paragraph', await evalJS(`
   !document.querySelector('#usageOut .help')
 `))

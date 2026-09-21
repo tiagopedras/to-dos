@@ -305,7 +305,7 @@ No hint, no sort, no count on any Plans column. Every one carries a description.
   Ready to be produced.
 
 So the Plans pipeline goes **Backlog → To do → Doing → Waiting for review → Ready to be produced →
-Done**, mirroring the Board's six. That is a change to `agents/planning_agent` territory as much as to
+Done**, mirroring the Board's six. That is a change to `agents/plan-agent` territory as much as to
 the view: `stream.json` and `PACKAGES/work_streams/CONTRACT.md` define the states a plan can be in,
 and two of these columns do not exist there yet. **Check the contract before building the view** —
 per `CLAUDE.md`, the board asks and the stream writes, and nothing here writes another stream's
@@ -547,7 +547,7 @@ and to Execution, which has the same four columns and the same filtering.
 ## Next steps
 
 1. **Check the stream contract** against the three new Plans columns (Doing, Ready to be produced,
-   Done) — `agents/planning_agent/stream.json` and `PACKAGES/work_streams/CONTRACT.md`. If they need
+   Done) — `agents/plan-agent/stream.json` and `PACKAGES/work_streams/CONTRACT.md`. If they need
    new states, that lands before any view work.
 2. **Do the column skeleton first** — one `.col` with `.colhead` + `.colbody`, used by Board, Plans
    and Execution. It is the change with the widest reach and everything else sits inside it.
@@ -559,8 +559,8 @@ and to Execution, which has the same four columns and the same filtering.
    against:
    ```
    python3 core/test_todo.py     node core/test_todo.mjs
-   python3 agents/planning_agent/test_planning_agent.py
-   python3 agents/implementing_agent/test_implementing_agent.py
+   python3 agents/plan-agent/test_planning_agent.py
+   python3 agents/implement-agent/test_implement-agent.py
    python3 companion/test_companion.py
    node kanban/test_plans.mjs    node kanban/test_execution.mjs
    node kanban/test_schedule.mjs node kanban/test_chats.mjs

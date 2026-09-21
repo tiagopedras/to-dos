@@ -1,5 +1,5 @@
 /* What the planning agent's last run did, read off the run.json it leaves beside
-   the plans — write_run_record() (agents/planning_agent/plan.py:734).
+   the plans — write_run_record() (agents/plan-agent/plan.py:734).
 
    The plans on their own cannot say this. A night that planned nothing and a
    night that never woke up both leave a folder with no open plan in it, so
@@ -8,7 +8,7 @@
 
    It reads the newest night's folder and only that one, which is where this
    parts company with the agents dashboard's _last_run()
-   (agents/planning_agent/dashboard.py:69). That one walks back to the newest
+   (agents/plan-agent/dashboard.py:69). That one walks back to the newest
    folder that has a record, because a dashboard reporting nothing would read
    as an agent that has never worked. Here the missing record is the news: the
    run wrote plans and then died before it could write its own account of

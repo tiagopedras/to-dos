@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Renders every due written-report definition, once a week.
 
-See agents/planning_agent/REPORT-DEFS.md for what a definition looks like and
+See agents/plan-agent/REPORT-DEFS.md for what a definition looks like and
 IMPROVEMENTS.md, "A report he defines once cannot be written down anywhere."
 core/aggregate.period_view() is the grounding — what actually finished, in
 the window and buckets a definition names — handed to the model as fact
@@ -17,9 +17,9 @@ never heard of a written report, and this has nothing to do while it is
 choosing tonight's plans anyway — a definition due weekly is not due every
 night.
 
-    python3 agents/planning_agent/report.py --dry-run          what is due, no spend
-    python3 agents/planning_agent/report.py                    render what's due
-    python3 agents/planning_agent/report.py --def NAME         one definition, by hand
+    python3 agents/plan-agent/report.py --dry-run          what is due, no spend
+    python3 agents/plan-agent/report.py                    render what's due
+    python3 agents/plan-agent/report.py --def NAME         one definition, by hand
 """
 
 import argparse

@@ -20,10 +20,10 @@ and a briefing is for every open task, planned or not, delegated or not.
 Cheap on purpose: a small model, a short answer, no tools, and nothing spent
 on a task whose text has not changed since it was last briefed.
 
-    python3 agents/planning_agent/brief.py --dry-run       what it would do, no spend
-    python3 agents/planning_agent/brief.py                 the batch
-    python3 agents/planning_agent/brief.py --task "..."    one task, by hand
-    python3 agents/planning_agent/brief.py --all           ignore the cache
+    python3 agents/plan-agent/brief.py --dry-run       what it would do, no spend
+    python3 agents/plan-agent/brief.py                 the batch
+    python3 agents/plan-agent/brief.py --task "..."    one task, by hand
+    python3 agents/plan-agent/brief.py --all           ignore the cache
 """
 
 import argparse

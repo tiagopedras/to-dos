@@ -1,6 +1,6 @@
 ---
 name: do
-description: Carry out the plans the owner has accepted on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the implementing-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the planning agent, which is the board's own Run now button.
+description: Carry out the plans the owner has accepted on the Plans view of his board, at Code/to-dos/data/<dataset>/plans/ (<dataset> named by data/.current, currently "twinkl"), one at a time, by handing each to the implement-agent agent. Use whenever he says to do, run, carry out, action or get on with an agreed plan, asks what is waiting to be run, says "let's do the ones I agreed", "run that plan", "action the agreed ones", "what did I say yes to", or names one task and asks to get it done. Also use after a pa-review-plans session where he accepted something, since accepting a plan is what starts it towards this. Do not use it to read or triage plans, which is pa-review-plans, and do not use it to run the planning agent, which is the board's own Run now button.
 ---
 
 # Carrying out an agreed plan
@@ -28,7 +28,7 @@ he has accepted carries `state: accepted`, and a second field says how far this
 half has got:
 
     production: none     he accepted it; nothing has been started
-    production: doing    an implementing-agent run has it right now
+    production: doing    an implement-agent run has it right now
     production: review   it did the work and wrote back; waiting on him
     production: done     he has accepted what it did
 
@@ -40,7 +40,7 @@ and marks the card with the stage — six columns rather than eight, decided the
 same day, because this agent only ever runs from a session he is sitting in, so
 there is never a card to watch move on its own.
 
-While a plan sits accepted, `is_stale()` in `agents/planning_agent/pick.py` leaves
+While a plan sits accepted, `is_stale()` in `agents/plan-agent/pick.py` leaves
 that task alone, so the plan he approved is the one that gets carried out rather
 than being replaced overnight by a second opinion.
 
@@ -77,9 +77,9 @@ Before handing one over, say in two or three lines what it proposes and what
 carrying it out will produce. He agreed to this plan when he read it, possibly
 days ago, and the thing about to happen should not be a surprise.
 
-## Move 3: hand it to `implementing-agent`
+## Move 3: hand it to `implement-agent`
 
-One `implementing-agent` run per plan. Give it:
+One `implement-agent` run per plan. Give it:
 
 - The full path to the plan file. It is both the instruction and, since the
   fold, the document the report goes onto — there is no second file.
@@ -87,7 +87,7 @@ One `implementing-agent` run per plan. Give it:
   wants kept in mind while building it, not a rejection — see Move 1.
 - The task's title, bucket and column, and its `Project:` note if it has one.
 - The path to the bucket's brief, `data/<dataset>/buckets/<stream>/<stream>.md`, worked out the
-  way `bucket_stream()` in `agents/planning_agent/plan.py` does it.
+  way `bucket_stream()` in `agents/plan-agent/plan.py` does it.
 
 Then stay out of its way. Do not do the work yourself alongside it, and do not
 re-plan the task because you can see a better approach. If the plan is wrong, the
@@ -95,7 +95,7 @@ answer is to stop and tell him, which is what the agent is told to do too.
 
 ## Move 4: what comes back
 
-`implementing-agent` reports what it did, what it left and what needs him. Pass that
+`implement-agent` reports what it did, what it left and what needs him. Pass that
 on in his own terms: what got done in a line or two, then a `**Needs you**`
 heading holding what actually stopped or needs a decision. Its report is written
 for you rather than for him, so summarise it rather than relaying it, and follow
@@ -105,9 +105,9 @@ Two things to check before you call it done:
 
 - **Write the two transitions yourself.** `production: doing` when you hand the
   plan over, and `production: review` with `owner: me` when the report lands,
-  both through `agents/planning_agent/stream.py --apply` — the plans stream's
+  both through `agents/plan-agent/stream.py --apply` — the plans stream's
   one writer, which is what the board itself posts to. This was the agent's job
-  to do until 13 Sep 2026 and it never could: `implementing-agent` holds no Bash
+  to do until 13 Sep 2026 and it never could: `implement-agent` holds no Bash
   tool, so it cannot run a subprocess, and every finished run sat in `review`
   looking exactly like a session that had died mid-work. The board asks and the
   stream writes, everywhere else in this repo; this is the same rule.
@@ -123,7 +123,7 @@ Accepting what it did is his move, on the Plans view, and it is not yours to
 make.
 
 If it asked for a change to `todo.md`, **it goes through `pa`, not the agent.**
-`implementing-agent` never writes that file. It hands the change up as a request,
+`implement-agent` never writes that file. It hands the change up as a request,
 with the exact lines before and after. Show him those lines, get a yes, then
 invoke `pa` with what he agreed and let it write, check and close with the
 Reload line. Reload rather than save, in that order: a tab open since before the

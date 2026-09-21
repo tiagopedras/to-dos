@@ -43,7 +43,7 @@ const state = {
      agent's own brief.py pass and read by loadBriefings() in
      20-loading-saving.js. Used as-is, never re-validated against the task's
      current text here: the fingerprint check that decides whether a
-     briefing is stale is agents/planning_agent/brief.py's job, not the
+     briefing is stale is agents/plan-agent/brief.py's job, not the
      board's, on the same reasoning core/todo.js is the one place the format
      itself gets parsed. Absent for a task never briefed yet, which falls
      back to its own raw notes exactly as it always did. */

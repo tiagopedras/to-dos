@@ -12,11 +12,11 @@ A window is anchored to whenever the day's first request happened to land, so it
 moves every night, and a schedule cannot be set against something that lands
 somewhere different each time: the same hours rode on Monday and stopped on
 Tuesday for no reason visible from outside. Keeping the morning clear is done by
-`agents/planning_agent/schedule.py` instead — hours, plus a floor that refuses the
+`agents/plan-agent/schedule.py` instead — hours, plus a floor that refuses the
 working day whatever the schedule file says.
 
 What is left here is measurement rather than permission. Two readers:
-`agents/planning_agent/plan.py` asks how much of the current window is left before
+`agents/plan-agent/plan.py` asks how much of the current window is left before
 it starts another task, and the board's usage chart asks what every window in
 the last month spent.
 
@@ -203,7 +203,7 @@ def main(argv):
     # sideways for it. The module itself has no opinion about where that is —
     # every caller passes the state in — and this is only for the command line.
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, os.path.join(root, "agents", "planning_agent"))
+    sys.path.insert(0, os.path.join(root, "agents", "plan-agent"))
     import paths  # noqa: E402
 
     now = dt.datetime.now().astimezone()

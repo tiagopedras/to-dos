@@ -26,7 +26,7 @@ Every file here started inside the thing that first needed it, and outgrew it.
 `todo.py` lived in `kanban/` while the board was its only caller. That stopped
 being true when the companion imported it, and by the time the PA's checker
 and the planning agent did too, four things depended on a module filed inside one
-of them. `windows.py` lived in `agents/planning_agent/` for about six hours, until the board
+of them. `windows.py` lived in `agents/plan-agent/` for about six hours, until the board
 wanted the same window history for its Schedule view. It is now read by the
 board more than by the agent it was written for. `todo.js` was 440 lines in
 the middle of `kanban/index.html`, which is a 9,500-line file — one caller, so by
@@ -46,12 +46,12 @@ problem. A reader that cannot write also cannot corrupt the file, which is worth
 more than the symmetry.
 
 **Policy.** Which tasks are *owed* is `companion/digest.py`'s question, which are
-worth *planning* is `agents/planning_agent/pick.py`'s, and both are answered on top of this
+worth *planning* is `agents/plan-agent/pick.py`'s, and both are answered on top of this
 rather than inside it. The test is whether two callers would want the same
 answer: the `repeat:` grammar yes, "is this due today" no.
 
 **Anything about a dataset.** These modules take text and return facts. Where
-`todo.md` lives is the caller's problem — `agents/planning_agent/paths.py` for the agent,
+`todo.md` lives is the caller's problem — `agents/plan-agent/paths.py` for the agent,
 `digest.todo_path()` for the companion, `server.py`'s own resolution for the
 board — because they genuinely disagree. The companion pins itself to `twinkl` so
 switching the board for ten minutes does not change what gets notified tomorrow;

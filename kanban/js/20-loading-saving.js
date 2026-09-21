@@ -158,7 +158,7 @@ async function loadJira(){
   }
 }
 
-/* Every task's cached briefing, written by agents/planning_agent/brief.py
+/* Every task's cached briefing, written by agents/plan-agent/brief.py
    overnight. Absent is the ordinary case for a fresh clone or a task that
    has not been through a brief pass yet — taskDescription() in
    10-reference-sections.js falls back to raw notes exactly as it did before

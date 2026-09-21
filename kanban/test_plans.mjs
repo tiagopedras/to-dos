@@ -102,11 +102,11 @@ await evalJS(`(() => {
       revisions: [{ date:'2026-09-01', revision:1 }, { date:'2026-09-05', revision:2 }] },
     { name:'hr-agent.md', night:'2026-09-05', url:'/x/hr-agent.md', state:'review', owner:'me', seen:true,
       title:'Create an HR agent', task:'Create an HR agent', bucket:'Processes', column:'To do',
-      ai:'partial', agent:'planning-processes', date:'2026-09-05',
+      ai:'partial', agent:'twinkl-processes-agent', date:'2026-09-05',
       summary:'Five of the six pieces exist as skills already.' },
     { name:'old.md', night:'2026-09-04', url:'/x/old.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'Something already dealt with', task:'Something already dealt with',
-      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'planning-strategic',
+      bucket:'Strategic', column:'Backlog', ai:'partial', agent:'twinkl-strategic-agent',
       date:'2026-09-04', summary:'Done and dusted.' },
     /* The three stages the implementing agent's half can be at, since the
        Execution board was folded into this one on 13 Sep 2026. All three are
@@ -114,11 +114,11 @@ await evalJS(`(() => {
        'doing' draws in Producing since 16 Sep 2026, while 'none' and 'review'
        stay in Ready to be produced wearing the stage as a mark on the card. */
     { name:'prod-none.md', night:'2026-09-05', url:'/x/prod-none.md', state:'accepted',
-      owner:'implementing-agent', seen:true, production:'none',
+      owner:'implement-agent', seen:true, production:'none',
       title:'Accepted, not started', task:'Accepted, not started',
       bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
     { name:'prod-doing.md', night:'2026-09-05', url:'/x/prod-doing.md', state:'accepted',
-      owner:'implementing-agent', seen:true, production:'doing',
+      owner:'implement-agent', seen:true, production:'doing',
       production_session:'abc-123-def',
       title:'Being made right now', task:'Being made right now',
       bucket:'DS', column:'To do', agent:'planning-design-system', date:'2026-09-05', summary:'x' },
@@ -128,7 +128,7 @@ await evalJS(`(() => {
     { name:'declined.md', night:'2026-09-04', url:'/x/declined.md', state:'done', owner:'me',
       seen:true, resolution:'declined', feedback:'Not worth the effort.',
       title:'An idea turned down', task:'An idea turned down',
-      bucket:'Strategic', column:'Backlog', agent:'planning-strategic', date:'2026-09-04', summary:'x' },
+      bucket:'Strategic', column:'Backlog', agent:'twinkl-strategic-agent', date:'2026-09-04', summary:'x' },
     { name:'prod-review.md', night:'2026-09-05', url:'/x/prod-review.md', state:'accepted',
       owner:'me', seen:false, production:'review',
       title:'Reported back', task:'Reported back',
@@ -137,7 +137,7 @@ await evalJS(`(() => {
   window.__queue = {
     queue: [
       { title:'Review the objectives', bucket:'People', column:'Doing', ai:'partial',
-        agent:'planning-people', position:1, state:'queued', why:'never planned',
+        agent:'twinkl-people-agent', position:1, state:'queued', why:'never planned',
         last:'', lastStatus:'' },
       { title:'Rename the text styles', bucket:'DS', column:'To do', ai:'full',
         agent:'planning-design-system', position:2, state:'queued',
@@ -158,7 +158,7 @@ await evalJS(`(() => {
     // view ignores it rather than erroring on a field it no longer reads.
     skipped: [
       { title:'Something parked', bucket:'People', column:'Blocked', ai:'partial',
-        agent:'planning-people', position:0, state:'skipped',
+        agent:'twinkl-people-agent', position:0, state:'skipped',
         why:'unchanged since 2026-09-04', last:'2026-09-04', lastStatus:'unread' }
     ],
     order: ['Review the objectives', 'Rename the text styles', 'Adoption and usage report',
@@ -690,7 +690,7 @@ check('the timeline reads a re-plan after a send-back as two events, newest firs
   })()
 `)) === 'current:Revision 2|sent:Sent back:Too broad.|old:Revision 1')
 check('a plan sent back and not yet re-written has the send-back on top', (await evalJS(`
-  planHistoryItems({ state:'ready', owner:'planning-agent', feedback:'Split it.',
+  planHistoryItems({ state:'ready', owner:'plan-agent', feedback:'Split it.',
     revisions: [{ date:'2026-09-11', revision:1, note:'Planned.', sent_back:'' }] })
     .map(i => i.kind).join(',')
 `)) === 'sent,old')
@@ -872,7 +872,7 @@ const after = await evalJS(`window.__blocked.join(' | ')`)
 // No resolution with it: nothing has closed, so there is nothing to say about
 // how. And the implementing agent owns it, because the next move on it is a run.
 check('accepting moves it to accepted, not done',
-  after.includes('"to":"accepted"') && after.includes('"owner":"implementing-agent"') &&
+  after.includes('"to":"accepted"') && after.includes('"owner":"implement-agent"') &&
   !after.includes('"resolution":"actioned"'))
 // Four: the three the column already held plus the one just accepted — the
 // fourth accepted plan is in Producing, being made.
@@ -911,7 +911,7 @@ const sentBack = await evalJS(`window.__blocked.join(' | ')`)
 // Going back is `ready` owned by the planning agent: an agent may pick it up, and
 // owner says which. Not a state of its own — see 13-plans.js.
 check('with a reason it hands the task back to the planning agent',
-  sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"planning-agent"'))
+  sentBack.includes('"to":"ready"') && sentBack.includes('"owner":"plan-agent"'))
 check('and carries the reason with it', sentBack.includes('Wrong scope'))
 // It lands in the To do column, under the queue, rather than in a verdict
 // column of its own — the task is already in the queue above it, and this is
@@ -1152,9 +1152,9 @@ await evalJS(`(() => {
       title:'Planned twice', task:'Planned twice', slug:'planned-twice',
       bucket:'DS', column:'To do', ai:'full', agent:'planning-design-system',
       date:'2026-09-06', summary:'The replacement.' },
-    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', state:'ready', owner:'planning-agent', seen:true,
+    { name:'still-out.md', night:'2026-09-06', url:'/x/still-out.md', state:'ready', owner:'plan-agent', seen:true,
       title:'Sent back last night', task:'Sent back last night', slug:'sent-back',
-      bucket:'People', column:'To do', ai:'full', agent:'planning-people',
+      bucket:'People', column:'To do', ai:'full', agent:'twinkl-people-agent',
       date:'2026-09-06', summary:'Waiting on a replacement.', redo_note:'Try again.' },
     { name:'rec.md', night:'2026-09-02', url:'/x/rec.md', state:'done', owner:'me', seen:true, resolution:'actioned',
       title:'A record', task:'A record', slug:'a-record', bucket:'DS', column:'Done',
@@ -1371,14 +1371,14 @@ check('a plan whose task is gone still links, under the name it stored', await e
   })()
 `))
 /* Same ordering in Ready to be produced. Flat rather than grouped: `accepted`
-   and the `ready / implementing-agent` that preceded it are the same fact about a
+   and the `ready / implement-agent` that preceded it are the same fact about a
    plan, and the group that used to lift the second above the first existed
    only because the column was also holding finished work. It is not, so one
    ordering does the whole column. */
 await evalJS(`(() => {
-  planList.forEach(p => { p.state = 'accepted'; p.owner = 'implementing-agent'; p.resolution = ''; });
+  planList.forEach(p => { p.state = 'accepted'; p.owner = 'implement-agent'; p.resolution = ''; });
   Object.assign(planList.find(p => p.name === 'slow-burn.md'),
-                { state:'ready', owner:'implementing-agent', resolution:'' });
+                { state:'ready', owner:'implement-agent', resolution:'' });
   doneFilter = 'all';
   renderPlansList();
   return painted();
@@ -1389,7 +1389,7 @@ check('Ready to be produced is ordered the same way', await evalJS(`
   'cheap-and-big,middling,slow-burn,gone,unscored'
 `))
 /* The old spelling and the new one draw as one column and read as one word.
-   `slow-burn` is the `ready / implementing-agent` a plan agreed on 11 Sep 2026
+   `slow-burn` is the `ready / implement-agent` a plan agreed on 11 Sep 2026
    carries; everything else is `accepted`. */
 check('and the old spelling of accepted reads as accepted beside it', await evalJS(`
   [...document.querySelectorAll('#plansProduced > .repitem')]
@@ -1440,7 +1440,7 @@ const buttonSets = await evalJS(`
     const at = p => planButtons(p).map(b => b.label).join('|');
     return [
       'backlog:'   + at({ state:'backlog' }),
-      'todo:'      + at({ state:'ready', owner:'planning-agent' }),
+      'todo:'      + at({ state:'ready', owner:'plan-agent' }),
       'doing:'     + at({ state:'doing' }),
       'review:'    + at({ state:'review' }),
       'produced:'  + at({ state:'accepted', production:'none' }),

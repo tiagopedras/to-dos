@@ -75,7 +75,7 @@ def path():
     runs is true of the agent, and one file holding every list's hours is what
     lets a wake ask about all of them without opening four.
     """
-    return os.path.join(ROOT, "data", "planning-agent-schedule.json")
+    return os.path.join(ROOT, "data", "plan-agent-schedule.json")
 
 
 def _clean(raw, fallback_on=False):

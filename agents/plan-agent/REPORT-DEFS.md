@@ -1,6 +1,6 @@
 # Written report definitions
 
-The tracked half of what `agents/planning_agent/report.py` renders — the rules
+The tracked half of what `agents/plan-agent/report.py` renders — the rules
 and the template, the same split `BUCKETS.md` at the repo root already makes
 for bucket briefs: this file is what every list's definitions look like,
 `data/<dataset>/reports/_defs/` is what one particular list's actually say,
@@ -51,9 +51,9 @@ calls, not templated.
 ## Running it
 
 ```
-python3 agents/planning_agent/report.py --dry-run
-python3 agents/planning_agent/report.py --def design-system-monthly   one, by hand
-python3 agents/planning_agent/report.py                               every def due this week, for real
+python3 agents/plan-agent/report.py --dry-run
+python3 agents/plan-agent/report.py --def design-system-monthly   one, by hand
+python3 agents/plan-agent/report.py                               every def due this week, for real
 ```
 
 Fires once a week — Sunday night, the same lock `plan.py`'s batch and

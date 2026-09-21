@@ -11,7 +11,7 @@ ends three clauses after its point, is harder to act on whoever wrote it and
 whoever reads it. So this file ships with the repo, and a personal layer on top
 of it (spelling, vocabulary, how a message opens) lives outside it.
 
-`agents/planning_agent/check_plan.py` enforces the part of this that can be
+`agents/plan-agent/check_plan.py` enforces the part of this that can be
 counted. The rest is read and applied.
 
 ## The twelve

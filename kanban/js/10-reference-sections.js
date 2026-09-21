@@ -602,7 +602,7 @@ function chainSection(items){
    automatic impact-against-effort score this entry originally asked for is
    what sorts it now, the same priorityScore() every other section already
    ranks by. `rank:` itself stays on the task — the planning agent's own queue
-   still orders by it (agents/planning_agent/pick.py) — but this view no
+   still orders by it (agents/plan-agent/pick.py) — but this view no
    longer shows that number, since a task's scores can move without anyone
    re-ranking it and a stale rank next to a live sort would disagree with
    itself. What's on the row now is its position in the order shown. */
@@ -993,7 +993,7 @@ function briefKeyFor(t){
   return t.stableId || t.title;
 }
 
-/* A cached briefing, written by agents/planning_agent/brief.py — direction,
+/* A cached briefing, written by agents/plan-agent/brief.py — direction,
    what's done, what's still needed — read exactly as cached, never
    re-validated here. Empty for a task never briefed yet. */
 function taskBriefing(t){

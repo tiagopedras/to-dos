@@ -1,9 +1,9 @@
-# to-dos/agents/implementing_agent
+# to-dos/agents/implement-agent
 
-The acting half. `agents/planning_agent/` researches a task overnight and proposes;
+The acting half. `agents/plan-agent/` researches a task overnight and proposes;
 this is what happens after Tiago reads one of those plans and says yes.
 
-Given its own folder on 7 Sep 2026. It was a loose `implementing-agent.md` at the
+Given its own folder on 7 Sep 2026. It was a loose `implement-agent.md` at the
 root of `agents/` until then, sitting among the six planners, which read as
 though it were one of them. It is not: the planners are read-only and run
 unattended, and this one holds write tools and only ever runs with him in the
@@ -14,12 +14,12 @@ file.
 
 | File | What it is |
 | --- | --- |
-| `implementing-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/implementing-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
+| `implement-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/implement-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
 
 ## The three things that are load-bearing
 
 **There is one of it.** Not one per bucket. The six planners, in
-`../planning_agent/`, are safe to duplicate because they are read-only and their
+`../plan-agent/`, are safe to duplicate because they are read-only and their
 differences are real; an implementing agent holds the dangerous half, and six copies
 of one set of guard rails is six chances for one to be edited without the
 others. The per-bucket knowledge sits
@@ -74,9 +74,9 @@ lives in `stream.json` beside this, and the shape it belongs to is
 
 ## Where the rest of it is written down
 
-- [../planning_agent/README.md](../planning_agent/README.md) — the planning half, the
+- [../plan-agent/README.md](../plan-agent/README.md) — the planning half, the
   window rule, and the status table.
-- [../planning_agent/PLAN-BRIEF.md](../planning_agent/PLAN-BRIEF.md) — the shape of the
+- [../plan-agent/PLAN-BRIEF.md](../plan-agent/PLAN-BRIEF.md) — the shape of the
   plan this agent is handed.
 - [skills/do/SKILL.md](skills/do/SKILL.md) — the
   skill that invokes it, and what it does with what comes back.

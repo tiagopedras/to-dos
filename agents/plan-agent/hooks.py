@@ -9,9 +9,9 @@ functions as before:
 - the queue is `todo.md`, read through `pick.select`, which still decides what
   is due to be planned from its own ledger. The runner never writes the list.
 - every file the board reads is still written the same way: the lines in
-  `planning-agent.log`, the plan files, `ledger.json`, the day's `index.md` and
+  `plan-agent.log`, the plan files, `ledger.json`, the day's `index.md` and
   `run.json`, `window.json` on a usage limit, and the one notification on the
-  companion's queue. The lock is still `data/.planning-agent-<list>.lock`.
+  companion's queue. The lock is still `data/.plan-agent-<list>.lock`.
 - the briefings and reports still run once per scheduled wake (`on_wake`).
 - the batch still stops if todo.md changes under it, and when less than twenty
   minutes of the usage window is left.
@@ -39,13 +39,13 @@ import schedule  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
 
-ID = "planning-agent"
-NAME = "to-dos planning agent"
+ID = "plan-agent"
+NAME = "Plan agent"
 BLURB = ("works out overnight what each task on the list would take, and writes a plan for each — "
          "nothing it produces has been done")
 # The runner's ledger, daily logs and log hold task titles, so they live under
 # data/, which is the whole of what this repo's git ignores.
-STATE = os.path.join("..", "..", "data", "runner", "planning-agent")
+STATE = os.path.join("..", "..", "data", "runner", "plan-agent")
 HOURS_PREFERRED = list(schedule.PREFERRED)
 
 # What one list's night has gathered between before() and after().
@@ -68,7 +68,7 @@ def targets():
 
 def lock_path(target_id):
     """The board's Run now checks this path before it starts anything."""
-    return os.path.join(ROOT, "data", ".planning-agent-%s.lock" % target_id)
+    return os.path.join(ROOT, "data", ".plan-agent-%s.lock" % target_id)
 
 
 def load_settings(target_id):
@@ -227,7 +227,7 @@ def starting(item, target, opts):
     wanted = plan.bucket_agent(task.bucket)
     if not plan.agent_on_disk(wanted):
         plan.log("  NO PLANNER for bucket %r — planning %r with the fallback. "
-                 "Write agents/planning_agent/%s.md." % (task.bucket, task.title[:50], wanted))
+                 "Write agents/plan-agent/%s.md." % (task.bucket, task.title[:50], wanted))
     # Logged before the run: the board's Schedule view reads this line to name
     # the task in flight.
     plan.log("  > %s (%s)" % (task.title[:60], opts["agent"]))

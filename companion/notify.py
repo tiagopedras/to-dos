@@ -7,15 +7,15 @@ usually shut, and a skill is a conversation that has already ended by the time
 its result matters. So rather than each growing its own way to speak, they all
 append here and the companion drains the queue on its next tick.
 
-    python3 companion/notify.py "Planning agent" "3 plans written, 2 skipped"
-    python3 companion/notify.py --view plans "Planning agent" "3 plans waiting"
+    python3 companion/notify.py "Plan agent" "3 plans written, 2 skipped"
+    python3 companion/notify.py --view plans "Plan agent" "3 plans waiting"
     python3 companion/notify.py --task ds-audit "Due today" "The audit is owed"
     python3 companion/notify.py --dataset _test "Title" "Body"
 
 Or from Python:
 
     sys.path.insert(0, ".../companion"); import notify
-    notify.queue("Planning agent", "3 plans written", view="plans")
+    notify.queue("Plan agent", "3 plans written", view="plans")
 
 `task` and `view` say where the banner goes when it is pressed. A task is a
 card's `#slug`, or its title where it has none — the two things in todo.md

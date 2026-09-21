@@ -5,11 +5,11 @@
 # see hooks.py beside this and PACKAGES/agents_engine/RUNNER.md. The hourly
 # wake is shared too, so nothing schedules this file any more.
 #
-#   ./agents/planning_agent/run.sh                   a scheduled wake, as the runner would
-#   ./agents/planning_agent/run.sh --dataset twinkl  one named list, now
-#   ./agents/planning_agent/run.sh --dry-run         the batch, no spend, any hour
-#   ./agents/planning_agent/run.sh --task "..."      one task by hand
-#   ./agents/planning_agent/run.sh --force           every list now, ignoring the hours
+#   ./agents/plan-agent/run.sh                   a scheduled wake, as the runner would
+#   ./agents/plan-agent/run.sh --dataset twinkl  one named list, now
+#   ./agents/plan-agent/run.sh --dry-run         the batch, no spend, any hour
+#   ./agents/plan-agent/run.sh --task "..."      one task by hand
+#   ./agents/plan-agent/run.sh --force           every list now, ignoring the hours
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY="${PLANNING_PYTHON:-python3}"
