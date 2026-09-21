@@ -2,7 +2,7 @@
 # Kept so what already calls this still works: the board's Run now
 # (kanban/server.py runs `run.sh --force --dataset <list>`) and anyone's habit.
 # The night itself is the shared runner's since 21 Sep 2026, through run.py;
-# see hooks.py beside this and PACKAGES/agents_engine/RUNNER.md. The hourly
+# see hooks.py beside this and PACKAGES/agents-engine/RUNNER.md. The hourly
 # wake is shared too, so nothing schedules this file any more.
 #
 #   ./agents/plan-agent/run.sh                   a scheduled wake, as the runner would

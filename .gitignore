@@ -68,7 +68,7 @@ companion/dist/
 # inherit ours.
 .claude/
 
-# writer claims — see PACKAGES/work_streams/writer.py
+# writer claims — see PACKAGES/work-streams/writer.py
 *.lock
 
 # The board's own React half: dependencies and the vite build output.

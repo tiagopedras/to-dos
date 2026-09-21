@@ -1884,7 +1884,7 @@ STATIC_PREFIX = "/ai-chat/"
 # /streams.json and /work-streams/* and serves the board exactly as it did
 # before either existed. Nothing the board needs in order to start may come
 # from here, because on the static deployment this path does not exist at all.
-WORK_STREAMS_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work_streams"))
+WORK_STREAMS_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work-streams"))
 WS_PREFIX = "/work-streams/"
 
 if os.path.isdir(WORK_STREAMS_DIR):
@@ -1946,7 +1946,7 @@ def ai_chat_static(rel_path):
 
 
 def work_streams_static(rel_path):
-    """A file under work_streams/interface/, or None. Kept to that one folder,
+    """A file under work-streams/interface/, or None. Kept to that one folder,
     exactly like ai_chat_static above: a route for the package's own assets,
     not a way to read a sibling directory."""
     if not WORK_STREAMS_DIR or ".." in rel_path.split("/"):
@@ -1975,7 +1975,7 @@ def stream_apply(stream_id, payload):
     went blank.
     """
     if ws_manifest is None:
-        return 503, {"ok": False, "error": "the work_streams package is not on this machine"}
+        return 503, {"ok": False, "error": "the work-streams package is not on this machine"}
     root = os.path.normpath(os.path.join(ROOT, ".."))
     for path in ws_manifest.discover(root):
         m, errors = ws_manifest.load(path)
@@ -2008,7 +2008,7 @@ def stream_listing():
     the agents dashboard makes about an agent whose state command fails.
     """
     if ws_manifest is None:
-        return {"streams": [], "problem": "the work_streams package is not on this machine"}
+        return {"streams": [], "problem": "the work-streams package is not on this machine"}
     root = os.path.normpath(os.path.join(ROOT, ".."))
     out = []
     for path in ws_manifest.discover(root):
@@ -2280,7 +2280,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if path.startswith(WS_PREFIX):
             full = work_streams_static(path[len(WS_PREFIX):])
             if not full:
-                return self._json(404, {"error": "not found under work_streams/interface"})
+                return self._json(404, {"error": "not found under work-streams/interface"})
             ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
             with open(full, "rb") as fh:
                 body = fh.read()
@@ -2745,7 +2745,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # writer for this list, so it takes the claim and keeps it; what this
         # refuses is a second live process writing underneath it. Advisory: a
         # claim held by a process that has gone is ignored, so a crash cannot
-        # leave the board unable to save. See PACKAGES/work_streams/writer.py.
+        # leave the board unable to save. See PACKAGES/work-streams/writer.py.
         if ws_writer is not None:
             lock = os.path.join(dataset_dir(ds), ".board.lock")
             refusal = ws_writer.refusal(lock, "the board")

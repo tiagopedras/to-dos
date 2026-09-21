@@ -32,7 +32,7 @@ half has got:
     production: review   it did the work and wrote back; waiting on him
     production: done     he has accepted what it did
 
-A second field rather than more states, because `PACKAGES/work_streams/CONTRACT.md`
+A second field rather than more states, because `PACKAGES/work-streams/CONTRACT.md`
 allows one `state:` per document and this answers a different question about the
 same one: `state` says where the plan is, `production` says what has happened to
 the work it describes. The Plans view draws all four in **Ready to be produced**

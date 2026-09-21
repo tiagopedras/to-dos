@@ -64,7 +64,7 @@ is is answered by `state:`, not by the wording.)
 (Until 13 September 2026 you were handed a separate run document with
 `state: ready`. Execution was folded into Plans that day, and the plan now
 carries both halves: `state` says where the plan is, `production` says how far
-you have got. See `PACKAGES/work_streams/CONTRACT.md`.)
+you have got. See `PACKAGES/work-streams/CONTRACT.md`.)
 
 **Do what the plan says, not what you would have planned.** He agreed to that
 plan, not to the task. Where the plan is wrong, or rests on something untrue,

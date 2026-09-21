@@ -8,7 +8,7 @@
 two facts in one state: the plan is agreed, and the work it describes has
 finished. The Plans view drew them as one column for the same reason, and could
 not draw them as the two they are. `accepted` is the seventh state the work
-streams contract took to hold the first of the two — see PACKAGES/work_streams/
+streams contract took to hold the first of the two — see PACKAGES/work-streams/
 CONTRACT.md — and from here `done` means only the second.
 
 So every plan already sitting in `done` has to move, or the day this lands it

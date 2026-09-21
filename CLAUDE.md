@@ -190,7 +190,7 @@ A card on Plans is a plan, and since 13 Sep 2026 it carries both halves of the
 pipeline: `state: accepted` says he agreed to it and `production:` says how far
 the implementing agent has got. There were two documents until then — accepting a
 plan minted a run onto a board of its own — and the reason given was that
-`PACKAGES/work_streams/CONTRACT.md` allows one `state:` per file. That is an
+`PACKAGES/work-streams/CONTRACT.md` allows one `state:` per file. That is an
 argument for one document with a longer column set, not for two boards.
 
 Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and an

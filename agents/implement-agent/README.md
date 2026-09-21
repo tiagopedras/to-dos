@@ -70,7 +70,7 @@ the documents.
 
 The vocabulary is not scattered across files that have to be edited together. It
 lives in `stream.json` beside this, and the shape it belongs to is
-`PACKAGES/work_streams/CONTRACT.md`.
+`PACKAGES/work-streams/CONTRACT.md`.
 
 ## Where the rest of it is written down
 

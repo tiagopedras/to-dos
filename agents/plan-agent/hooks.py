@@ -1,6 +1,6 @@
 """The planning agent's part of a night. The shared runner does the rest.
 
-`PACKAGES/agents_engine/RUNNER.md` says what the runner owns: the wake, the
+`PACKAGES/agents-engine/RUNNER.md` says what the runner owns: the wake, the
 lock, the budget, the stops, the daily log and the dashboard's commands. Since
 21 Sep 2026 that is no longer `run.sh` and the loop in `plan.py`. What stays
 here is everything about the to-do list and the plans, done by the same

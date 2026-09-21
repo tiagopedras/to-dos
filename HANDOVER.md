@@ -306,7 +306,7 @@ No hint, no sort, no count on any Plans column. Every one carries a description.
 
 So the Plans pipeline goes **Backlog → To do → Doing → Waiting for review → Ready to be produced →
 Done**, mirroring the Board's six. That is a change to `agents/plan-agent` territory as much as to
-the view: `stream.json` and `PACKAGES/work_streams/CONTRACT.md` define the states a plan can be in,
+the view: `stream.json` and `PACKAGES/work-streams/CONTRACT.md` define the states a plan can be in,
 and two of these columns do not exist there yet. **Check the contract before building the view** —
 per `CLAUDE.md`, the board asks and the stream writes, and nothing here writes another stream's
 files.
@@ -547,7 +547,7 @@ and to Execution, which has the same four columns and the same filtering.
 ## Next steps
 
 1. **Check the stream contract** against the three new Plans columns (Doing, Ready to be produced,
-   Done) — `agents/plan-agent/stream.json` and `PACKAGES/work_streams/CONTRACT.md`. If they need
+   Done) — `agents/plan-agent/stream.json` and `PACKAGES/work-streams/CONTRACT.md`. If they need
    new states, that lands before any view work.
 2. **Do the column skeleton first** — one `.col` with `.colhead` + `.colbody`, used by Board, Plans
    and Execution. It is the change with the widest reach and everything else sits inside it.

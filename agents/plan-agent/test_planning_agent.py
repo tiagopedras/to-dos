@@ -414,7 +414,7 @@ def test_folding():
         # `outcome: folded` was this stream's own word for it until 11 Sep 2026.
         # It is `needs_you` now, which is the same fact the improvements backlog
         # already carried under that name: an unattended agent must not act on
-        # this. One canonical field, two streams. See work_streams/CONTRACT.md.
+        # this. One canonical field, two streams. See work-streams/CONTRACT.md.
         check("folding survives into the file", "needs_you: yes" in text, True)
         check("and a plan nobody folded says so", "needs_you: no" in
               open(plan.write_plan(task, "---\nsummary: Fine.\n---\n\nBody.\n", "", day)[0],
@@ -1035,7 +1035,7 @@ def test_server():
                 # The claim. Advisory on purpose: a claim held by a process
                 # that has gone is ignored, because being unable to write your
                 # own list after a crash is a worse failure than the one the
-                # lock prevents. See PACKAGES/work_streams/writer.py.
+                # lock prevents. See PACKAGES/work-streams/writer.py.
                 import writer as ws_writer
                 lock = os.path.join(tmp, ".plans.lock")
                 with open(lock, "w", encoding="utf-8") as fh:
@@ -1310,7 +1310,7 @@ def test_usage_chart():
 
 
 def test_runner():
-    """The night is the shared runner's since 21 Sep 2026 (PACKAGES/agents_engine,
+    """The night is the shared runner's since 21 Sep 2026 (PACKAGES/agents-engine,
     whose own tests hold the lock, the stops and the daily log). What is pinned
     here is this agent's side of it: the lock sits where the board looks for
     it, and the tools each planner is given.

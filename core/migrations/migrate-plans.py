@@ -42,7 +42,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "core"))
-sys.path.insert(0, os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work_streams")))
+sys.path.insert(0, os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "work-streams")))
 import todo                     # noqa: E402
 import manifest as ws           # noqa: E402
 

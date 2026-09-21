@@ -22,7 +22,7 @@ python3 agents/plan-agent/test_planning_agent.py   the schedule, the picker and 
 
 ## Since 21 Sep 2026: the shared runner
 
-The night is run by the shared runner in `PACKAGES/agents_engine` (`RUNNER.md`
+The night is run by the shared runner in `PACKAGES/agents-engine` (`RUNNER.md`
 there), the same one the UX agent and `improve_agent` use. The shared hourly
 wake calls `run.py --wake`, and `hooks.py` is this agent's side of it. The
 runner owns the wake, the lock, the budget and item cap, the stops and the
@@ -174,7 +174,7 @@ into one state with an owner is what stops a third agent needing a sixth word.
 
 They are no longer known in several places that have to be edited together. The
 vocabulary lives in `agents/plan-agent/stream.json`, this stream's manifest,
-and the shape it belongs to is `PACKAGES/work_streams/CONTRACT.md`. The one
+and the shape it belongs to is `PACKAGES/work-streams/CONTRACT.md`. The one
 thing that writes it is `agents/plan-agent/stream.py --apply`, which writes the
 plan file and its ledger row in the same call because the two are read by
 different things and neither can be derived from the other.
@@ -467,7 +467,7 @@ task afresh instead of skipping it for looking unchanged.
 ## Installing the schedule
 
 There is nothing of this agent's own to install. The hourly wake is shared by
-every agent, and `RUNNER.md` in `PACKAGES/agents_engine` says how it is
+every agent, and `RUNNER.md` in `PACKAGES/agents-engine` says how it is
 installed. Its own plist was retired on 21 Sep 2026. Nothing runs until a list
 is switched on and its hour comes round.
 

@@ -11,7 +11,7 @@
 
    A plan is a work item like any other and carries the shape every stream in
    here now shares: a `state`, an `owner` who is expected to move it next, and a
-   `seen` flag. PACKAGES/work_streams/CONTRACT.md is the authority, and
+   `seen` flag. PACKAGES/work-streams/CONTRACT.md is the authority, and
    agents/plan-agent/stream.json is this stream's manifest, holding its own word
    for each state.
 

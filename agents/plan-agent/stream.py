@@ -4,7 +4,7 @@
     echo '{"item": {...}, "to": "done", ...}' | python3 stream.py --apply
 
 One transition on stdin, the write performed here, `{"ok": true}` back. See
-PACKAGES/work_streams/CONTRACT.md, which this is the `subprocess` writer kind.
+PACKAGES/work-streams/CONTRACT.md, which this is the `subprocess` writer kind.
 
 Why this file exists at all. Until today the board's own server held mark_plan()
 and wrote these files: a second program writing another program's data, which is
@@ -26,7 +26,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..", "..", "PACKAGES", "work_streams")))
+sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..", "..", "PACKAGES", "work-streams")))
 import paths                       # noqa: E402
 try:
     import manifest as ws
@@ -199,7 +199,7 @@ def apply(req):
 
     # One writer at a time, even though this is the only one there is: a nightly
     # run and a move from the board can land in the same second. Advisory, so a
-    # run that died holding it blocks nothing. See work_streams/writer.py.
+    # run that died holding it blocks nothing. See work-streams/writer.py.
     lock = os.path.join(paths.plans_dir(), ".plans.lock")
     if ws_writer is not None:
         refusal = ws_writer.refusal(lock, "the planning agent")

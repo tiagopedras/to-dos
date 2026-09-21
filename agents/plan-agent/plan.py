@@ -725,7 +725,7 @@ def write_plan(task, text, session, day, prior=None):
         "night: %s" % day.isoformat(),
         # A fresh plan is waiting on him and he has not seen it. The five words
         # this stream used until 11 Sep 2026 are gone; what they meant is state
-        # plus owner plus seen. See PACKAGES/work_streams/CONTRACT.md.
+        # plus owner plus seen. See PACKAGES/work-streams/CONTRACT.md.
         "state: review",
         "owner: me",
         "seen: no",

@@ -11,7 +11,7 @@ it was dragged to To do — a gate that filtered nothing and was simply a step t
 remember. On 12 Sep 2026 six plans stood accepted, all six had runs, and two had
 never been moved.
 
-The reason on record for two documents was that PACKAGES/work_streams/CONTRACT.md
+The reason on record for two documents was that PACKAGES/work-streams/CONTRACT.md
 allows one `state:` per file. That is an argument for one document with a longer
 column set, not for two boards. Decided 13 Sep 2026: fold them, and keep Plans'
 six columns rather than growing to eight — the implementing agent is not

@@ -375,7 +375,7 @@ async function checkStreamManifest(){
       console.warn('[work-streams] the board draws columns this manifest does not name.' +
         '\n  board:    ' + drew.join(' | ') +
         '\n  manifest: ' + says.join(' | ') +
-        '\n  One of stream.json and 02-state.js is out of date. See PACKAGES/work_streams/CONTRACT.md.');
+        '\n  One of stream.json and 02-state.js is out of date. See PACKAGES/work-streams/CONTRACT.md.');
     for (const e of mine.errors || []) console.warn('[work-streams] stream.json: ' + e);
   } catch (err) { /* no helper, or no package: both are normal */ }
 }
