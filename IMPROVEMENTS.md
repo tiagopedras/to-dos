@@ -18,6 +18,25 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The plans stream's `production` field is written and checked by `stream.py` but not declared in `stream.json`, so the shared work-streams package cannot see it.**
+  `PRODUCTION` (`agents/plan-agent/stream.py:83`) lists the four stages and `FM_KEYS` (`:84`)
+  carries the key, but `agents/plan-agent/stream.json` names it under neither `fields` nor
+  `states`. The board and `do` read it directly. To be discussed before anything is built: does
+  it belong in `fields`, or is it a second state axis that `CONTRACT.md` should name?
+
+- **On a phone, Plans opens on its first column, an empty Backlog, with the plans waiting for review four columns to the right and nothing saying so.**
+  Board has a column switcher on a phone, `renderColTabs()`
+  (`kanban/js/18-timeline.js:1147`), which `kanban/js/18-timeline.js:980` hides on
+  every other view, so `kanban/ui/PlansView.tsx` gets none. The smallest fix is
+  showing `#colTabs` on Plans too, and opening on Waiting for review when anything
+  is in it. Review finding 7 in `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md`.
+
+- ~~**Plans reuses To do, Doing and Backlog from the Board to mean the agent's progress, so "Doing" there reads as "I am doing this".**~~ **Done, 21 Sep 2026.** Superseded by the one-board entry under Big, which folds Plans into the Board.
+  The five Plans columns in `kanban/ui/PlansView.tsx` share three names with
+  `RESERVED_TIERS` (`kanban/js/02-state.js:317`), on purpose, for parity between the two
+  pages. Review finding 2 in `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-to-dos-delegation/review.md`. Moot if the one-board
+  entry under Big lands, so hold it until that is decided.
+
 - ~~**The planning agent's fallback to `planning-general` never reaches `claude`.**~~ **Done, 21 Sep 2026.** `planner_for()` in `agents/planning_agent/plan.py` is the one place that decides which planner a bucket runs against, and both the main loop and `run_agent()` read it. `test_fallback_planner()` in `test_planning_agent.py` stubs `subprocess.run` and checks the `--agent` a bucket with no planner file actually reaches `claude` with.
 
 - **The string twins of Column and Card have no caller left in the app.**
@@ -27,10 +46,14 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `kanban/ui/test_primitives.mjs` and by the parity check in
   `kanban/test_board.mjs`, and the comments in `13-plans.js` and `19-drawer.js`
   that mention `colHTML()`. `numberBadgeHTML()` is still live, since the Plans
-  tab badge uses it, and `setColCount()` still serves Projects. Deleting the
-  five and trimming `test_primitives.mjs` to the badge and the bundle check
-  removes about 250 lines. It also changes what `npm test` proves, so it wants
-  a decision rather than a tidy.
+  tab badge uses it, and `setColCount()` still serves Projects. Delete the
+  five, about 250 lines, and rewrite the parity cases in `test_primitives.mjs`
+  and `test_board.mjs` the way the three `PlanCard` cases already work: render
+  the React component and compare it against the expected markup written out
+  longhand, so the shape stays pinned without a second renderer to keep in
+  step. Update the comments in `13-plans.js`, `17-matrix.js` and
+  `19-drawer.js` that name the deleted functions, and the "change one of the
+  four and change the other" rule in `CLAUDE.md`.
 
 - **Two inline Markdown renderers know different things.** `mdInline()`
   (`kanban/js/10-reference-sections.js:687`) understands `[text](url)` links
@@ -152,8 +175,9 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   styling and leave the first slot. Each confirm should say which column the
   card moves to, in the button label itself ("Move to Done").
 
-- **A plan sent back for replanning cannot be dragged from To do to Backlog.**
-  **Could not reproduce, 15 Sep 2026.** Driven both ways in a locked tab
+- ~~**A plan sent back for replanning cannot be dragged from To do to Backlog.**~~
+  **Done, 21 Sep 2026.** Superseded by the one-board entry under Big, which
+  removes Plans' To do and Backlog. **Could not reproduce, 15 Sep 2026.** Driven both ways in a locked tab
   against a stubbed `/plans.json` — a synthetic `DragEvent` sequence, and a
   real pointer-driven drag through Chrome's own drag interception
   (`Input.setInterceptDrags` plus `Input.dispatchDragEvent`, which is the only
@@ -512,6 +536,182 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **The implementing agent only runs with Tiago in the room because nothing says which kinds of work it can do alone.**
+  `do` (`agents/implement-agent/skills/do/SKILL.md`, "What this skill never does") forbids
+  any schedule, decided 6 Sep 2026, and `implement-agent.md` relies on that: it holds Write
+  and Edit but no Bash (line 4), and its only safety net is that it can stop and ask.
+  `AGENTS/improve-agent` runs alone because its work is one type, code in a repo, and its
+  guards fit that type: an `improve/<date>` branch, a clean-tree refusal, tests, no merge and
+  no push. The implementing agent's plans are several types (a drafted message, a lookup, a
+  document, a change to a skill), and only some of them can be guarded that way. The change is
+  a written list of work types it may do unattended, each either pre-approved, so a plan of
+  that type needs no accept step, or guarded, so it runs on a branch or in an isolated project
+  folder and lands in Review. Each type states where it may write, what it may never do and
+  what counts as finished. A plan then carries its type, `do` and any runner refuse a type not
+  on the list, and the runner is the schedule file and `run.sh` the
+  `agents/implement-agent/README.md` already describes, on the same `agent.json` contract
+  as `agents/plan-agent`. The handover-level entry (off, plan first, just do it) and the
+  entry on what the implementing agent produces are blocked on the same list of types.
+
+- **The app and its data sit in one checkout, so the hosted web version can only ever show `demo.md` and cannot work on a data folder on the person's own machine.**
+  `ROOT` and `DATA = "data"` (`kanban/server.py:41`, `:74`) put every dataset at
+  `dataset_dir()` (`:131`) beside the code, and everything the page reads comes through
+  routes on that one server: `/data/todo.md` (`FILE_URL`, `kanban/js/01-markdown-model.js:10`),
+  `/plans.json`, `/reports.json`, `/backups.json`, `/projects.json`, `/schedule.json` and
+  `/queue.json`. The Vercel copy serves static files only, so `load()` falls back to
+  `kanban/demo.md` under the read-only lock (`kanban/js/21-datasets.js:244`). To let the
+  hosted page work on a local folder, the folder has to become the unit the person points
+  the app at, with a fixed layout inside it (`todo.md`, `plans/`, `reports/`, `backups/`,
+  `projects/`, `buckets/`), and the page has to reach it without `server.py`, either through
+  the browser's File System Access API (Chrome and Edge only) or through a small local
+  helper the page talks to. The first step is the inventory: which of the routes above only
+  read files and could be answered by the page itself, and which need the server (`_open_terminal()`,
+  the planning agent, the companion). It also touches the two saved decisions on browser
+  file mode: a crash-copy in localStorage, and that a real list opened in a page served
+  from a public URL means its safety rests on code fetched over the internet. Works with
+  the entry below, since a project folder of the person's own has to be reachable the same way.
+
+- **Every project folder has to live under `data/<dataset>/projects/`, so someone who keeps their work in a folder of their own cannot point the board at it.**
+  `projects_dir()` (`kanban/server.py:316`) is the only place a project can be, and
+  `/project.json` (`kanban/server.py:2200`) refuses any name with a separator or a parent
+  hop in it, so `- Project: data/projects/<name>` (`taskProject()`,
+  `kanban/js/06-dates-substeps.js:88`) can only name a folder inside it. Letting the
+  person choose a dedicated folder per project, an existing one anywhere on disk, and
+  making that the normal case rather than the exception, means the `Project:` note
+  carries a path instead of a name and the server checks it against a list of folders the
+  person has approved, since the current guard only works because everything sits under
+  one root. `project_listing()` (`kanban/server.py:476`) would walk that list as well as
+  the default folder. The approved list is one file per dataset,
+  `data/<dataset>/project-folders.json`, outside `todo.md`. The default folder stays:
+  it counts as approved without being listed, and a project with no folder chosen
+  lands there, so someone who never picks one works exactly as today. The agents that read a project folder, `implementing-agent` and the planners,
+  would follow the note's path rather than assuming `projects_dir()`.
+
+- **A new user cannot set up an agent from inside the app, because agents, their rules and their skills are all written by hand.**
+  An agent today is a file in `agents/planning_agent/` (`planning-<stream>.md`, `agent.json`,
+  `schedule.py`) plus a brief under `data/<dataset>/buckets/<stream>/` and the rules in
+  `CONVENTIONS.md`; nothing in `kanban/` creates one. Bench's users know very little about AI
+  (`AGENTS/ux_agent/clients/tiago/products/bench/users.md`), which asks for a guided setup that
+  puts four questions per agent: what it should be like, what tasks it does, whether there is
+  documentation on how those tasks are run, and what the output looks like and in what form.
+  The answers would write the brief and the agent definition, and the flow would end on the
+  agent card from the "Someone new to the app cannot tell what the agents can do" entry and its handover level (finding 8 in
+  `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md`).
+  The answers are written into the bucket's brief,
+  `data/<dataset>/buckets/<stream>/<stream>.md`, the file the planners and the implementer
+  already read for context, so an agent the person builds stays private and out of git while
+  the tracked `planning-<stream>.md` files stay as the shipped ones. Learning from use is a
+  proposed edit to that same brief: when a plan is sent back or an output is changed, the
+  agent suggests a line and the person accepts or rejects it, so nothing in the brief
+  changes without their say.
+
+- **Bench's agents are three the person works with, plus specialists they call in, and nothing in the app models that yet.**
+  Agreed on 21 Sep 2026 after the second UX review (`/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md`). The PA,
+  the planner and the implementer are the only agents that own a task, each shown by
+  name as its owner, the way an assignee is. Specialists sit one per bucket by default
+  (the planners already read `data/<dataset>/buckets/<stream>/`), are brought in when a
+  task in their bucket is planned or carried out, can be called from another bucket
+  when a task crosses two, and may give a view or do part of the work. They never own
+  a task, but every call is written to the task's history ("Planner asked the Hiring
+  expert"). Needs the `owner` field in `PACKAGES/work_streams/CONTRACT.md` read by the
+  board, and a history per task, which the activity feed entry below also needs.
+
+- **Every agent works one way, plan then accept then produce, so someone who only wants the output has to read and accept a plan first.**
+  The implementing agent only runs on accepted plans (the `implementing-agent`
+  entry further down), and of 41 plans written 5 were accepted and 2 produced.
+  Review finding 3 in `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md` suggests a
+  handover level per agent: off, plan first, or just do it. With "just do it" the
+  work goes straight to review as output, with the plan still readable. The
+  personas it serves are in `ux_agent/clients/tiago/products/bench/personas.md`.
+
+- **Someone who only uses the PA to keep their list still has agent columns, a Plans tab, an "AI can do" filter and `ai` chips in their way.**
+  `renderViewTabs()` (`kanban/js/18-timeline.js:879`) always draws Plans,
+  `boardColumns()` (`kanban/js/02-state.js:337`) always splices in Handed to AI,
+  and `state.aiFilter` (`kanban/js/02-state.js:71`, read in
+  `kanban/js/07-render-board.js:8`) is always offered. Review finding 2 suggests
+  hiding all of it until the person sets up their first agent, in line with the
+  quality bar of showing only what is needed at that moment.
+
+- **The board can show its agents' schedule but cannot show their status or change their hours, because that half lives in `agents-dashboard`.**
+  `schedule_listing()` (`kanban/server.py:932`) feeds `/schedule.json` and the Spend and
+  clocks modal (`kanban/ui/RefCards.tsx`, `kanban/js/14-schedule.js`), and its own header
+  says everything in it is read-only. Turning the planning agent on, setting its hours and
+  reading what a run did all happen at `~/Code/agents-dashboard`, a second server on 8770
+  (`agentsd/server.py`, `discover.py`, about 2,300 lines of React in `src/`) that reaches an
+  agent only through the `agent.json` beside it (`agents/planning_agent/agent.json`, its
+  `state`, `apply`, `run` and `activity` commands). Someone who installs the board would
+  never find that page, so the board needs its own Agents view. Discovery, the four
+  routes and the schedule arithmetic are already in `PACKAGES/agents_engine/`, which the
+  dashboard is built on. `kanban/server.py` mounts `agents_engine`'s routes itself
+  (`python/agents_engine/routes.py`), so the view works with nothing else running. The
+  hour track, ruler and agent cards move out of `agents-dashboard/src/` into
+  `agents_engine` as components on Tenon, loaded by both apps, so there is one hour track.
+  The board changes the schedule through `apply`, never by opening `schedule.py`'s file,
+  so it stays the one writer, and the discovery walk over `~/Code` should not ship in the
+  board.
+
+- **A task handed to an agent leaves the board it was on, and the Board and Plans then give two answers about where it is.**
+  `boardColumns()` (`kanban/js/02-state.js:337`) splices the synthetic `AI_COL`
+  after Doing for anything tagged `ai:: full`, while the task keeps its real tier
+  underneath, so "Create a DS" reads Handed to AI on Board and Doing on Plans. The
+  UX review of 21 Sep 2026 (finding 1, in `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-to-dos-delegation/review.md`) suggests one
+  ticket on one board whose owner changes as it moves between you, the planning
+  agent and the implementing agent, which is how Linear delegates to agents and
+  what the `owner` field in `PACKAGES/work_streams/CONTRACT.md` already models.
+  Plans would fold into it. Still to decide: the column names. The review proposed
+  Brief → Planning → Plan review → Producing → Review → Done, and Tiago is not
+  convinced by them. The other two shapes it weighed were one ticket per actor and
+  one ticket that stays in Doing throughout.
+  His objection: a Plan review column means nothing for a task he does alone. The
+  follow-up suggestion is columns that say whose move it is rather than which step
+  the work is at: To do, Doing, Review, Done. Planning and producing both sit in
+  Doing with the agent as owner and a state line on the card. A plan and a finished
+  piece of work both land in Review, labelled "Plan ready" or "Work ready". A solo
+  task never passes through an agent step. Settled the same day: the four columns stand, but they
+  say only the state of the card. Who does the work is the task's or sub-task's
+  assignee, never the column (`AGENTS/ux_agent/knowledge/disputes/columns-by-whose-move.md`).
+
+- **Once a task is handed over, the card cannot say whether the agent has started, is stuck, is waiting on you or has finished.**
+  The only signal on the card is the gear `colgear` draws in `kanban/js/09-columns.js:539`,
+  and it turns per column, not per task. Run state lives in the Plans column headers
+  (`PlansView.tsx`, "Last run 02:05, planned 0 of 2"). A line on each card reading
+  "Planner · waiting for you · 02:05" would need the run record per task from
+  `agents/planning_agent`, and the same from `implementing-agent`. This is the
+  one place the review (finding 4) suggests departing from familiar patterns.
+
+- **What the implementing agent produces never reaches the board, so it cannot be checked or sent back from where the task lives.**
+  A plan can be read in `openPlanModal()` and talked through in `openPlanChat()`
+  (`kanban/js/13-plans.js:485` and `:390`), but past Ready to be produced the work is
+  reviewed through the `do` and `agents-review` skills in a terminal. Each ticket needs
+  an activity feed: brief, plan, output, and a reply that goes back to whichever agent
+  last touched it (review finding 5). The implementer produces four kinds of output, and
+  the feed draws each one its own way: files in the task's project folder as links that
+  open in the drawer; a git branch as its name, commit count and a summary, merged
+  through `agents-review`; a Figma branch as a link that opens it in the desktop app;
+  and a Slack or email draft shown inline on the task, ready to copy.
+
+- **Someone new to the app cannot tell what the agents can do, or what full, partial and none mean.**
+  The rules live only in `CONVENTIONS.md`, and `TIER_HINT` in
+  `kanban/js/02-state.js:325` says no more than "tagged ai:: full, not done yet".
+  Matters once the app ships: each agent gets a short card saying what it does,
+  what it cannot do and what it needs from you (review finding 6).
+
+- **Nothing decides what a failed agent run looks like on a task.**
+  A planning or implementing run that errors or gives up leaves no mark on the card
+  today. A failure shows as a state line on the card ("Producer · failed") and as a
+  desktop notification sent for failures only, for the person who trusts the output and
+  rarely looks (second review, finding 5). The notification goes through the companion's
+  `postNotification()`; the web copy has no equivalent and gets the card line alone. From
+  the line the person can read the log, which opens the run's error output in the
+  drawer; retry, which queues the same run tonight for a planner or on the next `do` for
+  the implementer; or take it back, which clears the agent as assignee so the task is
+  theirs again.
+
+- ~~**Nothing decides whether an agent the person built should look different on a card from a pre-built one.**~~
+  **Done, 21 Sep 2026.** It does not. An agent the person builds is a specialist, which
+  never owns a task and so never appears on a card, and in a task's history every agent
+  is named the same way, built or shipped.
+
 - **"Who does it" and "Delegated to" are two fields for one question, and only one of them says what the agents should do.**
   The drawer draws a step slider for `ai:` (`AI_STOPS`, `kanban/js/19-drawer.js:148`,
   the field at line 939) beside a free-text input for `to:` (`f-to`, line 943), and
@@ -528,10 +728,11 @@ they settled is written up in the README rather than left here:
   restart once it lands. `core/todo.js`, `core/todo.py` and the three fixtures change
   together, as does the `pa` skill's tag table. Delegate to Claude reads
   `to:: Implementing Agent`, so it starts empty. The migration runs through `pa`: an
-  open task tagged `ai: full` or `partial` gets `[to:: Planning Agent]`, a ticked task
-  or a plan with `production: done` gets no `[to::]`, and every `[ai::]` tag is
-  stripped (58 full, 183 partial and 245 none on the `twinkl` list). Still to confirm
-  with Tiago: whether "done before" means exactly those two.
+  open task tagged `ai: full` or `partial` gets `[to:: Planning Agent]`, a task whose
+  plan is accepted with `production: doing` or `review` gets
+  `[to:: Implementing Agent]`, a ticked task or a plan with `production: done` gets no
+  `[to::]`, and every `[ai::]` tag is stripped (58 full, 183 partial and 245 none on
+  the `twinkl` list).
 
 - **The board's tag chips are its own `.tag` classes, not Tenon's `Tag`.**
   `cardModel()` (`kanban/js/09-columns.js`) gives each chip a class such as
@@ -594,20 +795,22 @@ they settled is written up in the README rather than left here:
   drawer's `#scrim` and the modals against `Modal`, and the drawer's
   `<textarea>` and `<details>` markup against `Textarea`, `EditableText` and
   `Disclosure`. `Disclosure` is a button that unmounts its panel and the
-  board's folds are native `<details>`, so it is not a drop-in for the `ufold`
-  and `schedlog` folds; those want deciding before anything moves.
+  board's folds are native `<details>`, so Tenon's `Disclosure` gains an option
+  to draw a native `<details>`, the way its `Column` already does when
+  collapsible, and the `ufold` and `schedlog` folds move onto that, keeping the
+  browser's own open state and find-in-page.
 
-  Order, if it goes ahead: `showModal()` first, since it is one function every
+  Order: `showModal()` first, since it is one function every
   modal shares and `Modal` fits it, and the conflict modal is 114 lines. Then
-  the tab strips and the filter bar onto `SegmentedControl`. The drawer is the
-  large one and needs deciding rather than drifting into, because
-  `openDrawer()` is reached from every view and the Markdown and report
-  builders it uses are shared with Plans. After splicing any renderer out, grep
+  the tab strips and the filter bar onto `SegmentedControl`. The drawer goes
+  last, as a job of its own, because `openDrawer()` is reached from every view
+  and the Markdown and report builders it uses are shared with Plans. After
+  splicing any renderer out, grep
   its file for a second definition of every name replaced, since a later
   duplicate in a classic script wins.
 
-- **A stream is a real layer of the list and the board has never heard of it.**
-  The Design System bucket is sub-organised into five of them — ways of working,
+- **A theme is a real layer of the list and the board has never heard of it.**
+  The Design System bucket is sub-organised into five themes — ways of working,
   audits, improvements, documentation, enablement — and the only record is a
   sentence at the top of the task's notes, `- Stream: audits.`, on 49 of the 152
   tasks in `twinkl`. Nothing parses it: `parseTaskLine()` (`core/todo.js`) reads
@@ -620,18 +823,18 @@ they settled is written up in the README rather than left here:
   be filtered, counted or coloured, and a task filed under the wrong stream
   looks exactly like one filed correctly.
 
-  Making it official is a tag, `[stream:: audits]` alongside the other
+  Making it official is a tag, `[theme:: audits]` alongside the other
   double-colon four so a query can see inside it, plus somewhere for the values
   to be declared per bucket rather than invented per task. The board half is a
   second row of pills under the bucket tabs, reusing `bucketColor()` and
   `BUCKET_COLOR` (`kanban/js/02-state.js:275`) and `state.bucketFilter`'s own
   shape (`kanban/js/08-buckets.js`), and a chip on the card.
 
-  The decision it needs first is the name. `bucket_stream()`
-  (`agents/planning_agent/plan.py:138`) already calls a whole bucket a stream,
-  and `BUCKETS.md` says "the heading is the stream" — so the word currently
-  means the level above and the level below at once, and one of the two has to
-  give it up before anything is built on either.
+  The level is called a theme because "stream" already means a whole bucket, in
+  `bucket_stream()`, `BUCKETS.md` and the `buckets/<stream>/` folders, and a
+  queue of work items in `PACKAGES/work_streams`. The 49 `- Stream: …` note lines
+  become `[theme:: …]` tags through `pa`, and the DS brief's instruction to read
+  the first note line is replaced by the tag.
 
 - **A task with no project folder can only be given one by hand, and a folder
   the board knows about cannot be opened.** `projectSection()`
@@ -641,11 +844,11 @@ they settled is written up in the README rather than left here:
   `CLAUDE.md`, then edit the note. A Start a project button in that section
   would need a route beside `/project.json` (`kanban/server.py:2200`) that
   makes the folder under `projects_dir()` and seeds a `CLAUDE.md` with the H1
-  and lead paragraph `project_meta()` already reads back out of it, then the
-  same write that puts the `Project:` note onto the task — and that last half
-  is the decision, since the drawer's Description is the only writer of a
-  task's notes and the note has to land above the stream line where
-  `taskProject()` expects it. Opening the folder afterwards is a second, smaller
+  and lead paragraph `project_meta()` already reads back out of it. Once the
+  route answers, the board adds the `Project:` note line to the task in memory,
+  the same edit the drawer's Description makes, and autosave saves it, so the
+  server never writes `todo.md` and the board stays its one writer. The line
+  lands where `taskProject()` expects it, above any other note. Opening the folder afterwards is a second, smaller
   route: `_open_terminal()` (`kanban/server.py:1478`) already shows the shape
   for shelling out from the server, and revealing a folder is
   `subprocess.Popen(["open", path])` against a path checked to sit inside
@@ -653,22 +856,19 @@ they settled is written up in the README rather than left here:
   works on the machine the server runs on, so the button has to be absent or
   refused on the Vercel copy rather than failing silently.
 
-- **The Attach a session picker is sixty unsearchable rows and says nothing about
-  whether a session is still going.** `openAttachPicker()`
+- **The Attach a session picker is sixty unsearchable rows.** `openAttachPicker()`
   (`kanban/js/10-reference-sections.js:945`) draws one `.attachpick-row` per
   session straight from `/claude/attachable.json` with no filter box above them,
   and the list behind it is capped — `list_sessions(limit=60)` in
   `PACKAGES/ai_chat_engine/engine.py:400` sorts every `.jsonl` under
   `~/.claude/projects` by mtime and returns the newest sixty — so a search that
   only filters what arrived would quietly miss anything older than that and the
-  cap has to be raised or the filtering pushed server-side. A date is already
-  there: the row's second line is `cvWhen(s.updated) + ' · ' + s.cwd`, that
-  mtime rendered relative. The status indicator is the part that needs deciding,
-  because the row carries no such field and nothing can supply one today —
-  `kanban/js/11-chat-cards.js:30` is explicit that the board has no live process
-  to ask, so "running", "idle" or "finished" would mean inventing a definition
-  off the transcript's last line and mtime and adding it to `list_sessions()`,
-  which is a shared package two other apps read.
+  filtering is pushed server-side: a search box above the rows sends its term
+  to `/claude/attachable.json`, which filters every session before the cap. No
+  status indicator: the board has no live process to ask
+  (`kanban/js/11-chat-cards.js:30`), and the row's second line,
+  `cvWhen(s.updated) + ' · ' + s.cwd`, already says how recently each session
+  was written.
 
 - **There is no way to talk to the PA while the board is in front of you.**
   Every conversation the board can start belongs to one card — `AIChat.create()`
@@ -688,10 +888,10 @@ they settled is written up in the README rather than left here:
   Two things are. The owner has to be the board rather than a task, which
   `ownerLabel` and every `chatKeyFor()` caller currently assume. And the lock
   cannot come with it: `pa` writes `todo.md` while this tab autosaves the same
-  file, which is exactly the race `state.locked` was set to win, so a panel
-  that sits alongside a live board needs a different answer — a per-write
-  reload, a dirty-check on send, or `pa` posting its changes back through the
-  board rather than to disk. That decision is what this entry is holding.
+  file, which is exactly the race `state.locked` was set to win. With the panel
+  open the two take turns instead: before a message is sent the board saves
+  anything unsaved, and once `pa`'s reply lands it reloads `todo.md` from disk,
+  so `pa` stays the writer it already is and the board never saves over it.
 
 - ~~**Reading what got done means leaving the page that says what is next.**~~
   **Done.** Reports is not a tab any more: Tasks finished leads Overview's row
@@ -729,8 +929,10 @@ they settled is written up in the README rather than left here:
   about the card the file never states.
 
   A real Done heading would make the column a place and leave the tick to mean
-  one thing, and the roll could then untick and stay put. What it buys has to be
-  weighed against a second writer on the same fact: it needs a rule for a card
+  one thing, and the roll could then untick and stay put. It is built as part of
+  the one-board entry above, which redraws every column anyway, so the format
+  changes once rather than twice. It brings a second writer on the same fact,
+  so the one board needs a rule for a card
   ticked but sitting in To do, and one for a card in Done but unticked, and it
   reaches `RESERVED_TIERS` (`kanban/js/02-state.js:315`, which exists partly to
   stop that heading being typed by hand today), both `core/todo.js` and
