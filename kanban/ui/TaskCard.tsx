@@ -23,9 +23,7 @@ export interface Chip {
   project?: string
 }
 
-export type CardProgress =
-  | { kind: 'steps', done: number, total: number, pct: number }
-  | { kind: 'notes', n: number }
+export type CardProgress = { kind: 'steps', done: number, total: number, pct: number }
 
 export interface TaskCardModel {
   id: string
@@ -79,13 +77,11 @@ export function TaskCard(props: TaskCardProps) {
   ) : null
 
   const p = m.progress
-  const body = !p ? null : p.kind === 'steps' ? (
+  const body = !p ? null : (
     <div className="prog">
       <span>{p.done + '/' + p.total + ' steps'}</span>
       <span className="bar"><i style={{ width: p.pct + '%' }} /></span>
     </div>
-  ) : (
-    <div className="notecount">{p.n + ' note' + (p.n > 1 ? 's' : '')}</div>
   )
 
   return (

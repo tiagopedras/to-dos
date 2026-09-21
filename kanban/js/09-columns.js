@@ -329,7 +329,6 @@ function cardModel(t, opts){
   const subs = subSteps(t);
   const doneSubs = subs.filter(s => s.done).length;
   const di = dueInfo(t.due, opts.muted);
-  const notes = noteLines(t);
 
   /* What is on the card, as data. Two things draw it: cardHTML() below, as a
      string, for the matrix's hover preview, and TaskCard (kanban/ui/TaskCard.tsx)
@@ -392,8 +391,6 @@ function cardModel(t, opts){
   if (subs.length) {
     progress = { kind: 'steps', done: doneSubs, total: subs.length,
                  pct: Math.round(doneSubs / subs.length * 100) };
-  } else if (notes) {
-    progress = { kind: 'notes', n: notes };
   }
 
   const statusClass = t.done ? ' done' :
@@ -433,11 +430,9 @@ function cardHTML(t, color, bucketLabel, opts){
   if (m.when.length) meta += '<span class="meta-when">' + m.when.map(chipHTML).join('') + '</span>';
 
   let prog = '';
-  if (m.progress && m.progress.kind === 'steps') {
+  if (m.progress) {
     prog = '<div class="prog"><span>' + m.progress.done + '/' + m.progress.total + ' steps</span>' +
            '<span class="bar"><i style="width:' + m.progress.pct + '%"></i></span></div>';
-  } else if (m.progress) {
-    prog = '<div class="notecount">' + m.progress.n + ' note' + (m.progress.n > 1 ? 's' : '') + '</div>';
   }
 
   /* Through the shared shell since 12 Sep 2026 — see cardShellHTML() below,
