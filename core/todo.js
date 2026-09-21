@@ -40,9 +40,10 @@ const HR_RE     = /^---\s*$/;
 /* Column headings that have been renamed, old name to new. Read on parse, so
    a backup or a list not yet rewritten still lands in the right column, and
    the next save writes the new heading. Waiting review became Waiting for
-   review on 17 Sep 2026, to match the Plans view. core/todo.py holds the same
-   table. */
-const TIER_RENAMED = { 'Waiting review': 'Waiting for review' };
+   review on 17 Sep 2026, and Waiting for review became Reviewing on 21 Sep
+   2026, when a column started saying the state of a card and nothing else.
+   core/todo.py holds the same table. */
+const TIER_RENAMED = { 'Waiting review': 'Reviewing', 'Waiting for review': 'Reviewing' };
 
 let uidCounter = 0;
 const uid = () => 't' + (++uidCounter);

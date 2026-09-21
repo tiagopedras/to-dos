@@ -38,8 +38,6 @@ export interface BoardColumn {
   /** What it is called on screen, which is not always the heading. */
   title: string
   className: string
-  /** Handed to AI: an agent owns it, so it is dashed, tinted and geared. */
-  agent: boolean
   /** Null on the two columns with no sort toggle. */
   sort: 'priority' | 'manual' | null
   canEdit: boolean
@@ -121,9 +119,6 @@ export function BoardView(props: BoardViewProps) {
             title={col.title}
             className={col.className}
             data-tier={col.tier}
-            tone={col.agent ? 'running' : 'default'}
-            dashed={col.agent}
-            titleAfter={col.agent ? <span className="colgear" aria-hidden="true" /> : undefined}
             sort={col.sort ? (
               <button
                 className={'sortbtn' + (priority ? ' on' : '')}

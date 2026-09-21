@@ -4,23 +4,12 @@
    4. Render board
    ========================================================================= */
 
-/* Who does it, from `[to::]`. `agent` is either agent, `me` is nobody named,
-   and anything else is an agent's own name. */
-function matchesAi(t){
-  const f = state.aiFilter;
-  if (!f) return true;
-  const agent = agentOf(t.to);
-  if (f === 'agent') return !!agent;
-  if (f === 'me') return !(t.to && t.to.trim());
-  return agent === f;
-}
 /* tierName is optional — every call site that knows which column a task is
    in (the board's own render, Matrix, Timeline) passes it; one that doesn't
    (search suggestions, reports, anywhere a task is checked outside a
    per-column loop) just gets no status narrowing, the same as before this
    filter existed. */
 function matches(t, tierName){
-  if (!matchesAi(t)) return false;
   if (state.urgentFilter && !(t.urgent || t.due)) return false;
   if (state.statusFilter.size && tierName != null && !state.statusFilter.has(tierName)) return false;
   // Scoring a task he has already finished is busywork, so done ones never
@@ -108,13 +97,13 @@ function syncHash(push){
   if (push && !restoringHash) history.pushState(null, '', hash);
   else history.replaceState(null, '', hash);
 }
-/* Which buckets the board draws. The AI filter cuts across every bucket, and so
-   do the urgent/due filter, an empty bucket filter (nothing toggled on means
-   All) and the unscored queue, so any of them widens it from whichever
-   buckets are toggled on. Scoring is an intake job: what needs a score in
+/* Which buckets the board draws. The urgent/due filter cuts across every
+   bucket, and so do an empty bucket filter (nothing toggled on means All) and
+   the unscored queue, so any of them widens it from whichever buckets are
+   toggled on. Scoring is an intake job: what needs a score in
    Strategic matters as much as what needs one in People. */
 function shownBuckets(){
-  return (state.aiFilter || state.urgentFilter || state.unscoredOnly || allMode())
+  return (state.urgentFilter || state.unscoredOnly || allMode())
     ? state.doc.buckets
     : state.doc.buckets.filter(b => state.bucketFilter.has(b.name));
 }

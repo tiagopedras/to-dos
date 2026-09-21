@@ -141,7 +141,7 @@ counts blocks within one session and restarts per transcript.
 Every open, top-level task tagged `[ai:: full]`, minus three exclusions — the same three `companion/digest.py` applies, because two readers of
 one list disagreeing about what is actionable is worse than either answer:
 
-- **Waiting for review and Blocked.** The next move belongs to somebody else.
+- **Reviewing.** The next move belongs to somebody else.
 - **An unticked `blocked-by:`.** The blocker is the real task.
 - **A `start:` that has not arrived.** It cannot begin yet.
 

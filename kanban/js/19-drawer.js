@@ -212,7 +212,7 @@ function stepSliderHTML(id, stops, value, ro, ariaLabel){
        size itself: an even split is the one guarantee that holds regardless
        of stop count or label length, so a wide one wraps onto a second line
        under .stepstop's line-height instead of running into its neighbour —
-       which a name like "Waiting for review" otherwise does at 5 stops. */
+       which a name like "Reviewing" otherwise does at 5 stops. */
     '<div class="stepstops">' +
       stops.map((s, i) => '<span class="stepstop' + (i === idx ? ' on' : '') + '" data-i="' + i +
         '" style="left:' + stepTickPos(i, n) + ';max-width:' + (100 / n).toFixed(3) + '%">' + esc(s.label) + '</span>').join('') +
@@ -844,10 +844,8 @@ function openDrawer(id, focusTitle){
   const ro = state.locked;
   // Same list as the board, Done included: a ticked-off task is in the Done
   // column there, so the panel says the same thing rather than hiding it in a
-  // tick box that has nothing to do with the other columns. Handed to AI left
-  // out: nothing can be dragged into it on the board either, only tagged, and
-  // this stepper only ever offers real destinations.
-  const cols = boardColumns().filter(n => n !== AI_COL);
+  // tick box that has nothing to do with the other columns.
+  const cols = boardColumns();
   const nowIn = t.done ? DONE_COL : loc.tier.name;
   // Neutral rather than a per-column palette — the columns themselves vary by
   // board and carry no fixed meaning beyond "further along", except the last
@@ -944,7 +942,7 @@ function openDrawer(id, focusTitle){
       '</div>' +
     '</div>' +
     /* Full width rather than sharing a grid2 with Bucket: a column name like
-       "Waiting for review" needs the room a slider half that wide wouldn't give
+       "Reviewing" needs the room a slider half that wide wouldn't give
        its label, where the old <select> never had to fit the whole word next
        to anything. */
     '<div class="field"><span>Column</span>' + stepPickerHTML('f-tier', tierStops, nowIn, ro, 'Column') + '</div>' +

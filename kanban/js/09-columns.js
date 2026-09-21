@@ -9,21 +9,20 @@
    each name the first time it turns up. That scan is why every edit below
    ends by calling syncTierShapes() rather than touching only the buckets a
    column happens to already be in: a column that only exists in one bucket
-   — Design System's Blocked, say — cannot be reordered relative to the
+   — Design System's Reviewing, say — cannot be reordered relative to the
    others just by moving it around inside that one bucket, because nothing
    about its position there is visible to a scan that never gets past the
    earlier buckets' own tiers first. Giving every bucket the same set closes
    that blind spot, and costs nothing on screen: the board already draws
-   Blocked as a column on every bucket's view, empty wherever that bucket has
-   no tasks in it, whether or not that bucket's file section mentions the
+   every column on every bucket's view, empty wherever that bucket has no
+   tasks in it, whether or not that bucket's file section mentions the
    heading at all. See syncTierShapes for the rest of this.
    ========================================================================= */
 
-/* Left to right, the way the board actually draws them, with Done and Handed
-   to AI left off — neither is ever a heading: Done is where a ticked task
-   lands regardless of which column it sits under, and Handed to AI is where
-   a task delegated to an agent lands regardless of which column it sits under. */
-function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL && n !== AI_COL); }
+/* Left to right, the way the board actually draws them, with Done left off:
+   it is never a heading, it is where a ticked task lands regardless of which
+   column it sits under. */
+function tierOrder(){ return boardColumns().filter(n => n !== DONE_COL); }
 
 function tierTaskCount(name){
   return state.doc.buckets.reduce((sum, b) => {
@@ -33,13 +32,11 @@ function tierTaskCount(name){
 }
 
 /* Returns the name already taken, so the complaint can quote it back rather
-   than just the one just typed. Done and Handed to AI included: a real
-   column with either name would sit behind its synthetic namesake and never
-   be reachable. */
+   than just the one just typed. Done included: a real column with that name
+   would sit behind its synthetic namesake and never be reachable. */
 function tierNameTaken(name, except){
   const k = name.toLowerCase();
   if (k === DONE_COL.toLowerCase() && name !== except) return DONE_COL;
-  if (k === AI_COL.toLowerCase() && name !== except) return AI_COL;
   return tierOrder().find(n => n !== except && n.toLowerCase() === k) || null;
 }
 
@@ -69,7 +66,7 @@ function tierLabel(name){
 async function setTierLabel(name, label){
   const clean = cleanTierName(label);
   if (!clean) return 'A column needs a name.';
-  const clash = tierOrder().concat([DONE_COL, AI_COL])
+  const clash = tierOrder().concat([DONE_COL])
     .find(n => n !== name && tierLabel(n).toLowerCase() === clean.toLowerCase());
   if (clash) return 'There is already a column called “' + clean + '”.';
   if (!state.columnNames) state.columnNames = {};
@@ -122,7 +119,7 @@ function renameTier(oldName, newName){
   const clean = cleanTierName(newName);
   if (!clean) return 'A column needs a name.';
   if (clean === oldName) return '';
-  // Backlog, To do, Doing, Waiting for review and Done are matched by this exact
+  // Backlog, To do, Doing, Reviewing and Done are matched by this exact
   // text all through the board (rollRecurring, ensureTier, the status
   // filter's synthetic columns) — renaming one away doesn't fail gracefully
   // the way an ordinary tier does, it leaves a second, empty column of the
@@ -394,7 +391,6 @@ function cardModel(t, opts){
 
   const statusClass = t.done ? ' done' :
     opts.tier === WAIT_COL ? ' waiting' :
-    opts.tier === BLOCKED_TIER ? ' blocked' :
     opts.tier === BACKLOG_TIER ? ' backlog' : '';
 
   return {
@@ -416,7 +412,7 @@ function chipHTML(c){
    it must not be draggable or land in the tab order.
 
    opts.tier is the task's real column name, used only to fade the card by its
-   own status (done/waiting/blocked/backlog — see board.css) rather than by
+   own status (done/waiting/backlog — see board.css) rather than by
    which DOM section happens to be rendering it. Pass it whether or not the
    card is done: t.done wins regardless.
 
@@ -497,9 +493,8 @@ function cardHTML(t, color, bucketLabel, opts){
                   the only dashed thing in the app, which is what makes the
                   dash readable; see the note on .tenon-column.agentcol in board.css.
                   Anything else, including nothing, is Style=Default.
-     hot          a running queue worked by AI: Doing and Producing on Plans,
-                  Handed to AI on the board. An orange tint and a gear after
-                  the title. The gear turns while the column is hot; pausing
+     hot          a running queue worked by AI: Doing and Producing on Plans.
+                  An orange tint and a gear after the title. The gear turns while the column is hot; pausing
                   it when nothing is actually running is `.hotcol.idle` in
                   board.css, for when the board can tell.
      collapsible  draws the column as a <details> whose <summary> is the head,

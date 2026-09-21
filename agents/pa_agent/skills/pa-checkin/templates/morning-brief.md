@@ -43,7 +43,7 @@ Nothing else dated before Sunday.
 
 ## Moving
 
-In flight {{doing_count}} · waiting on someone {{waiting_count}} · blocked {{blocked_count}} · tagged this week {{week_count}}
+In flight {{doing_count}} · waiting on someone {{waiting_count}} · tagged this week {{week_count}}
 
 {{#slipped}}
 - Slipped · **{{title}}**, {{days}}d

@@ -408,15 +408,6 @@ function allTiers(){
   const names = [];
   (state.doc ? state.doc.buckets : []).forEach(b => b.tiers.forEach(t => { if (names.indexOf(t.name) < 0) names.push(t.name); }));
   if (!names.length) return ['Now','Next','Later','Parked'];
-  // Blocked always sits right after Waiting for review. Once a bucket actually
-  // has the heading, the scan above finds it wherever that bucket happens to
-  // put it in the merged list — meaningless, and it throws the board order
-  // off (reversed, the end of this list is the far left of the board) — so
-  // pull it back out and reinsert it in its fixed spot every time.
-  const at = names.indexOf(BLOCKED_TIER);
-  if (at > -1) names.splice(at, 1);
-  const after = names.indexOf(WAIT_COL);
-  names.splice(after < 0 ? names.length : after + 1, 0, BLOCKED_TIER);
   return names;
 }
 /* A bucket may not have every column heading yet (e.g. an empty "Now").
@@ -459,8 +450,8 @@ function setDone(t, on){
   // other way leaves steps alone: dragging a card back out of Done doesn't
   // mean the steps that were already ticked got undone.
   if (on) splitBody(t).steps.forEach(s => { if (!s.done) toggleSub(t, s.line); });
-  /* One task, one plan. Ticking a task off takes it out of Handed to AI, so
-     its card has to leave Plans with it — the task being finished ends the
+  /* One task, one plan. Ticking a task off ends the work an agent was doing on
+     it, so its card has to leave Plans with it — the task being finished ends the
      plan about it, whatever stage the plan had reached. planFinishedWithTask()
      (13-plans.js) writes nothing unless this tab has already loaded the plans
      and finds one for this task still open, so an ordinary tick on a list with

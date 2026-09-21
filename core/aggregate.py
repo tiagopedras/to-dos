@@ -30,8 +30,7 @@ import todo
 # names rather than a slug — a renamed column would need renaming here too,
 # the same cost every other string-matched column name in this repo carries.
 DOING = "Doing"
-WAITING = "Waiting for review"
-BLOCKED = "Blocked"
+WAITING = "Reviewing"
 BACKLOG = "Backlog"
 
 
@@ -102,7 +101,7 @@ def today_view(tasks, today=None):
             # with someone else — the date belongs to them now. Same
             # reasoning check_overdue() already applies, extended to every
             # date list here rather than only the overdue one: a "due today"
-            # card sitting in Waiting for review is not actionable by him today
+            # card sitting in Reviewing is not actionable by him today
             # either.
             continue
         due = todo.effective_due(t, today)
@@ -119,7 +118,6 @@ def today_view(tasks, today=None):
 
     doing = [_row(t, today) for t in open_tasks if t.column == DOING]
     waiting = [_row(t, today) for t in open_tasks if t.column == WAITING]
-    blocked = [_row(t, today) for t in open_tasks if t.column == BLOCKED]
 
     week = []
     for t in open_tasks:
@@ -184,7 +182,7 @@ def today_view(tasks, today=None):
         "headline_next_step": headline_next_step,
         "overdue": overdue, "due_today": due_today,
         "due_tomorrow": due_tomorrow, "due_this_week": due_this_week,
-        "doing": doing, "waiting": waiting, "blocked": blocked,
+        "doing": doing, "waiting": waiting,
         "week": week, "done_today": done_today,
         "quick_wins": quick_wins, "delegate": delegate,
         "meetings_next_two_days": meetings_next_two_days,
@@ -192,7 +190,7 @@ def today_view(tasks, today=None):
         # Not built yet — see this module's own docstring.
         "checker_flags": [], "slipped": [], "context_dates": [],
         "overdue_count": len(overdue), "doing_count": len(doing),
-        "waiting_count": len(waiting), "blocked_count": len(blocked),
+        "waiting_count": len(waiting),
         "week_count": len(week),
         "unscored_count": len([t for t in open_tasks if todo.unscored(t)]),
         "delegate_count": len(delegate),

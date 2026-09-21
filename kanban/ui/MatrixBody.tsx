@@ -9,7 +9,7 @@
  * wired by one delegated listener on `#lists` and find a dot by class, and
  * `test_matrix.mjs` reads the same classes.
  *
- * The one control that moved is the "Hide Waiting for review" checkbox. It was
+ * The one control that moved is the "Hide Reviewing" checkbox. It was
  * a `data-mxfilter` input answered by a second delegated listener; it is a
  * prop here, and that listener is gone.
  */
@@ -96,7 +96,7 @@ export function MatrixBody({ model }: MatrixBodyProps) {
         <span className="mkey mkeymuted"><i />waiting or blocked</span>
       </div>
       {read ? <Read r={read} /> : null}
-      {hiddenWaiting ? <p className="mhidden">{hiddenWaiting} hidden, sitting in Waiting for review.</p> : null}
+      {hiddenWaiting ? <p className="mhidden">{hiddenWaiting} hidden, sitting in Reviewing.</p> : null}
 
       <div className="mgrid">
         <div className="mcorner">

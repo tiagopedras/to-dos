@@ -924,12 +924,9 @@
      thirty-odd cards against four columns of prose. */
   .tenon-column{border-radius:var(--tenon-radius-lg); box-shadow:var(--tenon-elevation-overlay); min-height:120px}
   /* What the dash means here, which Tenon draws but deliberately does not
-     define: an agent owns this column and you do not drag into it. Handed to
-     AI on the board, Waiting for review on Plans and on Execution. Keep it to
-     the one meaning and the dash keeps reading. */
-  .tenon-column.aicol .tenon-column__head{color:var(--tenon-text-subtle)}
-  /* Running queues worked by AI: Doing and Producing on Plans, Handed to AI on
-     the board. The tint and the border come from Tenon's `running` tone now;
+     define: an agent owns this column and you do not drag into it. Waiting for
+     review on Plans. Keep it to the one meaning and the dash keeps reading. */
+  /* Running queues worked by AI: Doing and Producing on Plans. The tint and the border come from Tenon's `running` tone now;
      the head stays here, because a head that is uppercase and 13px is this
      board's rather than Tenon's. The gear turns for now; add .idle to stop it
      once the board knows whether anything is actually running. */
@@ -1478,9 +1475,8 @@
      only on the rows inside it. */
   /* Dashed, and not tinted. The tint was the same fact as the dash said twice,
      which is the reason the board's own Done and Waiting for review columns lost
-     theirs on the same day — see .tenon-column.aicol above. Handed to AI on the board
-     and this column are the two dashed columns in the app, and they mean the
-     same thing: an agent owns it. */
+     theirs on the same day. Plans' own agent columns are the only dashed ones
+     left in the app, and they mean one thing: an agent owns it. */
   /* A plan row drags like a board card, out of whichever column it is in. */
   .planitem{cursor:grab}
   .planitem.dragging{opacity:.4}
@@ -2112,7 +2108,6 @@
     font-size: var(--tenon-typography-size-sm); font-weight:620; color:var(--tenon-text-subtle);
     background:var(--tenon-background-neutral); border-radius:var(--tenon-radius-default); padding:6px 11px;
   }
-  select#aiFilter{border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised); border-radius:var(--tenon-radius-default); padding:5px 9px; min-height:33px}
   /* ---------- card ----------
      One card, four kinds of thing on it. A task on the board, a plan written
      about one, a row in tonight's queue and a dependency in the chain were
@@ -2185,11 +2180,8 @@
      off your plate, present enough to keep chasing. */
   .tenon-card.waiting{opacity:.6}
   .tenon-card.waiting:hover{opacity:1}
-  /* Blocked and Backlog fade the most: neither is something to act on right
-     now, one because it can't move and the other because there's no pressure
-     to. */
-  .tenon-card.blocked{opacity:.9}
-  .tenon-card.blocked:hover{opacity:1}
+  /* Backlog fades the most: nothing in it is something to act on right now,
+     because there's no pressure to. */
   .tenon-card.backlog{opacity:.9}
   .tenon-card.backlog:hover{opacity:1}
   .tenon-card .tenon-card__eyebrow{display:flex; align-items:center; gap:6px; margin-bottom:5px}
@@ -2488,7 +2480,7 @@
      positioned absolutely (so it can sit at its own coordinate rather than in
      flexbox flow), which means the parent never sees their height and won't
      stretch for a wrapped one on its own. 28px is two lines' worth at this
-     font, which is as far as a name like "Waiting for review" ever needs to
+     font, which is as far as a name like "Reviewing" ever needs to
      wrap once it's capped to its own fair share of the track's width below. */
   .stepstops{position:relative; height:28px; margin-top:6px; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
   .stepstop{

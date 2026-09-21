@@ -21,13 +21,13 @@
    same tier for the same reason: Backlog is not a real priority, so it is left
    out there too, not just muted.
 
-   Waiting for review is the softer case: the work is done and someone else has it.
+   Reviewing is the softer case: the work is done and someone else has it.
    It belongs on the grid, since it still costs what it costs, but the dot is
    faded the way a done card is faded on the board. Anything blocked by an
    unfinished task is faded for the same reason — the grid can rank it, but he
    cannot start it. */
 const HELD_TIER  = 'Backlog';
-const MATRIX_MUTED_TIER = 'Waiting for review';
+const MATRIX_MUTED_TIER = WAIT_COL;
 
 const MATRIX_IMPACT = ['high', 'med', 'low'];      // top row down
 const MATRIX_EFFORT = ['S', 'M', 'L'];             // left column across
@@ -279,7 +279,7 @@ function matrixSection(){
       type: 'checkbox', checked: hideWaiting, 'data-mxfilter': '',
       onChange: e => { state.matrixHideWaiting = e.target.checked; refreshView(); }
     }),
-    ' Hide Waiting for review');
+    ' Hide Reviewing');
 
   /* Counted on the grid rather than on the list behind it: the two trays under
      it say their own numbers, and a head count that included them would be a

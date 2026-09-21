@@ -27,7 +27,7 @@ export type CardProgress = { kind: 'steps', done: number, total: number, pct: nu
 
 export interface TaskCardModel {
   id: string
-  /** `done`, `waiting`, `blocked` or `backlog`, plus `onething` for the headline. */
+  /** `done`, `waiting` or `backlog`, plus `onething` for the headline. */
   cls: string
   titleHTML: string
   chips: Chip[]

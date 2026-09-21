@@ -8,8 +8,8 @@ The three exclusions are the same ones companion/digest.py applies, deliberately
 two readers of one list disagreeing about what is actionable is worse than
 either answer on its own.
 
-  - Waiting for review and Blocked. The next move belongs to somebody else, so
-    there is nothing to plan.
+  - Reviewing. The next move belongs to somebody else, so there is nothing to
+    plan.
   - An unticked `blocked-by:`. The blocker is the real task.
   - A `start:` that has not arrived. It cannot begin yet.
 
@@ -57,7 +57,7 @@ sys.path.insert(0, HERE)
 import todo  # noqa: E402
 import paths  # noqa: E402
 
-PARKED = {"waiting for review", "blocked"}
+PARKED = {"reviewing"}
 
 # Only a task delegated to the Plan agent, `[to:: Plan agent]`. It was
 # `[ai:: full]` until 21 Sep 2026, when `ai:` was retired for one field saying
@@ -67,7 +67,7 @@ PARKED = {"waiting for review", "blocked"}
 def plannable(task):
     return todo.agent_of(task.to) == todo.PLAN_AGENT
 
-# The three reasons a task in Handed to AI starts its life on Plans in Backlog
+# The three reasons a task delegated to the Plan agent starts its life on Plans in Backlog
 # rather than in tonight's queue. They read on the card, so each one says what
 # is true of the task rather than what this file did about it.
 #
@@ -120,8 +120,8 @@ def eligible(tasks, day, slugs=None, drops=None):
             continue
         if not plannable(t):
             continue
-        # Past this line the task is in Handed to AI on the board, so it has a
-        # card on Plans whatever happens next. Each exclusion below says why the
+        # Past this line the task is the Plan agent's, so it has a card on
+        # Plans whatever happens next. Each exclusion below says why the
         # card starts in Backlog instead of in tonight's queue; none of them
         # takes the task off the view.
         if t.column.strip().lower() in PARKED:
@@ -178,7 +178,7 @@ def save_ledger(ledger, path=None):
 #
 # Neither list is authoritative about what the queue contains. Every rule above
 # still decides that; this only sorts what survives them and drops what is held.
-# So a title in here that no longer exists, or that has gone Blocked since, is
+# So a title in here that no longer exists, or that has gone into Reviewing since, is
 # simply never matched, and there is nothing to prune.
 
 

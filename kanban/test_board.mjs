@@ -90,6 +90,7 @@ await evalJS(`(() => {
   state.view = 'board';
   load([
     '# To-do', '', '## 1. People', '',
+    '### Reviewing', '',
     '### To do', '',
     '- [ ] Alpha \`id:bd0001\` [impact:: high] [effort:: S]',
     '  - [x] first step',
@@ -98,7 +99,7 @@ await evalJS(`(() => {
     '- [ ] Gamma \`id:bd0003\` [impact:: med] [effort:: M]',
     '',
     '### Doing', '',
-    '- [ ] Delta \`id:bd0004\` [impact:: high] [effort:: S]',
+    '- [ ] Delta \`id:bd0004\` [impact:: high] [effort:: S] [to:: Plan agent]',
     ''
   ].join('\\n'), 'demo.md', {});
   state.locked = false;
@@ -118,8 +119,10 @@ check('a column says how many cards it holds', await evalJS(`
 `) === '3')
 check('its cards are in the file order', await evalJS(`__titles('To do')`) === 'Alpha,Beta,Gamma')
 check('an empty column says so', await evalJS(`
-  !!document.querySelector('#board .tenon-column[data-tier="Handed to AI"] .tenon-column-empty')
+  !!document.querySelector('#board .tenon-column[data-tier="Reviewing"] .tenon-column-empty')
 `))
+check('there is no column for an agent, only the states', tiers === 'Doing|To do|Reviewing|Done', tiers)
+check('a task an agent holds stays in its own column', await evalJS(`__titles('Doing')`) === 'Delta')
 check('each column is a drop target and says which tier it is', await evalJS(`
   [...document.querySelectorAll('#board > .tenon-column')].every(c =>
     c.dataset.tier && c.querySelector('.tenon-column__body.drop'))
@@ -214,6 +217,8 @@ await evalJS(`(() => {
 await wait(150)
 check('a card dropped in another column moves there', await evalJS(`__order('To do')`) === 'Gamma,Alpha,Beta,Delta', await evalJS(`__order('To do')`))
 check('and it left the column it came from', await evalJS(`__titles('Doing')`) === '')
+check('a column says the state of a card, so the drop left its assignee alone', await evalJS(`
+  locate('bd0004').task.to`) === 'Plan agent')
 check('both counts follow', await evalJS(`
   ['To do', 'Doing'].map(n =>
     document.querySelector('#board .tenon-column[data-tier="' + n + '"] .tenon-column__count').textContent).join('/')
@@ -266,16 +271,12 @@ await evalJS(`closeDrawer()`)
 check('the head carries a pencil for the tier editor', await evalJS(`
   !!document.querySelector('#board .tenon-column[data-tier="To do"] .coledit[data-editcol="To do"]')
 `))
-check('Done and Handed to AI carry neither the pencil nor the add button', await evalJS(`
-  ['Done', 'Handed to AI'].every(n => {
-    const c = document.querySelector('#board .tenon-column[data-tier="' + n + '"]');
-    return c && !c.querySelector('.coledit') && !c.querySelector('.addbtn');
-  })
-`))
-check('Handed to AI is the agent column: dashed, running, geared', await evalJS(`
-  (() => { const c = document.querySelector('#board .tenon-column[data-tier="Handed to AI"]');
-    return c.classList.contains('tenon-column--dashed') && c.classList.contains('tenon-column--running') &&
-           !!c.querySelector('.colgear'); })()
+check('Done carries neither the pencil nor the add button', await evalJS(`(() => {
+  const c = document.querySelector('#board .tenon-column[data-tier="Done"]');
+  return c && !c.querySelector('.coledit') && !c.querySelector('.addbtn');
+})()`))
+check('no column on the board is dashed, running or geared', await evalJS(`
+  !document.querySelector('#board .tenon-column--dashed, #board .tenon-column--running, #board .colgear')
 `))
 
 /* ---- locked ---- */

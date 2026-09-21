@@ -331,7 +331,7 @@ template that tried to would be a second copy of them.
 | --- | --- |
 | `pa-checkin` | The daily check-in. Pulls meeting actions, reads the list, renders the brief, asks what has changed. Hands you the changes and the headline decision. |
 | `pa-retrieve-tasks` | Pulls action items from the meeting recorder and reviews them one by one. Hands you the ones he kept, each with its provenance line. |
-| `pa-checkout` | Walks Doing, Waiting for review and Blocked. Hands you what he decided about each. |
+| `pa-checkout` | Walks Doing and Reviewing. Hands you what he decided about each. |
 | `pa-focus` | Walks To do and Doing, asking what is honestly in flight. Hands you what goes back to Backlog. |
 | `pa-review-plans` | Goes through the planning agent's plans. Writes plan statuses itself, hands you the note that goes on each task. |
 | `pa-mobile` | Any of the above, from a phone, asked as multiple choice and reported from the mobile templates. Hands you the same changes. |

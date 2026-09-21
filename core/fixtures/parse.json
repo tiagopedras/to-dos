@@ -1329,7 +1329,7 @@
         {
           "title": "Send the Q3 design system review pack to Anu",
           "bucket": "Design System",
-          "column": "Waiting for review",
+          "column": "Reviewing",
           "body": [
             "  - Went over on the 21st. Nothing to do until it comes back with comments."
           ]
@@ -1447,10 +1447,23 @@
         {
           "title": "Sent over, waiting on comments",
           "bucket": "People",
-          "column": "Waiting for review",
+          "column": "Reviewing",
           "body": []
         }
       ]
+    },
+    {
+      "why": "Waiting for review became Reviewing on 21 Sep 2026, and a list or a backup still carrying the old heading reads as the new one. It does not round-trip either.",
+      "text": "## 1. People\n\n### Waiting for review\n\n- [ ] Sent over, waiting on comments\n",
+      "tasks": [
+        {
+          "title": "Sent over, waiting on comments",
+          "bucket": "People",
+          "column": "Reviewing",
+          "body": []
+        }
+      ],
+      "roundTrips": false
     }
   ]
 }

@@ -42,7 +42,7 @@ const check = (name, pass, detail = '') => {
 const FIXTURE = [
   '# To-do', '', '## 1. People', '', '### To do', '',
   '- [ ] Alpha [impact:: high] [effort:: M]',
-  '- [ ] Beta [impact:: low] [effort:: S]', ''
+  '- [ ] Beta [impact:: low] [effort:: S]', '', '### Doing', ''
 ].join('\n')
 
 async function run (label, width, height) {

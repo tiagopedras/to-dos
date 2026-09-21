@@ -68,11 +68,10 @@ const state = {
   chatViewed: {},
   chatViewedLoaded: false,
   query: '',
-  aiFilter: '',
   urgentFilter: false,
   /* Column names (see boardColumns()) currently narrowed to — empty means
-     every column, same "nothing picked means no filter" rule aiFilter and
-     urgentFilter already follow. Session-only, like both of those: reset on
+     every column, same "nothing picked means no filter" rule urgentFilter
+     already follows. Session-only, like both of those: reset on
      reload rather than remembered. */
   statusFilter: new Set(),
   unscoredOnly: false,
@@ -283,19 +282,15 @@ function bucketColor(name, index){
     BUCKET_COLOR[((index % BUCKET_COLOR.length) + BUCKET_COLOR.length) % BUCKET_COLOR.length];
 }
 const DONE_COL = 'Done';
-/* Synthetic the same way Done is — not a heading in todo.md, just where the
-   board draws a task delegated to an agent (`[to::]` naming the Plan or the
-   Implement agent) and not yet done. The tag stays the single source, and a
-   task's real tier is untouched underneath. */
-const AI_COL = 'Handed to AI';
 /* Not a special column the way Done is — just a tier the board tints, so a
-   renamed section simply stops matching and goes back to looking normal. */
-const WAIT_COL = 'Waiting for review';
-/* Sits between Handed to AI and Waiting for review. Unlike the other columns it has no
-   standing heading in every bucket — it is only ever created the first time a
-   task is moved into it (see ensureTier), and the board hides it again once
-   nothing is left there (see the filter in renderBoard). */
-const BLOCKED_TIER = 'Blocked';
+   renamed section simply stops matching and goes back to looking normal. It
+   was Waiting for review until 21 Sep 2026: a column says the state of the
+   card, and Reviewing is what a card is once the work is done and someone has
+   to look at it, whoever that someone is. The old heading still loads as this
+   one (TIER_RENAMED in core/todo.js), so a backup taken before the rename
+   reads the same. The Plans view keeps its own Waiting for review until that
+   view goes. */
+const WAIT_COL = 'Reviewing';
 /* Same story as WAIT_COL: a tier name the board fades on sight, not a status
    field of its own. A renamed Backlog just stops matching. */
 const BACKLOG_TIER = 'Backlog';
@@ -311,8 +306,8 @@ const DOING_TIER = 'Doing';
    todo.js and todo.py read, which is a bigger job than this is. So instead
    the Edit Columns editor simply refuses to rename any of the five away from
    this exact text (see tierNameTaken() in 09-columns.js) — the same
-   protection DONE_COL and AI_COL already get by never being real headings at
-   all, extended to the three of these that are. Any other tier a bucket adds
+   protection DONE_COL already gets by never being a real heading at all,
+   extended to the four of these that are. Any other tier a bucket adds
    stays freely renamable. */
 const RESERVED_TIERS = [BACKLOG_TIER, TODO_TIER, DOING_TIER, WAIT_COL, DONE_COL];
 /* The first bucket tab shows every bucket at once. Not a real bucket, so it
@@ -322,31 +317,24 @@ const ALL_BUCKETS = '__all__';
    show no hint, so renaming a section in todo.md never breaks the board. */
 const TIER_HINT = {
   'Backlog': 'no time pressure yet',
-  'Waiting for review': 'done, waiting on someone else',
+  'Reviewing': 'done, waiting for a look',
   'Later':   'no time pressure',
   'To do':   'two to four weeks out',
   'Next':    'after that',
   'Doing':   'current focus, next two weeks',
   'Now':     'current focus',
-  'Done':    'ticked off',
-  'Blocked': "can't move until something changes",
-  'Handed to AI': 'delegated to an agent, not done yet'
+  'Done':    'ticked off'
 };
 
 /* The file lists tiers Now → Backlog. The board shows them the other way
-   round, with Done on the far right and a synthetic Handed to AI column
-   straight after Doing for anything delegated to an agent and not yet done. It sat
-   ahead of Done until 17 Sep 2026; it moved because a task handed to AI is
-   in progress, not waiting on anyone. A list with no Doing heading gets it
-   ahead of Done as before. */
+   round, with Done on the far right. Who is doing a task is its assignee
+   (`[to::]`), never a column of its own: Handed to AI went on 21 Sep 2026, and
+   a task an agent has stays in To do or Doing like any other. */
 function boardColumns(){
-  const cols = allTiers().slice().reverse();
-  const at = cols.indexOf(DOING_TIER);
-  cols.splice(at < 0 ? cols.length : at + 1, 0, AI_COL);
-  return cols.concat([DONE_COL]);
+  return allTiers().slice().reverse().concat([DONE_COL]);
 }
 
-/* The five names above, and the two synthetic columns, are also written down in
+/* The four names above, and the synthetic Done column, are also written down in
    stream.json, which is this list's manifest under the work-item contract. Two
    copies of one vocabulary is exactly what that contract exists to stop, so
    this checks them against each other on boot and says so in the console if

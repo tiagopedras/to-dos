@@ -87,7 +87,11 @@ const NEW_DOCS = [
   { why: 'a column heading that has since been renamed reads as its new name, '
        + 'so an old backup lands in the right column. It does not round-trip: '
        + 'the next save writes the new heading.',
-    text: '## 1. People\n\n### Waiting review\n\n- [ ] Sent over, waiting on comments\n' }
+    text: '## 1. People\n\n### Waiting review\n\n- [ ] Sent over, waiting on comments\n' },
+  { why: 'Waiting for review became Reviewing on 21 Sep 2026, and a list or a '
+       + 'backup still carrying the old heading reads as the new one. It does '
+       + 'not round-trip either.',
+    text: '## 1. People\n\n### Waiting for review\n\n- [ ] Sent over, waiting on comments\n' }
 ]
 
 const docText = d => d.file

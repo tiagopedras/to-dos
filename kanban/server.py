@@ -243,7 +243,7 @@ def bucket_colors_path(name=None):
 def column_names_path(name=None):
     """What a column is *called on screen*, when that differs from its heading.
 
-    Backlog, To do, Doing, Waiting for review and Done are matched by their
+    Backlog, To do, Doing, Reviewing and Done are matched by their
     exact text all through the board and by every other reader of the list —
     the companion, the planning agent, core/todo.py — so renameTier() refuses
     to rename one. A label here is the way round that: the `### To do` heading
@@ -529,11 +529,11 @@ def project_listing():
 # the Columns editor can rename, add to, or remove from them), but because
 # nothing is more confusing than a second list whose board looks unlike the
 # first for no reason anyone chose.
-NEW_DATASET_COLUMNS = ("Waiting for review", "Doing", "To do", "Backlog")
+NEW_DATASET_COLUMNS = ("Reviewing", "Doing", "To do", "Backlog")
 NEW_DATASET_TEMPLATE = (
     "# To-do\n\n"
     "## 1. Tasks\n\n"
-    "### Waiting for review\n\n"
+    "### Reviewing\n\n"
     "### Doing\n\n"
     "### To do\n\n"
     "### Backlog\n\n"

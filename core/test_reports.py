@@ -53,13 +53,9 @@ DOC = """## 1. Design System
 
 - [ ] **In progress right now** [impact:: high] [effort:: M]
 
-### Waiting for review
+### Reviewing
 
 - [ ] **Sitting with someone else** [impact:: high] [effort:: S] `due:2026-09-10`
-
-### Blocked
-
-- [ ] **Cannot move yet** [impact:: med] [effort:: M]
 
 ### Backlog
 
@@ -87,7 +83,7 @@ def test_today_view():
     check("its next step is the first unticked sub-step",
           v["headline_next_step"], "Not yet started")
 
-    check("overdue excludes Waiting for review — its date belongs to someone else now",
+    check("overdue excludes Reviewing — its date belongs to someone else now",
           [r["title"] for r in v["overdue"]], [])
     check("due today", [r["title"] for r in v["overdue"] + v["due_today"]],
           ["Weekly design review"])
@@ -96,9 +92,8 @@ def test_today_view():
 
     check("doing is read off the column, not a tag",
           [r["title"] for r in v["doing"]], ["In progress right now"])
-    check("waiting review", [r["title"] for r in v["waiting"]],
+    check("reviewing", [r["title"] for r in v["waiting"]],
           ["Sitting with someone else"])
-    check("blocked", [r["title"] for r in v["blocked"]], ["Cannot move yet"])
 
     check("week carries the headline task, tagged week",
           [r["title"] for r in v["week"]], ["The headline task"])
@@ -122,7 +117,7 @@ def test_today_view():
     check("its agenda is written", v["meetings_next_two_days"][0]["agenda_state"], "written")
 
     check("counts agree with the lists they count",
-          (v["doing_count"], v["waiting_count"], v["blocked_count"]), (1, 1, 1))
+          (v["doing_count"], v["waiting_count"]), (1, 1))
 
 
 def test_meeting_view():

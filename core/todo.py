@@ -50,8 +50,9 @@ TIER_RE = re.compile(r"^###\s+(.*)$")
 
 # Column headings that have been renamed, old name to new, the same table as
 # TIER_RENAMED in core/todo.js. Waiting review became Waiting for review on
-# 17 Sep 2026; a backup still carrying the old heading reads as the new one.
-TIER_RENAMED = {"Waiting review": "Waiting for review"}
+# 17 Sep 2026 and Reviewing on 21 Sep 2026; a backup still carrying either old
+# heading reads as the new one.
+TIER_RENAMED = {"Waiting review": "Reviewing", "Waiting for review": "Reviewing"}
 
 
 def column_name(heading):

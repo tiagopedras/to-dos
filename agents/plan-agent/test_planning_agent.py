@@ -92,12 +92,9 @@ DOC = """# List
 
 ## 1. People
 
-### Waiting for review
+### Reviewing
 
 - [ ] **Sitting with someone** [impact:: high] [effort:: S] [to:: Plan agent]
-
-### Blocked
-
 - [ ] **Stuck** [impact:: high] [effort:: S] [to:: Plan agent]
 
 ### Doing
@@ -134,12 +131,11 @@ def test_pick():
     check("his own task is dropped quietly", "Not for Claude" in why, False)
 
     # One task, one plan, 17 Sep 2026. The three rules below used to drop a task
-    # handed over without a word, so the board drew it in Handed to AI and
+    # handed over without a word, so the board drew it in an agent column and
     # Plans drew nothing — the two never agreed on a count. Each one names
     # itself now, and the card it produces sits in Plans' Backlog.
     check("parked says where it is sitting", why.get("Sitting with someone"),
-          "sitting in Waiting for review")
-    check("and Blocked the same", why.get("Stuck"), "sitting in Blocked")
+          "sitting in Reviewing")
     check("an unticked blocked-by says so", why.get("Waits on another"),
           "blocked by something unfinished")
     check("a future start: names the date", why.get("Not yet startable"),

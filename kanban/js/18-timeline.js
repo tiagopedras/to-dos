@@ -1121,10 +1121,9 @@ function renderFilterBar(){
   renderTabs();
   renderStatusFilters();
   renderScoreChip();
-  // The "who does it" filter cuts across every bucket, so it overrides the tabs.
-  // The urgent/due filter does the same. The All tab does the same thing, but
+  // The urgent/due filter cuts across every bucket, so it overrides the tabs. The All tab does the same thing, but
   // the tabs stay up so it can be undone.
-  const across = !!state.aiFilter || state.urgentFilter;
+  const across = state.urgentFilter;
   $('#bucketFilters').classList.toggle('hidden', across);
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
@@ -1196,18 +1195,10 @@ function renderBoard(){
   const shown = shownBuckets();
   const many = shown.length > 1;
 
-  // Blocked stays off the board entirely until something is actually sitting
-  // in it — the empty-column treatment other tiers get would be misleading
-  // here, since Blocked has no standing heading to justify a permanent slot.
-  const hasBlocked = state.doc.buckets.some(b => {
-    const tier = b.tiers.find(t => t.name === BLOCKED_TIER);
-    return tier && tier.tasks.some(t => !t.done);
-  });
-  const columns = boardColumns().filter(name => name !== BLOCKED_TIER || hasBlocked);
+  const columns = boardColumns();
   board.style.setProperty('--cols', columns.length);
   const data = columns.map(name => {
     const isDone = name === DONE_COL;
-    const isAi = name === AI_COL;
     const mode = sortMode(name);
     let entries = [];
     shown.forEach(bucket => {
@@ -1217,17 +1208,10 @@ function renderBoard(){
         bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
           if (t.done && matches(t, DONE_COL)) entries.push({ t, color, label });
         }));
-      } else if (isAi) {
-        // Not done yet and handed over — the same task a moment ago would
-        // have shown under its own tier; an agent in [to::] is what moves it
-        // here instead, the way t.done moves a task into Done.
-        bucket.tiers.forEach(tier => tier.tasks.forEach(t => {
-          if (!t.done && agentOf(t.to) && matches(t, AI_COL)) entries.push({ t, color, label });
-        }));
       } else {
         const tier = bucket.tiers.find(t => t.name === name);
         if (tier) tier.tasks.forEach(t => {
-          if (!t.done && !agentOf(t.to) && matches(t, name)) entries.push({ t, color, label });
+          if (!t.done && matches(t, name)) entries.push({ t, color, label });
         });
       }
     });
@@ -1238,8 +1222,6 @@ function renderBoard(){
         .sort((a, b) => (priorityScore(b.e.t) - priorityScore(a.e.t)) || (a.i - b.i))
         .map(x => x.e);
     }
-    // A card lands in Handed to AI by its [to::] tag, and can be dragged back
-    // out: dropTask() clears the tag on the way.
     const cards = entries.map(e => ({
       model: cardModel(e.t, { muted: name === WAIT_COL, tier: name }),
       stripe: e.color,
@@ -1258,22 +1240,18 @@ function renderBoard(){
        the button there was hidden — comparative questions need every column
        in front of you — so this opens the same sheet rather than a per-column
        menu, and scrolls to the row for the column it was clicked on. Not on
-       Done or Handed to AI, neither of which is a row in it, and not on a
-       locked board, which can write nothing. */
+       Done, which is not a row in it, and not on a locked board, which can
+       write nothing. */
     return {
       // What it is called on screen; `name` stays the heading everything else
       // matches by, and is what data-tier and every lookup still use.
       tier: name,
       title: tierLabel(name),
-      className: ((isDone ? 'donecol ' : '') + (isAi ? 'aicol ' : '') +
+      className: ((isDone ? 'donecol ' : '') +
                   (name === WAIT_COL ? 'waitcol ' : '') + (mode === 'priority' ? 'sorted' : '')).trim(),
-      // Handed to AI is an agent's column in exactly the sense Plans' Waiting
-      // for review is, so it takes the same dashed edge rather than a rule of
-      // its own — `aicol` above is left holding only the head colour it sets.
-      agent: isAi,
-      sort: (isDone || isAi) ? null : mode,
-      canEdit: !(isDone || isAi || state.locked),
-      canAdd: !(isDone || isAi || state.locked),
+      sort: isDone ? null : mode,
+      canEdit: !(isDone || state.locked),
+      canAdd: !(isDone || state.locked),
       cards
     };
   });
@@ -1328,7 +1306,7 @@ function renderScoreChip(){
   if (!state.doc) { chip.classList.add('hidden'); return; }
   let n = 0;
   state.doc.buckets.forEach(b => b.tiers.forEach(ti => ti.tasks.forEach(t => {
-    if (!t.done && unscored(t) && matchesAi(t)) n++;
+    if (!t.done && unscored(t)) n++;
   })));
   chip.classList.toggle('hidden', n === 0 && !state.unscoredOnly);
   chip.classList.toggle('on', state.unscoredOnly);
@@ -1401,27 +1379,8 @@ function dropTask(id, tierName, zone, clientY){
     if (state.openTask === id) openDrawer(id);
     return;
   }
-  // Handed to AI is not a section either — it is the [to::] tag. A drop into
-  // it hands the task to the Plan agent and leaves it under its own heading,
-  // since ensureTier() would otherwise write a real "Handed to AI" heading
-  // into the file.
-  if (tierName === AI_COL) {
-    if (agentOf(loc.task.to) && !loc.task.done) return;
-    loc.task.to = 'Plan agent';
-    loc.task.dirty = true;
-    setDone(loc.task, false);
-    markDirty(); refreshView();
-    if (state.openTask === id) openDrawer(id);
-    return;
-  }
-  // Dragged out of Handed to AI onto a real column: taking the work back off
-  // the agent, the same as clearing the drawer's Delegate to, prompts and
-  // all. Onto Done it keeps the tag, since that is finishing it, not taking it back.
-  if (!loc.task.done && agentOf(loc.task.to)) {
-    loc.task.to = '';
-    stripDelegation(loc.task);
-    loc.task.dirty = true;
-  }
+  // A column says where the card is, never who has it, so a drop leaves
+  // `[to::]` alone.
   setDone(loc.task, false);                       // dragged back out of Done
 
   const targetTier = ensureTier(loc.bucket, tierName);

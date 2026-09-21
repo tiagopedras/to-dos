@@ -113,13 +113,12 @@ never negative) and `who` (from `[to:: ]`, or a `Waiting on:` note).
 
 | List | What is in it |
 | --- | --- |
-| `overdue` | Past `[due:: ]`, not ticked, not in Waiting for review |
+| `overdue` | Past `[due:: ]`, not ticked, not in Reviewing |
 | `due_today` | Due today |
 | `due_tomorrow` | Due tomorrow |
 | `due_this_week` | Due between today and Sunday |
 | `doing` | Top-level tasks in Doing, every bucket |
-| `waiting` | Top-level tasks in Waiting for review |
-| `blocked` | Top-level tasks in Blocked |
+| `waiting` | Top-level tasks in Reviewing |
 | `week` | Anything tagged `week`, tasks and sub-steps both |
 | `done_today` | Ticked with today's `done:` date |
 | `quick_wins` | S effort, unblocked, `start:` arrived, or carrying a message |
@@ -170,7 +169,7 @@ There is no field holding what the pending topics are. That is deliberate: they
 are counted here and given one at a time when he asks.
 
 **Counts**, for a line that is a number rather than a list. `overdue_count`,
-`doing_count`, `waiting_count`, `blocked_count`, `week_count`,
+`doing_count`, `waiting_count`, `week_count`,
 `unscored_count`, `delegate_count`.
 
 ## How a report actually gets rendered

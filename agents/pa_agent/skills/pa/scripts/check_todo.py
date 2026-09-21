@@ -650,10 +650,10 @@ def check_overdue(tasks, today):
         for entry in [task] + task["subs"]:
             if entry["checked"] or not entry["due"]:
                 continue
-            # Waiting for review means the work is done as far as he is concerned
+            # Reviewing means the work is done as far as he is concerned
             # and it is sitting with someone else — the due date belongs to
             # them now, so it is not an actionable overdue item for him.
-            if entry["tier"] == "Waiting for review":
+            if entry["tier"] == "Reviewing":
                 continue
             if entry["due"] < today:
                 days = (today - entry["due"]).days

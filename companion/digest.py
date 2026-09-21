@@ -19,9 +19,9 @@ Three things take a task out, all three matching what the board's Quick wins
 view already does, because two views of one list disagreeing about what is
 actionable is worse than either answer:
 
-  - Waiting for review and Blocked. Both mean the next move belongs to somebody
-    else. Nothing is owed on them until they come back, so a notification about
-    one is a notification he can do nothing with.
+  - Reviewing. It means the next move belongs to somebody else. Nothing is
+    owed on it until it comes back, so a notification about one is a
+    notification he can do nothing with.
   - An unticked `blocked-by:`. The blocker is the real task; this one is not
     startable and saying so at 08:30 is noise.
   - Sub-steps. A step has no state of its own, it inherits its parent's, so
@@ -56,7 +56,7 @@ import todo  # noqa: E402
 # a second.
 DATASET = "twinkl"
 
-PARKED_COLUMNS = {"waiting for review", "blocked"}
+PARKED_COLUMNS = {"reviewing"}
 
 
 class Digest:

@@ -47,4 +47,4 @@ No standing meetings this week.
 - Claude could take **{{title}}**
 {{/delegate}}
 
-Waiting on someone {{waiting_count}} · blocked {{blocked_count}} · unscored {{unscored_count}}
+Waiting on someone {{waiting_count}} · unscored {{unscored_count}}

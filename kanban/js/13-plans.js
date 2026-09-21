@@ -980,7 +980,7 @@ document.addEventListener('visibilitychange', () => {
 
 function plansShown(list, field){
   field = field || 'bucket';
-  if (!state.doc || allMode() || state.aiFilter || state.urgentFilter) return list;
+  if (!state.doc || allMode() || state.urgentFilter) return list;
   return list.filter(r => !r[field] || state.bucketFilter.has(r[field]));
 }
 
