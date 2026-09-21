@@ -512,6 +512,27 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
+- **"Who does it" and "Delegated to" are two fields for one question, and only one of them says what the agents should do.**
+  The drawer draws a step slider for `ai:` (`AI_STOPS`, `kanban/js/19-drawer.js:148`,
+  the field at line 939) beside a free-text input for `to:` (`f-to`, line 943), and
+  everything the agents act on reads `ai:`: `delegateSection()` in
+  `kanban/js/10-reference-sections.js:609`, the Delegate drop in `stripDelegation()`
+  (`kanban/js/18-timeline.js:1463`), `eligible()` in `agents/planning_agent/pick.py:116`
+  and the prompt in `plan.py`. The change is one dropdown, "Delegate to", holding
+  `[to::]`: Planning Agent and Implementing Agent at the top, then the names in
+  `data/<dataset>/people.md`. Planning Agent means plan it and stop, Implementing
+  Agent means plan it first and carry it out once the plan is accepted. `ai:` is no
+  longer read or written, and a backup that still carries it is ignored. The list of
+  names comes from a new `/people.json` route in `kanban/server.py` that parses the
+  tables in `people.md`, so nobody keeps a second list by hand, and the server needs a
+  restart once it lands. `core/todo.js`, `core/todo.py` and the three fixtures change
+  together, as does the `pa` skill's tag table. Delegate to Claude reads
+  `to:: Implementing Agent`, so it starts empty. The migration runs through `pa`: an
+  open task tagged `ai: full` or `partial` gets `[to:: Planning Agent]`, a ticked task
+  or a plan with `production: done` gets no `[to::]`, and every `[ai::]` tag is
+  stripped (58 full, 183 partial and 245 none on the `twinkl` list). Still to confirm
+  with Tiago: whether "done before" means exactly those two.
+
 - **The board's tag chips are its own `.tag` classes, not Tenon's `Tag`.**
   `cardModel()` (`kanban/js/09-columns.js`) gives each chip a class such as
   `tag impact-high` or `tag due late`, and `board.css` styles about twenty of
