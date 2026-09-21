@@ -18,6 +18,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- ~~**The planning agent's fallback to `planning-general` never reaches `claude`.**~~ **Done, 21 Sep 2026.** `planner_for()` in `agents/planning_agent/plan.py` is the one place that decides which planner a bucket runs against, and both the main loop and `run_agent()` read it. `test_fallback_planner()` in `test_planning_agent.py` stubs `subprocess.run` and checks the `--agent` a bucket with no planner file actually reaches `claude` with.
+
 - **The string twins of Column and Card have no caller left in the app.**
   `colHTML()`, `cardShellHTML()`, `cardHTML()`, `chipHTML()` and `colEmptyHTML()`
   in `kanban/js/09-columns.js` were kept so a half-ported board drew one shape

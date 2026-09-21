@@ -496,9 +496,21 @@ def build_prompt(task, prior=None):
 EXTRA_DIRS = ["~/Code"]
 
 
+def planner_for(bucket):
+    """The planner a bucket's tasks actually run against.
+
+    The bucket's own where its file is on disk, `planning-general` where it is
+    not. Worked out here and only here: the main loop used to swap in the
+    fallback itself while `run_agent()` worked the name out again, so the log
+    said `planning-general` and `claude` was still asked for the missing one.
+    """
+    agent = bucket_agent(bucket)
+    return agent if agent_on_disk(agent) else FALLBACK_AGENT
+
+
 def run_agent(task, dry=False, prior=None):
     """One headless run. Returns (text, session_id, cost, error)."""
-    agent = bucket_agent(task.bucket)
+    agent = planner_for(task.bucket)
     cmd = [
         "claude", "-p", build_prompt(task, prior),
         "--agent", agent,
@@ -1127,7 +1139,7 @@ def run(argv=None):
         if not agent_on_disk(agent):
             log("  NO PLANNER for bucket %r — planning %r with the fallback. "
                 "Write agents/planning_agent/%s.md." % (task.bucket, task.title[:50], agent))
-            agent = FALLBACK_AGENT
+            agent = planner_for(task.bucket)
         # Logged before the run, not only after. An agent takes minutes, so
         # without this the log — and the board's Schedule view, which reads it —
         # says nothing at all about the one currently in flight, which is the

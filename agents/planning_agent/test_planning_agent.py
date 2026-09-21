@@ -1354,6 +1354,45 @@ def test_runner():
         check("%s claims no Bash either" % p, "Bash" in head, False)
 
 
+def test_fallback_planner():
+    """A bucket with no planner file must reach `claude` as `planning-general`.
+
+    The main loop logged the fallback while run_agent() asked `claude` for the
+    missing planner anyway, so on 20 Sep 2026 two tasks on `pet-projects` failed
+    with "agent not found" under a log line saying the fallback was in use. This
+    stubs `subprocess.run`, so it reads the command line and spends nothing.
+    """
+    class Task:
+        def __init__(self, bucket):
+            self.bucket = bucket
+
+    seen = []
+
+    class Done:
+        stdout = '{"result": "a plan", "session_id": "s", "total_cost_usd": 0}'
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        seen.append(cmd)
+        return Done()
+
+    real = (plan.subprocess.run, plan.build_prompt, plan.stream_map)
+    plan.subprocess.run = fake_run
+    plan.build_prompt = lambda task, prior: "prompt"
+    plan.stream_map = lambda: {}
+    try:
+        for bucket, want in (("3. DS", "planning-ds"),
+                             ("9. No Planner Here", "planning-general")):
+            del seen[:]
+            plan.run_agent(Task(bucket))
+            check("%r runs against %s" % (bucket, want),
+                  seen[0][seen[0].index("--agent") + 1], want)
+        check("planner_for names the fallback for a missing planner",
+              plan.planner_for("9. No Planner Here"), plan.FALLBACK_AGENT)
+    finally:
+        plan.subprocess.run, plan.build_prompt, plan.stream_map = real
+
+
 def fake_data_root(sched, names=("twinkl",), current="twinkl"):
     """A `data/` tree of this agent's own, so a test never reads the live one.
 
@@ -1801,6 +1840,7 @@ def main():
     test_queue_routes()
     test_usage_chart()
     test_runner()
+    test_fallback_planner()
     test_runner_root()
     test_carry_over()
     if FAILED:
