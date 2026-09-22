@@ -1,6 +1,25 @@
 # Handover: one board
 
-Branch `one-board`, cut from `main` at `b0da379` on 21 Sep 2026. Nothing is built yet.
+Branch `one-board`, cut from `main` at `b0da379` on 21 Sep 2026.
+
+**Status, 22 Sep 2026: all nine stages are built on this branch, one commit each,
+and nothing is merged or pushed.** Where the build differs from the plan below:
+
+- **Dropping `state:` and `production:` from plan documents moved from stage 7 to
+  stage 8**, so each commit leaves a working board: the Plans tab reads them, and it
+  went in stage 8. `stream.py`, the plans manifest and the routes that wrote them
+  are deleted rather than reduced.
+- **The picker plans only handed-over tasks.** `[to:: Plan agent]` on a task with no
+  Plan sub-task is no longer planned, since its plan would have nowhere to be read.
+  About 170 tasks on the twinkl list carry that tag from stage 1 and will not be
+  planned until they are handed over on the card.
+- **Twelve tasks with plans in flight** were given their sub-tasks on the twinkl
+  list, through `pa` after a backup. The other two in-flight plans belong to tasks
+  no longer on the list.
+- **Spend and schedules and Run the Plan agent now** moved to the Data menu, because
+  the Plans view was the only place they were reached from.
+- **`data/.current` says `pet-projects`** (since 21 Sep 13:04), so the board shows
+  that list. Every change to a real list above was made to `twinkl`.
 This file is the plan. A later session, on Opus or Sonnet, should be able to pick up any
 stage from it without the conversation that produced it.
 

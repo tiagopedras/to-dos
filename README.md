@@ -318,7 +318,7 @@ A column is a `### Name` heading, and like a bucket it has no id: it is whicheve
 name a heading uses, read the same everywhere that name turns up.
 
 Five of them are read that way outside the board too. Backlog, To do, Doing,
-Waiting for review and Done are matched by their exact text by the companion, the
+Reviewing and Done are matched by their exact text by the companion, the
 planning agent, `core/todo.py` and the board's own recurring-task roll, so
 renaming one for real would leave a second, empty column of the old name behind.
 Typing a new name over one of those five sets a **label** instead: the heading in
@@ -331,8 +331,7 @@ has exactly one writer. Typing the real heading back clears the label. Nothing
 outside the board reads that file, so a renamed column is still "To do" to the
 companion and in every plan; that is the price of the rename costing nothing.
 
-Not every bucket carries every heading — Design System alone has a Blocked
-column, and Waiting for review, Doing, To do and Backlog are elsewhere — but the
+Not every bucket carries every heading, but the
 board draws all of them on every bucket's view regardless, empty wherever that
 bucket has no tasks in one. A rename, a reorder, an add or a delete here
 reaches every bucket the same way, seeding an empty heading into whichever ones
@@ -350,13 +349,14 @@ anywhere, the sheet asks which column they move to first. The last remaining
 column cannot be deleted, for the same reason as the last bucket — the board
 cannot draw one with nothing to sort into.
 
-A brand new data set starts with the same four columns as every other one —
-Waiting for review, Doing, To do, Backlog — precisely so a second list's board
+A brand new data set starts with the same five columns as every other one —
+Done, Reviewing, Doing, To do, Backlog — precisely so a second list's board
 reads the same as the first from the moment it exists, rather than falling
 back to a generic default nobody chose. An older list need not have them: the
 `personal` list was made before that and carries Doing, To do, For later and
 Blocked, which is fine — only the five names above are matched by their text,
-and a list is free not to have one.
+and a list is free not to have one. Done is fixed at the far right and is not one
+of the rows in the sheet.
 
 ### How the board prioritises
 
@@ -397,10 +397,10 @@ Everything else is worked out from tags at render time, never stored twice:
 | --- | --- |
 | Matrix | `[impact:: ]` against `[effort:: ]`, as a 3×3 grid. One dot per open task, coloured by bucket. |
 | This week | `week` |
-| Quick wins | `[effort:: S]` grouped by `[ai:: ]`, plus any step with a written message, plus every recurring meeting with an agenda written on it. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
+| Quick wins | `[effort:: S]` grouped by who does it (`[to:: ]`), plus any step with a written message, plus every recurring meeting with an agenda written on it. Anything waiting on an unfinished blocker, or whose `start:` has not arrived, is left out. |
 | Big rocks | `[impact:: high]` and `[effort:: L]` |
 | Dependency chain | `blocked-by:`, resolved against `#slug` |
-| Delegate to Claude | `[ai:: full]`, ordered by `rank:` |
+| Delegate to Claude | `[to:: Implement agent]`, ordered by `rank:` |
 
 These used to be sections written into the file by hand, which meant they drifted
 from the tasks they described. Deriving them removed that whole class of bug.
@@ -534,34 +534,26 @@ two is. If a section needs a paragraph to say one thing, it needs one sentence.
 
 ### Plans
 
-A separate tab and a separate folder. Plans are written
-overnight by the planning agent in `agents/plan-agent/` — one per task tagged
-`[ai:: full]` or `[ai:: partial]`, each one researching what the task actually
-involves and proposing a course of action. **Nothing in a plan has been done.**
+There is no Plans tab. It was a board of its own until 22 September 2026, and it is
+folded into the card of the task each plan is about. Plans are still written
+overnight by the planning agent in `agents/plan-agent/`, and **nothing in a plan
+has been done** — each one researches what the task actually involves and proposes
+a course of action — but a plan is now a document and nothing more: it holds
+content, and where it stands is the state of the sub-tasks on its task.
 
-They are files in `data/<dataset>/plans/`, one per task rather than one per
-night — replanning a task rewrites its own file in place, with a `History`
-section keeping the earlier revisions — listed by the server at `/plans.json`
-and read exactly the way written reports are.
+Handing a task to the Plan agent, by choosing it in the drawer's Delegate to, lays
+four sub-tasks out on the card and moves it to Doing: Plan (the agent), Review the
+plan (you), Implement (the Implement agent), Review the work (you), each blocked by
+the one before. When the plan is written the agent's Plan sub-task is ticked
+through the board's queue, and Review the plan carries a `Plan:` note naming the
+file, so opening that sub-task offers to read the plan and to talk it through.
+Approving ticks the review; sending it back unticks the Plan with what was wrong as
+a `feedback:` note under it, which the next night reads as an instruction.
 
-The reason they are not a third report column on Overview is that they answer
-the opposite question. A report says what happened, and it is finished the day it is
-written. A plan proposes what to do next, and it stops being true the moment it
-is acted on. Folding the two together would also put machine output into a view
-of Tiago's own writing.
-
-Three states, and the difference between the last two is what the runner reads:
-
-| | |
-| --- | --- |
-| `unread` | Nobody has opened it. |
-| `read` | Opened. Marked automatically, because having it open is what read means. |
-| `actioned` | Acted on, so it no longer describes outstanding work. A deliberate press. |
-
-Marking one actioned writes the plan file and the runner's ledger, and nothing
-else — in particular it never touches `todo.md`. The next night then plans that
-task afresh rather than skipping it for looking unchanged, which is how a task he
-has moved on from gets a new plan.
+The files are in `data/<dataset>/plans/`, one per task, listed by the server at
+`/plans.json`. Replanning a task rewrites its own file in place, with a `History`
+section keeping the earlier revisions. A plan whose task is no longer on the list
+gets a line in Overview's Context column.
 
 The full account of how the planning agent decides what to plan and when it is
 allowed to spend is in [agents/plan-agent/README.md](agents/plan-agent/README.md). The short version
@@ -572,8 +564,8 @@ removed on 9 Sep 2026, and that README says why.
 
 ### Schedule
 
-A header button beside Backups, opening a full-pane view. A button rather than a
-tab on the main nav, because it is about the machinery around the list rather
+**Spend and schedules** in the Data menu, opening a sheet, with **Run the Plan agent
+now** beside it. Not a tab, because it is about the machinery around the list rather
 than about the list.
 
 Three things here run on a clock rather than when you ask them to: the nightly
@@ -591,13 +583,10 @@ install it.
 
 The second card is the usage windows, which had no home outside running
 `core/windows.py --history` at a terminal. The last 30 days, one row a window,
-with the ones that started in the night picked out. The Status line on the
-Queue card says how much of the window open right now is left; it used to say
-ride, open or stop, back when that answer could stop a run, and now it is
-capacity rather than permission.
+with the ones that started in the night picked out.
 
-Everything in the view is read-only. It is the one view that writes nothing at
-all, not even a preference.
+Everything in the sheet is read-only. Run the Plan agent now is the one press, and
+it asks first, because it spends money.
 
 ### Handing a prompt over
 
@@ -1119,7 +1108,7 @@ which keeps fifty copies of every task out of the search box.
 Three things the Obsidian version does worse than the board, all listed in the
 file itself: Delegate is in deadline order rather than `rank:` order, Quick wins
 does not hide what is blocked or not yet startable, and a sub-step needs its own
-`[ai:: ]` because Dataview does not inherit the parent's. All three are because
+`[to:: ]` because Dataview does not inherit the parent's. All three are because
 `rank:`, `start:` and `blocked-by:` are still code spans, which Dataview cannot
 read inside. The board remains the authority.
 
@@ -1188,7 +1177,7 @@ recorded on a quiet day, so the next working morning goes out as normal.
 
 **What it counts as owed.** The same three exclusions Quick wins already makes,
 because two views of one list disagreeing about what is actionable is worse than
-either answer on its own. Waiting for review and Blocked are out, since the next
+either answer on its own. Reviewing is out, since the next
 move belongs to somebody else. A task whose `blocked-by:` names something
 unticked is out, since the blocker is the real task. Sub-steps are out, since a
 step has no state of its own. Whatever is left out is counted in a line at the
@@ -1490,8 +1479,8 @@ date re-guessed by hand.
 ```
 ## 1. People                      <- bucket
 ### Doing                         <- state
-- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [ai:: partial] [to:: Ana]
-  - [ ] A sub-step [due:: 2026-08-19] [ai:: full]
+- [ ] **A task** [impact:: high] [effort:: M] [due:: 2026-08-21] [to:: Ana]
+  - [ ] A sub-step [due:: 2026-08-19] [to:: Implement agent]
     - Suggested message: "..."   <- ready to send
     - Prompt: "..."              <- ready to hand to Claude
     - Jira (DSYS): "..."         <- a ticket still to raise
@@ -1508,30 +1497,33 @@ Tags work on sub-steps as readily as on tasks, and usually belong there.
 
 The columns on the board are exactly the `###` headings in the file, so a new
 state is a heading rather than a code change. The board reads them in reverse
-file order and adds two columns no heading produces: **Handed to AI** straight
-after Doing, and **Done** on the end. Left to right that is Backlog, To do,
-Doing, Handed to AI, Waiting for review, Done.
+file order, so Done is the first heading in a bucket and the far right of the
+board. Left to right that is Backlog, To do, Doing, Reviewing, Done. Done was only
+ever the tick until 21 September 2026; now a ticked task lives under it, and a
+file that still has a ticked task under another heading reads as if it were under
+Done, so nothing has to be converted by hand.
 
-**Blocked** sits between Handed to AI and Waiting for review, but it is not a standing
-heading like the other four — it has no place in the file until a task is
-actually moved there from the drawer's Column field, and the board drops the
-column again once nothing is left in it. Use it for a task that cannot move
-until something outside it changes, as distinct from `blocked-by:`, which
-points at another task on the list rather than an external hold-up.
+`[to:: ]` is who does the work: `Plan agent`, `Implement agent`, or a person's name
+from `people.md`. It is optional: most of the list is work you are doing yourself,
+and a task without it shows nothing. It replaced `[ai:: ]` on 21 September 2026,
+which said how much of a task Claude could do; a backup that still carries `ai:` is
+read and the tag dropped. It works on a sub-step as readily as on a task, and never
+comes down from the task to its steps. When it is set on a person, the name
+appears on the card as an arrowed chip in the accent colour, so scanning a column
+tells you what is with somebody else without opening anything.
 
-`[to:: ]` is who the task has been handed to. It is a person's name, and it is
-optional: most of the list is work you are doing yourself, and a task without it
-shows nothing. It is deliberately separate from `[ai:: ]`, which says whether
-Claude is doing the work. The two answer different questions, and a task can
-easily be delegated to somebody and still be drafted by Claude first. When it is
-set, the name appears on the card as an arrowed chip in the accent colour, so
-scanning a column tells you what is with somebody else without opening anything.
+A sub-step carries every tag a task does. Two are its own: `id:` (six characters,
+so something outside the file can point at it) and a bare `doing`, for an agent
+working on it now. What it does not carry it takes from its task: the due date, the
+impact, `urgent` and `week`. Handing a task over lays four of them out with a
+slug each, made from the task's id and the step.
 
-**Waiting for review** holds work that is finished as far as you are concerned and is
-now sitting with somebody else for sign-off. Nothing is owed on it until it comes
-back, which is a different thing from Doing (live) and from Backlog (real work,
-unscheduled). It appears first in each bucket in the file and last before Done on
-the board, because the two orders are mirrors of each other.
+**Reviewing** holds work that is finished as far as you are concerned and is now
+sitting with somebody else for sign-off, or with you, on a review sub-task. Nothing
+is owed on it until it comes back, which is a different thing from Doing (live) and
+from Backlog (real work, unscheduled). It was Waiting for review until
+21 September 2026, and Blocked, which sat beside it, went into it: a task waiting on
+another task uses `blocked-by:` instead.
 
 ### Two tag syntaxes
 

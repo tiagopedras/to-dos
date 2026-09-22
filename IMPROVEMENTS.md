@@ -18,7 +18,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **The plans stream's `production` field is written and checked by `stream.py` but not declared in `stream.json`, so the shared work-streams package cannot see it.**
+- ~~**The plans stream's `production` field is written and checked by `stream.py` but not declared in `stream.json`, so the shared work-streams package cannot see it.**~~ **Done, 22 Sep 2026.** Gone with the stream: `stream.py` and its manifest were deleted in stage 8 and a plan no longer carries `production:`.
   `PRODUCTION` (`agents/plan-agent/stream.py:83`) lists the four stages and `FM_KEYS` (`:84`)
   carries the key, but `agents/plan-agent/stream.json` names it under neither `fields` nor
   `states`. The board and `do` read it directly. To be discussed before anything is built: does
@@ -539,7 +539,7 @@ they settled is written up in the README rather than left here:
 
 ## Big
 
-- **An agent's part of a task has nowhere to live on the card, so planning and implementing are tracked on a separate board.**
+- ~~**An agent's part of a task has nowhere to live on the card, so planning and implementing are tracked on a separate board.**~~ **Done, 22 Sep 2026.** Built as stages 4 to 8 of the one-board plan: sub-tasks in the format, their drawer, the agents' tick queue, handover and approval on the card, and the Plans tab gone. `CLAUDE.md`, "One board", says where it stands.
   Agreed 21 Sep 2026 between two sessions and Tiago: planning and implementing become
   sub-tasks of the task they serve. Handing a task to the Plan agent moves the card to Doing
   and adds four sub-tasks, each `blocked-by` the one before, on the dependency model the list
@@ -706,7 +706,7 @@ they settled is written up in the README rather than left here:
   so it stays the one writer, and the discovery walk over `~/Code` should not ship in the
   board.
 
-- **A task handed to an agent leaves the board it was on, and the Board and Plans then give two answers about where it is.**
+- ~~**A task handed to an agent leaves the board it was on, and the Board and Plans then give two answers about where it is.**~~ **Done, 22 Sep 2026.** Stage 2 and stage 8: Reviewing replaced Waiting for review, Blocked and Handed to AI went, and the Plans tab went with them.
   `boardColumns()` (`kanban/js/02-state.js:337`) splices the synthetic `AI_COL`
   after Doing for anything tagged `ai:: full`, while the task keeps its real tier
   underneath, so "Create a DS" reads Handed to AI on Board and Doing on Plans. The
@@ -773,7 +773,7 @@ they settled is written up in the README rather than left here:
   never owns a task and so never appears on a card, and in a task's history every agent
   is named the same way, built or shipped.
 
-- **"Who does it" and "Delegated to" are two fields for one question, and only one of them says what the agents should do.**
+- ~~**"Who does it" and "Delegated to" are two fields for one question, and only one of them says what the agents should do.**~~ **Done, 22 Sep 2026.** Stage 1: `[to::]` is the one field and `ai:` is dropped on read. The personal and pet-projects lists still carry a few `ai:` tags, which is its own entry.
   The drawer draws a step slider for `ai:` (`AI_STOPS`, `kanban/js/19-drawer.js:148`,
   the field at line 939) beside a free-text input for `to:` (`f-to`, line 943), and
   everything the agents act on reads `ai:`: `delegateSection()` in
@@ -975,7 +975,7 @@ they settled is written up in the README rather than left here:
   and `#delegate` already went there. Every check in `kanban/test_reports.mjs`
   but two came across untouched.
 
-- **Done is not a column, it is the tick read sideways, and that makes the tick
+- ~~**Done is not a column, it is the tick read sideways, and that makes the tick
   carry two facts at once.** `DONE_COL` (`kanban/js/02-state.js:283`) is
   synthesised onto the end of the column list by `boardColumns()` (`:344`) and
   kept out of `tierOrder()` entirely, so a card is "in Done" only because
@@ -1137,7 +1137,7 @@ they settled is written up in the README rather than left here:
   accepted plan it is what he wants kept in mind while building.
 
 - ~~**The plan modal reads a plan as one long document, when it should split
-  into a history column, a summary, and two tabs.**~~ **Done, 15 Sep 2026.**
+  into a history column, a summary, and two tabs.**~~ **Done, 15 Sep 2026.**~~ **Done, 22 Sep 2026.** Stage 3: Done is a `### Done` heading first in every bucket, and both format files gather a ticked task under it on read.
   Built from the spec below rather than the frames, since Figma was not
   reachable that night. `plan_meta()` now splits each History line through
   `history_entry()` into a note and the send-back reason; `planSections()`

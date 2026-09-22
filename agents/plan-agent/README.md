@@ -3,12 +3,12 @@
 Overnight, this reads the to-do list, picks every task Claude could help with,
 and sets one sub-agent per task to work out what doing it would actually involve.
 It writes a plan for each and stops. **Nothing it produces has been done.** In the
-morning the plans are waiting in the board's Plans tab, with a notification from
-the companion saying they are there, and each one runs only if Tiago says so.
+morning the plans are waiting behind a Review the plan sub-task on each task's card
+(there is no Plans tab since 22 Sep 2026), with a notification from the companion
+saying they are there, and each one runs only if Tiago approves it.
 
-The problem it solves is not that the work is hard. Open tasks tagged
-`[ai:: full]` are ones Claude could do most of, and almost none get handed
-over. What stops it is the half hour of reading
+The problem it solves is not that the work is hard. Open tasks Claude
+could do most of are many, and almost none get handed over. What stops it is the half hour of reading
 and working out that has to happen before the handover, and that half hour never
 has a good moment. This does it at two in the morning instead.
 
@@ -138,46 +138,44 @@ counts blocks within one session and restarts per transcript.
 
 ## What gets planned
 
-Every open, top-level task tagged `[ai:: full]`, minus three exclusions — the same three `companion/digest.py` applies, because two readers of
-one list disagreeing about what is actionable is worse than either answer:
+Every task that has been **handed to the Plan agent** and still has its Plan
+sub-task open, minus three exclusions — the same three `companion/digest.py`
+applies, because two readers of one list disagreeing about what is actionable is
+worse than either answer:
 
 - **Reviewing.** The next move belongs to somebody else.
 - **An unticked `blocked-by:`.** The blocker is the real task.
 - **A `start:` that has not arrived.** It cannot begin yet.
 
+Handing a task over is his act, in the board's drawer, and it lays four sub-tasks
+out on the card: Plan (this agent), Review the plan (him), Implement, Review the work
+(see `CLAUDE.md`, "One board"). The picker plans a task through its Plan sub-task
+when that is open, assigned to the Plan agent, and what it waits on is ticked; a
+ticked Plan means the plan is written, and an unticked one after a review means it
+was sent back. The mark of a handover is the slug it makes, the task's id and
+`-plan`. `[to:: Plan agent]` on a task nobody handed over is **not planned** since
+22 Sep 2026: its plan would have nowhere to be read, and `[ai:: full]`, which used to
+be the tag, is gone from the format.
+
 `due:` is deliberately not consulted. A deadline says when something must be
 finished, not whether it is worth thinking about tonight.
 
-`[ai:: partial]` was in scope until 6 Sep 2026 and is not any more. The tag is
-his own judgement about whether the work can run mostly without him, and a task
-he has not judged that way should not be spending a night's capacity ahead of
-one he has. A task passed over for its tag is named in the board's "not
-eligible" fold with the reason; `[ai:: none]` is not, since that one is his own
-statement that the task is his and the card already says so.
-
 ## What happens to a plan afterwards
 
-A plan carries a `state:` and an `owner:` saying who is expected to move it
-next, the same pair every queue in `~/Code` now shares:
+Nothing is recorded on the plan. A plan is a document that holds content; where it
+stands is the state of the sub-tasks on its task, and there is no `state:`,
+`owner:` or `seen:` in it any more. When the plan is written the agent asks for its
+Plan sub-task to be ticked, through `core/tick_queue.py`, and the board applies the
+tick the next time it opens, putting a `Plan:` note on the Review the plan sub-task
+so that opening it can read the file. He approves it (the review is ticked, which
+unblocks Implement) or sends it back (the Plan is unticked with a `feedback:` note
+under it, which the next night reads as the reason).
 
-| State and owner | What it means |
-| --- | --- |
-| `review` / `me` | Waiting on him. `seen:` says whether he has opened it yet |
-| `ready` / `implement-agent` | Approved to be carried out. `implement-agent` picks these up, and the picker leaves the task alone until the work is done |
-| `ready` / `plan-agent` | Sent back, with `feedback:` saying why. The task is planned again on the next run and the agent is handed the reason, so the second plan is not the first plan |
-| `done` / `me` | Finished, with `resolution:` saying how: `actioned`, or `superseded` where a later plan replaced it |
-
-Five separate words did this until 11 September 2026: `unread`, `read`,
-`agreed`, `redo`, `actioned`. Two of them said the same thing about the plan —
-an agent has the green light — and differed only in which agent. Folding them
-into one state with an owner is what stops a third agent needing a sixth word.
-
-They are no longer known in several places that have to be edited together. The
-vocabulary lives in `agents/plan-agent/stream.json`, this stream's manifest,
-and the shape it belongs to is `PACKAGES/work-streams/CONTRACT.md`. The one
-thing that writes it is `agents/plan-agent/stream.py --apply`, which writes the
-plan file and its ledger row in the same call because the two are read by
-different things and neither can be derived from the other.
+The ledger is what stops tomorrow night planning the same task again before the
+board has been opened and the tick applied: each row holds the fingerprint of the
+task as it was planned, and a plan is owed again only when that changes. Ticking the
+Plan, a review's feedback note and a sub-task added by handing the task over again
+all change it.
 
 The acting half is `implement-agent`, in `agents/implement-agent/`. There is one
 of it rather than one per bucket, because the per-bucket knowledge lives in the
@@ -217,75 +215,21 @@ files and the whole thing is ignored inside a week.
 The hash covers the task's notes, not just its title, because a new sub-step or a
 rewritten note makes last night's plan stale without touching the title.
 
-## The order is his, and so is what gets held back
+## The order
 
-The board's Plans view opens with the queue — the same `pick.select()` this
-runner calls, run against `todo.md` as it stands the moment the column is drawn.
-Nothing is queued in advance and nothing is stored, so the column cannot
-describe a different night from the one that happens: tick a task off at 23:00
-and it is gone from the queue before the run starts.
+The queue is `pick.select()`, run against `todo.md` as it stands. Nothing is queued
+in advance and nothing is stored, so it cannot describe a different night from the
+one that happens: tick a task off at 23:00 and it is gone before the run starts.
 
-Dragging a card there writes `plans/queue-order.json`, which is the one thing
-that persists:
-
-```json
-{ "order": ["The one to do first", "…"], "hold": ["Not tonight"] }
-```
-
-Order matters because the batch stops on a budget, a window floor or a usage
-limit — the front of the queue is the part that reliably gets planned, and the
-back is the part that might not. A task he has never ranked queues *behind* what
-he has, rather than in front of it, so an ordering set last week survives a new
-task appearing today.
-
-`hold` is the other half: a held task is not planned at all. It beats `--all`,
-which exists to ignore the ledger — the ledger is a cache and a hold is an
-instruction. It is also the only way to say "not this one" without editing
-`todo.md`, which the board must not do from this view and does not.
-
-Neither list decides what the queue *contains*. Every rule above still does, so
-a title in the file that has since been ticked off, blocked or renamed is never
-matched and there is nothing to prune. Titles rather than ids, because titles
-are already what the ledger keys on; retitling a task loses its place in the
-order the same way it loses its ledger row, and costs one plan.
-
-Only a drag writes an ordering. Holding a card writes the hold and leaves
-`order` exactly as it was, which is a distinction that had to be learned: until
-5 Sep 2026 a hold saved the whole visible list too, so touching one card stamped
-whatever order the picker happened to produce into the file as though it had
-been chosen. It then outranked every rule below, permanently, and nothing on
-screen said so.
-
-The file is a preference. Delete it, or never write it, and the queue falls back
-to the rules.
-
-### What the queue falls back on
-
-Everything he has not ranked is sorted by the list's own rules, in `in_order`.
-Four keys:
-
-1. **What he dragged**, above.
-2. **The headline.** One task carries `headline:` and it is the one that makes
-   the others easier or unnecessary. Planning anything ahead of it is planning
-   the wrong task.
-3. **The date.** `PA.md` is explicit that a date beats a score, because the
-   tasks carrying real dates are the people ones and their consequences land on
-   somebody else. Overdue first, then soonest, with recurrence rolled forward in
-   memory so a fortnightly 1:1 sorts on the meeting it actually points at.
-
-   This is not `due:` deciding *whether* to plan something, which `pick.py`
-   rules out and this does not change. A deadline still hides nothing. It only
-   says what to reach first when the budget runs out before the queue does.
-4. **Impact against effort**, highest first, out of `core/todo.py` so it is the
-   same arithmetic the board draws. Unscored sorts last, which is right: nobody
-   has said the task is worth a night.
-
-**Bucket is not a key at any level**, and that is the point. The fallback used
-to be file order, file order is bucket order, and the first full batch on 5 Sep
-2026 spent its entire budget on Design System while People, Strategic and
-Processes got nothing at all. Sorting on merit is what interleaves them, so a
-night that stops early is a thin spread rather than one bucket finished and
-three unstarted.
+Order matters because the batch stops on a budget, a window floor or a usage limit —
+the front of the queue is the part that reliably gets planned, and the back is the
+part that might not. `in_order()` sorts on three keys, the headline first, then the
+date (a date beats a score), then impact against effort. Bucket is deliberately not
+a key: the first full batch, on 5 Sep 2026, spent its whole budget on Design System
+because the fallback was file order. There was a fourth key ahead of these, the order
+he dragged cards into on the Plans view, stored in `plans/queue-order.json` with a
+list of tasks to hold back; both went with that view on 22 Sep 2026. Not planning a
+task now is not handing it over, or taking the agent off it.
 
 ## What the usage chart is drawn against
 

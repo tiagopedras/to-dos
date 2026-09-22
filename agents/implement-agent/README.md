@@ -47,30 +47,21 @@ is the wrong one to be it because it is the one running unattended stretches.
 
 ## How work reaches it
 
-Through the Plans view. It had a board of its own, Execution, from 12 Sep 2026
-until the two were folded into one on 13 Sep, and since then
-the plan carries both halves: `state: accepted` says he agreed to it, and
-`production:` says how far this half has got.
+Through the card. Handing a task to an agent lays sub-tasks out on it (Plan, Review the
+plan, Implement, Review the work, see `CLAUDE.md`, "One board"), and the work waiting
+for this agent is the Implement sub-task: assigned to it, open, with what it waits on
+ticked, which for a task that went through the Plan agent means he has approved the
+plan. A task handed straight to the Implement agent has only the last two, and the
+task itself is the brief. There is no plan `state:` or `production:` any more, and the
+board that showed them, first as Execution and then as part of Plans, is gone.
 
-Accepting a plan on the Plans view leaves it at `production: none`, where nothing
-happens to it. `do` is what picks one up, and it hands the agent the plan
-path, the task's bucket and column, and the bucket's brief. The agent writes what
-it did into the plan itself; the driving session writes the two transitions
-around that, since this agent holds no Bash tool and never could run a writer.
-Accepting what was produced is his press on the board, not the agent's.
-
-**There is no stream here any more.** Until 13 September 2026 this folder owned
-one: accepting a plan minted a run document into `data/<dataset>/runs/`, which
-landed in a board of its own. That board and this stream were folded into Plans —
-see `CLAUDE.md` — and what is left here is the agent definition and this README.
-The plan is now both the instruction and the record, and the two transitions the
-work passes through are written by the session driving it, through `do`, on
-the plans stream. `core/migrations/migrate-fold-runs-into-plans.py` is what moved
-the documents.
-
-The vocabulary is not scattered across files that have to be edited together. It
-lives in `stream.json` beside this, and the shape it belongs to is
-`PACKAGES/work-streams/CONTRACT.md`.
+`do` is what picks one up, and it hands the agent the plan path (the `Plan:` note
+under the review above it), the task's bucket and column, and the bucket's brief. The
+agent writes what it did into the task's project folder; the driving session then
+queues the tick on the Implement sub-task through `core/tick_queue.py`, since this
+agent holds no Bash tool and never could run a writer, and the board applies it the
+next time it opens, moving the card to Reviewing. Approving what was produced is his
+tick on Review the work, and sending it back unticks Implement with a note.
 
 ## Where the rest of it is written down
 

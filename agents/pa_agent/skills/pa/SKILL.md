@@ -88,9 +88,9 @@ Whenever you have the whole file open, look for these and raise them without bei
 
 **Work that should not be done at all.** A task that has sat untouched for three sessions, or whose reason no longer holds, or that exists because of a decision that has since changed. Say so and offer to cut it. Cutting one real task beats reordering ten.
 
-**Work that can be handed over.** Anything currently `ai:none` or `ai:partial` that could move to `ai:full` now that something else exists, for example a rubric being defined, a snapshot being taken, a format being settled. Retag it, say why, and write its prompt and its `rank:` onto the task in the same move, since Delegate to Claude is generated from those two. Also offer to just do the `ai:full` work in this session rather than leaving it queued, since a delegable task sitting in a Delegate list is not actually delegated.
+**Work that can be handed over.** Anything nobody has an agent on that could go to one now that something else exists, for example a rubric being defined, a snapshot being taken, a format being settled. Say why, and offer it; handing it over is his act, on the card, and it lays out the sub-tasks. Also offer to just do the work in this session rather than leaving it queued.
 
-The reverse matters as much. When something moves **off** `ai:full` back to `ai:partial` or `ai:none`, delete its prompt and its `rank:` at the same time. A prompt left on a task he has taken back reads as a standing instruction to hand it over, and the next session will believe it. The board does this automatically when the tag is changed there.
+The reverse matters as much. When something is taken back off an agent, delete its prompt and its `rank:` at the same time, and take the agent's sub-tasks with it. A prompt left on a task he has taken back reads as a standing instruction to hand it over, and the next session will believe it. The board does this automatically when the assignee is changed there.
 
 **Work that is really several tasks, or several that are really one.** An L-effort task with no sub-steps usually means he cannot start it because the first step is undefined. Break it down. Two tasks that touch the same file, the same person or the same meeting usually want merging or at least batching.
 
@@ -121,6 +121,11 @@ So the whole update is the tag:
 | How much it matters, how heavy it is | `[impact:: high\|med\|low]` plus `[effort:: S\|M\|L]` |
 | When it must be finished | `[due:: YYYY-MM-DD]` |
 | Who does it | `[to:: Plan agent\|Implement agent\|<a name from people.md>]`, plus `rank:N` on an agent's |
+| Handing a task to an agent | the four sub-tasks the board's Delegate to lays out, written by hand only if he asks you to: Plan, Review the plan, Implement, Review the work, slugs `<task id>-plan`, `-plan-review`, `-implement`, `-work-review`, each `blocked-by:` the one before, each with its own `id:`, the reviews `[to:: Tiago]`, and the task in Doing |
+| An agent working on a sub-task now | a bare `` `doing` `` on that sub-task, its only state tag; unticked is To do and the tick is Done |
+| A plan he has sent back | a `- feedback: …` note under the Plan sub-task, which is unticked, so the next night plans it again |
+| A plan's file | a `- Plan: plans/<file>.md` note under the Review the plan sub-task |
+| That it is finished | tick it, and move it under the bucket's `### Done` heading in the same edit (the board does it on its next save if you do not) |
 | When it can first be started | `start:YYYY-MM-DD`, only where something real gates it |
 | The one thing for now | `headline:YYYY-MM-DD`, the date it was set |
 | What is in this week | `week` |
@@ -168,7 +173,7 @@ Some of the list comes round on a cycle rather than being finished once: the sta
 **How a recurring task works, so you do not fight the board over it.** One tag and one card.
 
 ```
-- [ ] **Prepare for 1:1 with Morgan** [impact:: med] [effort:: S] [due:: 2026-09-02] [ai:: partial] `repeat:wed-9:15`
+- [ ] **Prepare for 1:1 with Morgan** [impact:: med] [effort:: S] [due:: 2026-09-02] `repeat:wed-9:15`
 ```
 
 `repeat:wed` is every Wednesday, `repeat:wed-9:15` adds the time, `repeat:15` is the 15th of every month, `repeat:wd5` is the fifth working day of every month — for something dated by working days rather than by the calendar, which the AOP status update is — and `repeat:tue2` is the 2nd Tuesday of every month, for something pinned to a weekday rather than a day of the month, taking a time the same way: `repeat:tue2-15:00`. A `~` in front of any of them, `repeat:~fri-15:00`, says the day is the usual shape rather than a rule, for a meeting that is real but gets rebooked. `[due:: ]` is the occurrence the card is currently pointing at.
@@ -292,7 +297,7 @@ template that tried to would be a second copy of them.
 
 **A task keeps rolling over without progress.** Name it once, without nagging. Three sessions untouched usually means it belongs in Backlog with a revisit date, or it needs breaking down because it is too big to start. Offer both readings and let him pick.
 
-**He asks what to work on.** The headline is the answer. Give it in one line, then the runners-up: what is due soonest, what is blocking someone else, and what is `ai:full` and could be handed over instead of scheduled. That last one is often the most useful.
+**He asks what to work on.** The headline is the answer. Give it in one line, then the runners-up: what is due soonest, what is blocking someone else, and what could be handed to an agent instead of scheduled. That last one is often the most useful.
 
 **A new task obviously matters but the effort is unknowable.** Score the impact, and say plainly that the effort needs the first step defined before it can be guessed. Then define that first step as a sub-step. Do not guess L to be safe: an L with no sub-steps is the exact shape of a task he never starts.
 

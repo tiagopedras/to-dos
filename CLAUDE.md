@@ -77,9 +77,11 @@ with none of them.
 
 ## The planning agent
 
-`agents/plan-agent/` runs overnight, sets one sub-agent per task tagged `[ai:: full]` or
-`[ai:: partial]`, and writes a plan for each into `data/<dataset>/plans/`. It
-proposes and never executes. Read [agents/plan-agent/README.md](agents/plan-agent/README.md) before
+`agents/plan-agent/` runs overnight, sets one sub-agent per task with an open Plan
+sub-task assigned to it, and writes a plan for each into `data/<dataset>/plans/`. It
+proposes and never executes. A task reaches it by being handed over on the board,
+which lays out the sub-tasks (see below); `[to:: Plan agent]` on a task nobody
+handed over is not planned. Read [agents/plan-agent/README.md](agents/plan-agent/README.md) before
 changing any of it — particularly the schedule and its floor, which are the
 whole of what keeps it out of the working day.
 
@@ -96,9 +98,10 @@ Two things to keep true:
 - **It never writes `todo.md`.** Same reason as the companion, and more so,
   because it runs unattended. `plan.py` hashes the file before the batch and
   checks it after every task; that guard is not decoration, and a change that
-  makes it noisy should be fixed rather than removed. The board's queue column
-  is held to the same rule: reordering or holding a task writes
-  `plans/queue-order.json` and nothing else.
+  makes it noisy should be fixed rather than removed. When it finishes a plan it
+  asks for the Plan sub-task to be ticked through `core/tick_queue.py`, the queue
+  the board drains on load, and the board applies the tick only from the agent
+  the sub-task is assigned to.
 - **The hours it is set to are the only thing keeping it out of the morning.**
   There was a second gate until 9 Sep 2026 — it would only spend in a usage
   window that expired before 07:00 — and it went because a window moves with
@@ -143,89 +146,86 @@ holds the detail. Three things about it are load-bearing:
   because it is the one running unattended stretches.
   Everything else in this repo still writes through a queue file or not at all.
 
-Work reaches it through the Plans view. It had a board of its own, Execution,
-from 12 Sep 2026 until the two were folded into one on 13 Sep — see below.
+Work reaches it through the card: a sub-task assigned to it, open, with what it
+waits on ticked, which is what the `do` skill finds. It had a board of its own,
+Execution, from 12 Sep 2026 until the two were folded into one on 13 Sep, and the
+board that replaced both went on 22 Sep 2026 — see below.
 
-## The two boards, and why they are one shape
+## One board, and where an agent's part of a task lives
 
-Board and Plans. Both read Backlog, To do, Waiting for review, Done, and on
-both **where a card sits is the instruction** rather than a
-label describing one. Backlog means leave it alone. To do means pick it up, and
-means it again for something already done once. Waiting for review is the
-agent's own column, which is why it takes no drops and draws with a dashed edge.
+There is one board, and a task keeps its card from the moment it is written until
+it is finished, whoever does the work. Two rules, agreed 21 Sep 2026 and built on
+the `one-board` branch in nine stages (`handover-one-board.md` is the plan and the
+order):
 
-One shape means one object, not a family resemblance. Since 12 Sep 2026 every
-column in the app is an instance of `colHTML()` in `kanban/js/09-columns.js`,
-so the fill, the border, the radius, the 322px width, the 12px gap, the header
-padding and the body padding are settled once. What a view chooses is which
-optional parts its heads carry — a hint, a sort control, a count, an action
-button, a filter, a description — and what goes in the bodies. Plans
-had its own `.listcard` with outer padding and no divider until then, and the
-board's shape won because it is the denser and more-used surface. The same pass
-made the dash mean exactly one thing in the app: an agent owns this column.
+1. **A column says the state of the card.** Backlog, To do, Doing, Reviewing, Done.
+2. **Who does the work is the task's or sub-task's assignee, `[to::]`, never the
+   column.** Handed to AI and Blocked went, and so did the header filter that
+   drove the first. Reviewing was Waiting for review.
 
-Every column, not only these three. Overview's sections, Matrix's two, the
-Timeline, both halves of Reports, Backups, Projects and the two reference cards
-in the Spend modal were all `.listcard`s of their own until the same date, and
-all of them are columns now. Two things came with them. A control that narrows
-or orders a column lives in its head rather than at the top of its body, which
-is where Reports' window picker, Matrix's "Hide Waiting for review" and Projects'
-order select went. And `colHTML()` grew the one part those views needed that a
-board column never did — `collapsible`, which draws the column as a `<details>`
-whose `<summary>` is the head — because five columns of prose open at once is a
-lot of scrolling, and Overview holds seven of them since the report columns
-joined it. The Figma `Column` and `Column header` components carry the
-same set, and the two are meant to be changed together.
+**Where a card sits is the instruction**, on every column. Backlog means leave it
+alone, To do means pick it up, Doing means it is live, Reviewing means the work is
+done and someone has to look, Done means the tick. Done is a real `### Done`
+heading first in every bucket (the board draws headings the other way round, so it
+is the far right). The tick and the heading move together: `setDone()` moves a card
+to the top of Done and one unticked there to the top of To do, and
+`gatherDone()` in `core/todo.js`, with `gather_done()` in `core/todo.py` in the same
+order, does it for a file written before that was true, so an old backup reads the
+same. The old headings load as the new ones (`TIER_RENAMED`, in both format files).
 
-Plans carries seven columns rather than four, and reads
-**Backlog → To do → Doing → Waiting for review → Ready to be produced →
-Producing → Done**. Doing was a Status block inside To do that renamed the
-column and hid its queue; a run in flight and a queue waiting to run are two
-answers. Ready to be produced is the old Done saying what it is, and Done
-behind it is new. Producing arrived 16 Sep 2026 and is described below. The
-board's six and Plans' seven are not the same words, and that is honest: a
-task and a plan about it do not move through the same stages.
+One shape means one object, not a family resemblance. Every column in the app is an
+instance of `colHTML()` in `kanban/js/09-columns.js`, so the fill, the border, the
+radius, the 322px width, the 12px gap, the header padding and the body padding are
+settled once. What a view chooses is which optional parts its heads carry — a hint,
+a sort control, a count, an action button, a filter, a description — and what goes
+in the bodies. That covers Overview's sections, Matrix's two, the Timeline, both
+halves of Reports, Backups, Projects and the two reference cards in the Spend and
+schedules sheet. A control that narrows or orders a column lives in its head, which
+is where Reports' window picker, Matrix's "Hide Reviewing" and Projects' order select
+went, and `colHTML()` has `collapsible`, which draws the column as a `<details>`
+whose `<summary>` is the head. The Figma `Column` and `Column header` components
+carry the same set, and the two are meant to be changed together. The dash means
+exactly one thing in the app, that an agent owns a column, and nothing on the board
+is dashed now.
 
-A card on Plans is a plan, and since 13 Sep 2026 it carries both halves of the
-pipeline: `state: accepted` says he agreed to it and `production:` says how far
-the implementing agent has got. There were two documents until then — accepting a
-plan minted a run onto a board of its own — and the reason given was that
-`PACKAGES/work-streams/CONTRACT.md` allows one `state:` per file. That is an
-argument for one document with a longer column set, not for two boards.
+**An agent's part of a task is sub-tasks on the task's card.** Handing a task over
+is his act: choosing an agent in the drawer's Delegate to calls `handOver()`
+(`kanban/js/04-tier-two-the-one-thing.js`), which moves the card to Doing and lays
+out, under the task, four sub-tasks each blocked by the one before — Plan (Plan
+agent), Review the plan (him), Implement (Implement agent), Review the work (him) —
+or the last two, if it goes straight to the Implement agent. The slugs are made from
+the task's id and the step (`ab12cd-plan`, `-plan-review`, `-implement`,
+`-work-review`), which is also what marks a task as handed over, and every sub-task
+has an id of its own. A sub-task carries every tag a task does, read by the same
+`readTags()`, plus a bare `doing` for an agent working on it now; what it does not
+carry it takes from its task (`inheritedFields()`: due, impact, urgent, week), and
+never the tick, the assignee or anything an agent writes. It opens in the drawer by
+its id (`openSubtaskDrawer()` in `19-drawer.js`), faded where it is the task's.
 
-Every queue in `~/Code` shares one shape since 11 Sep 2026: seven states, and an
-owner saying who is expected to move the item next. The stream's own words live
-in its manifest — `agents/plan-agent/stream.json` — and the only thing that
-writes it is `stream.py --apply` beside it. The board asks; the stream writes.
+Approving is ticking a review, and sending back unticks what is before it with a
+`feedback:` note under it, so the agent takes it up again and the review blocks
+again. Only Implement moves the card: ticked, it goes to Reviewing, and unticked by
+a send-back it goes back to Doing. A card shows "your move" while a sub-task
+assigned to him is open with its blocker ticked, and its column's head counts them;
+it is worked out each time and never stored.
 
-**There was a second stream until 13 Sep 2026** and there is not now. Accepting a
-plan minted a *run* into `data/<dataset>/runs/`, which landed in Execution's
-Backlog and sat there until it was dragged across — a gate that filtered nothing
-and was simply a step to remember. The two boards are one, the runs are folded
-onto the plans they came from by
-`core/migrations/migrate-fold-runs-into-plans.py`, and `agents/implement-agent/`
-is now the agent definition and its brief, with no stream of its own.
+**Agents never write `todo.md`.** They queue "tick sub-task <id>" in
+`data/<dataset>/tick-queue.json` (`core/tick_queue.py`, appended and removed by id
+under a lock), served at `/tick-queue.json`, and the board drains it when it loads
+(`drainTickQueue()` in `10-reference-sections.js`): a tick is applied only from the
+agent the sub-task is assigned to, one for a sub-task still waiting on a blocker is
+refused, and a written plan says where it is through a `Plan:` note on the review
+behind it. Nothing shows until the board is next opened.
 
-What carries the second half is a field rather than more states, because the
-contract allows one `state:` per document: `production:` on an accepted plan says
-whether it is `none`, `doing`, `review` or `done`. All four drew in Ready to be
-produced as a mark on the card until 16 Sep 2026, on the argument that the
-implementing agent only ever runs from a session he is sitting in, so there is
-never a card to watch move on its own.
-
-**One of the four is a column now**, Producing, drawn from `production: doing`.
-The other three keep their mark and their place. It is the one column in the app
-that takes cards and gives none back: dropping a plan on it posts
-`production: doing` through `/stream/apply` — the stream has always accepted
-that field, so no new route — and then opens the session carrying it out, the
-same `/plans/start-session` the card's own button posts, so the drag and the
-button are one gesture rather than two. Only if the move landed: a session
-against a plan the stream refused would be a window doing work the board does
-not believe is happening. The cards inside it are not draggable, because
-what happens next is the agent reporting back or the work finishing, and neither
-of those is a card to move by hand. `planColumn()` in `kanban/js/13-plans.js` is
-where the rule sits, one function the renderers, the drop handlers and the counts
-all read.
+**Plans is not a board.** It was seven columns of its own, with `state:` and
+`production:` in each plan's frontmatter, from 12 Sep to 22 Sep 2026. A plan is a
+document now that holds content and nothing about where it stands: the sub-tasks are
+the only place that lives, `stream.py` and its manifest are gone, and `plan.py` no
+longer writes `state`, `owner` or `seen`. A plan is read from the review sub-task
+behind it (`openPlanReader()`), and one whose task has gone gets a line in
+Overview's Context column. An old `#plans` link lands on the board. What the view
+alone reached, the Spend and schedules sheet and Run the Plan agent now, is in the
+Data menu (`13-agent-run.js`).
 
 ## The React half, and why it is only a half
 
@@ -234,9 +234,10 @@ name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
 built to `kanban/dist/board-ui.js`, which is where the build step above comes
 from. Under it sit `Column` and `Card`, the two primitives every view is
 written against, plus `mount()`, `mountFlushed()` and `unmount()`. Eight views
-are ported: Projects, Backups, the two report columns, Overview, the Matrix and
-the Timeline, Plans, and the Board itself (19 Sep 2026, below), and since
-20 Sep 2026 the bodies inside Overview and the Matrix are components too. What
+were ported: Projects, Backups, the two report columns, Overview, the Matrix and
+the Timeline, Plans (which went again on 22 Sep 2026), and the Board itself
+(19 Sep 2026, below), and since 20 Sep 2026 the bodies inside Overview and the
+Matrix are components too. What
 is still built as strings is the drawer, the header chrome (headline, filter
 bar, both tab strips), the conflict modal, the message, agenda and Jira notes
 under an Overview card, and the Timeline's body. All of it sits behind one
@@ -248,18 +249,15 @@ new column: it is the same markup `colHTML()` (`kanban/js/09-columns.js`) emits,
 element for element and class for class, and `Card` is `cardShellHTML()`'s the
 same way. One stylesheet answers for both while the port is half done, which
 only works while they agree. `kanban/ui/test_primitives.mjs` is what holds them
-to it — it renders 37 cases both ways and fails on any difference, with no
+to it — it renders 50 cases both ways and fails on any difference, with no
 browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
 `document`. **Change one of the four and change the other**, the same rule
 `core/todo.js` and `core/todo.py` already live under.
 
-The last three of those cases are a different kind, and they are what to copy
-when the next builder goes. `planItemHTML()` has no twin left to be compared
-against — `PlanCard` replaced it outright — so those cases render the card
-against `cardShellHTML()` given the rows a plan carries, written out longhand.
-It is the shape being pinned rather than a second implementation, which is what
-still catches a row moving out of the card or picking up a wrapper on the way
-through.
+The last three of those cases, which pinned `PlanCard` against `cardShellHTML()`
+given the rows a plan carries, went with the Plans view. They were the model for a
+component with no string twin left to be compared against: render it against the
+shared shell written out longhand.
 
 The port can be incremental because every view already owns `#lists` wholesale:
 a ported view calls `BoardUI.mount()` where it used to assign to
@@ -267,8 +265,7 @@ a ported view calls `BoardUI.mount()` where it used to assign to
 work can stop at any stage with a working board.
 
 **Projects went first**, 13 Sep 2026 — the smallest leaf view, and the one
-nothing else is about to rewrite. Execution is smaller still and was skipped on
-purpose: entry 558 folds it into Plans, so porting it would be work thrown away.
+nothing else is about to rewrite.
 Two rules came out of doing it, and both apply to every view that follows:
 
 - **A React view owns a node it created, not `#lists`.** The unported views
@@ -289,53 +286,15 @@ Two rules came out of doing it, and both apply to every view that follows:
 `kanban/test_projects.mjs` covers both, on top of the 44 checks that passed
 through the port unchanged — which is the real evidence the markup did not move.
 
-**Plans went next**, 13 Sep 2026, in two passes the same day. The first drew
-the six columns and nothing inside them, mounted once and never re-rendered,
-with the bodies still arriving as HTML from sixteen `innerHTML` assignments in
-`13-plans.js`. The second took all sixteen at once, which is the only way that
-half could be taken: a half-ported view that re-renders is the one arrangement
-that would silently drop a column. There is now one `plansProps` object holding
-every body, and one `paintPlans()` that renders it — and nothing, in this file
-or any other, assigns into the tree by id. `renderStatus()` in `14-schedule.js`
-used to, and hands its markup to `setPlansStatus()` instead.
+**Plans went next**, 13 Sep 2026, and was deleted on 22 Sep 2026 with the tab.
+Everything it taught is in the rules above: a view owns a node it made, the
+orchestration stays in `kanban/js/`, and every handler is a prop, so nothing queries
+after a paint. `ColumnFilter` (`kanban/ui/ColumnFilter.tsx`), which it drew its
+filters with, stays as a component nothing uses yet.
 
-Nothing on Plans is built as a string any more, as of 19 Sep 2026. The
-bodies the four fetches fill are data on `plansProps` (`liveRun`, `orphan`,
-`queueError`, `doingEmpty`, and the two filters as `ColumnFilterProps`), and
-`PlansView` turns each into markup, using Tenon's `Alert` and `ColumnEmpty`.
-The board's classic scripts have no JSX, so they hand over a shape to fill in
-rather than assembling elements by hand. Each fetch still paints as it
-arrives, because a paint redraws all of `plansProps` from the one object.
-The one exception is a plan card's summary, which stays `summaryHTML` because
-the board's `mdInline()` knows `[text](url)` links and `[placeholder]` markers
-that Tenon's `Markdown` does not, and the drawer shares it.
-
-**`mountSync()` is gone**, and with it the seven kinds of node the board used
-to find by selector after every paint. Every handler on this view is a prop:
-a plan card's three are built in `planCardNode()`, a queue row's in
-`queueRowDragProps()`, and a column's drop in `columnDropProps()`, which
-`PlansView` spreads onto the body. Nothing queries after a paint, so React is
-left to schedule.
-
-Two things follow from that and both bite outside this file. A renderer asking
-"is Plans still on screen" must ask `plansShowing()`, which asks about
-`#plansRoot` — the board makes that node itself, so it is there the moment
-`paintPlans()` returns, where anything React draws arrives whenever React gets
-round to it. And a test that renders and then reads has to wait a paint:
-`test_plans.mjs` has a `painted()` helper for it, and every render step returns
-it.
-
-The filter dropdowns are `ColumnFilter` (`kanban/ui/ColumnFilter.tsx`) and own
-their open state and their outside-click close. Two delegated listeners on
-`document` did that when they were markup, and both are gone.
-
-**The Spend and clocks modal is React too.** `RefCards` (`kanban/ui/RefCards.tsx`)
-draws Token Session, the job list and the run-cost fold as one tree, mounted in
-`#refCardsRoot` inside a modal the board still builds as a string.
-`14-schedule.js` keeps a slice of state per renderer (`usageState`,
-`schedState`, `runResultsState`) and `paintRefCards()` draws only while the
-modal is open. `showModal()` takes an `onClose` so the tree is unmounted when
-the modal goes.
+**`mountSync()` went with Plans** on the same reasoning: it wrapped `mount()` in
+`flushSync` because Plans wired seven kinds of node by selector after every paint,
+and a prop could carry every one of those.
 
 **The Board went last but one**, 19 Sep 2026. `renderBoard()` builds a plain
 data model of the columns and hands it to `BoardView`
@@ -430,7 +389,7 @@ cards are `RefCard` in `kanban/ui/OverviewBodies.tsx`, Tenon's `Card` with the
 board's `ref` class kept on it; the Matrix is `MatrixBody` and `ChainBody`.
 Every control on them is an attribute the one delegated listener in
 `25-archiving.js` reads, not a prop, because that listener serves the drawer
-and Plans too. The Hide Waiting for review checkbox is the exception, a prop,
+and the sub-task drawer too. The Hide Reviewing checkbox is the exception, a prop,
 with its `data-mxfilter` kept for the suite. The Matrix's hover preview draws
 `TaskCard` in its `static` form, which is why `cardHTML()` has no caller left.
 
@@ -557,13 +516,12 @@ sake: the run records an attempted `PUT /data/todo.md` that it stopped. Run it
 with `node kanban/test_chats.mjs`, or `BOARD_PORT=8799 node ...` against a
 server on another port.
 
-`kanban/test_plans.mjs` follows the same shape for the Plans view, and its
-blocked-writes list does double duty: Plans is one of the two views that write
-anything, so the recording is also how the test asserts it posts only
-`/stream/apply` and `/queue/order` — the plan's own frontmatter and the nightly
-queue's ordering, both inside `plans/` — and never reaches `todo.md`.
-`kanban/test_schedule.mjs` is the
-same again for the Schedule view.
+`kanban/test_one_board.mjs` and `kanban/test_subtasks.mjs` are the ones that unlock
+the tab, because handing a task over, approving and draining the agents' queue all
+edit the document. Each installs a `fetch` that tears every non-GET out before it
+does, records what was attempted, and ends by asserting that nothing reached
+`todo.md`; the queue tests stub `/tick-queue.json` rather than read a file.
+`kanban/test_schedule.mjs` is the same again for the Spend and schedules sheet.
 
 `kanban/test_projects.mjs` covers both halves of the Projects view — the tab
 that lists every folder under `data/projects/`, and the drawer that shows what
@@ -625,9 +583,10 @@ node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardSh
 python3 agents/plan-agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
 python3 kanban/test_bucket_brief.py # the brief routes — no board, no browser
-node kanban/test_plans.mjs         # the ones below need the board running
-node kanban/test_schedule.mjs
-node kanban/test_board.mjs         # drag, drop, sort, add, and the string card against the React one
+node kanban/test_schedule.mjs       # the ones below need the board running
+node kanban/test_one_board.mjs     # handing a task over, the two reviews, whose move it is
+node kanban/test_subtasks.mjs      # sub-tasks in the drawer, and the agents' tick queue
+node kanban/test_board.mjs         # drag, drop, sort, add, Done as a heading, and the string card against the React one
 node kanban/test_chats.mjs
 node kanban/test_projects.mjs
 node kanban/test_notes.mjs
