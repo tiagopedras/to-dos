@@ -1,6 +1,6 @@
 ---
 name: pa-checkin
-description: Run the daily check-in over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). It pulls anything new his meeting recorder captured, reads the list, gives him the brief for the day and the week rendered from a template he edits, asks what has moved, and hands the writing to the pa skill. Use it whenever he asks for a check-in or a status read on the list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "brief me", "what's on my plate", "what's due this week", "what am I doing today", "where am I", "what did I miss", or "let's go through my buckets". Do not use it for a change he has already decided on, which is the pa skill on its own, for the backlog sweeps, which are pa-checkout and pa-focus, or from a phone, which is pa-mobile.
+description: Run the daily check-in over the owner's master to-do list, at Code/to-dos/data/<dataset>/todo.md (<dataset> named by data/.current, currently "twinkl"). It reads the list, gives him the brief for the day and the week rendered from a template he edits, asks what has moved, and hands the writing to the pa skill. Use it whenever he asks for a check-in or a status read on the list, including phrasings like "let's do a check-in", "morning check-in", "let's do a todo meeting", "brief me", "what's on my plate", "what's due this week", "what am I doing today", "where am I", "what did I miss", or "let's go through my buckets". Do not use it for a change he has already decided on, which is the pa skill on its own, for the backlog sweeps, which are pa-checkout and pa-focus, or from a phone, which is pa-mobile.
 ---
 
 # The daily check-in
@@ -13,19 +13,13 @@ The morning session over the list: what came in overnight, what today and this w
 
 ## What a check-in is for
 
-The value is in the three things he cannot easily do himself: the pull, the brief, and the headline check. The middle of the session, applying what he tells you, is the cheap part.
+The value is in the two things he cannot easily do himself: the brief and the headline check. The middle of the session, applying what he tells you, is the cheap part.
 
-On a quiet morning where nothing has changed, moves 1, 2 and 3 are the whole session: nothing came in, here is the day, the headline still holds. Do not manufacture work to fill the rest.
+On a quiet morning where nothing has changed, moves 2, 3 and 5 are the whole session: here is the day, the headline still holds. Do not manufacture work to fill the rest.
 
-## Move 1: pull what came in
+## Move 1: pull what came in, only when asked
 
-**Once a day, before you read the file.** The recorder holds actions from his calls that are not on the list yet, and a brief taken over a list that is missing them is a brief of the wrong list.
-
-Look at the `Meeting actions last pulled` line in the header of todo.md. If that timestamp is not from today, invoke `pa-retrieve-tasks` and let it finish before carrying on. Do not pass it a window: it reads that same line and pulls from there to now, so whatever it has not shown him yet is exactly what comes back, however long the gap. That is what carries a Monday over the weekend, and a call late on Friday afternoon is exactly the one he has not seen yet.
-
-`pa-retrieve-tasks` reviews what it finds with him one item at a time, so on a day with actions waiting this becomes the opening part of the meeting rather than a background step. That is the right order: settle what is on the list before reading the list back to him. On a day with nothing waiting it should cost one line, or nothing at all.
-
-Run it a second time in the same day only when he asks, after a call that has just ended for example.
+**Off by default since 22 Sep 2026.** He stopped using Jamie, so the check-in no longer pulls meeting actions on its own and does not mention the recorder or the `Meeting actions last pulled` line. Invoke `pa-retrieve-tasks` only when he asks for it in this session ("check my calls", "pull my action items"). Otherwise go straight to move 2.
 
 ## Move 2: read
 
@@ -99,7 +93,7 @@ Do not write anything yourself first, including `Last updated` and the watermark
 
 **He reports progress on one task and nothing else.** Also not a check-in. That is `pa` on its own, one change and one line back.
 
-**The recorder is unreachable.** Say so in one line, carry on with the brief, and leave the watermark alone. A pull that failed is not a pull that happened.
+**He asked for a pull and the recorder is unreachable.** Say so in one line, carry on with the brief, and leave the watermark alone.
 
 **The brief would run past the template's `lines:`.** Cut from the bottom, keep the headline and anything overdue, and end with the `+N more` count. Do not reflow the template to make room.
 
