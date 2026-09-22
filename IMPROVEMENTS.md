@@ -18,6 +18,42 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A task can carry `[to:: Plan agent]` or `[to:: Implement agent]` with no
+  handover behind it, and nothing says so.** `plannable()` (`agents/plan-agent/pick.py:63`)
+  and `CLAUDE.md`'s "One board" section are both explicit that the tag alone is not
+  a handover — what makes a task the Plan agent's is the `<id>-plan`/`<id>-implement`
+  sub-tasks `handOver()` (`kanban/js/04-tier-two-the-one-thing.js:462`) writes
+  alongside the tag, and a tag with no matching sub-task is deliberately skipped by
+  the overnight run. That is the right behaviour for the planner, but nothing on
+  the file's own side reflects it: `check_tag_hygiene()`
+  (`agents/pa_agent/skills/pa/scripts/check_todo.py:707`) checks the tag's syntax
+  and nothing else, so a task edited by hand — `pa`'s own SKILL.md documents
+  writing the tag directly as an option — can end up looking delegated on the
+  board with nobody ever planning it, and nothing flags the gap. Worth a check
+  alongside `check_tag_hygiene()` that reads a `[to:: Plan agent]` or
+  `[to:: Implement agent]` tag against `slug_states()`/`is_blocked()` the way
+  `plannable()` already does, and reports a CHECK when the matching sub-task is
+  missing.
+
+- **The personal and pet-projects lists still carry `ai:` tags, which their next save drops without giving the tasks an assignee.**
+  Stage 1 of the one board migrated only `data/twinkl/todo.md`. `personal` holds 2
+  (1 full, 1 partial) and `pet-projects` 6 (2 full, 4 partial). Since `parseTask()`
+  in `core/todo.js` drops `ai:` on read (`else if (key === 'ai') {}`), the board
+  writes those lines back without it the first time either list saves, and nothing
+  records what they were. The fix is the same run the twinkl list had, through `pa`
+  after a backup: an open task with `full` or `partial` gets `[to:: Plan agent]`, a
+  ticked one gets nothing, and every `ai:` goes.
+
+- ~~**`check_todo.py` asks for a `Prompt:` note on a task with the Implement agent even when an accepted plan already does that job.**~~ **Done, 22 Sep 2026.** The checker leaves out the Implement sub-task of a handover, and the task it sits under, since the plan is the brief.
+  `check_prompt_coverage()` in
+  `agents/pa_agent/skills/pa/scripts/check_todo.py` reads `[to:: Implement agent]`
+  as the old `ai:full` and wants a prompt under it, because Delegate to Claude
+  used to be built from prompts. The composition-patterns task (`id:q5e90b`)
+  flags on the twinkl list: it moved to the Implement agent because its plan was
+  accepted, and the plan document is its brief. Settle it with stage 7 of
+  `handover-one-board.md`, when the plan document becomes what a review sub-task
+  points at, so the check can accept a plan in place of a prompt.
+
 - ~~**The plans stream's `production` field is written and checked by `stream.py` but not declared in `stream.json`, so the shared work-streams package cannot see it.**~~ **Done, 22 Sep 2026.** Gone with the stream: `stream.py` and its manifest were deleted in stage 8 and a plan no longer carries `production:`.
   `PRODUCTION` (`agents/plan-agent/stream.py:83`) lists the four stages and `FM_KEYS` (`:84`)
   carries the key, but `agents/plan-agent/stream.json` names it under neither `fields` nor
@@ -538,6 +574,64 @@ they settled is written up in the README rather than left here:
   frozen table, so the JavaScript third copy cannot drift either.
 
 ## Big
+
+- **A sub-task row carries two separate icon buttons instead of being one clickable row.** `.subopen`
+  (`kanban/js/19-drawer.js:1026`, the ↗ that calls `openDrawer(btn.dataset.sub)`) and `.noteicon`
+  (`:1027-1028`, the 💬 that toggles the step's note box) sit side by side on every `.sub` row, and
+  Tiago wants both gone in favour of a chevron on the right and the whole row clickable to open the
+  sub-task's own panel — the same shape the four handover sub-tasks already have, just without the
+  separate button. That panel should stop reusing `#drawer` the way `openSubtaskDrawer()`
+  (`:1416`) does today — swapping the same panel's content and relying on `#dheadBack` to return —
+  and instead slide in from the right as a second panel over both the board and the open task
+  drawer, fading both behind it, sized to the width of the task drawer's own left column
+  (`.dcol-main`, `kanban/board.css:2314`) rather than the drawer's own resizable width
+  (`state.drawerWidth`, `kanban/js/02-state.js:93`). That's a new panel and interaction, not a
+  restyle of the existing one, and it still needs the gap the entry above this one names closed
+  first — only a sub-task with a `stableId` can open its own panel at all today, and a
+  hand-added one never gets one.
+
+- **Skipping a `[to:: Plan agent]`/`[to:: Implement agent]` tag with no matching
+  sub-task should have an exception, rather than the flat skip it gets today.**
+  `plannable()` (`agents/plan-agent/pick.py:63-75`) reads the tag as the Plan
+  agent's work only when the `<id>-plan`/`<id>-implement` sub-tasks are also
+  there, and treats a tag with neither as not planned, full stop — the same gap
+  the Small entry above this one flags from the checker's side. Tiago wants a
+  case where that is not just left invisible until someone happens to notice a
+  CHECK flag, but what the exception should be is not settled: the planner could
+  treat the tag alone as a valid handover and mint the sub-tasks itself the way
+  `handOver()` (`kanban/js/04-tier-two-the-one-thing.js:462`) does, or the gap
+  could just surface somewhere he would actually see and act on it, or something
+  else. Needs that decided before either the planner or the checker entry above
+  it can be built.
+
+- **A sub-task added by hand has no way to open its own drawer, only one an agent handover minted.** The `↗` button that opens a
+  sub-task's own view (`s.stableId ? '<button ... class="subopen" ...'`, `kanban/js/19-drawer.js:1026`, wired to
+  `openSubtaskDrawer()` at `:1416` through `locateSub()`) only renders when the sub-task line carries an `id:` tag. Only two
+  paths mint one: `handOver()` for the four Plan/Review/Implement/Review sub-tasks
+  (`mintId()` calls at `kanban/js/04-tier-two-the-one-thing.js:473` and `:482`), and the one-off sweep over already-loaded
+  tasks at `:71-73`. A sub-task typed in through "+ Add subtask" goes through `addSub()`
+  (`kanban/js/06-dates-substeps.js:185-191`), which pushes a bare `- [ ] ` line with no `id:` tag, so it never gets a
+  `stableId` and the `↗` button silently doesn't appear — there is nothing to click and nothing on screen says why. The fix
+  is for `addSub()` to mint one the way `handOver()` does. That still leaves every sub-task already written into the live
+  lists — `data/twinkl/todo.md` and the others — without one, so it needs a retroactive pass as well: a review of what's
+  actually sitting there today, then a one-off migration (on the model of `core/migrations/migrate-agent-names.py`) that
+  mints and writes an `id:` tag onto every existing sub-task line that lacks one, so all of them open the same way rather
+  than only the ones an agent happened to create.
+
+- **The Dependencies section in the drawer only shows blockers, it does not let you set one.** `dependenciesSection()` at
+  `kanban/js/19-drawer.js:574`, backed by `taskDependencies()` and `depGroupHTML()`
+  (`kanban/js/19-drawer.js:360` and `:396`), renders both "Waiting on" and "Blocks" as
+  `depLink` cards you can open but not create, edit or remove — the only way to set one is
+  to type `blocked-by:slug` by hand into the task's raw text, which is exactly the kind of
+  second, worse editor `tagsSection()` (`kanban/js/19-drawer.js:628`) was written to avoid
+  for every other tag. Making the section a real editor means a slug picker to add a
+  "Waiting on" entry, which writes `blocked-by:` onto this task, and a way to add a "Blocks"
+  entry, which writes `blocked-by:` onto the *other* task instead, since "Blocks" is not a
+  tag of its own but every other item whose `blocked-by:` names this one — so the two
+  directions save to different task lines and the drawer would need to reach and re-render a
+  second card whose panel is not open. `parseTaskLine()` and the write-back path in
+  `core/todo.js` already round-trip `blocked-by:`, so the grammar exists; what is missing is
+  the picker and the two write paths.
 
 - ~~**An agent's part of a task has nowhere to live on the card, so planning and implementing are tracked on a separate board.**~~ **Done, 22 Sep 2026.** Built as stages 4 to 8 of the one-board plan: sub-tasks in the format, their drawer, the agents' tick queue, handover and approval on the card, and the Plans tab gone. `CLAUDE.md`, "One board", says where it stands.
   Agreed 21 Sep 2026 between two sessions and Tiago: planning and implementing become
