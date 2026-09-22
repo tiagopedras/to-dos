@@ -87,3 +87,6 @@ node_modules/.cache-board-ui-*
 
 # Session state on one machine, not repo history.
 COORDINATION.md
+
+# Local backups.
+*.bak
