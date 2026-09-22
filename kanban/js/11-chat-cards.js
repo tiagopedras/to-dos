@@ -427,9 +427,9 @@ function viewDefs(){
   const defs = [
     { id:'overview', label:'Overview' },
     { id:'sep0', sep:true },
-    { id:'board',    label:'Board',    group:'draw' },
-    { id:'matrix',   label:'Matrix',   group:'draw' },
-    { id:'timeline', label:'Timeline', group:'draw' },
+    { id:'board',    label:'Board' },
+    { id:'matrix',   label:'Matrix' },
+    { id:'timeline', label:'Timeline' },
     { id:'sep1', sep:true },
     { id:'projects', label:'Projects' }
   ];
