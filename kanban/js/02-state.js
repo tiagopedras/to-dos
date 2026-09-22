@@ -25,9 +25,8 @@ const state = {
      Nothing of his is at stake, so the watcher treats it as clean and reloads
      rather than asking. The tidy-up runs again on the way back in. */
   migratedOnly: false,
-  /* Which bucket tabs are toggled on — empty means every bucket, the same
-     "nothing picked means no filter" rule statusFilter follows below. Several
-     can be on at once, same as Status; see shownBuckets(). */
+  /* Which bucket tabs are toggled on — empty means every bucket. Several can
+     be on at once; see shownBuckets(). */
   bucketFilter: new Set(),
   /* name -> chosen swatch, one per dataset — see bucketColor() below and
      loadBucketColors() in 08-buckets.js. Lives in its own small file rather
@@ -68,12 +67,6 @@ const state = {
   chatViewed: {},
   chatViewedLoaded: false,
   query: '',
-  urgentFilter: false,
-  /* Column names (see boardColumns()) currently narrowed to — empty means
-     every column, same "nothing picked means no filter" rule urgentFilter
-     already follows. Session-only, like both of those: reset on
-     reload rather than remembered. */
-  statusFilter: new Set(),
   unscoredOnly: false,
   matrixHideWaiting: false,
   /* Width of the timeline's frozen title column. Remembered the same way the

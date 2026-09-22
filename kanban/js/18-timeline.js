@@ -1023,19 +1023,10 @@ function renderHeadline(){
    only tolerated. Filtering means the same thing wherever it's shown. */
 function renderFilterBar(){
   renderTabs();
-  renderStatusFilters();
   renderScoreChip();
-  // The urgent/due filter cuts across every bucket, so it overrides the tabs. The All tab does the same thing, but
-  // the tabs stay up so it can be undone.
-  const across = state.urgentFilter;
-  $('#bucketFilters').classList.toggle('hidden', across);
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
-  $('#editBuckets').classList.toggle('hidden', across || state.locked);
-  // Edit columns is hidden on every view (see index.html), so nothing here
-  // toggles it — a toggle against state.locked would put it back on the first
-  // render of an unlocked board, which is the one thing this must not do.
-  $('#allBuckets').classList.toggle('hidden', !across);
+  $('#editBuckets').classList.toggle('hidden', state.locked);
 }
 
 /* The strip of column names above the board, phone only — which one is on

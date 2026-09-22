@@ -193,7 +193,6 @@ $('#backupsBtn').onclick = () => { state.view = 'backups'; renderView(); };
 $('#archiveBtn').onclick = archiveOldDone;
 $('#retry').onclick = loadFile;
 $('#q').oninput = e => { state.query = e.target.value; renderBoard(); };
-$('#urgentFilter').onchange = e => { state.urgentFilter = e.target.checked; closeDrawer(); renderBoard(); };
 
 /* The reference cards are a working surface, not a report. Everything here
    writes to the same task the card was built from, then re-renders the view,
