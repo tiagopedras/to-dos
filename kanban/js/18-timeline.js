@@ -879,7 +879,7 @@ const groupPicks = {};   // group -> which member the collapsed tab is named aft
 function renderViewTabs(defs){
   const drawn = new Set();
   const tab = (d, attrs) => '<button class="tab' + (d.id === state.view ? ' on' : '') + '" ' +
-    attrs + '>' + esc(d.label) + (d.id === 'plans' ? plansAwaitingBadgeHTML() : '') + '</button>';
+    attrs + '>' + esc(d.label) + '</button>';
 
   $('#viewToggle').innerHTML = defs.map(d => {
     if (d.sep) return '<span class="tabsep"></span>';
@@ -888,7 +888,7 @@ function renderViewTabs(defs){
     drawn.add(d.group);
     const members = defs.filter(m => m.group === d.group);
     const current = members.find(m => m.id === state.view);
-    // Off the group entirely — on Plans, on Reports — the tab keeps the name of
+    // Off the group entirely — on Projects, on Backups — the tab keeps the name of
     // the last member picked rather than falling back to the first, so a
     // timeline left an hour ago is one click away rather than two.
     if (current) groupPicks[d.group] = current.id;
@@ -939,7 +939,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewMen
 let lastRenderedView = null;
 
 /* Two views: the board, and the hand-written summaries from the end of the file.
-   The bucket tabs, the AI filter and search only make sense on the board. */
+   The bucket tabs and search only make sense on the board. */
 function renderView(){
   // Up front, not at the end: the board case returns early, and the chip belongs
   // to the header rather than to any one view.
@@ -951,6 +951,9 @@ function renderView(){
   if (state.view === 'quick' || state.view === 'delegate' || state.view === 'reports') {
     state.view = 'overview';
   }
+  // Plans was a view until 22 Sep 2026. A plan is read from the review behind it
+  // now, on the card, so an old #plans link lands on the board.
+  if (state.view === 'plans') state.view = 'board';
   const isBackups = state.view === 'backups';
   if (!isBackups && !defs.some(d => d.id === state.view)) state.view = 'board';
   const def = isBackups ? { id:'backups', label:'Backups' }
@@ -967,12 +970,10 @@ function renderView(){
   // again, since a report Claude wrote while another tab was up would
   // otherwise never show. forgetWrittenReports() only clears the cache — the
   // fetch itself is ensureWrittenReports(), from renderSections().
-  if (def.id === 'overview' && lastRenderedView !== 'overview') forgetWrittenReports();
+  if (def.id === 'overview' && lastRenderedView !== 'overview') { forgetWrittenReports(); refreshOrphanPlans(); }
   lastRenderedView = def.id;
 
   renderViewTabs(defs);
-  renderViewFlip();
-  if (def.id !== 'plans') refreshPlansBadge();
 
   $('#board').classList.toggle('hidden', !isBoard);
   $('#lists').classList.toggle('hidden', isBoard);
@@ -988,58 +989,9 @@ function renderView(){
   // on every tab rather than popping in and out as he switches between them.
   $('#headline').classList.add('hidden');
   if (def.id === 'projects') { renderFilterBar(); renderProjectsView(); return; }
-  if (def.id === 'plans') { renderFilterBar(); renderPlansView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
 }
-
-/* ---- The flip, between Board and Plans -----------------------------------
-   Two stacked surfaces rather than two tabs: the board on top, Plans below it,
-   and this moves between them. It is a second route to the same two views —
-   the tab strip is untouched, every tab stays where it is, Plans included — so
-   a route that turns out not to be used costs a button.
-
-   It leaves a history entry, the same as picking a tab does, because it is the
-   same navigation by another gesture. `renderView()` is not restructured for
-   it: the animation is on the view that arrives, which is what lets every
-   other tab carry on being drawn exactly as it was. */
-const FLIP_PAIR = { board:'plans', plans:'board' };
-
-function flipView(){
-  const to = FLIP_PAIR[state.view];
-  if (!to) return;
-  const main = $('#main');
-  main.classList.remove('flipping-up', 'flipping-down');
-  // Board is above Plans, so going to Plans moves the surface up past it and
-  // the arriving view enters from below.
-  main.classList.add(to === 'plans' ? 'flipping-up' : 'flipping-down');
-  state.view = to;
-  syncHash(true);
-  renderView();
-}
-
-/* Shown on the two views it moves between and nowhere else — on Reports or the
-   Timeline there is no pair for it to be half of, and a control that means
-   nothing where it is standing is worse than no control. */
-function renderViewFlip(){
-  const btn = $('#viewFlip');
-  if (!btn) return;
-  const on = !!FLIP_PAIR[state.view];
-  btn.classList.toggle('hidden', !on);
-  if (!on) return;
-  const to = FLIP_PAIR[state.view];
-  btn.classList.toggle('up', to === 'board');
-  btn.title = 'Go to ' + (to === 'board' ? 'the board' : 'Plans');
-}
-
-$('#viewFlip').onclick = flipView;
-/* Taken off the moment it has played, so the next ordinary render of the same
-   view — a card ticked, a filter toggled — does not replay the slide. */
-$('#main').addEventListener('animationend', e => {
-  if (e.target === $('#board') || e.target === $('#lists')) {
-    $('#main').classList.remove('flipping-up', 'flipping-down');
-  }
-});
 
 /* Re-draw whichever view is on screen. The drawer opens from the lists as well
    as the board now, so an edit has to show up where it was made — renderBoard
@@ -1047,7 +999,6 @@ $('#main').addEventListener('animationend', e => {
 function refreshView(){
   if (state.view === 'board') renderBoard();
   else if (state.view === 'projects') renderProjectsView();
-  else if (state.view === 'plans') renderPlansView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
   updateArchiveChip();

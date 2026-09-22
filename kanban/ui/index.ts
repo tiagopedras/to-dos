@@ -7,11 +7,8 @@
  * lets one be ported while the other nine carry on untouched — and what lets
  * this work stop at any stage with a working board.
  *
- * Projects, Backups and the two report columns are ported whole. Plans is the
- * one that is half done on purpose: its six columns and the four that hold
- * nothing but plans are components, and the bodies four independent fetches
- * fill are still markup the board builds. PlansView's own header says why,
- * and what would have to change for the other two columns to follow.
+ * Projects, Backups, the report columns, Overview, the Matrix and the Board are
+ * ported whole. Plans was too until it went on 22 Sep 2026.
  *
  * There were two mount functions until 13 Sep 2026, and there are two again
  * since the Overview/Matrix/Timeline port on the 14th, for a different reason
@@ -26,12 +23,11 @@
  * own drag depends on existing (`wireTimelineDrag()`) — neither is a handler
  * a prop could carry, because both need the real, painted DOM rather than
  * something React already holds. `mount()` alone leaves both racing React's
- * own schedule, same as it would have left Plans' three query-based handlers
- * racing it; `flushSync` is the same fix, for a case a prop cannot reach.
+ * own schedule; `flushSync` is the fix, for a case a prop cannot reach.
  */
 /* React's own element builder, for the board's classic scripts. They have no
    JSX and no build step of their own, so a ported view assembles its lists as
-   `BoardUI.h(BoardUI.PlanCard, props)` — which is what JSX compiles to anyway.
+   `BoardUI.h(BoardUI.TaskCard, props)` — which is what JSX compiles to anyway.
    Keyed lists need `key` in those props, the same as anywhere else. */
 export { createElement as h, Fragment } from 'react'
 
@@ -54,13 +50,9 @@ export { Alert, Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } fro
 export type {
   AlertProps, CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
 } from '@tiagopedras/tenon'
-export { PlanCard } from './PlanCard'
-export type { PlanCardProps, PlanScores } from './PlanCard'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
 export { TasksFinishedColumn, WrittenReportsColumn } from './ReportsColumns'
-export { PlansView } from './PlansView'
-export type { PlansViewProps, DropZone, LiveRun } from './PlansView'
 export { RefSection, ContextBody } from './OverviewBodies'
 export type { RefBlock, RefModel, EmptyKind, ContextGroup, ContextItem } from './OverviewBodies'
 export { ChainBody } from './ChainBody'

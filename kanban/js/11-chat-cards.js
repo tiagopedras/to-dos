@@ -338,9 +338,33 @@ function contextBlock(){
   return out;
 }
 
+/* Plans whose task has gone. A plan is read from the review behind it on its
+   task's card, so one whose task was deleted or never got an id has nowhere to be
+   read, and gets a line here instead: its title and where the file is. Finished
+   plans (the old `state: done`) are history and are left out. Read from
+   /plans.json when Overview is arrived at, and drawn again only if the answer
+   changed. */
+let orphanPlans = [];
+async function refreshOrphanPlans(){
+  let got = [];
+  try {
+    const res = await fetch('/plans.json?t=' + Date.now(), { cache: 'no-store' });
+    if (res.ok) {
+      const ids = new Set();
+      if (state.doc) state.doc.buckets.forEach(b => b.tiers.forEach(t => t.tasks.forEach(k => { if (k.stableId) ids.add(k.stableId); })));
+      got = ((await res.json()).plans || [])
+        .filter(p => /^task:/.test(p.about || '') && !ids.has(p.about.slice(5)) && p.state !== 'done')
+        .map(p => ({ title: p.title || p.name, name: p.name }));
+    }
+  } catch (err) { /* no server, or no plans folder: nothing to say */ }
+  const was = JSON.stringify(orphanPlans);
+  orphanPlans = got;
+  if (JSON.stringify(got) !== was && state.view === 'overview') renderView();
+}
+
 function contextSection(){
   const lines = contextBlock();
-  if (!lines.length) return null;
+  if (!lines.length && !orphanPlans.length) return null;
 
   const groups = [];
   let group = '', items = [];
@@ -378,6 +402,13 @@ function contextSection(){
     });
   });
   flush();
+  if (orphanPlans.length) groups.push({
+    title: 'Plans with no task',
+    items: orphanPlans.map(p => ({
+      textHTML: mdInline(p.title) + ' — <code>plans/' + esc(p.name) + '</code>. Its task is not on the list any more.',
+      chip: null
+    }))
+  });
   return { body: BoardUI.h(BoardUI.ContextBody, { groups }) };
 }
 
@@ -400,7 +431,6 @@ function viewDefs(){
     { id:'matrix',   label:'Matrix',   group:'draw' },
     { id:'timeline', label:'Timeline', group:'draw' },
     { id:'sep1', sep:true },
-    { id:'plans',    label:'Plans' },
     { id:'projects', label:'Projects' }
   ];
   return defs;
@@ -411,8 +441,10 @@ function viewDefs(){
 
    'reports' is here for a different reason: it was a tab until 19 Sep 2026 and
    its two columns are the end of Overview's row now, so a #reports link is
-   still a link somebody may have, and renderView() sends it to Overview. */
+   still a link somebody may have, and renderView() sends it to Overview. 'plans'
+   is here the same way: it was a tab until 22 Sep 2026, and renderView() sends an
+   old #plans link to the board. */
 function isKnownView(id){
-  return id === 'backups' || id === 'reports' || viewDefs().some(d => d.id === id);
+  return id === 'backups' || id === 'reports' || id === 'plans' || viewDefs().some(d => d.id === id);
 }
 

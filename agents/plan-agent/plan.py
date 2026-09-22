@@ -328,7 +328,7 @@ def drop_section(body, name):
     return "\n".join(out).strip()
 
 
-def history(prior, day, agent):
+def history(prior, day, agent, task=None):
     """The plan's History section: one line per revision, appended never rewritten.
 
     Hidden on the board — see PLAN_UNSHOWN in kanban/js/13-plans.js — because it
@@ -346,7 +346,7 @@ def history(prior, day, agent):
     if not path:
         rev = 1
     line = "- **%s, revision %d.** " % (day.isoformat(), rev)
-    said = rejection(prior)
+    said = rejection(prior, task)
     if said and rev > 1:
         line += "Re-planned by `%s` after revision %d was sent back: %s" % (
             agent, rev - 1, said[1].rstrip("."))
@@ -358,13 +358,31 @@ def history(prior, day, agent):
     return rev, "\n".join(lines)
 
 
-def rejection(prior):
+def feedback_on(task):
+    """What he said when he sent the plan back: the `feedback:` notes under the
+    task's Plan sub-task, joined. Empty when the task has none, or is not one that
+    was handed over, which has no Plan sub-task to hold them."""
+    if task is None:
+        return ""
+    said = []
+    for s in todo.split_body(task)[1]:
+        if not (s["task"].slug or "").endswith("-plan"):
+            continue
+        for line in s["notes"]:
+            m = re.match(r"^\s*-\s*feedback:\s*(.*)$", line, re.I)
+            if m and m.group(1).strip():
+                said.append(m.group(1).strip())
+    return " ".join(said)
+
+
+def rejection(prior, task=None):
     """Why the last plan for this task was sent back, and what it had worked out.
 
-    The board writes the reason into the plan's own frontmatter when he rejects
-    it, and the ledger row records which file that was. So the link exists and
-    this only follows it: no second store, and the reason stays where a person
-    reading the plan can see it.
+    Since 22 Sep 2026 the reason is a `feedback:` note under the task's Plan
+    sub-task, written when he sends it back from the review (feedback_on()), and
+    the ledger row records which file the last plan was. Before that the board
+    wrote it into the plan's own frontmatter, which is still read for a plan
+    written then.
 
     What comes back with it is the point. A summary and a rejection is not
     enough to write a better plan than last night's — it says what not to
@@ -382,7 +400,8 @@ def rejection(prior):
     """
     if not prior:
         return None
-    sent_back = (prior.get("state") == "ready"
+    said_now = feedback_on(task)
+    sent_back = bool(said_now) or (prior.get("state") == "ready"
                  and prior.get("owner") == "plan-agent") or prior.get("status") == "redo"
     if not sent_back:
         return None
@@ -390,7 +409,7 @@ def rejection(prior):
     if not path:
         return None
     front = read_front(path)
-    note = front.get("feedback") or front.get("redo_note")
+    note = said_now or front.get("feedback") or front.get("redo_note")
     if not note:
         return None
     was = read_sections(path, ("Context", "Proposed plan"))
@@ -458,7 +477,7 @@ def build_prompt(task, prior=None):
             "is the failure it exists to prevent.\n"
             % os.path.relpath(brief, paths.ROOT))
 
-    said = rejection(prior)
+    said = rejection(prior, task)
     if said:
         summary, note, was_context, was_plan = said
         parts.append(
@@ -698,7 +717,7 @@ def write_plan(task, text, session, day, prior=None):
 
     # History is the runner's to write, not the agent's: it spans revisions and
     # an agent only ever sees one. Anything it wrote under that heading goes.
-    rev, told = history(prior, day, bucket_agent(task.bucket))
+    rev, told = history(prior, day, bucket_agent(task.bucket), task)
     body = drop_section(body, "History")
     body = (body.rstrip("\n") + "\n\n## History\n\n" + told).strip()
 
@@ -724,12 +743,6 @@ def write_plan(task, text, session, day, prior=None):
         # sent back.
         "created: %s" % dt.datetime.now().isoformat(timespec="seconds"),
         "night: %s" % day.isoformat(),
-        # A fresh plan is waiting on him and he has not seen it. The five words
-        # this stream used until 11 Sep 2026 are gone; what they meant is state
-        # plus owner plus seen. See PACKAGES/work-streams/CONTRACT.md.
-        "state: review",
-        "owner: me",
-        "seen: no",
     ]
     if task.slug:
         front.append("slug: %s" % task.slug)
@@ -1214,10 +1227,6 @@ def run(argv=None):
             "planned": day.isoformat(),
             "file": os.path.basename(out),
             "night": day.isoformat(),
-            "state": "review",
-            "owner": "me",
-            "seen": False,
-            "resolution": "",
             "sub": getattr(task, "plan_sub", ""),
         }
         pick.save_ledger(ledger)

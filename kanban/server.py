@@ -1326,10 +1326,8 @@ def plan_meta(path, name):
         # autonomous enough to be worth watching — see IMPROVEMENTS.md.
         "production": fields.get("production", ""),
         "production_summary": fields.get("production_summary", ""),
-        # Which Claude Code session --session-id opened for this plan, if any
-        # — see start_plan_session() below. Read back so the button that
-        # opened it can offer to return to the same one next time, rather
-        # than starting a second session over the first.
+        # Which Claude Code session opened for this plan, if any. Written by
+        # nothing now: the board button that opened one went with the Plans view.
         "production_session": fields.get("production_session", ""),
         "feedback": fields.get("feedback", fields.get("redo_note", "")),
         "revisions": revisions,
@@ -1388,10 +1386,6 @@ def ledger_path():
     return os.path.join(plans_dir(), "ledger.json")
 
 
-def queue_order_path():
-    return os.path.join(plans_dir(), "queue-order.json")
-
-
 def planning_lock():
     """The lock for the list the board is showing.
 
@@ -1400,102 +1394,6 @@ def planning_lock():
     ever shows one list, so it only ever asks about that one's.
     """
     return os.path.join(ROOT, DATA, ".plan-agent-%s.lock" % current_dataset())
-
-
-def _queue_row(task, ledger, position=0, state="queued", why=""):
-    seen = ledger.get(task.title) if isinstance(ledger, dict) else None
-    if not why and planning_agent_pick:
-        _, why = planning_agent_pick.is_stale(task, ledger or {})
-    return {
-        "title": task.title,
-        "bucket": task.bucket,
-        "column": task.column,
-        "to": task.to or "",
-        "slug": task.slug or "",
-        "impact": getattr(task, "impact", "") or "",
-        "effort": getattr(task, "effort", "") or "",
-        "agent": planning_agent_plan.bucket_agent(task.bucket) if planning_agent_plan else "",
-        "position": position,
-        "state": state,
-        "why": why,
-        # What happened to it last time, so a card that has been planned three
-        # nights running says so rather than looking new every morning.
-        "last": (seen or {}).get("planned", ""),
-        "lastStatus": (seen or {}).get("status", ""),
-    }
-
-
-def queue_listing():
-    """What tonight would plan, in the order it would plan it.
-
-    Returns None when the planning agent is not in this checkout, which the route
-    answers as a 404 — the same shape the Ask Claude routes use, and the board
-    draws no queue column rather than an error.
-    """
-    if planning_agent_pick is None or todo is None:
-        return None
-    try:
-        with open(todo_path(), encoding="utf-8") as fh:
-            text = fh.read()
-    except OSError:
-        return {"queue": [], "held": [], "skipped": [], "order": [], "hold": [],
-                "force": [], "error": "no todo.md to read"}
-
-    order = planning_agent_pick.load_order(queue_order_path())
-    try:
-        with open(ledger_path(), encoding="utf-8") as fh:
-            ledger = json.load(fh)
-    except (OSError, ValueError):
-        ledger = {}
-    if not isinstance(ledger, dict):
-        ledger = {}
-
-    queue, skipped = planning_agent_pick.select(text, order=order, ledger=ledger)
-    holds = {planning_agent_pick.key(t) for t in order.get("hold") or []}
-
-    rows = [_queue_row(t, ledger, i + 1) for i, t in enumerate(queue)]
-    held, other = [], []
-    for task, why in skipped:
-        if planning_agent_pick.key(task.title) in holds:
-            held.append(_queue_row(task, ledger, 0, "held", why))
-        else:
-            other.append(_queue_row(task, ledger, 0, "skipped", why))
-    return {
-        "queue": rows, "held": held, "skipped": other,
-        "order": order.get("order") or [], "hold": order.get("hold") or [],
-        "force": order.get("force") or [],
-    }
-
-
-def set_queue_order(order, hold, force=None):
-    """Write the board's ordering. The second write either surface makes.
-
-    It writes a file the planning agent owns and nothing else reads. All three
-    lists are taken as given rather than validated against the current queue: a
-    title in here that no longer exists is never matched and costs nothing,
-    whereas dropping unknown titles would quietly lose the ordering of a task
-    that is merely Blocked this week and back next.
-
-    `force` is the third list, added 17 Sep 2026: the cards he has dragged out
-    of Backlog and into To do, overruling one of pick.py's three exclusions. An
-    older board posts nothing for it, and an absent list reads the same as an
-    empty one rather than clearing what is stored.
-    """
-    if planning_agent_pick is None:
-        return None, {"error": "no planning agent in this checkout"}
-    if not isinstance(order, list) or not isinstance(hold, list):
-        return None, {"error": "order and hold must both be lists"}
-    if force is not None and not isinstance(force, list):
-        return None, {"error": "force must be a list"}
-    if len(order) + len(hold) + len(force or []) > 500:
-        return None, {"error": "too many titles"}
-    stored = planning_agent_pick.load_order(queue_order_path())
-    body = planning_agent_pick.save_order(
-        {"order": order, "hold": hold,
-         "force": stored.get("force") or [] if force is None else force},
-        queue_order_path())
-    return {"ok": True, "order": body["order"], "hold": body["hold"],
-            "force": body["force"], "saved": body["saved"]}, None
 
 
 # The log lines plan.py writes, and which of them mean what. Matched here rather
@@ -1510,112 +1408,6 @@ _DONE_RE = re.compile(r"^planned\s+(.*?)\s+(\d+)s\s+\$([0-9.]+)\s*$")
 # into a 50-character field, so a title that fills it is followed by a single
 # space and a lazy match would take the message as part of the title.
 _FAIL_RE = re.compile(r"^failed\s(.{1,50})\s+(\S.*)$")
-
-
-def _applescript_string(s):
-    """A Python string as an AppleScript string literal — escape backslash
-    first, or a `"` escaped afterwards would itself be re-escaped."""
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def _open_terminal(argv, cwd=None):
-    """A real Terminal.app window, running `argv`, via AppleScript's `do
-    script`. `cwd` must be a directory Claude Code already trusts, or the
-    "Is this a project you trust?" prompt appears in the new window instead
-    of a session — defaults to this repo's own root, which is always
-    trusted since the board itself runs from there. See
-    start_plan_session() for its one caller.
-    """
-    shell_cmd = "cd %s && %s" % (shlex.quote(cwd or ROOT),
-                                  " ".join(shlex.quote(a) for a in argv))
-    script = ('tell application "Terminal"\nactivate\ndo script %s\nend tell'
-              % _applescript_string(shell_cmd))
-    try:
-        subprocess.Popen(["osascript", "-e", script],
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                          stdin=subprocess.DEVNULL)
-    except OSError as exc:
-        return None, {"error": "could not open a terminal: %s" % exc}
-    return {"ok": True}, None
-
-
-def _plan_file_path(name):
-    """A plan's file under plans_dir(), or None for a bad or missing name —
-    the one check standing between this and translate_path()'s own guard
-    against `..` reaching outside the folder it serves."""
-    if not name or "/" in name or "\\" in name or ".." in name:
-        return None
-    path = os.path.join(plans_dir(), name)
-    return path if os.path.isfile(path) else None
-
-
-def _set_plan_field(path, key, value):
-    """Replace one frontmatter line on a plan file, or add it — the same
-    shape `_set()` in agents/plan-agent/stream.py already uses for the
-    fields that stream owns. `production_session` is not one of those: it
-    is metadata for this route alone (nothing in the plans stream's
-    contract knows about it), which is why this writes the file directly
-    rather than going through `stream_apply()`, the same way the
-    implementing agent already writes `production_summary` directly rather
-    than through the stream.
-    """
-    with open(path, encoding="utf-8") as fh:
-        text = fh.read()
-    pat = re.compile(r"^%s:.*$\n?" % re.escape(key), re.M)
-    line = "%s: %s\n" % (key, value)
-    text = pat.sub(line, text, count=1) if pat.search(text) else text.replace("---\n", "---\n" + line, 1)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(text)
-    os.replace(tmp, path)
-
-
-def start_plan_session(name):
-    """Start, or return to, the implementing agent's session for one
-    accepted plan — the second piece "Opening an accepted plan..." in
-    IMPROVEMENTS.md asked for, on _open_terminal() above.
-
-    claude's own `--session-id` is what makes "return to it" possible at
-    all: the id is known and written onto the plan the moment a fresh
-    window opens, rather than waiting for the session to announce itself
-    the way a manually-attached one does (see attach_session.py) — that is
-    the only reliable way to hand the same id back on the way in that was
-    given on the way out. A plan that already carries one resumes it with
-    `--resume` instead of sending a fresh prompt, the same as reopening any
-    other session.
-
-    Writes nothing about `state` or `production` — those stay the do
-    skill's own to set, through `stream.py --apply`, exactly as documented.
-    This is tracking metadata about a session, not a step in that contract.
-    """
-    path = _plan_file_path(name)
-    if not path:
-        return None, {"error": "no such plan"}
-    meta = plan_meta(path, name)
-    if not meta:
-        return None, {"error": "could not read that plan"}
-    session = meta.get("production_session") or ""
-    resumed = bool(session)
-    if resumed:
-        argv = ["claude", "--resume", session]
-    else:
-        session = str(uuid.uuid4())
-        task = meta.get("task") or meta.get("title") or ""
-        argv = ["claude", "--session-id", session,
-                "/do the plan for \"%s\"" % task]
-    got, err = _open_terminal(argv, ROOT)
-    if err:
-        return None, err
-    if not resumed:
-        try:
-            _set_plan_field(path, "production_session", session)
-        except OSError as exc:
-            # The window already opened; losing the write-back only means
-            # the next click starts a second session rather than returning
-            # to this one, not that anything failed outright.
-            return {"ok": True, "resumed": False, "session": session,
-                     "warning": "opened, but could not record the session: %s" % exc}, None
-    return {"ok": True, "resumed": resumed, "session": session}, None
 
 
 def start_planning_agent_run():
@@ -2000,49 +1792,6 @@ def work_streams_static(rel_path):
     return full
 
 
-def plan_legacy_map():
-    """The five words this stream used until 11 Sep 2026, and what each means
-    now. Read out of the planning agent's own manifest so there is one copy."""
-    if ws_manifest is None:
-        return {}
-    m, _ = ws_manifest.load(os.path.join(ROOT, "agents", "plan-agent", "stream.json"))
-    return ((m or {}).get("legacy") or {}).get("map") or {}
-
-
-def stream_apply(stream_id, payload):
-    """Hand one transition to the stream that owns it, and return what it says.
-
-    The board never writes another stream's files. It asks, the stream writes,
-    the same split agents-dashboard/CONTRACT.md already uses for schedules. A
-    stream whose command fails is one error on one card rather than a page that
-    went blank.
-    """
-    if ws_manifest is None:
-        return 503, {"ok": False, "error": "the work-streams package is not on this machine"}
-    root = os.path.normpath(os.path.join(ROOT, ".."))
-    for path in ws_manifest.discover(root):
-        m, errors = ws_manifest.load(path)
-        if m is None or m.get("id") != stream_id:
-            continue
-        if errors:
-            return 500, {"ok": False, "error": "; ".join(errors)}
-        how = (m.get("writer") or {}).get("how") or {}
-        if how.get("kind") != "subprocess":
-            return 400, {"ok": False, "error": "the %s stream is not written this way" % stream_id}
-        cwd = os.path.normpath(os.path.join(os.path.dirname(path), how.get("cwd") or "."))
-        try:
-            proc = subprocess.run(how["apply"], cwd=cwd, input=json.dumps(payload),
-                                  capture_output=True, text=True, timeout=30)
-        except (OSError, subprocess.TimeoutExpired) as err:
-            return 502, {"ok": False, "error": "%s did not answer: %s" % (stream_id, err)}
-        try:
-            return (200 if proc.returncode == 0 else 400), json.loads(proc.stdout or "{}")
-        except ValueError:
-            first = (proc.stderr or proc.stdout or "").strip().splitlines()
-            return 502, {"ok": False, "error": first[0] if first else "no answer"}
-    return 404, {"ok": False, "error": "no stream called %r" % stream_id}
-
-
 def stream_listing():
     """Every stream manifest under ~/Code, with whatever is wrong with each.
 
@@ -2265,17 +2014,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, meta)
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
-        # The implementing agent's half. Read-only here, like every other listing:
-        # what mints and moves these documents is the runs stream's own writer,
-        # reached through /stream/apply.
-        # Three routes rather than one, and split by how long each takes: the
-        # queue is a parse of todo.md, the run is a tail of a log, and both are
-        # instant. A checkout with no agents/plan-agent/ answers 404 on the queue and the
-        # board simply draws one fewer column.
-        if path == "/queue.json":
-            got = queue_listing()
-            return self._json(404 if got is None else 200,
-                              got if got is not None else {"error": "no planning agent here"})
+        # The run: a tail of the planning agent's log, read for the Spend and
+        # schedules sheet.
         if path == "/planning-agent.json":
             return self._json(200, planning_agent_run())
         # Every stream manifest under ~/Code, with whatever is wrong with each.
@@ -2617,60 +2357,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload.get("cwd"), payload.get("title")
             )
             return self._json(400 if err else 200, err or got)
-        # One transition, handed to whichever stream owns the item. The generic
-        # route; /plan/status below is now a shim over it, kept so a board tab
-        # open from before this change still works.
-        if path == "/stream/apply":
-            if self.headers.get("X-Board") != "1":
-                return self._json(403, {"error": "not from the board"})
-            data = self._body()
-            try:
-                payload = json.loads((data or b"{}").decode("utf-8"))
-            except (UnicodeDecodeError, ValueError):
-                return self._json(400, {"error": "body was not valid JSON"})
-            code, out = stream_apply(payload.get("stream", ""), payload)
-            return self._json(code, out)
-        if path == "/plan/status":
-            # Same guard as every other write route: only the board asks.
-            if self.headers.get("X-Board") != "1":
-                return self._json(403, {"error": "not from the board"})
-            data = self._body()
-            try:
-                payload = json.loads((data or b"{}").decode("utf-8"))
-            except (UnicodeDecodeError, ValueError):
-                return self._json(400, {"error": "body was not valid JSON"})
-            # A shim over /stream/apply since 11 Sep 2026. The five status words
-            # are gone from the files; what they meant is state + owner + seen,
-            # and the mapping lives in the stream's own manifest rather than
-            # being written out a second time here. Kept so a board tab open
-            # from before the change still works, and so nothing else that
-            # learned this route breaks silently.
-            legacy = plan_legacy_map()
-            v = legacy.get(payload.get("status") or "")
-            if not v:
-                return self._json(400, {"error": "unknown status"})
-            code, out = stream_apply("plans", {
-                "stream": "plans",
-                "item": {"group": payload.get("night"), "name": payload.get("name")},
-                "to": v["state"], "owner": v["owner"], "seen": v["seen"],
-                "resolution": v.get("resolution", ""), "reason": payload.get("note") or "",
-            })
-            return self._json(code, out)
-        if path == "/plans/start-session":
-            # A real window rather than a spend, so no confirm sheet the
-            # way /planning_agent/run gets one — worst case is an extra
-            # Terminal window, and the money is only spent once he actually
-            # talks to the session it opens.
-            if self.headers.get("X-Board") != "1":
-                return self._json(403, {"error": "not from the board"})
-            data = self._body()
-            try:
-                payload = json.loads((data or b"{}").decode("utf-8"))
-            except (UnicodeDecodeError, ValueError):
-                return self._json(400, {"error": "body was not valid JSON"})
-            got, err = start_plan_session(payload.get("name") or "")
-            return self._json(404 if err and err.get("error") == "no such plan"
-                               else (500 if err else 200), err or got)
         if path == "/planning_agent/run":
             # Spends real money, so it is guarded like every other write route
             # and confirmed in the board before it gets here.
@@ -2678,19 +2364,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(403, {"error": "not from the board"})
             got, err = start_planning_agent_run()
             return self._json(409 if err else 200, err or got)
-        if path == "/queue/order":
-            # Same guard as every other write route: only the board asks.
-            if self.headers.get("X-Board") != "1":
-                return self._json(403, {"error": "not from the board"})
-            data = self._body()
-            try:
-                payload = json.loads((data or b"{}").decode("utf-8"))
-            except (UnicodeDecodeError, ValueError):
-                return self._json(400, {"error": "body was not valid JSON"})
-            got, err = set_queue_order(payload.get("order") or [],
-                                       payload.get("hold") or [],
-                                       payload.get("force"))
-            return self._json(400 if err else 200, err or got)
         if path == "/agenda-history":
             data = self._body()
             if data is None:

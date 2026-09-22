@@ -21,9 +21,9 @@
  * It needs no browser and no server. kanban/js/09-columns.js is run in a `vm`
  * with a stubbed `document` — it registers two delegated click listeners at
  * top level and touches nothing else a host would provide — Tenon is imported
- * as the built package a consumer gets, and PlanCard, the one component still
- * written here, is transformed by esbuild, which is already in the tree as one
- * of vite's own dependencies rather than as a dependency of this.
+ * as the built package a consumer gets. PlanCard, the one component that was
+ * written here and needed esbuild to be imported, went with the Plans view on
+ * 22 Sep 2026.
  *
  * The last check is a different kind and belongs here anyway: that the built
  * bundle carries React's production build. Vite substitutes NODE_ENV for an
@@ -34,7 +34,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import url from 'node:url'
 import vm from 'node:vm'
-import * as esbuild from 'esbuild'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -58,17 +57,6 @@ const legacy = vm.runInNewContext(
   { filename: 'kanban/js/09-columns.js' })
 
 /* ---- the components ------------------------------------------------------- */
-/* Inside the repo rather than in /tmp, because the transformed files import
-   `react` and node resolves that from the importing file's own directory
-   upwards — from /tmp there is no node_modules to find. */
-const outdir = fs.mkdtempSync(path.join(REPO, 'node_modules', '.cache-board-ui-'))
-await esbuild.build({
-  entryPoints: [path.join(HERE, 'PlanCard.tsx')],
-  outdir, bundle: true, format: 'esm', jsx: 'automatic',
-  external: ['react', 'react-dom', 'react/jsx-runtime', '@tiagopedras/tenon'],
-  logLevel: 'silent',
-})
-const { PlanCard } = await import(url.pathToFileURL(path.join(outdir, 'PlanCard.js')))
 /* The built package, the same file a consumer installs, rather than Tenon's
    source. A component that renders differently once built is a component that
    is broken for everyone but this suite. */
@@ -299,100 +287,14 @@ check('stat card — text needing escaping, which React does rather than esc()',
   '</div>',
   h(Stat, { eyebrow: `Alex's "plans" & <b>`, value: 3 }))
 
-/* ---- the plan card --------------------------------------------------------
-   `planItemHTML()` is gone — PlanCard is the only spelling of a plan card now —
-   so there is no string builder left to render this one against. What holds it
-   instead is the thing that builder was made of: the same cardShellHTML, given
-   the rows a plan card carries, written out here. It is the shape that matters
-   and the shape is what this pins, so a row moving out of the card, or picking
-   up a wrapper on the way through, still fails here.
-
-   The escaping is not incidental. planItemHTML() called esc() on every one of
-   these by hand and the component does not, because React escapes what it
-   writes — so this case carries the characters that would show the difference
-   if that ever stopped being true.
-
-   `data-plan` is the only attribute left and that is the point: the card
-   carried `data-plan-open` and `data-plan-goto` until 13 Sep 2026, when
-   opening and the link back became props. A handler is not markup, so nothing
-   here holds them — what holds them is test_plans.mjs, which clicks. */
-const PLAN = {
-  url: 'plans/2026-09-13-buttons.md',
-  title: `Alex's "button" audit & <b>the rest</b>`,
-  variant: ' agreed',
-  stripe: 'var(--tenon-text-success)',
-  word: 'accepted',
-  production: 'being made',
-  productionKind: 'doing',
-  needsYou: true,
-  gotoKey: 'close-the-figma-gap',
-  gotoLabel: 'Close the Figma gap',
-  where: ['Design System', 'To do', undefined, '13 Sep 12:04'],
-  scores: { impact: { level: 'high', label: '🔥' } },
-  summaryHTML: 'What the plan <em>proposes</em>.',
-  feedback: 'Too broad — split it per component.',
-}
-
-check('plan card — every row a plan carries',
-  legacy.cardShellHTML({
-    cls: 'repitem planitem agreed folded',
-    draggable: true,
-    attrs: 'data-plan="' + PLAN.url + '"',
-    stripe: PLAN.stripe,
-    eyebrow: '<span class="bucket">accepted</span><span class="right">' +
-      '<span class="planprod planprod-doing" ' +
-      'title="How far the implementing agent has got with this one">being made</span>' +
-      '<span class="planfold" ' +
-      'title="The agent stopped and asked rather than guessing">needs you</span></span>',
-    title: legacy.esc(PLAN.title),
-    tags: '<span class="planscore"><span class="tag impact-high" title="high impact">🔥</span></span>',
-    meta: '<span class="planwhere">Design System · To do · 13 Sep 12:04</span>' +
-      '<button class="plangoto" ' +
-      'title="Open this task on the board">Close the Figma gap ↗</button>',
-    summary: PLAN.summaryHTML,
-    extra: '<div class="planredo"><b>Sent back:</b> ' + legacy.esc(PLAN.feedback) + '</div>',
-  }),
-  h(PlanCard, PLAN))
-
-check('plan card — nothing optional, which is most of them',
-  legacy.cardShellHTML({
-    cls: 'repitem planitem',
-    draggable: true,
-    attrs: 'data-plan="p.md"',
-    stripe: 'var(--tenon-stroke-default)',
-    eyebrow: '<span class="bucket">new</span>',
-    title: 'Write the review',
-  }),
-  h(PlanCard, { url: 'p.md', title: 'Write the review', stripe: 'var(--tenon-stroke-default)', word: 'new' }))
-
-check('plan card — a plan with no task left on the board keeps its own name',
-  legacy.cardShellHTML({
-    cls: 'repitem planitem read',
-    draggable: true,
-    attrs: 'data-plan="p.md"',
-    stripe: 'var(--tenon-stroke-default)',
-    eyebrow: '<span class="bucket">read</span>',
-    title: 'X',
-    meta: '<button class="plangoto" ' +
-      'title="Open this task on the board">a-slug ↗</button>',
-  }),
-  h(PlanCard, {
-    url: 'p.md', title: 'X', variant: ' read', stripe: 'var(--tenon-stroke-default)', word: 'read',
-    gotoKey: 'a-slug', where: [],
-  }))
-
 /* ---- classList against a React-owned node ---------------------------------
    React writes className only when the prop it renders from has changed, so
    an imperative classList call on a node it owns is invisible until that prop
    next changes — at which point the class it added is overwritten without a
-   word. 13-plans.js still carries six of these, all transient interaction
-   feedback (a drag in progress, a drop target, a closed filter or fold) that
-   never collides with a prop React tracks, which is why they are safe rather
-   than merely unnoticed. This is what stops a ported view from growing a
-   seventh kind, or a different ported view from picking either pattern back
-   up, without failing anything. */
+   word. 13-plans.js carried six of these until the Plans view went on 22 Sep
+   2026, so what this holds now is that no ported view picks the pattern back
+   up. */
 {
-  const KNOWN_SAFE = new Set(['dragging', 'coldrop', 'coldeny', 'over-top', 'over-bottom', 'hidden'])
   const classListCalls = src => {
     const found = new Set()
     const re = /\.classList\.(?:add|remove|toggle)\(([^)]*)\)/g
@@ -403,17 +305,6 @@ check('plan card — a plan with no task left on the board keeps its own name',
     }
     return found
   }
-
-  const plansSrc = fs.readFileSync(path.join(REPO, 'kanban/js/13-plans.js'), 'utf8')
-  const plansClasses = classListCalls(plansSrc)
-  checks++
-  for (const c of plansClasses)
-    if (!KNOWN_SAFE.has(c))
-      fail(`13-plans.js writes .${c} through classList — a class React doesn't own is invisible ` +
-        `until the prop it should have been changes, at which point it's silently overwritten`)
-  for (const c of KNOWN_SAFE)
-    if (!plansClasses.has(c))
-      fail(`13-plans.js no longer writes .${c} through classList — narrow KNOWN_SAFE to match`)
 
   for (const f of ['26-projects.js', '12-reports.js', '15-backups.js']) {
     checks++
@@ -437,6 +328,5 @@ if (!fs.existsSync(bundle)) {
     fail('the bundle does not hang the BoardUI global the page loads it for')
 }
 
-fs.rmSync(outdir, { recursive: true, force: true })
 console.log(`${checks} primitives against their string builders — ${failures ? 'see above' : 'all agree'}`)
 process.exit(failures ? 1 : 0)

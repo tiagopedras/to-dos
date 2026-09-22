@@ -12,6 +12,7 @@ waiting until 02:00.
 
 import datetime as dt
 import io
+import re
 import os
 import shutil
 import sys
@@ -116,6 +117,26 @@ DOC = """# List
 DOC = DOC.replace("- [ ] **Already done**", "- [x] **Already done**")
 
 
+def handed_over(doc):
+    """Gives every top-level task assigned to the Plan agent the sub-task a
+    handover makes, since the picker plans a task through its Plan sub-task and
+    nothing else. The tasks in these fixtures were written before that."""
+    out, n = [], 0
+    for line in doc.split("\n"):
+        if re.match(r"^- \[.\] ", line) and "[to:: Plan agent]" in line:
+            n += 1
+            tid = "t%05d" % n
+            out.append(line + " `id:%s`" % tid)
+            out.append("  - [%s] Plan [to:: Plan agent] `#%s-plan` `id:p%05d`"
+                       % ("x" if line.startswith("- [x]") else " ", tid, n))
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+DOC = handed_over(DOC)
+
+
 def titles(tasks):
     return sorted(t.title for t in tasks)
 
@@ -143,85 +164,26 @@ def test_pick():
           "not startable until 2099-01-01")
     check("a done task is still dropped quietly", "Already done" in why, False)
 
-    # And the override: dragging one of those cards into To do writes `force`,
-    # which plans it tonight whatever the rule said. A held title beats it,
-    # since holding is him saying leave it alone in as many words.
-    order = {"order": [], "hold": [], "force": ["Not yet startable", "Stuck"]}
-    pf, sf = pick.select(DOC, day=dt.date(2026, 9, 5), use_ledger=False, order=order)
-    check("a forced task is planned", titles(pf),
-          ["Not yet startable", "Plain and plannable", "Startable now", "Stuck"])
-    check("and stops saying why it was not", "Stuck" in {t.title: w for t, w in sf}, False)
-
-    order = {"order": [], "hold": ["Stuck"], "force": ["Stuck"]}
-    ph, _ = pick.select(DOC, day=dt.date(2026, 9, 5), use_ledger=False, order=order)
-    check("held beats forced", "Stuck" in titles(ph), False)
-
-    # The ledger: unchanged is skipped, changed is planned again, and an accepted
-    # plan is left alone — since 12 Sep 2026 `done` is the end of the planning
-    # half rather than a reason to start it over.
+    # The ledger: unchanged is skipped and changed is planned again. What a plan
+    # is doing is the task's sub-tasks' business and shows in the fingerprint, so
+    # the ledger row carries no state to read.
     tasks = {t.title: t for t in plan_}
     fp = pick.fingerprint(tasks["Startable now"])
-    ledger = {"Startable now": {"fingerprint": fp, "planned": "2026-09-04", "status": "unread"}}
+    ledger = {"Startable now": {"fingerprint": fp, "planned": "2026-09-04"}}
     p2, s2 = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
     check("unchanged is skipped", titles(p2), ["Plain and plannable"])
     check("and says why", s2[0][1].startswith("unchanged"), True)
 
-    ledger["Startable now"]["status"] = "actioned"
-    p3, s3 = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("an accepted plan is left alone", titles(p3), ["Plain and plannable"])
-    check("and says so", [w for t, w in s3 if t.title == "Startable now"][0].startswith("last plan actioned"), True)
-
-    # The same question asked of the six states rather than the five words. Both
-    # readings have to agree, since a ledger written before 11 Sep 2026 still
-    # carries the words and nothing rewrites them.
-    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
-                               "state": "done", "owner": "me", "resolution": "actioned"}
-    pd, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("done is left alone", titles(pd), ["Plain and plannable"])
-
-    ledger["Startable now"]["resolution"] = "superseded"
-    ps, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("but a replaced one comes back", titles(ps), ["Plain and plannable", "Startable now"])
-
-    # `accepted`, the state added 12 Sep 2026 for a plan he has approved whose
-    # run has not finished. It has to answer this question exactly as `done`
-    # does: two live plans on one task is the thing being prevented, and that
-    # is just as true while the run is still going as after it ends.
-    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
-                               "state": "accepted", "owner": "implement-agent"}
-    pac, sac = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("accepted is left alone", titles(pac), ["Plain and plannable"])
-    check("and says it was accepted",
-          [w for t, w in sac if t.title == "Startable now"][0].startswith("plan accepted"), True)
-
-    # Parked in Backlog. The hold list is what the picker actually reads, but a
-    # plan left in `backlog` must not pull the task back in on its own either.
-    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
-                               "state": "backlog", "owner": "me"}
-    pb, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("parked is left alone", titles(pb), ["Plain and plannable"])
-
-    ledger["Startable now"] = {"fingerprint": fp, "planned": "2026-09-04",
-                               "status": "actioned"}
-
-    # The two statuses added with the execution half, 6 Sep 2026. They pull in
-    # opposite directions and both matter: a rejected plan has to come back, and
-    # an agreed one has to be left alone until the work is done.
-    ledger["Startable now"]["status"] = "redo"
-    pr, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("redo is planned again", titles(pr), ["Plain and plannable", "Startable now"])
-
-    ledger["Startable now"]["status"] = "agreed"
-    pa, sa = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
-    check("agreed is left alone", titles(pa), ["Plain and plannable"])
-    check("and says it is waiting",
-          [w for t, w in sa if t.title == "Startable now"][0].startswith("plan agreed"), True)
-    ledger["Startable now"]["status"] = "unread"
-
-    ledger["Startable now"] = {"fingerprint": "different", "planned": "2026-09-04",
-                               "status": "unread"}
+    ledger["Startable now"] = {"fingerprint": "different", "planned": "2026-09-04"}
     p4, _ = pick.select(DOC, day=dt.date(2026, 9, 5), ledger=ledger)
     check("changed is planned again", titles(p4), ["Plain and plannable", "Startable now"])
+
+    # Sent back is a changed task: the review unticks the Plan and writes a
+    # feedback note under it, and both are in the fingerprint.
+    sent = re.sub(r"(\*\*Startable now\*\*[^\n]*\n  - \[ \] Plan[^\n]*)", r"\1\n    - feedback: too broad", DOC)
+    pb, _ = pick.select(sent, day=dt.date(2026, 9, 5), ledger={
+        "Startable now": {"fingerprint": fp, "planned": "2026-09-04"}})
+    check("a feedback note on the Plan sub-task makes the task stale", "Startable now" in titles(pb), True)
 
     # The fingerprint covers the notes, not just the title line. Both sides are
     # found by title rather than by position: in_order sorts on the rules now,
@@ -279,11 +241,12 @@ def test_sub_tasks():
     """The Plan agent plans a task through its Plan sub-task, and asks for it to
     be ticked through the board's queue rather than writing the list itself."""
     plan_, skip = pick.select(SUB_DOC, day=dt.date(2026, 9, 22), use_ledger=False)
-    check("a task is planned through its open, unblocked Plan sub-task, and the old way still works",
-          titles(plan_), ["An ordinary step for an agent", "Handed over the new way", "Handed over the old way"])
+    check("a task is planned through its open, unblocked Plan sub-task, and only so",
+          titles(plan_), ["Handed over the new way"])
     by = {t.title: t.plan_sub for t in plan_}
     check("the sub-task it is being planned for is remembered", by["Handed over the new way"], "aa0001")
-    check("and a task handed over the old way has none", by["Handed over the old way"], "")
+    check("[to:: Plan agent] on a task nobody handed over is not planned, nor an ordinary step for an agent",
+          any(t.title in ("Handed over the old way", "An ordinary step for an agent") for t in plan_), False)
     check("a ticked Plan is not planned again, nor one waiting on something, nor one for the other agent",
           any(t.title in ("Plan already written", "Plan waiting its turn",
                           "Straight to the Implement agent") for t in plan_), False)
@@ -296,7 +259,8 @@ def test_sub_tasks():
         paths.tick_queue_path = lambda: q
         try:
             plan.queue_plan_tick(task, "2026-09-22/handed-over.md")
-            plan.queue_plan_tick(next(t for t in plan_ if t.title == "Handed over the old way"), "x.md")
+            no_sub = todo.parse_task(["- [ ] **No sub-task**"])
+            plan.queue_plan_tick(no_sub, "x.md")
         finally:
             paths.tick_queue_path = old
         got = tick_queue.read(q)
@@ -312,85 +276,6 @@ def test_sub_tasks():
         check("an unreadable queue is an empty one", tick_queue.read(os.path.join(tmp, "nothing.json")), [])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-
-
-def test_order():
-    """The board's say in the queue: what runs first, and what does not run.
-
-    Order matters because the batch stops on a budget, a floor or a usage limit,
-    so the front of the queue is the part that reliably gets planned. These check
-    the two rules that are easy to get backwards: an unranked task goes to the
-    back rather than the front, and a hold beats everything including --all.
-    """
-    day = dt.date(2026, 9, 5)
-    order = {"order": ["Startable now"], "hold": []}
-    p1, _ = pick.select(DOC, day=day, use_ledger=False, order=order)
-    check("the ranked task leads", [t.title for t in p1],
-          ["Startable now", "Plain and plannable"])
-
-    # A task the board has never ranked queues behind what he has prioritised,
-    # rather than jumping it. Without this, every new task would arrive at the
-    # front of the night.
-    order = {"order": ["Plain and plannable"], "hold": []}
-    p2, _ = pick.select(DOC, day=day, use_ledger=False, order=order)
-    check("an unranked task goes to the back", [t.title for t in p2],
-          ["Plain and plannable", "Startable now"])
-
-    # A stored title that is not in tonight's queue is never matched, which is
-    # why nothing ever has to prune this file.
-    order = {"order": ["Something deleted last week", "Startable now"], "hold": []}
-    p3, _ = pick.select(DOC, day=day, use_ledger=False, order=order)
-    check("a title that no longer exists is simply not matched",
-          [t.title for t in p3], ["Startable now", "Plain and plannable"])
-
-    order = {"order": [], "hold": ["startable NOW"]}
-    p4, s4 = pick.select(DOC, day=day, use_ledger=False, order=order)
-    check("a held task is dropped, whatever its case", titles(p4),
-          ["Plain and plannable"])
-    check("and says it was held rather than skipped by a rule",
-          [why for t, why in s4 if t.title == "Startable now"],
-          ["held back from the board"])
-
-    # --all exists to ignore the ledger, which is a cache. A hold is an
-    # instruction, and the one control he has over the night.
-    p5, _ = pick.select(DOC, day=day, use_ledger=False,
-                        order={"order": [], "hold": ["Startable now"]})
-    check("--all does not override a hold", titles(p5), ["Plain and plannable"])
-
-    # The file itself. Missing, or written by hand and wrong, it must read as
-    # empty rather than take the queue down with it — it is a preference, and
-    # losing it should cost an ordering and nothing else.
-    import json
-    import tempfile
-    empty = {"order": [], "hold": [], "force": []}
-    check("a missing order file reads as empty",
-          pick.load_order("/nowhere/at/all.json"), empty)
-    tmp = tempfile.mkdtemp(prefix="order-test-")
-    try:
-        path = os.path.join(tmp, "queue-order.json")
-        for junk in ('not json at all', '[]', '{"order": "a string"}', '{"hold": null}'):
-            with open(path, "w", encoding="utf-8") as fh:
-                fh.write(junk)
-            check("%s reads as empty" % junk[:22], pick.load_order(path), empty)
-        pick.save_order({"order": ["One", "  "], "hold": ["Two"]}, path)
-        check("saving drops blank titles", pick.load_order(path),
-              {"order": ["One"], "hold": ["Two"], "force": []})
-        with open(path, encoding="utf-8") as fh:
-            check("and stamps when it was saved", "saved" in json.load(fh), True)
-        # Held and forced are two columns saying opposite things about one task,
-        # so save_order() will not write a title into both. Hold wins, because
-        # hold is the one that means leave it alone.
-        pick.save_order({"order": [], "hold": ["Two"], "force": ["two", "Three"]}, path)
-        check("a held title cannot also be forced", pick.load_order(path),
-              {"order": [], "hold": ["Two"], "force": ["Three"]})
-        # A file written before 17 Sep 2026 has no force list at all, and reads
-        # the same as one that has never been overruled.
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write('{"order": ["One"], "hold": []}')
-        check("an older file reads as nothing forced", pick.load_order(path),
-              {"order": ["One"], "hold": [], "force": []})
-    finally:
-        __import__("shutil").rmtree(tmp, ignore_errors=True)
 
 
 # --- the rules the queue falls back on ---------------------------------------
@@ -413,6 +298,8 @@ RULES_DOC = """# List
 - [ ] **The one thing** [impact:: low] [effort:: L] [to:: Plan agent] `headline:2026-09-04`
 """
 
+RULES_DOC = handed_over(RULES_DOC)
+
 
 def test_rules():
     """What orders the queue when he has not dragged anything.
@@ -424,11 +311,10 @@ def test_rules():
     buckets got nothing. So each key is pinned separately here.
     """
     day = dt.date(2026, 9, 5)
-    order = {"order": [], "hold": []}
     # Not titles(), which sorts: every check here is about the order itself.
-    ranked = lambda o: [t.title for t in
-                        pick.select(RULES_DOC, day=day, use_ledger=False, order=o)[0]]
-    got = ranked(order)
+    ranked = lambda: [t.title for t in
+                      pick.select(RULES_DOC, day=day, use_ledger=False)[0]]
+    got = ranked()
 
     check("the headline leads, whatever it scores", got[0], "The one thing")
     check("then the dates, soonest first, because a date beats a score",
@@ -439,15 +325,9 @@ def test_rules():
     # The whole point of sorting on the rules: a bucket cannot drain the night
     # just by sorting early in the file.
     buckets = [t.bucket for t in
-               pick.select(RULES_DOC, day=day, use_ledger=False, order=order)[0]]
+               pick.select(RULES_DOC, day=day, use_ledger=False)[0]]
     check("buckets interleave rather than draining in file order",
           buckets, ["DS", "DS", "People", "DS", "People"])
-
-    # And he still wins. A dragged order is him saying "this one first" and it
-    # sits above every rule above.
-    dragged = {"order": ["Undated low value"], "hold": []}
-    check("what he dragged outranks the headline",
-          ranked(dragged)[0], "Undated low value")
 
 
 # --- folding -----------------------------------------------------------------
@@ -1010,115 +890,6 @@ def test_server():
             resolved = server.Handler.translate_path(stub, rows[0]["url"])
             check("and resolves to one dataset deep, not two",
                   resolved.count("/test/"), 1)
-
-            # The writing is the stream's own, since 11 Sep 2026. The board
-            # asks and this performs it, which is what keeps one writer per
-            # file — see agents/plan-agent/stream.py and, for why, the note
-            # where mark_plan() used to be in kanban/server.py.
-            import stream as plans_stream
-            real_pd, real_lp = plans_stream.paths.plans_dir, plans_stream.paths.ledger_path
-            plans_stream.paths.plans_dir = lambda: tmp
-            plans_stream.paths.ledger_path = lambda: os.path.join(tmp, "ledger.json")
-            try:
-                out = plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "done", "owner": "me", "resolution": "actioned"})
-                check("the move succeeds", out.get("ok"), True)
-                check("the file now says done", server.plan_listing()[0]["state"], "done")
-                check("and says how it finished", server.plan_listing()[0]["resolution"], "actioned")
-                with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
-                    row = json.load(fh)["A planned thing"]
-                # Both halves in one call. Writing the file and not the ledger
-                # is the bug this replaced: the picker reads the ledger, so a
-                # plan finished only in its own frontmatter left the task held
-                # out of every future night's queue for ever.
-                check("and so does the ledger, which is what the picker reads", row["state"], "done")
-                check("the ledger carries the owner too", row["owner"], "me")
-
-                # Accepting a plan. `accepted` is not `done`: he has approved
-                # it and the run it feeds has not finished, which is the gap
-                # the state was added for on 12 Sep 2026. It needs no
-                # resolution, because nothing has closed yet, and it defaults
-                # to the implementing agent rather than to him, because the next
-                # move on it is a run rather than a decision.
-                out = plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "accepted"})
-                check("accepting one succeeds with no resolution", out.get("ok"), True)
-                check("and lands in accepted", server.plan_listing()[0]["state"], "accepted")
-                with open(os.path.join(tmp, "ledger.json"), encoding="utf-8") as fh:
-                    row = json.load(fh)["A planned thing"]
-                check("owned by the implementing agent by default", row["owner"], "implement-agent")
-                check("and its production half starts at none",
-                      server.plan_listing()[0]["production"], "none")
-                # He was not the next mover on an accepted plan until 13 Sep
-                # 2026, because what happened next was a run on a board of its
-                # own. Folding the two boards into one removed that second
-                # document, so the same card comes back to him the moment the
-                # agent reports — and `accepted` is now owned by whichever of
-                # the two is next to move.
-                check("accepted may be owned by him, since the fold",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "accepted", "owner": "me",
-                                          "production": "review"}).get("ok"), True)
-                check("and the stage it reached is on the plan",
-                      server.plan_listing()[0]["production"], "review")
-                # Turning one down: a resolution rather than an eighth state,
-                # and it needs a reason for the same purpose sending one back
-                # does — the record is all that is left of the idea.
-                check("turning a plan down needs a reason",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "done", "resolution": "declined"}).get("ok"), False)
-                check("and with one it closes",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "done", "resolution": "declined",
-                                          "reason": "not worth the effort"}).get("ok"), True)
-                check("landing in done, said as declined",
-                      (server.plan_listing()[0]["state"], server.plan_listing()[0]["resolution"]),
-                      ("done", "declined"))
-                check("and the reason is kept on the plan",
-                      server.plan_listing()[0]["feedback"], "not worth the effort")
-                check("but a stage this stream has never heard of is refused",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "accepted", "production": "halfway"}).get("ok"), False)
-                # Put it back where the rest of this section found it.
-                plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                    "to": "done", "owner": "me", "resolution": "actioned"})
-
-                # The bad references this stream refuses, since these come off
-                # a URL and one of them climbs out of the folder.
-                for name in ("../x.md", "missing.md", "no-extension", ""):
-                    out = plans_stream.apply({"item": {"name": name}, "to": "review", "owner": "me"})
-                    check("refuses %r" % name, out.get("ok"), False)
-                check("refuses a state this stream does not have",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "banana"}).get("ok"), False)
-                # An owner is not decoration: an item nobody owns is one nothing
-                # will ever pick up.
-                check("refuses a state its owner cannot hold",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "review", "owner": "plan-agent"}).get("ok"), False)
-                check("refuses sending one back with no reason",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "ready", "owner": "plan-agent"}).get("ok"), False)
-                # The claim. Advisory on purpose: a claim held by a process
-                # that has gone is ignored, because being unable to write your
-                # own list after a crash is a worse failure than the one the
-                # lock prevents. See PACKAGES/work-streams/writer.py.
-                import writer as ws_writer
-                lock = os.path.join(tmp, ".plans.lock")
-                with open(lock, "w", encoding="utf-8") as fh:
-                    # Somebody else's pid, and a live one: a process never
-                    # locks itself out, which is why os.getpid() would pass here.
-                    json.dump({"who": "something live", "pid": os.getppid(), "at": time.time()}, fh)
-                check("refuses a write while something live holds the claim",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "review", "owner": "me"}).get("ok"), False)
-                with open(lock, "w", encoding="utf-8") as fh:
-                    json.dump({"who": "a crashed run", "pid": 999999, "at": time.time()}, fh)
-                check("but a claim whose process has gone locks nobody out",
-                      plans_stream.apply({"item": {"name": "a-planned-thing.md"},
-                                          "to": "review", "owner": "me"}).get("ok"), True)
-            finally:
-                plans_stream.paths.plans_dir, plans_stream.paths.ledger_path = real_pd, real_lp
         finally:
             server.plans_dir, server.current_dataset = real_dir, real_ds
     finally:
@@ -1126,7 +897,8 @@ def test_server():
 
 
 def test_queue_routes():
-    """queue_listing, set_queue_order and planning_agent_run, against a temp folder.
+    """planning_agent_run, against a temp folder. It read the queue as well until the
+    Plans view went on 22 Sep 2026.
 
     Same plumbing as test_server and for the same reason: everything the board
     reads here follows data/.current, and a test that reads the real one would
@@ -1161,33 +933,6 @@ def test_queue_routes():
         lock = os.path.join(tmp, ".plan-agent-test.lock")
         server.planning_lock = lambda: lock
         try:
-            q = server.queue_listing()
-            check("the queue is what pick would plan",
-                  sorted(r["title"] for r in q["queue"]),
-                  ["Plain and plannable", "Startable now"])
-            check("each row carries the agent it would go to",
-                  q["queue"][0]["agent"].endswith("-agent"), True)
-            check("and why it is being planned", q["queue"][0]["why"], "never planned")
-            check("nothing is held to begin with", q["held"], [])
-
-            # The ordering, written the way the board writes it and read back
-            # the way the runner reads it. Both halves in one check, because
-            # the failure worth catching is them disagreeing.
-            got, err = server.set_queue_order(["Startable now"], ["Plain and plannable"])
-            check("the ordering saves", err, None)
-            q = server.queue_listing()
-            check("the board's order is what the queue now shows",
-                  [r["title"] for r in q["queue"]], ["Startable now"])
-            check("and a held task moves out of it, not out of sight",
-                  [r["title"] for r in q["held"]], ["Plain and plannable"])
-            check("held is the reason it gives", q["held"][0]["state"], "held")
-            check("the file is where the runner looks for it",
-                  os.path.isfile(os.path.join(plans, "queue-order.json")), True)
-
-            for bad in [("not a list", []), ([], "not a list"), (["x"] * 501, [])]:
-                _, err = server.set_queue_order(*bad)
-                check("refuses %r" % (str(bad)[:28],), bool(err), True)
-
             # The run log. Parsed rather than exported from plan.py, so this is
             # the check that keeps the two in step: these are plan.py's own
             # format strings, filled in.
@@ -1866,7 +1611,6 @@ def main():
     test_per_dataset_schedule()
     test_pick()
     test_sub_tasks()
-    test_order()
     test_rules()
     test_folding()
     test_one_file_per_task()

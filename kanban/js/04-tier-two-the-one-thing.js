@@ -585,13 +585,6 @@ function setDone(t, on, opts){
   // other way leaves steps alone: dragging a card back out of Done doesn't
   // mean the steps that were already ticked got undone.
   if (on) splitBody(t).steps.forEach(s => { if (!s.done) toggleSub(t, s.line); });
-  /* One task, one plan. Ticking a task off ends the work an agent was doing on
-     it, so its card has to leave Plans with it — the task being finished ends the
-     plan about it, whatever stage the plan had reached. planFinishedWithTask()
-     (13-plans.js) writes nothing unless this tab has already loaded the plans
-     and finds one for this task still open, so an ordinary tick on a list with
-     no plans behind it costs a lookup and no request. */
-  if (on && typeof planFinishedWithTask === 'function') planFinishedWithTask(t);
   return true;
 }
 

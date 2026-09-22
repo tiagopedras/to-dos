@@ -1,5 +1,5 @@
 /**
- * Drives the Plans view in headless Chrome and asserts on the two cards that
+ * Drives the Spend and schedules sheet in headless Chrome and asserts on the two cards that
  * used to be the Schedule view — "What runs on a clock", its own card
  * stacked under Token Session, and the Token Session chart itself.
  *
@@ -69,7 +69,7 @@ async function evalJS (expr) {
 }
 
 await new Promise(r => setTimeout(r, 2500))
-check('the board loaded', await evalJS(`typeof renderPlansView === 'function' && typeof renderSched === 'function'`))
+check('the board loaded', await evalJS(`typeof openRefCards === 'function' && typeof renderSched === 'function'`))
 
 /* The modal's tree is React, so a render followed by a read in the same breath
    reads the paint before it. Two frames: React commits in one and the browser
@@ -148,11 +148,11 @@ check('tab is locked before anything is drawn', await evalJS(`state.locked === t
 
 check('Schedule is gone as a header button', await evalJS(`!document.getElementById('scheduleBtn')`))
 
-await evalJS(`state.view = 'plans'; renderView()`)
+await evalJS(`state.view = 'board'; renderView()`)
 await new Promise(r => setTimeout(r, 700))
 
-// Neither card is on the view any more: both are reference rather than
-// decision, so they sit behind the Backlog card's button and draw when it is
+// Neither card is on a view: both are reference rather than decision, so they
+// sit behind the Data menu's Spend and schedules button and draw when it is
 // pressed. Everything below reads them inside that modal.
 check('neither card is drawn until the button is pressed', await evalJS(`
   !document.querySelector('#schedOut') && !document.querySelector('#usageOut')
@@ -182,22 +182,6 @@ check('the next run is written as a date, not an ISO string', await evalJS(`
   !document.querySelectorAll('#schedOut .schedjob')[1].querySelector('.schedmeta').textContent.includes('T0')
 `))
 
-// What is left of the current window leads the Queue/Doing card, in its own
-// column description, not the usage chart it used to sit on top of — see
-// renderStatus() in 14-schedule.js. It used to be a ride/open/stop decision;
-// the rule behind that went on 9 Sep 2026 and the line now reports capacity
-// rather than permission. It is on the view rather than in the modal, which
-// is why renderUsage() fetches whether its own chart is in the page or not —
-// the same call draws both.
-check('the window left leads the Queue/Doing card, in its own description', await evalJS(`
-  /^Session open — closes \\d\\d:\\d\\d, \\d+ min left\\.$/.test(
-    document.querySelector('#queueDoingCard .tenon-column__desc').textContent) &&
-  (m => m && +m[1] >= 85 && +m[1] <= 90)(
-    document.querySelector('#queueDoingCard .tenon-column__desc').textContent.match(/(\\d+) min left/))
-`))
-check('and nothing on it reads as a verdict any more', await evalJS(`
-  !/RIDE|OPEN|STOP/.test(document.querySelector('#queueDoingCard .tenon-column__desc').textContent)
-`))
 // The usage card itself carries no explanatory prose: the Status line
 // (elsewhere now) says what there is to spend and
 // agents/plan-agent/README.md holds the reasoning.
@@ -361,25 +345,20 @@ await evalJS(`(async () => {
 })()`)
 await new Promise(r => setTimeout(r, 300))
 check('no windows draws no chart rather than a broken one', await evalJS(`
-  !document.querySelector('#usageOut .uchart') &&
-  /min left/.test(document.querySelector('#queueDoingCard .tenon-column__desc').textContent)
+  !document.querySelector('#usageOut .uchart')
 `))
 await evalJS(`renderUsage()`)
 await new Promise(r => setTimeout(r, 300))
 
-// Leaving and coming back must work — Plans is a real tab in the registry now,
-// not a button toggling into a view outside it, but the same round trip is
-// still worth proving for the two cards that moved here, and a second opening
-// has to draw them as fully as the first.
+// Closing and reopening must work: a second opening has to draw both cards as
+// fully as the first.
 await evalJS(`closeModal()`)
 await evalJS(`state.view = 'board'; renderView()`)
 await new Promise(r => setTimeout(r, 300))
-check('leaving the tab clears the plans nav highlight', await evalJS(`
-  !document.querySelector('#viewToggle .tab.on') ||
-  document.querySelector('#viewToggle .tab.on').textContent !== 'Plans'
+check('there is no Plans tab any more, and an old #plans link lands on the board', await evalJS(`
+  ![...document.querySelectorAll('#viewToggle .tab')].some(t => t.textContent.startsWith('Plans')) &&
+  (state.view = 'plans', renderView(), state.view === 'board')
 `))
-await evalJS(`state.view = 'plans'; renderView()`)
-await new Promise(r => setTimeout(r, 700))
 await evalJS(`document.querySelector('#refCardsBtn').click()`)
 await new Promise(r => setTimeout(r, 700))
 check('and coming back redraws both cards', await evalJS(`

@@ -4,16 +4,12 @@
    4b2c. What runs on a clock, and what the usage windows are doing.
 
    Three things around this app run on a schedule rather than on demand: the
-   planning agent's twelve launchd wakes, the companion's morning briefing,
-   and the weekly backup thread inside this server. Used to be a view of its
-   own; both halves now live behind one button on the Plans tab instead, since
-   that is where the question "would it even run tonight" comes up, and neither
-   half is worth a column of that view to answer it — renderSched() draws the
-   jobs into their own card and renderUsage() draws the token chart, both inside
-   the modal openRefCards() opens. Nothing here holds a view id or a route any
-   more, just the render functions Plans calls — renderUsage() also feeds the
-   To do column's own description, which is on the view itself whether the
-   modal is open or not, see renderStatus() below.
+   Plan agent's wakes, the companion's morning briefing, and the weekly backup
+   thread inside this server. Both halves live behind one button in the Data
+   menu, Spend and schedules — renderSched() draws the jobs into their own card and
+   renderUsage() draws the token chart, both inside the modal openRefCards()
+   (13-agent-run.js) opens. Nothing here holds a view id or a route, just the
+   render functions that modal calls.
 
    A list rather than a calendar, deliberately. Twelve wakes a night render as
    noise on a grid and as one line in a list.
@@ -89,53 +85,11 @@ const hm = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes
    13-plans.js rather than into this chart's own #usageOut, since it answers a
    question about tonight's run; still fetched here, because /usage.json is
    the only route that knows it and one call draws both. */
-/* When the planning agent next wakes, as `/schedule.json` reports it. Held
-   here because two things want it and neither should fetch it twice: this
-   file's own status line and, once it has landed, Plans' To do column. Empty
-   until renderNextRun() has been round. */
-let nextRunAt = '';
-
-function renderStatus(u){
-  /* Handed over rather than assigned: the description is a prop on the React
-     tree PlansView mounts, like every other body on that view. setPlansStatus
-     is 13-plans.js's, and is absent on every other view. */
-  if (typeof setPlansStatus !== 'function') return;
-  /* The column's own question is "when does this get picked up", so the answer
-     leads and the capacity reading follows it as a second sentence. Both used
-     to need the schedule modal opened to find. */
-  const lead = nextRunAt ? 'Next run ' + schedWhen(nextRunAt) + '.' : '';
-  const w = u && u.window;
-  const rest = !w || !w.expires
-    ? 'No session open right now.'
-    : 'Session open — closes ' + hm(new Date(w.expires)) + ', ' +
-      Math.max(0, Math.round((new Date(w.expires) - new Date()) / 60000)) + ' min left.';
-  setPlansStatus([lead, rest].filter(Boolean).join(' '));
-}
-
-/* Reads the planning agent's next wake off the schedule and repaints the
-   status line with it. A failure is silent: the line still has the window
-   sentence to say, and an error banner over a column description would be
-   louder than the fact is worth. */
-let lastUsage = null;
-async function renderNextRun(){
-  try {
-    const res = await fetch('/schedule.json?t=' + Date.now(), { cache:'no-store' });
-    if (!res.ok) return;
-    const jobs = (await res.json()).jobs || [];
-    const job = jobs.find(j => j.id === 'plan-agent');
-    nextRunAt = (job && job.next) || '';
-    if (nextRunAt) renderStatus(lastUsage);
-  } catch (err) { /* silent, see above */ }
-}
-
 async function renderUsage(){
   try {
     const u = await getJSON('/usage.json?days=' + usageDays);
-    lastUsage = u;
-    renderStatus(u);
-    /* The chart lives in a modal off Plans and is absent most of the time; the
-       Status line above it is not. So the fetch happens either way and only the
-       drawing is skipped — paintRefCards() does nothing with the modal shut. */
+    /* The chart lives in a modal and is absent most of the time, so only the
+       drawing is skipped when it is shut — paintRefCards() does nothing then. */
     usageState = { kind: 'ok', usage: u };
   } catch (err) {
     usageState = { kind: 'error', message: String(err.message || err) };

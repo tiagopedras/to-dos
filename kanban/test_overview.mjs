@@ -81,6 +81,8 @@ await evalJS(`(() => {
   window.fetch = (u, o) => {
     const m = (o && o.method) || 'GET';
     if (m !== 'GET') { window.__blocked.push(m + ' ' + u); return Promise.resolve(new Response('{}', { status: 200 })) }
+    /* The plans folder is real and private, so the orphan-plan line is fed from here. */
+    if (String(u).startsWith('/plans.json')) return Promise.resolve(new Response(JSON.stringify({ plans: window.__plans || [] }), { status: 200 }))
     return real(u, o);
   };
 
@@ -312,6 +314,22 @@ check('clicking a card opens it, the same #lists delegation every other view use
   !!document.querySelector('#drawer:not(.hidden)')
 `))
 await evalJS(`closeDrawer()`)
+
+/* ---- a plan whose task has gone ---- */
+
+await evalJS(`window.__plans = [
+  { name: 'kept.md', title: 'Has its task', about: 'task:' + state.doc.buckets.flatMap(b => b.tiers.flatMap(t => t.tasks.map(k => k.stableId)))[0], state: '' },
+  { name: 'orphan.md', title: 'Lost its task', about: 'task:zz9999', state: 'review' },
+  { name: 'old.md', title: 'Finished long ago', about: 'task:zz8888', state: 'done' }
+]`)
+await evalJS(`state.view = 'board'; renderView(); state.view = 'overview'; renderView()`)
+await new Promise(r => setTimeout(r, 500))
+check('a plan with no task on the list gets a line in Context', await evalJS(`
+  /Lost its task/.test(([...document.querySelectorAll('.ctxgroup')].find(g => g.querySelector('summary').textContent === 'Plans with no task') || {}).textContent || '')
+`))
+check('and a plan that has its task, or is finished, does not', await evalJS(`
+  !/Has its task|Finished long ago/.test([...document.querySelectorAll('.ctxgroup')].find(g => g.querySelector('summary').textContent === 'Plans with no task').textContent)
+`))
 
 /* ---- the point of the guard ---- */
 

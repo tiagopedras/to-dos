@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Which tasks tonight's run should plan.
 
-Every open, top-level task delegated to the Plan agent, minus three exclusions and minus
-anything already planned whose text has not changed since.
+Every task handed to the Plan agent that has its Plan sub-task open (see
+plannable() below), minus three exclusions and minus anything already planned
+whose text has not changed since.
 
 The three exclusions are the same ones companion/digest.py applies, deliberately:
 two readers of one list disagreeing about what is actionable is worse than
@@ -13,21 +14,16 @@ either answer on its own.
   - An unticked `blocked-by:`. The blocker is the real task.
   - A `start:` that has not arrived. It cannot begin yet.
 
-Since 17 Sep 2026 the three are advice rather than a gate. Every task tagged
-delegated to the Plan agent has one card on Plans — one task, one plan — so an excluded task
-is not missing from the view, it is a card in Backlog wearing the reason. Where
-the card sits is the instruction, and dragging it into To do plans it tonight
-regardless: that is the `force` list in `plans/queue-order.json`, which this
-reads back below.
+They are advice, not a gate: an excluded task is reported with the reason it was
+left out, and comes back the moment the reason stops being true.
 
 `due:` is deliberately not consulted. A deadline says when something must be
 finished, not whether it is worth thinking about tonight, and CONVENTIONS.md is
 explicit that a deadline never hides anything.
 
-Order comes from the board. The Plans view shows this queue as its first column
-and writes `plans/queue-order.json` when a card is dragged, so the front of the
-list is what he asked for first rather than whichever bucket happens to sort
-early. Cards can also be held back there, and a held task is not planned at all.
+Order is in_order()'s, the rules and not the file. There was a file of the
+board's own beside it, `plans/queue-order.json`, written when a card was dragged
+on the Plans view; both went on 22 Sep 2026.
 
 The ledger is what makes planning all of them affordable rather than a wall of
 identical files every morning. Each planned task is recorded against a hash of
@@ -67,24 +63,25 @@ PARKED = {"reviewing"}
 def plannable(task, slugs=None):
     """Whether the Plan agent has work on this task, and the id of the sub-task.
 
-    Returns (yes, sub_id). A task whose sub-tasks name an agent has been handed
-    over the new way, and the Plan agent's part of it is its Plan sub-task: open,
-    assigned to it, and with what it waits on ticked. Nothing else on the task
-    is planned while that is not so, because a ticked Plan means the plan is
-    written and a blocked one is not its turn. A task handed over the old way,
-    `[to:: Plan agent]` on the task itself with no agent's sub-task under it,
-    is planned as it always was, so the list keeps working until its tasks are
-    handed over again. `sub_id` is empty for those, and for a sub-task with no id
-    written on its line, which cannot be ticked by name.
+    Returns (yes, sub_id). A task is the Plan agent's when it has been handed to
+    it, which lays out sub-tasks on the card (handOver() in the board's
+    04-tier-two-the-one-thing.js), and the Plan agent's part is its Plan
+    sub-task: open, assigned to it, with what it waits on ticked. Nothing else
+    on the task is planned while that is not so, because a ticked Plan means the
+    plan is written and a blocked one is not its turn. The mark of a handover is
+    the slug it makes, the task's id and `-plan` or `-implement`; an ordinary step
+    that happens to be assigned to an agent is a step it does, not a handover.
+
+    `[to:: Plan agent]` on a task with no such sub-tasks is not planned. It was
+    until 22 Sep 2026, when the Plans view went: a plan is read from the review
+    behind it on the card, so a plan written for a task that was never handed over
+    would have nowhere to be read. Handing it over again is what brings it back.
+    `sub_id` is empty for a sub-task with no id written on its line, which cannot
+    be ticked by name.
     """
     steps = [s["task"] for s in todo.split_body(task)[1]]
-    # A handover mints its sub-tasks' slugs from the task's id and the step, so
-    # that is what marks a task as handed over the new way. An ordinary step that
-    # happens to be assigned to an agent is a step the agent does, not a handover.
     made = [s for s in steps if task.stable_id and todo.agent_of(s.to)
             and re.fullmatch(re.escape(task.stable_id) + r"-(plan|implement)", s.slug or "")]
-    if not made:
-        return todo.agent_of(task.to) == todo.PLAN_AGENT, ""
     slugs = slugs if slugs is not None else todo.slug_states([task])
     for s in made:
         if (not s.done and todo.agent_of(s.to) == todo.PLAN_AGENT
@@ -188,96 +185,31 @@ def save_ledger(ledger, path=None):
     os.replace(tmp, path)
 
 
-# --- the board's ordering ----------------------------------------------------
+# --- the order ---------------------------------------------------------------
 #
-# The queue used to be whatever order the tasks happened to sit in todo.md,
-# which is bucket order, which is not a priority. This is the board's say in it:
-# `plans/queue-order.json`, written by the Plans view when a card is dragged,
-# holding two lists of titles.
-#
-#   order  the front of the queue, in the order they should be planned
-#   hold   tasks not to plan at all until they are let back in
-#
-# Titles rather than ids because titles are already what the ledger keys on, and
-# a second identity scheme for the same tasks is a second thing to keep in step.
-# Retitling a task loses its place in the order, which is the same thing it does
-# to its ledger row, and costs one plan rather than anything else.
-#
-# Neither list is authoritative about what the queue contains. Every rule above
-# still decides that; this only sorts what survives them and drops what is held.
-# So a title in here that no longer exists, or that has gone into Reviewing since, is
-# simply never matched, and there is nothing to prune.
-
-
-def titles(value):
-    """A list of non-empty titles, or nothing, from whatever was in the file.
-
-    `isinstance(value, list)` rather than truthiness, because a string is
-    iterable: a hand-edited file saying `"order": "Some task"` would otherwise
-    come back as one entry per letter and quietly shuffle the whole queue.
-    """
-    if not isinstance(value, list):
-        return []
-    return [str(t) for t in value if str(t).strip()]
-
-
-def load_order(path=None):
-    try:
-        with open(path or paths.order_path(), encoding="utf-8") as fh:
-            got = json.load(fh)
-    except (OSError, ValueError):
-        return {"order": [], "hold": [], "force": []}
-    if not isinstance(got, dict):
-        return {"order": [], "hold": [], "force": []}
-    # `force` is him having dragged a card the rules put in Backlog back into To
-    # do. Absent from every file written before 17 Sep 2026, and an empty list
-    # reads the same as the rules never having been overruled.
-    return {"order": titles(got.get("order")), "hold": titles(got.get("hold")),
-            "force": titles(got.get("force"))}
-
-
-def save_order(order, path=None):
-    path = path or paths.order_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    # Held and forced are the two columns, so a title cannot be in both: the
-    # later write wins, and hold is the one that means leave it alone.
-    hold = titles(order.get("hold"))
-    held = {key(t) for t in hold}
-    body = {
-        "order": titles(order.get("order")),
-        "hold": hold,
-        "force": [t for t in titles(order.get("force")) if key(t) not in held],
-        "saved": dt.datetime.now().astimezone().isoformat(timespec="minutes"),
-    }
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as fh:
-        json.dump(body, fh, indent=2)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, path)
-    return body
+# The queue used to take the order a card was dragged into on the Plans view,
+# stored in `plans/queue-order.json`, with two more lists beside it, one to hold a
+# task back and one to overrule the rules below. That view went on 22 Sep 2026.
+# Holding a task back is not handing it over, and overruling a rule is handing it
+# over again, so nothing here reads a file of the board's any more: what is in the
+# queue is decided by the sub-tasks on the list and the rules below, and the order
+# is `in_order()`'s.
 
 
 def key(title):
     return (title or "").strip().lower()
 
 
-def in_order(tasks, order, today=None):
+def in_order(tasks, today=None):
     """The queue, in the order the list's own rules say to work through it.
 
-    Four keys, in this order, and the first three exist because the board's
-    ordering cannot express them:
+    Three keys, in this order:
 
-    1. **What he dragged.** `plans/queue-order.json` is him saying "this one
-       first" in as many words, and nothing here second-guesses it. A task he
-       has never ranked sorts behind every task he has, so an ordering set last
-       week survives a new task appearing today.
-
-    2. **The headline.** One task carries `headline:` and it is, by definition,
+    1. **The headline.** One task carries `headline:` and it is, by definition,
        the one that makes the others easier or unnecessary. PA.md calls it the
        one thing; planning anything ahead of it is planning the wrong task.
 
-    3. **The date.** PA.md is explicit that a date beats a score, because the
+    2. **The date.** PA.md is explicit that a date beats a score, because the
        tasks with real dates are the people ones and their consequences land on
        somebody else. Overdue first, then soonest. Recurrence is rolled forward
        in memory by `effective_due` so a fortnightly 1:1 sorts on the meeting it
@@ -288,7 +220,7 @@ def in_order(tasks, order, today=None):
        still hides nothing; it only says what to reach first when the budget
        runs out before the queue does.
 
-    4. **Impact against effort**, highest first, straight out of
+    3. **Impact against effort**, highest first, straight out of
        `core/todo.py` so it is the same arithmetic the board draws. An unscored
        task scores -1 and sinks, which is right: a task nobody has scored is not
        a task anybody has said is worth a night's spend.
@@ -300,13 +232,10 @@ def in_order(tasks, order, today=None):
     buckets interleave on merit instead of one draining before the next starts.
     """
     today = today or dt.date.today()
-    rank = {key(t): i for i, t in enumerate(order or [])}
-    back = len(rank)
 
     def sort_key(t):
         due = todo.effective_due(t, today)
         return (
-            rank.get(key(key_of(t)), back),
             0 if t.headline else 1,
             (due - today).days if due else 10 ** 6,
             -todo.priority_score(t),
@@ -318,68 +247,24 @@ def in_order(tasks, order, today=None):
 def is_stale(task, ledger):
     """Whether this task needs a fresh plan.
 
-    The question is `is this mine to pick up`, asked of the ledger row's owner,
-    rather than `what does the status word say`. Until 11 Sep 2026 there were
-    five words and this function knew three of them by name; now there are six
-    states shared by every stream, and which agent may act is `owner`.
+    Asked of the ledger row's fingerprint alone. The state a plan is in used to be
+    read here too, as a plan document's `state:` and the ledger row's copy of it;
+    it lives in the task's sub-tasks now, and the fingerprint hashes the task's
+    whole block, so every move that matters changes it: ticking Plan when the plan
+    is written, a review unticking it with a `feedback:` note, a sub-task added by
+    handing the task over again. Whether the plan is owed is `plannable()`'s
+    question, asked of the sub-tasks; this only says whether what the ledger
+    remembers is still the task as it stands.
 
-    So: a row owned by this agent is one to plan. A row owned by the acting
-    agent is a plan he has approved and which is waiting to be carried out, and
-    planning the same task again tonight would spend a slot writing a second
-    opinion nobody asked for and put two live plans on one task. A row owned by
-    him is waiting on him, and is not ours either.
-
-    The row is keyed by task id since the same day, so a retitle no longer loses
-    it. Rows written before that are keyed by title and are read by the caller,
-    which tries the id first.
+    The row is keyed by task id, so a retitle does not lose it. Rows written
+    before that are keyed by title and are read by the caller, which tries the id
+    first.
     """
     seen = ledger.get(key_of(task)) or ledger.get(task.title)
     if not seen:
         return True, "never planned"
     if seen.get("fingerprint") != fingerprint(task):
         return True, "changed since %s" % seen.get("planned", "?")
-
-    state, owner = seen.get("state"), seen.get("owner")
-    if state is None:
-        # A ledger written before the six states. Read the old word rather than
-        # refusing, the same permanent fallback the file format keeps.
-        status = seen.get("status")
-        if status == "redo":
-            return True, "last plan sent back"
-        if status == "actioned":
-            return False, "last plan actioned on %s" % seen.get("planned", "?")
-        if status == "agreed":
-            return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
-        return False, "unchanged since %s" % seen.get("planned", "?")
-
-    if state in ("accepted", "done"):
-        # He has accepted it. That is the end of the planning half rather than a
-        # reason to start it again: the plan he accepted is what the acting
-        # agent carries out, and writing a second opinion over it tonight would
-        # put two live plans on one task. It comes back into the queue when the
-        # task's own text changes, which the fingerprint above has already
-        # answered, or when he drags it back to To do.
-        #
-        # Both states, because they are the two halves of one answer. `accepted`
-        # is a plan whose run has not finished; `done` is one whose run has.
-        # Neither wants planning again, and `done` is also where every plan
-        # accepted before 12 Sep 2026 still sits, since that was the word for
-        # accepted until `accepted` existed.
-        if seen.get("resolution") == "superseded":
-            return True, "last plan was replaced"
-        # Turned down outright, 13 Sep 2026 onwards. Not stale — the whole point
-        # of declining is that the idea is finished, so planning it again is the
-        # one thing that must not happen — but it is not "accepted" either, and
-        # the board prints this line in its not-eligible fold.
-        if seen.get("resolution") == "declined":
-            return False, "turned down on %s" % seen.get("planned", "?")
-        return False, "plan accepted on %s" % seen.get("planned", "?")
-    if state == "backlog":
-        return False, "parked; the agent leaves it alone"
-    if state == "ready" and owner == "plan-agent":
-        return True, "last plan sent back"
-    if state == "ready" and owner == "implement-agent":
-        return False, "plan agreed on %s, waiting to be carried out" % seen.get("planned", "?")
     return False, "unchanged since %s" % seen.get("planned", "?")
 
 
@@ -396,14 +281,13 @@ def key_of(task):
     return getattr(task, "stable_id", "") or task.title
 
 
-def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
+def select(text, day=None, use_ledger=True, ledger=None, only=None):
     """(to plan, skipped) — skipped carries a reason for the log.
 
     The returned queue is in the order it will actually be worked through, which
-    is the board's order first and list order behind it. That matters more than
-    it looks: the batch stops on a budget, a floor or a usage limit, so the
-    front of this list is the part that reliably gets planned and the back is
-    the part that might not.
+    is `in_order()`'s. That matters more than it looks: the batch stops on a
+    budget, a floor or a usage limit, so the front of this list is the part that
+    reliably gets planned and the back is the part that might not.
     """
     day = day or dt.date.today()
     tasks = todo.parse_doc(text)
@@ -419,35 +303,15 @@ def select(text, day=None, use_ledger=True, ledger=None, only=None, order=None):
             hit = [t for t in tasks if want in t.title.strip().lower()]
         return hit, []
 
-    order = order if order is not None else load_order()
-    held = {key(t) for t in order.get("hold") or []}
-    forced = {key(t) for t in order.get("force") or []}
-
-    # A card he dragged out of Backlog and into To do. The three rules in
-    # eligible() are advice about where a card starts, so overruling one is him
-    # saying plan it anyway — which is the whole of what the column means. Held
-    # still wins, since save_order() will not write a title into both.
-    rescued = [t for t, _ in drops
-               if key(key_of(t)) in forced and key(key_of(t)) not in held
-               and plannable(t, slugs)[0]]
-    rescued_keys = {key(key_of(t)) for t in rescued}
-    drops = [(t, why) for t, why in drops if key(key_of(t)) not in rescued_keys]
-    cand = rescued + cand
     ledger = ledger if ledger is not None else (load_ledger() if use_ledger else {})
     plan, skip = [], []
     for t in cand:
-        # Held beats everything, --all included. The ledger is a cache and --all
-        # exists to ignore it; this is an instruction, and ignoring it would
-        # mean the one control he has over the night quietly not working.
-        if key(key_of(t)) in held:
-            skip.append((t, "held back from the board"))
-            continue
         if not use_ledger:
             plan.append(t)
             continue
         stale, why = is_stale(t, ledger)
         (plan if stale else skip).append(t if stale else (t, why))
-    return in_order(plan, order.get("order"), day), skip + drops
+    return in_order(plan, day), skip + drops
 
 
 def _report(plan, skip):

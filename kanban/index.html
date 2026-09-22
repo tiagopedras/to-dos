@@ -49,6 +49,10 @@
       <button class="dropdown-item" id="undo" disabled role="menuitem" title="Undo the last change (⌘Z)">Undo</button>
       <button class="dropdown-item" id="download" role="menuitem">Download copy</button>
       <button class="dropdown-item" id="backupsBtn" role="menuitem">Backups</button>
+      <!-- The Plan agent: what it has cost and what runs on a clock, and a button to
+           start it now. They were reached from the Plans view until it went. -->
+      <button class="dropdown-item" id="refCardsBtn" role="menuitem">Spend and schedules</button>
+      <button class="dropdown-item" id="runAgentBtn" role="menuitem">Run the Plan agent now</button>
       <!-- Which private folder under data/ the board is pointed at. Hidden
            until loadDatasets() hears back from /datasets.json — an older
            server with no such route leaves the board exactly as it was
@@ -135,7 +139,6 @@
      tabs side by side. A second route to the same two views: the tab strip is
      untouched and every tab stays where it is, so a route that turns out not to
      be used costs a button. -->
-<button class="viewflip hidden" id="viewFlip" type="button" aria-label="Switch between Board and Plans"></button>
 
 <div class="scrim" id="scrim"></div>
 <aside id="drawer">
@@ -198,7 +201,7 @@
 <script src="js/10-reference-sections.js"></script>
 <script src="js/11-chat-cards.js"></script>
 <script src="js/12-reports.js"></script>
-<script src="js/13-plans.js"></script>
+<script src="js/13-agent-run.js"></script>
 <script src="js/14-schedule.js"></script>
 <script src="js/15-backups.js"></script>
 <script src="js/16-backup-preview.js"></script>

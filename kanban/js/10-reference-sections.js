@@ -737,13 +737,6 @@ function onSessionsChanged(index){
    click that opens the modal, because opening one and closing it again must
    leave the prompt on the task. */
 function onPromptRunSend(payload){
-  /* A conversation about a plan rather than about a task. Its owner names the
-     plan, nothing on the board ever set a pendingPromptRun for it, and what it
-     wants recording is what he said — see notePlanChat() in 13-plans.js. */
-  if (String(payload.owner || '').startsWith('plan:')) {
-    notePlanChat(payload.owner, payload.ask);
-    return;
-  }
   const p = state.pendingPromptRun;
   if (!p || payload.session || payload.key !== p.key) return;
   const task = tasksByChatKey()[p.key];
@@ -762,9 +755,6 @@ function onChatStatusChanged(cfg){
 
 const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   ownerLabel: taskId => {
-    // A plan's own conversation, whose owner is the plan file rather than a
-    // task id. Its title is the plan's, which is the task's.
-    if (String(taskId || '').startsWith('plan:')) return planTitleFor(taskId);
     const loc = locate(taskId);
     return loc ? loc.task.title : '';
   },
