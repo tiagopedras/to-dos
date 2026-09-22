@@ -1,627 +1,195 @@
 # to-dos
 
-Read [README.md](README.md) first. Everything in `data/` is private and gitignored.
+Read [README.md](README.md) first. Everything in `data/` is private and
+gitignored.
 
 **Parallel sessions.** Read `COORDINATION.md` at the repo root at the start of
 any task, and append an entry when you start, when you change something another
 session could depend on, and when you finish. Append only. The
 `session-coordination` skill holds the format.
 
-[IMPROVEMENTS.md](IMPROVEMENTS.md) is the standing list of what is wrong with the
-board and what should be built next. Read it before diagnosing anything here, and
-update it when something lands or something new turns up. Three skills read and
-write it — `improve-idea` adds an entry, `improve-list` reads the backlog back,
-and `improve-refinement` clears the `[needs you]` tag the second one puts on an
-entry, by asking the question the entry is holding and rewriting it to state
-the answer. They live in `~/Code/skills/personal/` rather than in here, and
-work against whichever repo they are run from: they moved out on 8 Sep 2026
-when they stopped being about this board in particular. Log a new entry by hand
-only when none of the three fits.
+[IMPROVEMENTS.md](IMPROVEMENTS.md) is the standing list of what is wrong with
+the board and what should be built next. Read it before diagnosing anything
+here, and update it when something lands or something new turns up.
+`improve-idea` adds an entry, `improve-list` reads the backlog back,
+`improve-refinement` clears the `[needs you]` tag by asking the question an
+entry is holding and rewriting it to state the answer. They live in
+`~/Code/skills/personal/`, not in here, and work against whichever repo they
+are run from. Log an entry by hand only when none of the three fits.
 
 ## The skills index
 
 The `pa-*` skills in `agents/pa_agent/skills/` and the two in `skills/` are
-indexed, along with every other skill I have written, in `~/Code/SKILLS.md`. Add
-a new one there in the same session it is created; see
-[agents/pa_agent/CLAUDE.md](agents/pa_agent/CLAUDE.md), which also holds the
-hierarchy between them — `pa` writes, everything else feeds it.
+indexed, along with every other skill written, in `~/Code/SKILLS.md`. Add a new
+one there in the same session it is created; see
+[agents/pa_agent/CLAUDE.md](agents/pa_agent/CLAUDE.md) for the hierarchy
+between them — `pa` writes, everything else feeds it.
 
 ## Writing a report
 
-When Tiago asks for a report on what has been done, write it to
-`data/<dataset>/reports/` (the current dataset, named by `data/.current`) as a
-Markdown file with the frontmatter the board expects, and follow the rules
-in README.md under **Rules for writing a report**. Read them before drafting.
-The short version is that a report never lists individual to-dos, it says what
-moved and what it means, and it is written in his voice and kept short.
+Write to `data/<dataset>/reports/` (the current dataset, named by
+`data/.current`) as Markdown with the frontmatter the board expects, following
+**Rules for writing a report** in README.md. Read them before drafting. Short
+version: never lists individual to-dos, says what moved and what it means, in
+his voice, kept short.
 
 ## The desktop companion
 
 `companion/` is the menu bar app that notifies once each working morning. It
-reads `data/twinkl/todo.md` and never writes to it — keep it that way, since a
-second writer is exactly what the board's autosave cannot survive. The file
-format it reads lives in `core/todo.py`, which every reader of the list shares;
-put format knowledge there rather than in the companion, and the working calendar too —
-that file generates the UK and Portuguese public holidays now, for the same
-reason. Both countries count as days off by default. Run
-`python3 core/test_todo.py --online` after touching the calendar rules; it
-checks them against gov.uk and Nager.Date.
-
-Its menu links to a card with `#!task=<key>`, a fragment rather than a query
-string so the link lands in the tab that is already open. Keep it a fragment: a
-second tab on one list is two autosaves on one file.
+reads `data/twinkl/todo.md` and never writes to it — a second writer is exactly
+what the board's autosave cannot survive. Format knowledge lives in
+`core/todo.py`, not the companion, and so does the working calendar (generates
+UK and Portuguese public holidays; both count as days off by default). Run
+`python3 core/test_todo.py --online` after touching calendar rules — it checks
+against gov.uk and Nager.Date. The companion's card link is
+`#!task=<key>`, a fragment rather than a query string, so it lands in the tab
+already open — keep it a fragment, a second tab on one list is two autosaves on
+one file.
 
 ## Where the format lives
 
 Twice, and only twice. `core/todo.js` is the board's copy and the authority;
 `core/todo.py` beside it is the port every Python reader imports. Change one and
-change the other, and never add a third — a hand-transcribed copy inside the
-PA's own checker is what this arrangement already had to undo.
-
-`core/fixtures/` is what stops them drifting: three JSON tables, generated by
-running the board's own functions, read by both suites. Neither suite holds a
-table of its own, so a change to the grammar has to be expressed once and shows
-up as a failure in both languages. After touching either file:
+change the other, never add a third. `core/fixtures/` (three JSON tables,
+generated by the board's own functions, read by both suites) is what stops them
+drifting. After touching either file:
 
 ```
 python3 core/test_todo.py     node core/test_todo.mjs
 ```
 
 The board loads `core/todo.js` as a **classic** script, before the board's own
-scripts in `kanban/js/` (one classic `<script src>` per banner-marked section,
-split out of what used to be one big inline block — see IMPROVEMENTS.md).
-Keep it classic — a module would be deferred past those and every symbol would
-be missing at the moment it is first needed — and keep it free of `window`,
-`document` and `state`, since `test_todo.mjs` runs it in a bare `vm` context
-with none of them.
+scripts in `kanban/js/`. Keep it classic (a module would defer it past every
+symbol needed at first use) and keep it free of `window`, `document` and
+`state` (`test_todo.mjs` runs it in a bare `vm` context with none of them).
 
 ## The planning agent
 
-`agents/plan-agent/` runs overnight, sets one sub-agent per task with an open Plan
-sub-task assigned to it, and writes a plan for each into `data/<dataset>/plans/`. It
-proposes and never executes. A task reaches it by being handed over on the board,
-which lays out the sub-tasks (see below); `[to:: Plan agent]` on a task nobody
-handed over is not planned. Read [agents/plan-agent/README.md](agents/plan-agent/README.md) before
-changing any of it — particularly the schedule and its floor, which are the
-whole of what keeps it out of the working day.
+`agents/plan-agent/` runs overnight, sets one sub-agent per task with an open
+Plan sub-task assigned to it, and writes a plan for each into
+`data/<dataset>/plans/`. It proposes and never executes. A task reaches it by
+being handed over on the board (see below); `[to:: Plan agent]` on a task
+nobody handed over is not planned. Read
+[agents/plan-agent/README.md](agents/plan-agent/README.md) before changing any
+of it, particularly the schedule and its floor — the whole of what keeps it out
+of the working day.
 
-It was `night_agent` until 12 Sep 2026, named for the hour it happens to wake
-at, which is the one incidental thing about it. The pair now say what each half
-does: this one plans, the one below implements. The names it writes into its own
-documents moved with it — `night-agent` is `plan-agent` in every `owner:` —
-and `core/migrations/migrate-agent-names.py` rewrote what was already on disk.
-Nothing depends on that having run: both manifests carry an `owner_legacy` map,
-so a document restored from a backup taken before the rename still reads.
+- **It never writes `todo.md`.** `plan.py` hashes the file before the batch and
+  checks it after every task; that guard should be fixed, not removed, if it
+  gets noisy. It asks for its Plan sub-task to be ticked through
+  `core/tick_queue.py`, and the board applies the tick only from the agent the
+  sub-task is assigned to.
+- **The scheduled hours are the only thing keeping it out of the morning.**
+  `schedule.py` holds the hours plus a floor the dashboard cannot write under;
+  run `python3 agents/plan-agent/test_planning_agent.py` after touching either.
 
-Two things to keep true:
-
-- **It never writes `todo.md`.** Same reason as the companion, and more so,
-  because it runs unattended. `plan.py` hashes the file before the batch and
-  checks it after every task; that guard is not decoration, and a change that
-  makes it noisy should be fixed rather than removed. When it finishes a plan it
-  asks for the Plan sub-task to be ticked through `core/tick_queue.py`, the queue
-  the board drains on load, and the board applies the tick only from the agent
-  the sub-task is assigned to.
-- **The hours it is set to are the only thing keeping it out of the morning.**
-  There was a second gate until 9 Sep 2026 — it would only spend in a usage
-  window that expired before 07:00 — and it went because a window moves with
-  whenever the day's first request landed, so hours could not be set against it.
-  `schedule.py` holds the hours plus a floor the dashboard cannot write under,
-  and `python3 agents/plan-agent/test_planning_agent.py` covers both. Run it after
-  touching either. `core/windows.py` is still there and no longer refuses
-  anything: `plan.py` reads it to see whether there is room for another task,
-  and the board's chart draws it.
-
-Its six per-bucket planners live beside it, `agents/plan-agent/<dataset>-<stream>-agent.md`,
-rather than in `~/.claude/agents/`, so they version with the runner that invokes
-them. They moved in here on 7 Sep 2026 and dropped their `pa-` prefix at the same
-time: they are the planning agent's, not the PA's, and sitting loose in `agents/`
-implied otherwise. Claude Code only reads agent definitions from inside
-`.claude/agents/`, so each file there is a symlink back to its real copy — one
-per file, not a folder symlink, so `agents/` stays free to be organised however
-it needs to be without changing what Claude Code sees.
+Its six per-bucket planners live at
+`agents/plan-agent/<dataset>-<stream>-agent.md`, not in `~/.claude/agents/`, so
+they version with the runner. Claude Code only reads agent definitions from
+inside `.claude/agents/`, so each file there is a symlink back to its real copy
+— one per file, so `agents/` stays free to be organised however it needs.
 
 ## The implementing agent
 
-`implement-agent` is the other half, added 6 Sep 2026 and given its own folder,
-`agents/implement-agent/`, on 7 Sep, and its present name on 12 Sep when the
-two agents were put on one axis. The planners propose; this one carries out a
-plan he has already agreed to. Its own [README](agents/implement-agent/README.md)
-holds the detail. Three things about it are load-bearing:
+`implement-agent` (`agents/implement-agent/`, [README](agents/implement-agent/README.md))
+carries out a plan he has already agreed to.
 
-- **There is one of it.** Not one per bucket. The per-bucket knowledge lives in
-  `data/<dataset>/buckets/<stream>/<stream>.md`, which the planners read too, so it is written
-  once. Six agents holding write tools is six copies of one set of guard rails.
-  That folder sits at the root beside `data/` and is gitignored for the same
-  reason: the briefs name real people and real Twinkl processes, and the skills
-  beside them are Twinkl's own. [BUCKETS.md](BUCKETS.md) is the tracked half.
-- **It only ever runs from a session he is in**, through the `do` skill.
-  Never on a schedule, never in the background. The whole reason it can act at
-  all is that it can stop and ask, which is what the planners cannot do.
-- **It does not write `todo.md`.** That file belongs to the `pa` skill, run in a
-  session with him in it. `implement-agent` carries out a plan; where the work
-  means the task itself should change, it asks for the change in its report,
-  precisely enough to be applied, and `pa` makes it. One writer is the only rule
-  the board's autosave survives, and the implementing agent is the wrong one to be it
-  because it is the one running unattended stretches.
-  Everything else in this repo still writes through a queue file or not at all.
+- **There is one of it**, not one per bucket. Per-bucket knowledge lives in
+  `data/<dataset>/buckets/<stream>/<stream>.md`, which the planners read too —
+  written once. That folder is gitignored (real people, real Twinkl processes);
+  [BUCKETS.md](BUCKETS.md) is the tracked half.
+- **It only ever runs from a session he is in**, through the `do` skill. Never
+  scheduled, never in the background — it can act because it can stop and ask,
+  which the planners cannot.
+- **It does not write `todo.md`.** Where the work means the task itself should
+  change, it asks for the change in its report, precisely enough to apply, and
+  `pa` makes it.
 
-Work reaches it through the card: a sub-task assigned to it, open, with what it
-waits on ticked, which is what the `do` skill finds. It had a board of its own,
-Execution, from 12 Sep 2026 until the two were folded into one on 13 Sep, and the
-board that replaced both went on 22 Sep 2026 — see below.
+Work reaches it through a sub-task assigned to it, open, with what it waits on
+ticked — what the `do` skill finds.
 
-## One board, and where an agent's part of a task lives
+## The board
 
-There is one board, and a task keeps its card from the moment it is written until
-it is finished, whoever does the work. Two rules, agreed 21 Sep 2026 and built on
-the `one-board` branch in nine stages (`handover-one-board.md` is the plan and the
-order):
+One board. A task keeps its card from the moment it's written until it's
+finished, whoever does the work. Full history and the React-port detail:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-1. **A column says the state of the card.** Backlog, To do, Doing, Reviewing, Done.
-2. **Who does the work is the task's or sub-task's assignee, `[to::]`, never the
-   column.** Handed to AI and Blocked went, and so did the header filter that
-   drove the first. Reviewing was Waiting for review.
+- **A column says the state of the card**: Backlog, To do, Doing, Reviewing,
+  Done. **Who does the work is `[to::]`, never the column.**
+- **An agent's part of a task is sub-tasks on the task's card.** Handing over
+  (`handOver()`, drawer's Delegate to) lays out four blocked-in-sequence
+  sub-tasks: Plan, Review the plan, Implement, Review the work (or the last two,
+  straight to Implement). A sub-task inherits due/impact/urgent/week from its
+  task, never the tick or assignee.
+- **Approving is ticking a review; sending back unticks what's before it** with
+  a `feedback:` note, so the agent takes it up again. Only the Implement
+  sub-task moves the card.
+- **Agents never write `todo.md`.** They queue a tick in
+  `data/<dataset>/tick-queue.json`; the board drains it on load, applying a tick
+  only from the agent the sub-task is assigned to.
+- **Every column is one object**, `colHTML()` in `kanban/js/09-columns.js`. The
+  Figma `Column`/`Column header` components mirror it — change together.
 
-**Where a card sits is the instruction**, on every column. Backlog means leave it
-alone, To do means pick it up, Doing means it is live, Reviewing means the work is
-done and someone has to look, Done means the tick. Done is a real `### Done`
-heading first in every bucket (the board draws headings the other way round, so it
-is the far right). The tick and the heading move together: `setDone()` moves a card
-to the top of Done and one unticked there to the top of To do, and
-`gatherDone()` in `core/todo.js`, with `gather_done()` in `core/todo.py` in the same
-order, does it for a file written before that was true, so an old backup reads the
-same. The old headings load as the new ones (`TIER_RENAMED`, in both format files).
+## The React half (`kanban/ui/`)
 
-One shape means one object, not a family resemblance. Every column in the app is an
-instance of `colHTML()` in `kanban/js/09-columns.js`, so the fill, the border, the
-radius, the 322px width, the 12px gap, the header padding and the body padding are
-settled once. What a view chooses is which optional parts its heads carry — a hint,
-a sort control, a count, an action button, a filter, a description — and what goes
-in the bodies. That covers Overview's sections, Matrix's two, the Timeline, both
-halves of Reports, Backups, Projects and the two reference cards in the Spend and
-schedules sheet. A control that narrows or orders a column lives in its head, which
-is where Reports' window picker, Matrix's "Hide Reviewing" and Projects' order select
-went, and `colHTML()` has `collapsible`, which draws the column as a `<details>`
-whose `<summary>` is the head. The Figma `Column` and `Column header` components
-carry the same set, and the two are meant to be changed together. The dash means
-exactly one thing in the app, that an agent owns a column, and nothing on the board
-is dashed now.
+Component layer, Vite + TypeScript, built to `kanban/dist/board-ui.js`. `Column`
+and `Card` are the two primitives every ported view is written against; the
+port can be incremental because each view still owns `#lists` until it's ported.
+Full porting history and per-view detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**An agent's part of a task is sub-tasks on the task's card.** Handing a task over
-is his act: choosing an agent in the drawer's Delegate to calls `handOver()`
-(`kanban/js/04-tier-two-the-one-thing.js`), which moves the card to Doing and lays
-out, under the task, four sub-tasks each blocked by the one before — Plan (Plan
-agent), Review the plan (him), Implement (Implement agent), Review the work (him) —
-or the last two, if it goes straight to the Implement agent. The slugs are made from
-the task's id and the step (`ab12cd-plan`, `-plan-review`, `-implement`,
-`-work-review`), which is also what marks a task as handed over, and every sub-task
-has an id of its own. A sub-task carries every tag a task does, read by the same
-`readTags()`, plus a bare `doing` for an agent working on it now; what it does not
-carry it takes from its task (`inheritedFields()`: due, impact, urgent, week), and
-never the tick, the assignee or anything an agent writes. It opens in the drawer by
-its id (`openSubtaskDrawer()` in `19-drawer.js`), faded where it is the task's.
+Two rules for every view in `kanban/ui/`:
 
-Approving is ticking a review, and sending back unticks what is before it with a
-`feedback:` note under it, so the agent takes it up again and the review blocks
-again. Only Implement moves the card: ticked, it goes to Reviewing, and unticked by
-a send-back it goes back to Doing. A card shows "your move" while a sub-task
-assigned to him is open with its blocker ticked, and its column's head counts them;
-it is worked out each time and never stored.
+- **A React view owns a node it created, not `#lists`.** An unported view tears
+  out `#lists` wholesale, which would orphan a mounted root.
+- **Orchestration stays in `kanban/js/`.** Fetch, error branch, sort preference,
+  anything reading `state.doc` — handed to the component as props.
 
-**Agents never write `todo.md`.** They queue "tick sub-task <id>" in
-`data/<dataset>/tick-queue.json` (`core/tick_queue.py`, appended and removed by id
-under a lock), served at `/tick-queue.json`, and the board drains it when it loads
-(`drainTickQueue()` in `10-reference-sections.js`): a tick is applied only from the
-agent the sub-task is assigned to, one for a sub-task still waiting on a blocker is
-refused, and a written plan says where it is through a `Plan:` note on the review
-behind it. Nothing shows until the board is next opened.
-
-**Plans is not a board.** It was seven columns of its own, with `state:` and
-`production:` in each plan's frontmatter, from 12 Sep to 22 Sep 2026. A plan is a
-document now that holds content and nothing about where it stands: the sub-tasks are
-the only place that lives, `stream.py` and its manifest are gone, and `plan.py` no
-longer writes `state`, `owner` or `seen`. A plan is read from the review sub-task
-behind it (`openPlanReader()`), and one whose task has gone gets a line in
-Overview's Context column. An old `#plans` link lands on the board. What the view
-alone reached, the Spend and schedules sheet and Run the Plan agent now, is in the
-Data menu (`13-agent-run.js`).
-
-## The React half, and why it is only a half
-
-`kanban/ui/` is the component layer, begun 13 Sep 2026 against the entry of that
-name in [IMPROVEMENTS.md](IMPROVEMENTS.md). React with Vite and TypeScript,
-built to `kanban/dist/board-ui.js`, which is where the build step above comes
-from. Under it sit `Column` and `Card`, the two primitives every view is
-written against, plus `mount()`, `mountFlushed()` and `unmount()`. Eight views
-were ported: Projects, Backups, the two report columns, Overview, the Matrix and
-the Timeline, Plans (which went again on 22 Sep 2026), and the Board itself
-(19 Sep 2026, below), and since 20 Sep 2026 the bodies inside Overview and the
-Matrix are components too. What
-is still built as strings is the drawer, the header chrome (headline, filter
-bar, both tab strips), the conflict modal, the message, agenda and Jira notes
-under an Overview card, and the Timeline's body. All of it sits behind one
-`state` object every view's mutation still has to remember to re-render.
-
-The point of doing the primitives first is that a column is one object across
-the whole app, and the section above is what rests on it. So `Column` is not a
-new column: it is the same markup `colHTML()` (`kanban/js/09-columns.js`) emits,
-element for element and class for class, and `Card` is `cardShellHTML()`'s the
-same way. One stylesheet answers for both while the port is half done, which
-only works while they agree. `kanban/ui/test_primitives.mjs` is what holds them
-to it — it renders 50 cases both ways and fails on any difference, with no
-browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
-`document`. **Change one of the four and change the other**, the same rule
-`core/todo.js` and `core/todo.py` already live under.
-
-The last three of those cases, which pinned `PlanCard` against `cardShellHTML()`
-given the rows a plan carries, went with the Plans view. They were the model for a
-component with no string twin left to be compared against: render it against the
-shared shell written out longhand.
-
-The port can be incremental because every view already owns `#lists` wholesale:
-a ported view calls `BoardUI.mount()` where it used to assign to
-`$('#lists').innerHTML`, and the others carry on untouched. That also means this
-work can stop at any stage with a working board.
-
-**Projects went first**, 13 Sep 2026 — the smallest leaf view, and the one
-nothing else is about to rewrite.
-Two rules came out of doing it, and both apply to every view that follows:
-
-- **A React view owns a node it created, not `#lists`.** The unported views
-  still draw by assigning to `$('#lists').innerHTML`, which tears out the DOM
-  without telling React — a root mounted on `#lists` would go on believing it
-  owned a subtree that no longer exists. So `26-projects.js` makes its own
-  `#projectsRoot` and treats that node being gone as what it is: another view
-  has been here, unmount and start again. When the last view is ported this can
-  go back to being `#lists`.
-- **The orchestration stays in `kanban/js/`.** The fetch, the error branch, the
-  sort preference and anything reading `state.doc` did not move; the component
-  takes them as props, including the board's own `cvWhen` and `mdInline`. That
-  keeps the component pure and testable with no board around it, and it keeps a
-  port to one change rather than two. It also means the file must not reach back
-  into the view's DOM afterwards — `setColCount()` is a prop now, and a stray
-  `querySelector` would be overwritten by the next render without saying so.
-
-`kanban/test_projects.mjs` covers both, on top of the 44 checks that passed
-through the port unchanged — which is the real evidence the markup did not move.
-
-**Plans went next**, 13 Sep 2026, and was deleted on 22 Sep 2026 with the tab.
-Everything it taught is in the rules above: a view owns a node it made, the
-orchestration stays in `kanban/js/`, and every handler is a prop, so nothing queries
-after a paint. `ColumnFilter` (`kanban/ui/ColumnFilter.tsx`), which it drew its
-filters with, stays as a component nothing uses yet.
-
-**`mountSync()` went with Plans** on the same reasoning: it wrapped `mount()` in
-`flushSync` because Plans wired seven kinds of node by selector after every paint,
-and a prop could carry every one of those.
-
-**The Board went last but one**, 19 Sep 2026. `renderBoard()` builds a plain
-data model of the columns and hands it to `BoardView`
-(`kanban/ui/BoardView.tsx`), mounted with `mountFlushed()` straight onto
-`#board`, which no other view writes into, so the rule about owning a node you
-created does not bite here. Flushed because the phone's tab strip measures the
-columns the moment the render returns, and so does every caller that opens a
-card or reads a count after one.
-
-A task card is `TaskCard` (`kanban/ui/TaskCard.tsx`), drawn from
-`cardModel()` in `09-columns.js`, which is where it is decided which chips a
-task earns. `cardHTML()` draws the same model as a string for the matrix's
-hover preview, and `test_board.mjs` compares the two over every task in
-`demo.md`, element for element, so **change what a card shows in `cardModel()`
-and how a chip or the progress line is drawn in both renderers**. The title
-is the one exception to "element for element": it sits in a span the string
-version does not emit, because the board's inline Markdown (`mdInline()`)
-knows `[text](url)` links and `[placeholder]` markers that Tenon's `Markdown`
-does not, and the test steps over that span.
-
-Every handler on the board is a prop. The drop line and the highlight under a
-dragged card are state inside `BoardView`, not a `div` moved about in a tree it
-does not own, and `onZoneOver` asks the board where the line goes because only
-the board can measure the other cards. `dropTask()`, `setSortMode()`,
-`openDrawer()` and `addTask()` are still `18-timeline.js`'s, and `BoardView`
-only says when to call them. The drop target is the whole column rather than
-its body, since Tenon's `Column` gives the body a class and no props, so a card
-can now be dropped on a column's head, where it lands at the top.
-
-`BoardUI.BoardView` has a hook in it, which the earlier views do not, so it is
-mounted as `BoardUI.h(BoardUI.BoardView, props)` and never called as a
-function.
-
-**Reports' counted half went real, 14 Sep 2026.** The window picker and both
-columns' shell were already components; `countedLeadHTML()` and the three
-report builders in `12-reports.js` were still string builders behind
-`dangerouslySetInnerHTML`, because nothing outside that file called them and
-porting them was never blocking anything else. `kanban/ui/ReportsBlocks.tsx`
-is `CountedLead`, `CompletedByCategory`, `RecentAccomplishments` and
-`WeeklyTrend` now; the four functions that used to return HTML are `build*()`
-and return the data these draw from instead. `mdBlocks()` and `mdInline()`
-stayed exactly as they were — the drawer and Plans still call them directly —
-so a finished task's title still crosses as `{ __html: mdInline(t.title) }`,
-the same bargain `PlanCard.summaryHTML` already makes. The weekly pace chart's
-SVG geometry moved into the component itself, since none of it reads
-`state.doc`; the trend key and the line/bars picker are real `onClick` props
-now rather than `data-trendkey`/`data-trendtype` for `#lists`'s delegated
-listener to find, and the two cases that used to catch those came out of
-`kanban/js/25-archiving.js` — left in, a click there would have toggled twice.
-
-**Overview, the Matrix and the Timeline went the same day**, as
-`kanban/ui/SectionsView.tsx` — `OverviewView`, `MatrixView`, `TimelineView`,
-each built on `Column` the way every other view now is. `refSection()` and
-`splitGridCSS()` in `18-timeline.js` are gone with it. The eight section
-titles and hints across the three are hardcoded in the component rather than
-built in `18-timeline.js`, since none of them ever varies — a `` `week` ``
-or a `` `due:` `` in a hint is a real `<code>` now rather than something
-`mdInline()` had to be asked to make one. What still arrives as `{ __html }`
-is each section's own body: the cards in Big rocks, the matrix grid, the
-timeline's lanes. Porting those is a separate job, and a fair amount of what
-they do — the timeline's drag-to-reorder, the matrix dot's hover — is wired
-by `#lists`'s own delegated listener rather than anything a component could
-take as a prop, which is exactly why none of that needed touching to make
-this port safe: delegation reaches a React-rendered subtree the same way it
-reached a string one.
-
-**`mountFlushed()` is a second mount function, back in `kanban/ui/index.ts`
-after `mountSync()` went with Plans.** It is not the same case again.
-Overview's `capMsgCards()` measures `.ref .msg`'s real, painted `scrollHeight`,
-and the Timeline's `wireTimelineDrag()` arms native `ondragstart`/`ondrop` on
-elements that have to exist first — neither is a handler a prop could carry
-the way Plans' three query-based ones could, because both need the real DOM
-rather than something React already holds. `mount()` alone would leave both
-racing React's own schedule; `mountFlushed()` wraps the render in `flushSync`
-so `renderSections()` (`18-timeline.js`) can call `capMsgCards()` and
-`wireTimelineDrag()` on its very next line, the same way it always could when
-the section it drew was a string.
-
-`kanban/test_matrix.mjs`'s 36 checks pass unchanged, which is the evidence the
-markup did not move. Overview and the Timeline had no suite before this —
-`kanban/test_overview.mjs` (18 checks) and `kanban/test_timeline.mjs`
-(9 checks) are new, and neither waits out a `setTimeout` before reading
-`capMsgCards()`'s or `wireTimelineDrag()`'s work, which is the point: if
-`mountFlushed()` ever stopped being synchronous, one of those two would fail
-immediately rather than flicker on a slow machine and pass on a fast one.
-
-**Overview's and the Matrix's bodies went next**, 20 Sep 2026. Each section
-builder returns data (`{ body, count, sort }`, with `body` a component built by
-`BoardUI.h`) instead of `{ html, n }`, and `SectionBody` in `SectionsView.tsx`
-takes nodes as well as markup, which the Timeline still uses the old way. Overview's
-cards are `RefCard` in `kanban/ui/OverviewBodies.tsx`, Tenon's `Card` with the
-board's `ref` class kept on it; the Matrix is `MatrixBody` and `ChainBody`.
-Every control on them is an attribute the one delegated listener in
-`25-archiving.js` reads, not a prop, because that listener serves the drawer
-and the sub-task drawer too. The Hide Reviewing checkbox is the exception, a prop,
-with its `data-mxfilter` kept for the suite. The Matrix's hover preview draws
-`TaskCard` in its `static` form, which is why `cardHTML()` has no caller left.
-
-## Reports is two columns of Overview
-
-Reports was a tab of its own until 19 Sep 2026 and is not one now. Tasks
-finished and Written reports sit at the two ends of Overview's row,
-`TasksFinishedColumn` and `WrittenReportsColumn` in
-`kanban/ui/ReportsColumns.tsx`, listed by `OverviewView`. What got done and what
-to do next are the same question asked at two ends, and reading one meant
-leaving the other.
-
-Five things are worth knowing before touching any of it:
-
-- **Tasks finished leads the row**, then the four reference sections, then
-  Context, then Written reports. What got done is read before picking anything
-  up, and the reference columns are what you pick up from.
-- **It is two reference columns wide, exactly** — `minmax(774px,2fr)`, which is
-  380 twice plus the 14px gap between them, so it lines up with the pair beside
-  it rather than being merely bigger. Written reports keeps the floor it had as
-  a tab. Both numbers live in `OverviewView` beside the four reference tracks,
-  which is why each track there carries its own floor rather than the row
-  multiplying one width by a count. The row is about 3,350px wide at its floor
-  and scrolls sideways, which is what every row of columns in the app does.
-- **Both heads are ordinary column heads**, using the same slots as every
-  column beside them: a count — tasks in the window, reports in the folder — and
-  one line of description. The counted column's description replaced two grey
-  paragraphs at the top of its body, which went with `CountedLead` and
-  `buildCountedLead()` on the same day. One of the four things the second
-  paragraph said was a real warning, that a window reaching past the archive
-  point hit a file that could not be read, and nothing says it now:
-  `archiveEntriesError` in `kanban/js/12-reports.js` is set and never read, kept
-  as the hook for saying so somewhere smaller.
-- **Both fold**, like Overview's own five, under `ov:Tasks finished` and
-  `ov:Written reports` in the same `todo-board-overview-closed` key. That puts
-  the window picker inside a `<summary>`, where a click would fold the column as
-  well as change the window — the delegated guard in `kanban/js/09-columns.js`
-  cancels the fold for any button in a column head, so nothing new was needed.
-- **`/reports.json` is read once per arrival at Overview**, not once per render
-  of it: a bucket tab or a search term redraws the whole row and neither changes
-  what is in `data/<dataset>/reports/`. `renderView()` compares against
-  `lastRenderedView` and calls `forgetWrittenReports()`; `renderSections()` calls
-  `ensureWrittenReports()` after the mount, so the counted half paints
-  immediately and the written one fills in when the fetch lands.
-- **`#reports` still resolves.** `isKnownView()` keeps the id and `renderView()`
-  sends it to Overview, the same way `#quick` and `#delegate` already went there.
-
-`kanban/test_reports.mjs` moved with the columns and every check but two came
-across untouched, which is the evidence they are the same two columns. The two
-that went were about the tab: the pair's own grid, and an empty state for a board
-with no document loaded — Overview has never had one of those and a seventh
-column cannot be reached without a document either.
+`kanban/ui/test_primitives.mjs` and `test_board.mjs` hold markup parity: change
+what a card shows in `cardModel()` (`09-columns.js`), and how it's drawn in both
+`cardHTML()` (string) and `TaskCard` (React), together.
 
 ## After changing `kanban/server.py`
 
-**Restart the server, and say so.** The board loads `index.html` fresh on every
-reload, so a change there needs nothing but Reload — but `server.py` is a running
-process, and a new route added to it does not exist until that process is
-restarted. The board's own error says "the board helper needs restarting" when it
-gets a 404 on a route it expects, which is the symptom.
-
-`To-Do Board.app` and `run.command` both read `server.py` off disk at launch, so
-what goes stale there is only ever the process — the same is true of
-`To-Do Companion.app` and `companion/app.py`:
+**Restart the server, and say so.** `index.html` reloads fresh, but
+`server.py` is a running process — a new route doesn't exist until it restarts.
+The board's own "the board helper needs restarting" error is the symptom.
 
 ```
 lsof -ti tcp:8765 | xargs kill      # then open To-Do Board.app
 ```
 
-**There is one thing to rebuild now, and it is not `server.py`.** Since 13 Sep
-2026 the board has a React half in `kanban/ui/`, built by vite into
-`kanban/dist/board-ui.js` and loaded by `index.html` as an ordinary classic
-script. `run.command` runs the build before it starts the server, and
-`To-Do Board.app` execs `run.command`, so opening the board the normal way is
-never stale and there is nothing to remember. Working on a `.tsx` at a server
-that is already up is the case that needs a build by hand:
+`run.command`/`To-Do Board.app` rebuild `kanban/ui/` via `npm run build` before
+starting the server, so opening the board normally is never stale. Editing a
+`.tsx` against a server already running needs a manual build:
 
 ```
 npm run build        # or npm run watch, to rebuild as you edit
 ```
 
-then Reload the tab. `npm install` is needed once after a fresh clone, since
-`node_modules/` and `kanban/dist/` are both gitignored; `run.command` says so
-rather than failing with npm's own error. The bundle is an IIFE hanging one
-global, `BoardUI` — **keep it one**, for the same reason every file in
-`kanban/js/` is a classic script: a module would be deferred past all 28 of
-them.
-
-Tell him to **Reload** the board tab afterwards rather than save, in that order.
-A tab that has been open since before the file changed is holding a stale
-document, and a save from it overwrites whatever was edited on disk.
+then Reload the tab (not Save — a tab open since before the file changed holds
+a stale document, and saving from it overwrites disk). The bundle is one global
+IIFE, `BoardUI` — keep it one, same reason every file in `kanban/js/` is a
+classic script.
 
 ## Testing the board
 
-A test that talks to the running `kanban/server.py` can save for real — the
-board's autosave fires within seconds of anything that marks the document
-dirty (dragging a card, ticking a box), with no confirmation. Two real
-overwrites of the live `twinkl` list have already happened this way, both
-recovered only because a session backup happened to exist. Test carefully:
+Full per-suite detail: [docs/TESTING.md](docs/TESTING.md). Two rules that apply
+every time:
 
-**Default: lock the tab.** Load whatever fixture text you need with
-`load(text, 'name.md', {})`, then immediately set `state.locked = true` (and
-optionally `state.lockedLabel`) before doing anything else — the same guard
-demo mode and backup preview already use. A locked tab cannot save, full
-stop, whichever dataset happens to be current. This covers essentially all UI
-testing: rendering, clicking, dragging, checking layout and CSS. Use it every
-time unless you specifically need to test that a save reaches disk.
+- **Default: lock the tab.** Load the fixture with `load(text, 'name.md', {})`,
+  then immediately `state.locked = true` before anything else. A locked tab
+  cannot save, full stop. Covers essentially all UI testing.
+- **The one exception — testing a real save:** use `data/_test/` and nothing
+  else. Note `data/.current`, switch to `_test`, run the one check that needs
+  real persistence, switch `data/.current` back immediately, verify it stuck.
+  It's one file shared by every tab and session on this server — a switch is
+  visible to anyone else with the board open the moment you make it.
 
-**The one exception — testing a real save:** a dedicated dataset,
-`data/_test/`, exists for exactly this and nothing else touches it. To use
-it: note whatever `data/.current` currently says, switch to `_test`
-(`POST /dataset/select` with `{"name":"_test"}`, or write the file directly),
-run the one check that needed real persistence, then switch `data/.current`
-back to the value you noted — immediately, before doing anything else, and
-verify it stuck before ending the turn. `data/.current` is one file shared by
-every tab and session pointed at this server, so a dataset switch is visible
-to anyone else with the board open the moment you make it, not just to you.
-
-`kanban/test_chats.mjs` is the worked example of the default. It drives the
-board in headless Chrome, locks the tab before loading demo.md, and then tears
-every non-GET out of `fetch` so nothing can reach disk even if something
-unlocks the tab later. That second guard is not belt and braces for its own
-sake: the run records an attempted `PUT /data/todo.md` that it stopped. Run it
-with `node kanban/test_chats.mjs`, or `BOARD_PORT=8799 node ...` against a
-server on another port.
-
-`kanban/test_one_board.mjs` and `kanban/test_subtasks.mjs` are the ones that unlock
-the tab, because handing a task over, approving and draining the agents' queue all
-edit the document. Each installs a `fetch` that tears every non-GET out before it
-does, records what was attempted, and ends by asserting that nothing reached
-`todo.md`; the queue tests stub `/tick-queue.json` rather than read a file.
-`kanban/test_schedule.mjs` is the same again for the Spend and schedules sheet.
-
-`kanban/test_projects.mjs` covers both halves of the Projects view — the tab
-that lists every folder under `data/projects/`, and the drawer that shows what
-is inside one of them, describes it, and says when it was last touched. It
-stubs `/projects.json` and `/project.json` rather than reading disk, so it
-needs no project folder to exist, and its blocked list is asserted to be empty:
-a project is a folder, the panel only ever reads it. It also covers the way
-back — the Project card in the task drawer's second column — and holds the one
-assertion that keeps that column tidy: every section in it is a
-`details.field.sugg` drawn by `sideSection()`, so a new one cannot arrive with
-a heading of its own invention. What it is defending is
-that neither the description nor the date is a field anyone maintains — the
-first is the H1 and lead paragraph of the folder's own `CLAUDE.md`, the second
-is the newest mtime in the folder — so a change that starts writing either one
-into a file has gone the wrong way.
-
-`kanban/test_notes.mjs` covers the drawer's Description field, which renders
-Markdown at rest and swaps to the raw textarea when clicked. It is the one
-board test that has to unlock the tab and type for real, since that is the
-thing under test — so the `fetch` guard is doing the whole job on its own
-there, and the blocked list is asserted to hold nothing but the board's own
-`todo.md` save. It clicks at real coordinates rather than calling the handler
-with made-up ones, because the caret arithmetic starts from a hit test the
-browser does; that also means it has to wait out the drawer's slide-in
-transition before measuring anything, or the panel is still off the right-hand
-edge of the window and every hit test misses.
-
-A board test that throws before its `chrome.kill()` leaves a headless Chrome
-holding the debugging port and the page it had loaded. The next run finds the
-port taken, connects to that orphan, and asserts against a stale copy of
-`index.html` — which reads as three real failures in code that is fine. If a
-test fails on text you can see is correct on disk, that is what happened:
-
-```
-pkill -f "remote-debugging-port=94"
-```
-
-`core/test_todo.mjs` needs none of that, and is the one to reach for when what
-changed is the format rather than the view. It runs `core/todo.js` in a `vm`
-context with no browser, no server and no `todo.md` in reach, so it is fast and
-cannot touch anything. Run it alongside `python3 core/test_todo.py`, which reads
-the same fixtures.
-
-Never write into `data/twinkl/` or `data/personal/` from a test, not even a
-small, temporary one — that is real content, private and irreplaceable in a
-way `data/_test/` deliberately isn't.
-
-## Every suite, in one place
-
-The sections above each name the one or two that matter to what they describe.
-This is all of them, for when the change was broad enough that it is not obvious
-which ones it reached:
-
-```
-python3 core/test_todo.py          # the fixtures, and the working calendars
-node core/test_todo.mjs            # the same fixtures, the other language
-python3 core/test_reports.py       # aggregate.py, render.py, archive.py — no JS counterpart
-node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardShellHTML
-python3 agents/plan-agent/test_planning_agent.py    # the schedule, the picker, the runner
-python3 companion/test_companion.py
-python3 kanban/test_bucket_brief.py # the brief routes — no board, no browser
-node kanban/test_schedule.mjs       # the ones below need the board running
-node kanban/test_one_board.mjs     # handing a task over, the two reviews, whose move it is
-node kanban/test_subtasks.mjs      # sub-tasks in the drawer, and the agents' tick queue
-node kanban/test_board.mjs         # drag, drop, sort, add, Done as a heading, and the string card against the React one
-node kanban/test_chats.mjs
-node kanban/test_projects.mjs
-node kanban/test_notes.mjs
-node kanban/test_backups.mjs       # and the read-only preview it opens
-node kanban/test_matrix.mjs         # and the dot's pinned preview
-node kanban/test_phone.mjs         # the 640px breakpoint, from both sides
-node kanban/test_overview.mjs      # capMsgCards() against real, painted layout
-node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted tray card
-node kanban/test_reports.mjs       # both halves, and the window picker over them
-node kanban/test_recurring_roll.mjs # where a recurring card lands when its date turns over
-node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer
-node kanban/test_save_guard.mjs    # the preconditions on PUT /data/todo.md
-node kanban/test_bucket_brief.mjs  # the Brief button, and the sheet behind it
-```
-
-`test_phone.mjs` is the one that runs twice. It opens a 400px window and a
-1400px one and puts both through the same checks, so what is under test is the
-breakpoint rather than one side of it — a rule that showed neither half, or
-both, would pass a suite that only ever looked at the narrow one. What it
-covers is the three things a board only ever checked at desk width quietly
-gets wrong: drag and drop does not fire on touch, so the drawer's Column field
-is the only way to move a card there; a touch screen never hovers, so anything
-revealed by hovering is invisible; and six columns snapped one to a screen say
-nothing about which one you are looking at.
-
-`test_save_guard.mjs` is the odd one in that list: it needs the server but no
-browser, because what it checks is the server's own contract. Every `PUT` it
-sends is meant to be refused and carries the file's own current bytes as its
-body, so a regression that lets one through rewrites `todo.md` with what it
-already said rather than with a fixture. Keep it that way — never give one of
-those requests a body of its own.
+Never write into `data/twinkl/` or `data/personal/` from a test.
 
 ## Pushing
 
 This repo lives on the **personal** GitHub account, `tiagopedras`. Push as that
 account — `gh auth switch --hostname github.com --user tiagopedras` if it isn't
-already active. Note that a `GITHUB_TOKEN` set in the environment can override
-that switch and force the work account; unset it for the shell doing the push.
+already active. A `GITHUB_TOKEN` set in the environment can override that
+switch and force the work account; unset it for the shell doing the push.
