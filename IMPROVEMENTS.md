@@ -18,6 +18,51 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The Buckets sheet reorders with ↑/↓ buttons where the drawer's own
+  subtask rows already show the drag pattern to reuse.** `openBucketEditor()`
+  (`kanban/js/08-buckets.js:182`) draws each `.bkrow` with the shared
+  `moveDeleteButtonsHTML()` trio (`:169`), wired to `moveBucket()` (`:426`) on
+  click. The sidebar's subtask rows do the same reordering job with a
+  `.grip` handle and native drag: `.sub` gets `draggable="true"` and a
+  `<span class="grip">⠿</span>` (`kanban/js/19-drawer.js:1017-1018`), and
+  `ondragstart`/`ondragover`/`ondrop` on each row (`:1208-1238`) track the
+  dragged index in `subDrag`, toggle `.over-top`/`.over-bottom` past the
+  midpoint of the row under the pointer, and call `moveSub()` on drop. Giving
+  `.bkrow` the same grip, `draggable` attribute and three handlers, calling
+  `moveBucket()` instead of `moveSub()`, would replace the ↑/↓ pair with the
+  same interaction already proven in the drawer. `renumberBuckets()`
+  (`:15`) already runs inside `moveBucket()`, so the row numbers and the
+  written file stay correct however the drop lands.
+
+- **The board's chat opens as a fixed modal that cannot be moved or resized,
+  though the chat engine already knows how.** `AIChat.create()` at
+  `kanban/js/10-reference-sections.js:756` passes no `windowed` option, so
+  `ChatWindow.tsx` (`PACKAGES/ai_chat_engine/src/ChatWindow.tsx:159`) takes the
+  plain-modal branch, pinned at the 720px height `.aic-modal` sets in
+  `src/chat.css:20`. `ai_canvas` already runs the other branch
+  (`CardWindow.tsx:81`, `windowed: true`), which gives the window drag, resize
+  and a grow from the rect handed to `growFrom()`, all verified there. Turning
+  it on here means passing `windowed: true`, giving it a starting rect through
+  `setRect()` (`src/controller.ts:537`) before `openNew()`/`openSession()`
+  since the controller starts with none, and keeping the last `onRectChange`
+  rect so the window opens where it was left. Nothing in the engine needs to
+  change.
+
+- **The drawer's Tags section can edit or clear a tag the board does not own,
+  but never add one.** `taskTagChips()` (`kanban/js/19-drawer.js:606`) turns
+  every entry in `t.extra` into an amber chip, and `wireTagChips()` (`:656`)
+  lets one be rewritten or emptied in place, so the edit half already exists.
+  There is no control to write a new one: `tagsSection()` (`:633`) draws only
+  the chips a task already has, and its empty state tells you to type
+  `[key:: value]` into the task line by hand. An "Add tag" chip at the end of
+  `.tagchips`, taking a key and a value and pushing `'[' + key + ':: ' + value + ']'`
+  onto `t.extra`, would round-trip untouched through `readTags()`
+  (`core/todo.js:111`) and the write-back at `:284`. The one rule it needs is
+  a refusal when the key names a field the board already parses (impact, due,
+  to, rank and the rest `readTags()` claims), since writing one of those
+  into `t.extra` would put a second copy beside the real field. Bare chips with
+  no key, which `taskTagChips()` marks read-only, would stay read-only.
+
 - **A task can carry `[to:: Plan agent]` or `[to:: Implement agent]` with no
   handover behind it, and nothing says so.** `plannable()` (`agents/plan-agent/pick.py:63`)
   and `CLAUDE.md`'s "One board" section are both explicit that the tag alone is not
@@ -574,6 +619,102 @@ they settled is written up in the README rather than left here:
   frozen table, so the JavaScript third copy cannot drift either.
 
 ## Big
+
+- **An agent has no face on the board, so a task handed to one reads the same as
+  a task handed to a person, and there is no way to see only the agents' work.**
+  The only mark is the text chip `'→ ' + t.to` built in `cardModel()`
+  (`kanban/js/09-columns.js:368`) and drawn by `TaskCard` (`kanban/ui/TaskCard.tsx`),
+  and a sub-task row in the drawer (`kanban/js/19-drawer.js:1017`) shows no
+  assignee at all. The fix is one avatar per name in `AGENT_NAMES`
+  (`core/todo.js:90`), generated rather than drawn, a deterministic abstract
+  generator such as DiceBear's `shapes` or Boring Avatars seeded by the agent's
+  name, and drawn on the card chip, on each sub-task row and in the drawer's
+  Delegate to field (`delegateSelectHTML()`, `19-drawer.js:17`). The filter strip
+  only filters by bucket (`state.bucketFilter`, `kanban/js/07-render-board.js:100`)
+  and column (`kanban/ui/ColumnFilter.tsx`), so "delegated to an agent" needs a
+  third filter that also matches a task through its sub-tasks. Chats are opened
+  per task (`openChatByKey()`, `kanban/js/02-state.js:235`) and none is addressed
+  to an agent, so the avatar has nowhere to go there until one is. Needs a
+  decision on the generator (a vendored script, since the board loads classic
+  scripts) and whether people get avatars too.
+
+- **A chat's mode is fixed when the window opens, so a chat that needs to
+  write has to be told it cannot.** The board never passes `mode` to
+  `AIChat.create()` (`kanban/js/10-reference-sections.js:756`), so the
+  controller's `defaultMode` (`PACKAGES/ai_chat_engine/src/controller.ts:129`)
+  is always `ask` and every conversation is stamped with it at open (`:224`).
+  Nothing in the window changes it. The mode is read again on every send
+  (`:444`) and each send is a fresh `claude -p --resume` run
+  (`engine.py:458`), so a "can write" switch in the window's header that
+  flips `c.mode` would take effect from the next message without restarting
+  the conversation. That message should carry a line saying writing is now
+  allowed, since the transcript so far has Claude saying it cannot.
+
+  The switch cannot be the `work` mode that exists today, because
+  `--dangerously-skip-permissions` lets a run touch anything on disk. Board
+  chats are held to `to-dos/`: `data/twinkl/claude.json` points them there
+  since 22 Sep 2026, and the other lists have no `claude.json`, so they fall
+  back to `default_cwd`, which is `ROOT` (`kanban/server.py:1762`). A
+  writing run should keep that limit instead of bypassing it, which means
+  `Engine.argv()` gaining a third permission set: edits allowed inside the
+  cwd and refused outside it, and `Edit`/`Write` on `data/*/todo.md` denied
+  outright so every change to the list goes through the `pa` skill. That still
+  leaves `pa`'s own write racing the tab's autosave, which "A chat started on
+  the board has no safe way to ask the PA" covers. The switch is only safe to ship once that is settled, and
+  `"work": true` has to be set in the list's `claude.json` for any of it to run
+  (`engine.py:490`).
+
+- **"Who he is" tells the PA what his job is but not how he works, so prioritisation has nothing of his own to weigh against.** `PA.md:12-21` gives one paragraph — design manager, four kinds of work in parallel, the list as memory across sessions — and the two tiers under "How he prioritises" (`:55-96`) score everything against impact and effort alone, reading tags off the task rather than anything about him. Nothing in `PA.md` says how he actually works: what he pushes through versus defers, how he treats a slipping date, what he'd rather do himself versus hand off. Written down, that section would sit beside "Who he is" and feed the same two tiers every `pa-*` skill already reads, rather than becoming a rule any one skill has to apply on its own.
+
+- **The PA has a tone but not a personality, and every skill reads the same three lines to get it.** `PA.md:224-239`'s "Tone" section is the only place any of that is written down: direct, no padding, short bullets, no preamble, British English, no em dashes. It describes a house style for the reports `pa` writes, not a character — nothing there names a way of talking that would feel like anyone rather than a formatter. Every `pa-*` skill (`agents/pa_agent/CLAUDE.md`'s table lists all ten) reads `PA.md` first and inherits this section as-is, so giving the PA an actual personality means deciding what it is and rewriting `Tone` to state it, which every skill picks up for free without a second file to keep in step.
+
+- **A chat started on the board has no safe way to ask the PA for a change to
+  the list.** Every chat runs as `claude -p` in the cwd its list's `claude.json` names
+  (`~/Code` for `twinkl`) through
+  `Engine.argv()` (`PACKAGES/ai_chat_engine/engine.py:458`), so the `pa`
+  skill is reachable from any of them. Two things stop it being useful. In
+  Ask mode, the only one on today (`"work": false` in `claude.json`), the run
+  has Bash, Edit and Write removed (`ASK_DENIES`, `engine.py:51`), so `pa`
+  cannot write `todo.md` at all. In Work mode it can, but the tab that
+  opened the chat holds the whole document and autosaves it, so `pa`'s write
+  either trips the conflict modal (`kanban/js/23-conflict-modal.js:101`) or is
+  lost. PA also exists only as a skill: `agents/pa_agent/` holds `skills/` and
+  its docs, with no agent definition in `.claude/agents/` and no `agent.json`,
+  so no session can hand PA a request and have PA act on it. That hand-over is
+  what this entry asks for. The board already has the pattern for it, from
+  the agents: `core/tick_queue.py` takes a request from outside and
+  `drainTickQueue()` (`kanban/js/10-reference-sections.js`) applies it through
+  the board's own edit path, the same way `attach-queue.json` does. A
+  `pa-queue.json` along the same lines would let any board chat leave a
+  change request in plain words, tagged with the chat's owner task, for PA to
+  apply. The decision to make first is who applies it: PA turned into a real
+  agent that picks requests up while the board is locked for the length of
+  the write, or the board itself draining a structured request (move, tick,
+  re-date, add) with no PA in the loop.
+
+- **A chat can only be open or closed, so keeping one in view means keeping
+  it on top of the board.** The controller behind the board's one
+  `AIChat.create()` (`kanban/js/10-reference-sections.js:756`) has two states:
+  a conversation is `current` or it is not, and `closeChat()`/`finishClose()`
+  (`PACKAGES/ai_chat_engine/src/controller.ts:249`, `:262`) set it to `null`,
+  so getting back to it means finding it again in the task's Chats section.
+  The fix is a third and fourth way to render an open chat, modelled on
+  LinkedIn's message windows: minimised, a header bar docked to the
+  bottom-right edge with the title, run state and a close button, and
+  anchored, the full chat as a fixed-size panel standing on that same edge,
+  with buttons in its header to minimise it or expand it to the main modal.
+  Clicking a minimised bar opens it anchored.
+
+  Decided: it lives in the engine beside `windowed`, as another presentation
+  of the same chat, so `ai_canvas` gets it too and neither host builds its own.
+  Several chats can be minimised or anchored at once, lined up leftwards from
+  the bottom-right corner, which the board cannot do today with its single
+  `AIChat.create()` instance, so the board moves to one instance per open
+  chat the way `ai_canvas`'s `CardWindow.tsx` already does. The anchored panel
+  stays anchored: no drag, no resize, independent of the draggable-window
+  entry under Small. The engine's existing `peeked` flag (`controller.ts:545`,
+  drawn by Tenon's `Window` as `.tenon-window--peeked`) is a fade for
+  `ai_canvas` and is not reused for this.
 
 - **A sub-task row carries two separate icon buttons instead of being one clickable row.** `.subopen`
   (`kanban/js/19-drawer.js:1026`, the ↗ that calls `openDrawer(btn.dataset.sub)`) and `.noteicon`
