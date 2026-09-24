@@ -7,5 +7,6 @@
   "state": ["python3", "run.py", "--state"],
   "apply": ["python3", "run.py", "--apply"],
   "run": ["python3", "run.py", "--run"],
-  "activity": ["python3", "run.py", "--activity"]
+  "activity": ["python3", "run.py", "--activity"],
+  "enqueue": ["python3", "run.py", "--enqueue"]
 }

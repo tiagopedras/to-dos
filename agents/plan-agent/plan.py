@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
-"""Runs one planning agent per task and files what comes back.
+"""What the planning agent's hooks call: prompts, plan files, run records.
 
-The middle of the planning agent. `agents/plan-agent/schedule.py` says whether it
-may start, `core/windows.py` says how much of the current usage window is left,
-`pick.py` says on what, and this runs the agents and writes the results.
+The loop that used to live here is the shared runner's since 21 Sep 2026
+(PACKAGES/agents-engine/RUNNER.md); `hooks.py` is this agent's side of it and
+calls into this file for everything about plans.
 
-One `claude -p` per task, sequential. Sequential rather than parallel for two
-reasons: a runaway agent then costs one timeout rather than the night, and three
-agents crossing a usage limit together makes the window arithmetic guesswork.
+It runs unattended at two in the morning with nobody watching, so it is
+suspicious of its own agents. They are given read-only tools and told not to
+write todo.md, and then the file is hashed before the batch and checked after
+every single task anyway. Belt and braces is warranted when the failure is
+silent and the file is irreplaceable.
 
-Everything here is arranged around one fact: this runs unattended at two in the
-morning with nobody watching. So it is suspicious of its own agents. They are
-given read-only tools and told not to write todo.md, and then the file is hashed
-before the batch and checked after every single task anyway. Belt and braces is
-warranted when the failure is silent and the file is irreplaceable.
-
-    python3 agents/plan-agent/plan.py --dry-run       what it would do, no spend
-    python3 agents/plan-agent/plan.py                 the batch
-    python3 agents/plan-agent/plan.py --task "..."    one task, by hand
+    ./agents/plan-agent/run.sh --dry-run       what it would do, no spend
+    ./agents/plan-agent/run.sh --force         every list now
+    ./agents/plan-agent/run.sh --task "..."    one task, by hand
 """
 
-import argparse
 import datetime as dt
 import hashlib
 import json
@@ -70,7 +65,6 @@ BRIEF_EMPTY = "<!-- NOT FILLED IN YET -->"
 
 TASK_TIMEOUT = 10 * 60        # one agent's ceiling, seconds
 BUDGET_PER_TASK = 2.00        # dollars, handed to --max-budget-usd
-PLANNING_AGENT_BUDGET = 12.00        # dollars across the whole batch
 
 # What the agent writes into its own frontmatter when it decides the task
 # cannot be planned without a decision only Tiago can make. See the folding
@@ -81,19 +75,6 @@ FOLDED = "folded"
 FLOOR = dt.timedelta(minutes=20)   # do not start another task below this
 KEEP_DAYS = 30
 
-# What a usage limit looks like coming back. Matched loosely on purpose: the
-# wording is not ours and changes, so anything mentioning a limit and a reset is
-# treated as one, and a stray match only costs an early night.
-#
-# Widened 5 Sep 2026, after a real one got through. The CLI said "You've hit your
-# session limit · resets 12:20pm", which named neither "usage" nor "at", so the
-# batch treated it as an ordinary agent failure and moved on to the next task —
-# which would have failed the same way, twenty-four more times, in about a
-# minute, with no reset time recorded and nothing in window.json to stop the next
-# wake doing it again. Any word before "limit", and a reset with or without "at".
-LIMIT_RE = re.compile(
-    r"((usage|rate|session|weekly|daily)\s+limit|limit reached"
-    r"|resets?\s+(?:at\s+)?\d{1,2}:\d{2})", re.I)
 RESET_RE = re.compile(r"resets? (?:at )?([0-9]{1,2}:[0-9]{2}\s*(?:am|pm)?|[0-9T:\-\+]{10,})", re.I)
 
 
@@ -530,56 +511,11 @@ def planner_for(bucket):
 
     The bucket's own where its file is on disk, `twinkl-general-agent` where it is
     not. Worked out here and only here: the main loop used to swap in the
-    fallback itself while `run_agent()` worked the name out again, so the log
+    fallback itself while the run worked the name out again, so the log
     said `twinkl-general-agent` and `claude` was still asked for the missing one.
     """
     agent = bucket_agent(bucket)
     return agent if agent_on_disk(agent) else FALLBACK_AGENT
-
-
-def run_agent(task, dry=False, prior=None):
-    """One headless run. Returns (text, session_id, cost, error)."""
-    agent = planner_for(task.bucket)
-    cmd = [
-        "claude", "-p", build_prompt(task, prior),
-        "--agent", agent,
-        "--output-format", "json",
-        "--max-budget-usd", str(BUDGET_PER_TASK),
-        # Named here as well as in each agent definition. A definition is a
-        # request; this is the thing that actually holds, and it runs unattended.
-        "--allowedTools", "Read", "Grep", "Glob", "WebFetch", "WebSearch",
-    ]
-    for d in EXTRA_DIRS:
-        cmd += ["--add-dir", os.path.expanduser(d)]
-    if dry:
-        return None, None, 0.0, None
-    try:
-        proc = subprocess.run(cmd, cwd=paths.ROOT, capture_output=True,
-                              text=True, timeout=TASK_TIMEOUT)
-    except subprocess.TimeoutExpired:
-        return None, None, 0.0, "timed out after %d minutes" % (TASK_TIMEOUT // 60)
-    except OSError as exc:
-        return None, None, 0.0, "could not start claude: %s" % exc
-
-    raw = (proc.stdout or "").strip()
-    try:
-        res = json.loads(raw)
-    except ValueError:
-        err = (proc.stderr or raw or "no output").strip()
-        return None, None, 0.0, err[:400]
-
-    # The result object's field names have moved before, so read defensively and
-    # take the first that is present rather than trusting one spelling.
-    text = res.get("result") or res.get("text") or ""
-    session = res.get("session_id") or res.get("sessionId")
-    cost = res.get("total_cost_usd") or res.get("cost_usd") or 0.0
-    if res.get("is_error") or not text.strip():
-        return None, session, cost, (res.get("error") or text or "empty result")[:400]
-    return text, session, cost, None
-
-
-def is_limit(err):
-    return bool(err and LIMIT_RE.search(err))
 
 
 def record_limit(err):
@@ -1088,171 +1024,3 @@ def announce(written, skipped, stopped):
     # is where the thing it is announcing actually lives.
     view = "plans" if written else "execution"
     notify.queue("Plan agent", body, view=view)
-
-
-def run(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--all", action="store_true", help="ignore the ledger")
-    ap.add_argument("--task", default=None, help="plan exactly one, by title")
-    ap.add_argument("--budget", type=float, default=PLANNING_AGENT_BUDGET)
-    ap.add_argument("--max-plans", type=int, default=0,
-                    help="stop after this many, on top of the budget; 0 is no cap of its own")
-    args = ap.parse_args(argv)
-
-    day = dt.date.today()
-    todo_file = paths.todo_path()
-    with open(todo_file, encoding="utf-8") as fh:
-        text = fh.read()
-
-    ledger = pick.load_ledger()
-    plan, skip = pick.select(text, day=day, use_ledger=not (args.all or args.task),
-                             ledger=ledger, only=args.task)
-    skipped = [(t.title, why) for t, why in skip]
-
-    if args.dry_run:
-        print("%d to plan, %d skipped\n" % (len(plan), len(skipped)))
-        for t in plan:
-            agent = bucket_agent(t.bucket)
-            flag = "" if agent_on_disk(agent) else "  <- no planner for this bucket"
-            if not bucket_brief(t.bucket):
-                flag += "  <- no bucket brief yet"
-            print("  %-22s %-58s %s%s" % (t.bucket, t.title[:58], agent, flag))
-        orphans = sorted({t.bucket for t in plan if not agent_on_disk(bucket_agent(t.bucket))})
-        if orphans:
-            print("\n%d bucket(s) have no planner: %s" % (len(orphans), ", ".join(orphans)))
-            print("Write agents/plan-agent/<dataset>-<stream>-agent.md for each, and symlink it "
-                  "into .claude/agents/.")
-        for title, why in skipped:
-            print("  skip  %-58s %s" % (title[:58], why))
-        return 0
-
-    # Once per real batch, not per task, and not for a --task run by hand —
-    # brief.py and report.py skip that case for the same reason: there is no
-    # batch here for a single manual plan to be logged alongside. A quiet
-    # night still samples: the trend this is for is a series across every
-    # wake, not just the ones that wrote something.
-    if not args.task:
-        harvest_usage()
-
-    if not plan:
-        log("nothing to plan (%d unchanged)" % len(skipped))
-        # Nothing to plan is not the same as nothing to say: a batch of
-        # accepted plans can still be sitting untouched in Execution's
-        # Backlog from a previous night, and this is the only path through
-        # run() that reaches a quiet night — the one announce() was missing.
-        announce([], [], None)
-        return 0
-
-    guard = file_hash(todo_file)
-    expiry = windows.current(state=windows.read_state(paths.window_path()))["expires"]
-    spent, written, stopped = 0.0, [], None
-    started = dt.datetime.now().astimezone()
-    log("start: %d to plan, %d skipped" % (len(plan), len(skipped)))
-
-    for task in plan:
-        now = dt.datetime.now().astimezone()
-        if expiry and expiry - now < FLOOR:
-            stopped = "Stopped with %d left: under %d minutes of window remaining." % (
-                len(plan) - len(written), FLOOR.seconds // 60)
-            log(stopped)
-            break
-        if spent >= args.budget:
-            stopped = "Stopped with %d left: nightly budget of $%.2f reached." % (
-                len(plan) - len(written), args.budget)
-            log(stopped)
-            break
-        if args.max_plans and len(written) >= args.max_plans:
-            stopped = "Stopped with %d left: nightly max_plans of %d reached." % (
-                len(plan) - len(written), args.max_plans)
-            log(stopped)
-            break
-
-        agent = bucket_agent(task.bucket)
-        # A slugified heading always resolves, so the loud log is no longer about a
-        # table row nobody added — it is about a planner file that is not on
-        # disk, which is the same signal one step later and a stronger one: it
-        # names the file to create rather than a table to edit. What runs is
-        # still the fallback, because a plan written by a generalist beats no
-        # plan at all.
-        if not agent_on_disk(agent):
-            log("  NO PLANNER for bucket %r — planning %r with the fallback. "
-                "Write agents/plan-agent/%s.md." % (task.bucket, task.title[:50], agent))
-            agent = planner_for(task.bucket)
-        # Logged before the run, not only after. An agent takes minutes, so
-        # without this the log — and the board's Schedule view, which reads it —
-        # says nothing at all about the one currently in flight, which is the
-        # only one anybody watching actually wants named.
-        log("  > %s (%s)" % (task.title[:60], agent))
-        began = dt.datetime.now()
-        # The ledger is keyed by task id since 11 Sep 2026, so that a retitle
-        # keeps its row. Rows written before that are keyed by title, which is
-        # the fallback pick.is_stale reads by too.
-        prior = ledger.get(pick.key_of(task)) or ledger.get(task.title)
-        body, session, cost, err = run_agent(task, prior=prior)
-        spent += cost or 0.0
-        took = (dt.datetime.now() - began).seconds
-
-        if file_hash(todo_file) != guard:
-            stopped = "STOPPED: todo.md changed during the run. Nothing else was attempted."
-            log(stopped)
-            log("  the agent for %r is the suspect; check it before running again" % task.title)
-            break
-
-        if err:
-            if is_limit(err):
-                reset = record_limit(err)
-                stopped = "Stopped with %d left: usage limit%s." % (
-                    len(plan) - len(written), (", resets %s" % reset) if reset else "")
-                log(stopped)
-                break
-            log("  failed %-50s %s" % (task.title[:50], err.splitlines()[0][:120]))
-            skipped.append((task.title, "the run failed"))
-            continue
-
-        out, summary, folded = write_plan(task, body, session, day, prior=prior)
-        queue_attach(task, session)
-        queue_plan_tick(task, os.path.relpath(out, paths.plans_dir()))
-        written.append((os.path.basename(out), task.title, summary, folded))
-        if folded:
-            log("  folded  %-50s needs a decision from him first" % task.title[:50])
-        # Keyed by id, and in the six states every queue here shares, which is
-        # what the rest of this stream already reads. It was still writing a
-        # title key and `status: unread` after the 11 Sep migration, so a
-        # rejection could not be found again by the night that had to answer it.
-        ledger.pop(task.title, None)
-        ledger[pick.key_of(task)] = {
-            "title": task.title,
-            "fingerprint": pick.fingerprint(task),
-            "planned": day.isoformat(),
-            "file": os.path.basename(out),
-            "night": day.isoformat(),
-            "sub": getattr(task, "plan_sub", ""),
-        }
-        pick.save_ledger(ledger)
-        log("  planned %-50s %3ds  $%.2f" % (task.title[:50], took, cost or 0.0))
-
-    # The day's whole account for the two files anything else reads; the log
-    # line and the notification below stay this run's own, because what just
-    # happened is what they are for.
-    day_written, day_skipped, day_stopped, day_spent, day_started = carry_over(
-        day, written, skipped, stopped, spent, started)
-    write_index(day, day_written, day_skipped, day_stopped)
-    write_run_record(day, day_written, day_skipped, day_stopped, day_spent, day_started)
-    prune(day, todo.parse_doc(text))
-    prune_nights(day)
-    folded = len([w for w in written if w[3]])
-    log("done: %d written%s, $%.2f spent%s"
-        % (len(written), (" (%d folded)" % folded) if folded else "", spent,
-           " (cut short)" if stopped else ""))
-    announce(written, skipped, stopped)
-    print("%d plans written to %s" % (len(written), os.path.relpath(paths.plans_dir(), paths.ROOT)))
-    if folded:
-        print("%d of them folded, waiting on a decision from you." % folded)
-    if stopped:
-        print(stopped)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(run())

@@ -796,26 +796,10 @@ def test_agents():
                           ("Bits & pieces", "bits-pieces"), ("  ", "")]:
         check("%r slugifies" % heading, plan.bucket_slug(heading), want)
 
-    check("a limit message is recognised",
-          plan.is_limit("Claude usage limit reached, resets at 3:00pm"), True)
-    check("an ordinary failure is not", plan.is_limit("file not found"), False)
-
-    # The wording is not ours and it changes. This one is verbatim from a real
-    # run on 5 Sep 2026, and it got through the first version of the pattern:
-    # the batch logged it as an ordinary failure and would have gone on to fail
-    # every remaining task the same way, in about a minute, recording no reset
-    # time for the next wake to respect.
     real = "You've hit your session limit \u00b7 resets 12:20pm (Europe/Lisbon)"
-    check("a session limit is a limit", plan.is_limit(real), True)
-    check("and its reset time is what gets recorded",
+    check("a limit's reset time is what gets recorded",
           plan._parse_reset(plan.RESET_RE.search(real).group(1)).strftime("%H:%M"),
           "12:20")
-    for wording in ["You've hit your weekly limit",
-                    "Approaching your rate limit, resets 09:05",
-                    "5-hour limit reached"]:
-        check("%r is a limit" % wording[:30], plan.is_limit(wording), True)
-    for wording in ["no such file", "the agent timed out", "limits.py not found"]:
-        check("%r is not" % wording[:30], plan.is_limit(wording), False)
     check("a reset time parses",
           plan._parse_reset("3:00pm").strftime("%H:%M"), "15:00")
 
@@ -1137,12 +1121,9 @@ def test_runner():
     # The agents are told to read ~/Code/CLAUDE.md, SKILLS.md and
     # DS-KNOWN-ISSUES.md. Without --add-dir claude -p cannot see any of them,
     # and the plans get quietly thinner rather than failing.
-    src = open(os.path.join(HERE, "plan.py"), encoding="utf-8").read()
-    check("plan.py widens the sandbox to ~/Code", "--add-dir" in src, True)
-    # And narrows the tools, on the command line rather than only in the agent
-    # definition — a definition is a request, the flag is what holds.
-    check("and pins the tools on the command line", "--allowedTools" in src, True)
-    check("with no Bash among them", "\"Bash\"" in src, False)
+    src = open(os.path.join(HERE, "hooks.py"), encoding="utf-8").read()
+    check("hooks.py widens the sandbox to ~/Code", '"dirs": list(plan.EXTRA_DIRS)' in src, True)
+    check("and ~/Code is what it widens to", plan.EXTRA_DIRS, ["~/Code"])
     planners = os.path.join(ROOT, "agents", "plan-agent")
     for p in sorted(os.listdir(planners)):
         if not p.startswith("plan-"):
@@ -1155,40 +1136,18 @@ def test_runner():
 def test_fallback_planner():
     """A bucket with no planner file must reach `claude` as `twinkl-general-agent`.
 
-    The main loop logged the fallback while run_agent() asked `claude` for the
-    missing planner anyway, so on 20 Sep 2026 two tasks on `pet-projects` failed
-    with "agent not found" under a log line saying the fallback was in use. This
-    stubs `subprocess.run`, so it reads the command line and spends nothing.
+    On 20 Sep 2026 two tasks on `pet-projects` failed with "agent not found"
+    under a log line saying the fallback was in use. hooks.options() hands
+    `claude` whatever planner_for() returns, so that is what is checked.
     """
-    class Task:
-        def __init__(self, bucket):
-            self.bucket = bucket
-
-    seen = []
-
-    class Done:
-        stdout = '{"result": "a plan", "session_id": "s", "total_cost_usd": 0}'
-        stderr = ""
-
-    def fake_run(cmd, **kw):
-        seen.append(cmd)
-        return Done()
-
-    real = (plan.subprocess.run, plan.build_prompt, plan.stream_map)
-    plan.subprocess.run = fake_run
-    plan.build_prompt = lambda task, prior: "prompt"
+    real = plan.stream_map
     plan.stream_map = lambda: {}
     try:
         for bucket, want in (("3. DS", "twinkl-ds-agent"),
                              ("9. No Planner Here", "twinkl-general-agent")):
-            del seen[:]
-            plan.run_agent(Task(bucket))
-            check("%r runs against %s" % (bucket, want),
-                  seen[0][seen[0].index("--agent") + 1], want)
-        check("planner_for names the fallback for a missing planner",
-              plan.planner_for("9. No Planner Here"), plan.FALLBACK_AGENT)
+            check("%r runs against %s" % (bucket, want), plan.planner_for(bucket), want)
     finally:
-        plan.subprocess.run, plan.build_prompt, plan.stream_map = real
+        plan.stream_map = real
 
 
 def fake_data_root(sched, names=("twinkl",), current="twinkl"):
@@ -1338,11 +1297,9 @@ def test_max_plans():
         dashboard.schedule.path = real_path
         shutil.rmtree(tmp, ignore_errors=True)
 
-    # plan.py's own loop, and run.sh's half of carrying a schedule value there.
-    src = open(os.path.join(HERE, "plan.py"), encoding="utf-8").read()
-    check("plan.py takes --max-plans on the command line", "--max-plans" in src, True)
-    check("and stops the batch on it, beside the budget check",
-          "args.max_plans and len(written) >= args.max_plans" in src, True)
+    # The Plan sub-task is ticked from land(), the live path since the runner.
+    src = open(os.path.join(HERE, "hooks.py"), encoding="utf-8").read()
+    check("land() queues the Plan sub-task tick", "plan.queue_plan_tick(task," in src, True)
 
     import hooks
     schedule = hooks.schedule

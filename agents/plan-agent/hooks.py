@@ -47,6 +47,9 @@ BLURB = ("works out overnight what each task on the list would take, and writes 
 # data/, which is the whole of what this repo's git ignores.
 STATE = os.path.join("..", "..", "data", "runner", "plan-agent")
 HOURS_PREFERRED = list(schedule.PREFERRED)
+# Its queue is the board: a task handed to the Plan agent, with its Plan sub-task open.
+QUEUE_HINT = ("the Plan agent's queue is the to-do board: hand the task to the Plan agent there, "
+              "or ask the pa skill to. Run one now with --now --item \"<task title>\"")
 
 # What one list's night has gathered between before() and after().
 _night = {}
@@ -255,6 +258,7 @@ def land(item, result, target):
     out, summary, folded = plan.write_plan(task, result.get("text") or "", result.get("session"), night["day"],
                                            prior=prior)
     plan.queue_attach(task, result.get("session"))
+    plan.queue_plan_tick(task, os.path.relpath(out, paths.plans_dir()))
     name = os.path.basename(out)
     night["written"].append((name, task.title, summary, folded))
     if folded:
