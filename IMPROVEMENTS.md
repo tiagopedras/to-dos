@@ -833,10 +833,28 @@ they settled is written up in the README rather than left here:
   layers, never edits an existing main component or any text, colour or other style, and gives
   variables as suggestions in text only. It also needs the desktop app open on the right file
   with the Figma Console bridge paired, and `implement-agent.md` holds no Figma tools today
-  (line 4). Anything off the list stays with `do` and a person in the room. Still to decide:
-  the version-naming rule, and what starts a run without an accept step, either the planner
-  accepting a plan of a pre-approved type itself or the agent picking tasks by tag. The list
-  goes first. The runner follows it: the schedule file and `run.sh` that
+  (line 4). Anything off the list stays with `do` and a person in the room. Decided 23 Sep
+  2026: a new version of a prompt, skill, data file or deck is saved as `name-v2.md` beside
+  the original and never overwrites it. A seventh type is added, code on a branch, guarded
+  the way `AGENTS/improve-agent` is: clean tree, an `implement/<date>` branch, tests, a
+  commit, never a merge or a push, and still no Bash for the agent. Both routes start a run:
+  a task handed straight to the Implement agent with a `type::` tag, and a plan whose
+  frontmatter declares an approved type. Still open: whether the second route skips his
+  Review the plan at all, or unattended runs stay with the first route only. Build, in
+  order. `PLAN-BRIEF.md` "What to write" (`:136`) asks for `type:` in the frontmatter
+  (write-up, draft, prompt, data, deck, figma, code, other), read back beside `outcome:`
+  in `write_plan()` (`agents/plan-agent/plan.py:627`). When the Plan agent's tick arrives
+  for an approved type, `drainTickQueue()` (`kanban/js/10-reference-sections.js:873`)
+  also ticks Review the plan with the note "pre-approved type", through `append()` in
+  `core/tick_queue.py:87`. `agents/implement-agent/` gets `agent.json`, `run.py` and
+  `hooks.py` on the shared runner (`PACKAGES/agents-engine/RUNNER.md`), off until hours
+  are set; its queue is every open Implement sub-task whose blocker is ticked and whose
+  type is approved. The harness holds the guards: types 1 to 5 revert and set aside any
+  write outside the project folder or over an existing file; code runs as improve-agent
+  does; Figma runs only when the Figma Console bridge is paired on the right file, with the
+  four page rules in the prompt and Figma write tools granted for that run alone. Then
+  `implement-agent.md`, the `do` skill's "It never runs unattended" (`SKILL.md:113`) and
+  the README say so. The runner follows it: the schedule file and `run.sh` that
   `agents/implement-agent/README.md` describes, on the same `agent.json` contract as
   `agents/plan-agent`. The handover-level entry (off, plan first, just do it) and the entry on
   what the implementing agent produces are blocked on the same list of types. Approval is
