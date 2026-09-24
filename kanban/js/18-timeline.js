@@ -450,7 +450,7 @@ function wireTlReorder(){
     group.ondragover = e => {
       if (!tlReorderId) return;
       e.preventDefault();
-      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'dropline'; }
+      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'tenon-dropline'; }
       const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
       if (after) after.after(dropLine);
       else {

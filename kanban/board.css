@@ -999,16 +999,7 @@
   .tenon-column[data-column-collapse]:not([open]) > .tenon-column__body{display:none}
   .tenon-column__body{padding:9px; gap:8px}
   .drop.over{background:color-mix(in srgb, var(--tenon-background-accent) 7%, transparent)}
-  /* Where the card being dragged will land. Sits in the gap between two cards,
-     so the line is the answer to "in front of which one?". */
-  .dropline{
-    flex:none; height:3px; border-radius:var(--tenon-radius-sm); background:var(--tenon-background-accent); position:relative;
-  }
-  .dropline::before, .dropline::after{
-    content:""; position:absolute; top:-2px; width:7px; height:7px; border-radius:50%; background:var(--tenon-background-accent);
-  }
-  .dropline::before{left:-3px}
-  .dropline::after{right:-3px}
+  /* The drop line is Tenon's DropLine, the same one the agents dashboard draws. */
   .addbtn{width:100%; border:1px dashed var(--tenon-stroke-default); background:transparent; color:var(--tenon-text-faint); border-radius:var(--tenon-radius-md); padding:7px; font-size: var(--tenon-typography-size-sm)}
   .addbtn:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-faint)}
   .empty{color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-sm); padding:6px 4px 10px}

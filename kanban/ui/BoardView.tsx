@@ -22,7 +22,7 @@
  */
 import { useState } from 'react'
 import type { DragEvent } from 'react'
-import { Column, ColumnEmpty } from '@tiagopedras/tenon'
+import { Column, ColumnEmpty, DropLine } from '@tiagopedras/tenon'
 import { TaskCard, type TaskCardModel } from './TaskCard'
 
 export interface BoardCard {
@@ -97,7 +97,7 @@ export function BoardView(props: BoardViewProps) {
         ))
         if (line && line.tier === col.tier) {
           const at = line.after ? cards.findIndex(c => c.key === line.after) + 1 : 0
-          cards.splice(at, 0, <div key="dropline" className="dropline" />)
+          cards.splice(at, 0, <DropLine key="dropline" />)
         }
 
         const drop = locked ? {} : {

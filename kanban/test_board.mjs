@@ -172,7 +172,7 @@ check('the column lights up under the pointer', await evalJS(`
 `))
 check('and the drop line sits above the first card', await evalJS(`
   document.querySelector('#board .tenon-column[data-tier="To do"] .tenon-column__body').firstElementChild.className
-`) === 'dropline')
+`) === 'tenon-dropline')
 await evalJS(`(() => {
   const first = document.querySelector('#board .tenon-column[data-tier="To do"] .tenon-card[data-id="bd0001"]');
   __drag('dragover', first, first.getBoundingClientRect().bottom - 2);
@@ -180,12 +180,12 @@ await evalJS(`(() => {
 await wait(100)
 check('moving down moves the line under it', await evalJS(`
   document.querySelector('#board .tenon-column[data-tier="To do"] .tenon-card[data-id="bd0001"]').nextElementSibling.className
-`) === 'dropline')
-check('there is only ever one line', await evalJS(`document.querySelectorAll('#board .dropline').length`) === 1)
+`) === 'tenon-dropline')
+check('there is only ever one line', await evalJS(`document.querySelectorAll('#board .tenon-dropline').length`) === 1)
 await evalJS(`__drag('dragleave', document.querySelector('#board .tenon-column[data-tier="To do"] .tenon-column__body'), 0)`)
 await wait(100)
 check('leaving the column clears the line and the highlight', await evalJS(`
-  !document.querySelector('#board .dropline') && !document.querySelector('#board .drop.over')
+  !document.querySelector('#board .tenon-dropline') && !document.querySelector('#board .drop.over')
 `))
 
 /* Dropped at the top of To do: Gamma goes first. */
@@ -200,7 +200,7 @@ await wait(150)
 check('a drop reorders the tasks in the file', await evalJS(`__order('To do')`) === 'Gamma,Alpha,Beta', await evalJS(`__order('To do')`))
 check('and the board shows the new order', await evalJS(`__titles('To do')`) === 'Gamma,Alpha,Beta')
 check('the line and the fade are gone afterwards', await evalJS(`
-  !document.querySelector('#board .dropline') && !document.querySelector('#board .tenon-card.dragging') && dragId === null
+  !document.querySelector('#board .tenon-dropline') && !document.querySelector('#board .tenon-card.dragging') && dragId === null
 `))
 check('and the tab knows it has something to save', await evalJS(`state.dirty === true`))
 
@@ -264,7 +264,7 @@ await evalJS(`(() => {
 await wait(100)
 check('a sorted column takes drops but draws no line', await evalJS(`
   document.querySelector('#board .tenon-column[data-tier="To do"] .tenon-column__body').classList.contains('over') &&
-  !document.querySelector('#board .dropline')
+  !document.querySelector('#board .tenon-dropline')
 `))
 await evalJS(`__drag('dragend', document.querySelector('#board .tenon-card[data-id="bd0003"]'), 0);
   document.querySelector('#board .tenon-column[data-tier="To do"] .sortbtn').click()`)
