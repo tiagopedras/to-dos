@@ -19,7 +19,7 @@
  */
 import { Fragment } from 'react'
 import type { CSSProperties } from 'react'
-import { Alert, Card, ColumnEmpty } from '@tiagopedras/tenon'
+import { Alert, Card, ColumnEmpty, Tag } from '@tiagopedras/tenon'
 import type { Chip } from './TaskCard'
 
 export interface RefModel {
@@ -53,6 +53,7 @@ export type RefBlock =
   | { kind: 'empty', which: EmptyKind }
 
 function ChipSpan({ c }: { c: Chip }) {
+  if (c.tone) return <Tag tone={c.tone} title={c.title}>{c.text}</Tag>
   return <span className={c.cls} data-project={c.project} title={c.title}>{c.text}</span>
 }
 

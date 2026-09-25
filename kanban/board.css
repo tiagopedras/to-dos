@@ -438,8 +438,6 @@
     background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
     border-color:color-mix(in srgb, var(--tenon-text-warning) 40%, transparent);
   }
-  .tag.needsscore{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
-
   /* ---------- the matrix ----------
      Nine cells. Impact down the left, effort across the top, so the cheap
      high-impact corner is top-left where the eye lands first. Cells are tinted
@@ -1926,8 +1924,6 @@
   }
   .aic-addsub:hover{border-color:var(--tenon-text-faint); color:var(--tenon-text-default)}
 
-  .tag.jira{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
-
   /* An agenda is drawn as the document it is about to become: the meeting date as
      a title, the word Agenda under it, then a real nested <ul>. Real bullets
      rather than styled indentation, because the bullets are the format — what is
@@ -1943,7 +1939,6 @@
      reference sitting under the live block, not a second thing to act on. */
   .msg.agenda.prev{opacity:.72}
   .msg.agenda.prev .aglead{font-size: var(--tenon-typography-size-sm)}
-  .tag.repeat{color:var(--tenon-text-subtle); border-color:var(--tenon-text-faint)}
   /* The ticket body, under its summary. Quieter than the summary because the
      summary is the thing to check and this is the thing to skim. */
   .jirabody{display:block; margin-top:6px; font-size: var(--tenon-typography-size-sm); line-height:1.5; color:var(--tenon-text-faint); font-style:normal}
@@ -2177,7 +2172,6 @@
     background:color-mix(in srgb, var(--tenon-background-accent) 6%, var(--tenon-background-raised));
   }
   .tenon-card.onething:hover{border-color:color-mix(in srgb, var(--tenon-stroke-accent) 70%, transparent)}
-  .tag.onething{background:transparent; border:1px solid var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   /* Fading is a fact about the task's own status, not about which column
      happens to be rendering it — these classes come from cardHTML off t.done
      and the task's real tier, so a card fades the same way in the board, the
@@ -2209,23 +2203,13 @@
   /* Urgent and due read as "look at this now", so they sit apart from the rest
      of the meta row, pinned to the right rather than wrapping in with it. */
   .meta-when{display:flex; gap:5px; margin-left:auto; align-items:center}
-  /* Two axes and nothing else: solid or outline, in one of five colours. It
-     was fourteen single-purpose classes, one per thing a chip could say, and
-     most of them were drawing the same two or three boxes — `due`, `ticket` and
-     `repeat` were each separately declaring the plain chip they already
-     inherited. The semantic classes below stay, because a chip should say what
-     it means at its call site, but each is now one line pointing at one of the
-     ten boxes rather than a box of its own. */
+  /* The board's own chip, for the handful cardModel() keeps off Tenon's `Tag`
+     because no tone fits: your move (solid, no filled tone), the project chip
+     (a button with a hover state) and the start date below (a dashed gate).
+     Everything else a chip can say is a `Tag` tone now — see cardModel() in
+     kanban/js/09-columns.js. The solid/outline colour axis this used to carry
+     (`.tag--outline`, `.tag--blue` and the rest) went with them, 25 Sep 2026. */
   .tag{font-size: var(--tenon-typography-size-sm); font-weight:600; padding:2px 6px; border-radius:var(--tenon-radius-default); background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
-  .tag--outline{background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550}
-  .tag--blue{background:color-mix(in srgb, var(--tenon-background-accent) 12%, transparent); color:var(--tenon-text-accent); font-weight:650}
-  .tag--amber{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
-  .tag--red{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
-  .tag--green{background:var(--tenon-background-success-subtle); color:var(--tenon-text-success)}
-  .tag--outline.tag--blue{background:transparent; border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
-  .tag--outline.tag--amber{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-warning) 35%, transparent); color:var(--tenon-text-warning)}
-  .tag--outline.tag--red{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-error) 35%, transparent); color:var(--tenon-text-error)}
-  .tag--outline.tag--green{background:transparent; border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent); color:var(--tenon-text-success)}
   /* The two bracket forms that turn up inside prose rather than on a task
      line — a `[key:: value]` tag and a `[placeholder]` — picked out by
      mdInline wherever it renders, so a note, a report and a plan all mark
@@ -2252,29 +2236,22 @@
   .tag.startdate{
     background:transparent; border:1px dashed var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550;
   }
+  /* Still what 19-drawer.js and 18-timeline.js draw a due-date chip as — they
+     are not React yet, so they still write the class literally rather than
+     asking cardModel() for a tone. The board's own two cards ask for the
+     `soon`/`urgent` tones instead; see cardModel() and DUE_TONE. */
   .tag.due.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
   .tag.due.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
-  .tag.urgent{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
-  .tag.ai{background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-faint); font-weight:550}
-  .tag.ai-full{color:var(--tenon-text-success); border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent)}
-  .tag.ai-partial{color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 35%, transparent)}
   /* Live, completed or orphaned on a project card — a soft green nod rather
-     than the amber this file uses elsewhere for "needs an answer"
-     (.repitem.folded, .tag.needsscore): an orphaned folder is not urgent,
-     it's just unreferenced, so it gets the same neutral treatment as .tag.ai
-     instead. Completed sits between the two, quieter than the green because
-     the green here marks work still in flight rather than work finished, and
-     louder than the faint grey because the folder is still being pointed at. */
+     than the amber this file uses elsewhere for "needs an answer": an orphaned
+     folder is not urgent, it's just unreferenced, so it gets the same neutral
+     treatment as the plain chip. Completed sits between the two, quieter than
+     the green because the green here marks work still in flight rather than
+     work finished, and louder than the faint grey because the folder is still
+     being pointed at. */
   .tag.projlive{color:var(--tenon-text-success); border-color:color-mix(in srgb, var(--tenon-text-success) 35%, transparent)}
   .tag.projcompleted{color:var(--tenon-text-subtle)}
   .tag.projorphan{color:var(--tenon-text-faint)}
-  /* Delegated to a person. Its own colour, because "someone else has this" is a
-     different fact from every other chip on the card, all of which describe the
-     work rather than who holds it. */
-  .tag.who{
-    background:color-mix(in srgb, var(--tenon-background-accent) 12%, transparent);
-    color:var(--tenon-text-accent); font-weight:650;
-  }
   .mini{font-style:normal; font-size: var(--tenon-typography-size-sm); font-weight:600; color:var(--tenon-text-faint); background:var(--tenon-background-neutral); border-radius:var(--tenon-radius-default); padding:1px 5px; margin-left:6px; white-space:nowrap}
   .mini.over{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
   .mini.soon{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
@@ -2659,15 +2636,6 @@
      (urgent, week, #slug, blocked-by — all edited properly elsewhere already)
      drops the pointer cursor and the hover state so it doesn't invite a click
      that does nothing. */
-  /* Cancelled or archived: ticked, and not work that was done. Amber rather
-     than red — it is a normal answer, and red on a card in Done would read as
-     an error. Same amber an unrecognised tag already takes, for the same
-     reason: both mean "read this one properly". */
-  .tag.cancelled{
-    background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
-    border:1px solid color-mix(in srgb, var(--tenon-text-warning) 40%, transparent);
-  }
-
   .tagchips{display:flex; flex-wrap:wrap; gap:6px}
   .tagchip{
     font-size: var(--tenon-typography-size-sm); font-weight:600; padding:2px 7px; border-radius:var(--tenon-radius-default);

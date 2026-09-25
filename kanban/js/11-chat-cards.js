@@ -391,7 +391,7 @@ function contextSection(){
     if (dm) {
       const di = dueInfo(dm[2]);
       const past = di.days < 0;
-      chip = { cls: 'tag due ' + (past ? '' : di.cls),
+      chip = { tone: DUE_TONE[past ? '' : di.cls] || 'neutral',
                text: (dm[1] === 'until' ? 'until ' : '') + di.label + ' \u00b7 ' +
                      (past ? Math.abs(di.days) + 'd ago' : 'in ' + di.days + 'd') };
     }

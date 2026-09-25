@@ -140,10 +140,11 @@ check('a card carries its own id and is reachable from the keyboard', await eval
 })()`))
 check('impact and effort are chips', await evalJS(`(() => {
   const c = document.querySelector('#board .tenon-card[data-id="bd0001"]');
-  return !!c.querySelector('.tag.impact-high') && [...c.querySelectorAll('.tag')].some(t => t.textContent === 'S');
+  const tags = [...c.querySelectorAll('.tenon-tag--neutral')];
+  return tags.some(t => t.textContent === '\u{1f525}') && tags.some(t => t.textContent === 'S');
 })()`))
 check('a due date is a chip in its own corner', await evalJS(`
-  !!document.querySelector('#board .tenon-card[data-id="bd0002"] .meta-when .tag.due')
+  !!document.querySelector('#board .tenon-card[data-id="bd0002"] .meta-when .tenon-tag')
 `))
 check('steps show as a progress line', await evalJS(`
   document.querySelector('#board .tenon-card[data-id="bd0001"] .prog span').textContent
@@ -325,9 +326,9 @@ await evalJS(`(() => {
 })()`)
 await wait(200)
 const CARD_PARITY = {
-  bd0001: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0001" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Alpha</div></div><div class="tenon-card__tags"><span class="tag impact-high" title="high impact">\u{1f525}</span><span class="tag">S</span></div><div class="tenon-card__body"><div class="prog"><span>1/2 steps</span><span class="bar"><i style="width:50%"></i></span></div></div></article>',
-  bd0003: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0003" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Gamma</div></div><div class="tenon-card__tags"><span class="tag impact-med" title="med impact">\u{1f324}️</span><span class="tag">M</span></div></article>',
-  bd0004: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0004" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Delta</div></div><div class="tenon-card__tags"><span class="tag impact-high" title="high impact">\u{1f525}</span><span class="tag">S</span><span class="tag who" title="Delegated to Plan agent">→ Plan agent</span></div></article>',
+  bd0001: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0001" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Alpha</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="high impact">\u{1f525}</span><span class="tenon-tag tenon-tag--neutral">S</span></div><div class="tenon-card__body"><div class="prog"><span>1/2 steps</span><span class="bar"><i style="width:50%"></i></span></div></div></article>',
+  bd0003: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0003" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Gamma</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="med impact">\u{1f324}️</span><span class="tenon-tag tenon-tag--neutral">M</span></div></article>',
+  bd0004: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0004" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Delta</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="high impact">\u{1f525}</span><span class="tenon-tag tenon-tag--neutral">S</span><span class="tenon-tag tenon-tag--accent" title="Delegated to Plan agent">→ Plan agent</span></div></article>',
 }
 const pinCheck = await evalJS(`(() => {
   const canon = el => {
