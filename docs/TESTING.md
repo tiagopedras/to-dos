@@ -87,7 +87,7 @@ node kanban/test_backups.mjs       # and the read-only preview it opens
 node kanban/test_matrix.mjs        # and the dot's pinned preview
 node kanban/test_phone.mjs         # the 640px breakpoint, from both sides
 node kanban/test_overview.mjs      # capMsgCards() against real, painted layout
-node kanban/test_timeline.mjs      # wireTimelineDrag() against a real, painted tray card
+node kanban/test_timeline.mjs      # every Timeline drag, end to end: reorder, bar, handle, track, tray
 node kanban/test_reports.mjs       # both halves, and the window picker over them
 node kanban/test_recurring_roll.mjs # where a recurring card lands when its date turns over
 node kanban/test_archiving.mjs     # the only thing that rewrites todo.md on a timer

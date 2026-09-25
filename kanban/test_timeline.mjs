@@ -6,21 +6,15 @@
  *   node kanban/test_timeline.mjs
  *
  * Written 14 Sep 2026, alongside the port of the view's shell to
- * kanban/ui/SectionsView.tsx. The lanes and the scale themselves —
- * timelineTasks(), timelineScale(), timelineLaneHTML() — are untouched by
- * that port; what this suite pins is the shell, and the one real risk the
- * port carries: wireTimelineDrag() arms a tray card's ondragstart and the
- * scale's own ondragover/ondrop by querying the DOM right after the mount
- * call returns (see kanban/js/18-timeline.js, at the end of renderSections()).
- * mountFlushed() (kanban/ui/index.ts) is what makes that query find real
- * elements rather than racing React's own schedule, so the checks below read
- * straight after renderView() with no setTimeout to paper over a race if one
- * existed.
+ * kanban/ui/SectionsView.tsx, and grown on 25 Sep 2026 when the body went the
+ * same way: the lanes, bars, scale and tray are TimelineBody
+ * (kanban/ui/TimelineBody.tsx), drawn from the data timelineSection() returns,
+ * with every drag handed to it as a prop.
  *
- * Since 25 Sep 2026 it also drives every drag the view has, end to end: a row
- * reorder, a click and a drag on a bar, a handle resize, a click on an empty
- * track, and a tray card dropped on the scale. They went in against the
- * string-built lanes first, so the React port had to pass them unchanged.
+ * The drag checks drive every drag the view has, end to end: a row reorder, a
+ * click and a drag on a bar, a handle resize, a click on an empty track, and a
+ * tray card dropped on the scale. They went in against the string-built lanes
+ * first, and the React port passed them unchanged.
  */
 import { spawn } from 'node:child_process'
 
@@ -73,8 +67,7 @@ try {
 await new Promise(r => setTimeout(r, 2500))
 check('the board loaded', await evalJS(`typeof timelineSection === 'function'`))
 
-// Not locked — wireTimelineDrag() itself refuses to wire anything against a
-// locked tab, which is exactly what this suite needs to see happen. The fetch
+// Not locked — a locked tab gets no drag handlers at all, which is exactly what this suite needs to see happen. The fetch
 // guard below is what keeps that safe, the same exception test_notes.mjs
 // makes for the one thing it actually has to unlock the tab to test.
 await evalJS(`(() => {
@@ -128,14 +121,20 @@ check('and its bucket swatch is striped from the lane colours', await evalJS(`
   document.querySelector('.tllegend .tlswatch').style.background.includes('linear-gradient')
 `))
 
-/* ---- wireTimelineDrag() ran against the real, painted tray card ---- */
+/* ---- the drag handlers are on the painted nodes ----
+   Read off React's own props on the element, since a handler passed as a prop
+   is never an on* property of the node. */
 
-check('the tray card is armed to drag, wired the moment the mount call returned', await evalJS(`
-  typeof document.querySelector('.tltraycard').ondragstart === 'function'
+await evalJS(`window.__handler = (el, name) => {
+  const k = el && Object.keys(el).find(k => k.startsWith('__reactProps'));
+  return !!k && typeof el[k][name] === 'function';
+}`)
+check('the tray card is draggable, with its drag handler on it', await evalJS(`
+  document.querySelector('.tltraycard').draggable && __handler(document.querySelector('.tltraycard'), 'onDragStart')
 `))
 check('and the scale itself takes the drop', await evalJS(`(() => {
   const s = document.querySelector('.tlscroll');
-  return typeof s.ondragover === 'function' && typeof s.ondrop === 'function';
+  return __handler(s, 'onDragOver') && __handler(s, 'onDrop');
 })()`))
 
 /* ---- switching away and back re-wires cleanly, not twice ---- */
@@ -143,7 +142,7 @@ check('and the scale itself takes the drop', await evalJS(`(() => {
 await evalJS(`state.view = 'board'; renderView(); state.view = 'timeline'; renderView()`)
 check('a second visit still finds a lane and a wired tray card, not a stale one', await evalJS(`(() => {
   return !!document.querySelector('.tlscroll .tlbody') &&
-    typeof document.querySelector('.tltraycard').ondragstart === 'function';
+    __handler(document.querySelector('.tltraycard'), 'onDragStart');
 })()`))
 
 /* ---- the drags themselves ----
@@ -238,6 +237,7 @@ check('dragging a row label below the next row reorders the lane', await rowOrde
     const bar = document.querySelector('.tlbar[data-tlrow="${ID.one}"]');
     return bar && parseInt(bar.style.left) === tlOffset(timelineScale(timelineTasks().dated), '2026-09-13') * TL_DAY_PX;
   })()`))
+  check('and the release after a real drag does not open the drawer', await evalJS(`state.openTask`) == null, String(await evalJS(`state.openTask`)))
   check('and the popover is gone', await evalJS(`!document.querySelector('.tlpopover.on')`))
 }
 

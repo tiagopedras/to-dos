@@ -4,18 +4,11 @@
  * moves here; `$('#lists').innerHTML = '<div class="lists ...">' + html +
  * '</div>' + the trailing note` does too.
  *
- * The shell only. Each section's own body — the cards in Big rocks, the
- * matrix grid, the timeline's lanes — is still built by the functions this
- * file always called (`bigRocksSection()`, `matrixSection()`,
- * `timelineSection()`, and the rest), and arrives here as `{ __html }`, the
- * same bargain `PlanCard.summaryHTML` makes: porting that markup is a
- * separate job, largely because a fair amount of it (the timeline's own
- * drag-to-reorder, the matrix's dot hover) is wired by `#lists`'s delegated
- * listener rather than by a handler this component could take as a prop —
- * see `wireTimelineDrag()` and the `.mdot`/`.trendpt` cases in
- * `kanban/js/25-archiving.js`. Delegation reaches into a React-rendered
- * subtree exactly as it reached into a string one, so none of that needed
- * touching to make this port safe.
+ * The shell only. Each section's body is its own component, built from data
+ * the section builders in kanban/js/ return: `RefSection` and `ContextBody`
+ * for Overview, `MatrixBody` and `ChainBody` for the Matrix, and
+ * `TimelineBody` for the Timeline, whose drags are props on it. What still
+ * arrives as `{ __html }` goes through `SectionBody.bodyHTML` below.
  *
  * What *is* real here: every title and hint is written once, in this file,
  * rather than concatenated in `refSection()`'s caller — the six of them never
