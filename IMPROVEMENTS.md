@@ -692,8 +692,8 @@ they settled is written up in the README rather than left here:
   the write, or the board itself draining a structured request (move, tick,
   re-date, add) with no PA in the loop.
 
-- **A chat can only be open or closed, so keeping one in view means keeping
-  it on top of the board.** The controller behind the board's one
+- ~~**A chat can only be open or closed, so keeping one in view means keeping
+  it on top of the board.**~~ **Done, 25 Sep 2026.** The engine's `dockable` option adds minimised and anchored, and the board keeps one AIChat instance per open chat in `chatWins`. The controller behind the board's one
   `AIChat.create()` (`kanban/js/10-reference-sections.js:756`) has two states:
   a conversation is `current` or it is not, and `closeChat()`/`finishClose()`
   (`PACKAGES/ai_chat_engine/src/controller.ts:249`, `:262`) set it to `null`,
