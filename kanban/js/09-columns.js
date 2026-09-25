@@ -324,6 +324,8 @@ function openTierEditor(focusOn){
    backlog — see board.css) rather than by which DOM section happens to be
    rendering it. Pass it whether or not the card is done: t.done wins
    regardless. */
+// dueInfo()'s cls to a Tenon Tag tone: overdue or today is error, within four days warning.
+const DUE_TONE = { over: 'error', soon: 'warning' };
 function cardModel(t, opts){
   opts = opts || {};
   const subs = subSteps(t);

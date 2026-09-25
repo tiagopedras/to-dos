@@ -220,7 +220,7 @@ check('and countsAsFinished() is what tells the three apart', await evalJS(`
 /* An ordinary done card wearing one more chip, rather than a state of its
    own — the same shape every other tag on a card already renders as. */
 check('the cards carry a Cancelled and an Archived chip', await evalJS(`
-  [...document.querySelectorAll('#board .tenon-column[data-tier="Done"] .tenon-card .tag.cancelled')]
+  [...document.querySelectorAll('#board .tenon-column[data-tier="Done"] .tenon-card .tenon-tag--warning')].filter(e => /^(cancelled|archived)$/.test(e.textContent.trim()))
     .map(e => e.textContent).join('|')
 `) === 'cancelled|archived')
 check('and all three are otherwise ordinary done cards', await evalJS(`
