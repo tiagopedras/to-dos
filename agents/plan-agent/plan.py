@@ -32,6 +32,7 @@ sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
 import pick  # noqa: E402
+import project_folders  # noqa: E402
 import tick_queue  # noqa: E402
 import todo  # noqa: E402
 import windows  # noqa: E402
@@ -504,6 +505,25 @@ def build_prompt(task, prior=None):
 # and not the territory is worse off than one with neither. Reading is all it
 # can do with them — see the tool list below.
 EXTRA_DIRS = ["~/Code"]
+
+
+def project_dirs(task):
+    """The task's own project folder, when it is one of his outside ~/Code.
+
+    A `Project:` note can carry an absolute path to a folder he approved on the
+    board (data/<dataset>/project-folders.json). The planner is sandboxed to the
+    repo plus EXTRA_DIRS, so a folder elsewhere is added for this one run, and
+    only once project_folders.resolve() has said it sits inside an approved
+    folder. A bare name is under data/ already and needs nothing.
+    """
+    ref = project_folders.note_ref(getattr(task, "body", None))
+    if not ref or not os.path.isabs(ref):
+        return []
+    real, err = project_folders.resolve(ref, paths.data_dir())
+    if err:
+        return []
+    code = os.path.realpath(os.path.expanduser("~/Code"))
+    return [] if project_folders.inside(code, real) else [real]
 
 
 def planner_for(bucket):

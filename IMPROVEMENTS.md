@@ -863,7 +863,7 @@ they settled is written up in the README rather than left here:
   from a public URL means its safety rests on code fetched over the internet. Works with
   the entry below, since a project folder of the person's own has to be reachable the same way.
 
-- **Every project folder has to live under `data/<dataset>/projects/`, so someone who keeps their work in a folder of their own cannot point the board at it.**
+- ~~**Every project folder has to live under `data/<dataset>/projects/`, so someone who keeps their work in a folder of their own cannot point the board at it.**~~ **Done, 25 Sep 2026.** `core/project_folders.py` holds the one check, `resolve()` (realpaths compared with `os.path.commonpath`), used by `/project.json`, `/project/open`, `project_listing()` and the planning agent's `project_dirs()`. Approved folders live in `data/<dataset>/project-folders.json`, written by `POST /project-folders` and read by `GET /project-folders.json`; the drawer's Use an existing folder picks one or approves a typed path after a confirm. `taskProject()` reads a `Project:` note carrying an absolute path, and the implementer's and planners' prompts follow the note as written.
   `projects_dir()` (`kanban/server.py:316`) is the only place a project can be, and
   `/project.json` (`kanban/server.py:2200`) refuses any name with a separator or a parent
   hop in it, so `- Project: data/projects/<name>` (`taskProject()`,
@@ -1133,8 +1133,13 @@ they settled is written up in the README rather than left here:
   become `[theme:: …]` tags through `pa`, and the DS brief's instruction to read
   the first note line is replaced by the tag.
 
-- **A task with no project folder can only be given one by hand, and a folder
-  the board knows about cannot be opened.** `projectSection()`
+- ~~**A task with no project folder can only be given one by hand, and a folder
+  the board knows about cannot be opened.**~~ **Done, 25 Sep 2026.** Start a
+  project in `projectSection()` posts to `/project/start` (`start_project()`,
+  `project_seed()` in `kanban/server.py`), and `setTaskProject()`
+  (`06-dates-substeps.js`) writes the note above every other note for autosave.
+  Open folder posts to `/project/open`, checked by `project_folders.resolve()`,
+  and is left off when `state.demo` is set. `projectSection()`
   (`kanban/js/19-drawer.js:435`) draws an empty state telling him to type
   `data/projects/<folder>` into Description himself, which means creating a
   project is three steps in two places: make the folder on disk, write its

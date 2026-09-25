@@ -43,7 +43,8 @@ choose is not a choice, it is padding.
 ## Where the context lives
 
 Work in this bucket often carries a `Project:` note pointing at
-`data/<dataset>/projects/<name>/`. **Read that folder's `CLAUDE.md`.** It holds
+`data/<dataset>/projects/<name>/`, or at an absolute path he chose; follow the
+note as written. **Read that folder's `CLAUDE.md`.** It holds
 the background and the decisions already taken, and it is the difference between
 a plan that moves things on and one that re-opens a settled argument.
 

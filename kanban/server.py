@@ -54,6 +54,9 @@ try:
     import windows
 except ImportError:
     windows = None
+# Where a project folder may be, and the one check that says so. Plain stdlib,
+# so imported unconditionally: every project route depends on it.
+import project_folders
 # The planning agent's own two modules, imported the same way and for the same
 # reason. `pick` is what decides which tasks tonight would plan, and the board's
 # queue column is that decision rendered rather than a second guess at it —
@@ -355,7 +358,8 @@ def reports_dir(name=None):
 
 
 def projects_dir(name=None):
-    # Where a task's own "- Project: data/projects/<name>" note points.
+    # Where a task's own "- Project: data/projects/<name>" note points, and the
+    # one place a project may be without being approved in project-folders.json.
     # Nothing here is a fact todo.md tracks — a folder appears the moment
     # someone creates it and vanishes the moment someone deletes it, with no
     # signal from the list either way. project_listing() below is what lets a
@@ -519,19 +523,74 @@ def project_listing():
     taskProject() (kanban/js/06-dates-substeps.js) only ever finds a folder
     some task's own body happens to mention. This walks projects_dir()
     directly, so a folder nothing on the list points at yet, or any more,
-    still shows up.
+    still shows up. After those come the folders he has approved elsewhere on
+    disk (data/<dataset>/project-folders.json), each one a project in itself
+    and named by its path, which is what a task's note carries for one.
     """
     pdir = projects_dir()
-    if not os.path.isdir(pdir):
-        return []
+    ddir = dataset_dir(current_dataset())
     out = []
-    for name in sorted(os.listdir(pdir)):
-        if name.startswith("."):
-            continue
-        meta = project_meta(os.path.join(pdir, name), name)
+    if os.path.isdir(pdir):
+        for name in sorted(os.listdir(pdir)):
+            if name.startswith("."):
+                continue
+            # Through the same check /project.json uses, so a symlink leading
+            # out of data/projects/ is not listed as though it were inside.
+            real, err = project_folders.resolve(name, ddir)
+            meta = project_meta(real, name) if real else None
+            if meta:
+                out.append(meta)
+    for folder in project_folders.read_approved(ddir):
+        real, err = project_folders.resolve(folder, ddir)
+        meta = project_meta(real, folder) if real else None
         if meta:
-            out.append(meta)
+            out.append(external_project(meta, real))
     return out
+
+
+def external_project(meta, real):
+    """A project_meta() for a folder outside data/, which is not served over
+    HTTP: its url goes, and its real path comes, so the drawer shows where it
+    is and offers Open folder rather than links that would 404."""
+    meta["url"] = None
+    meta["path"] = real
+    meta["external"] = True
+    return meta
+
+
+def project_seed(title, when=None):
+    """The CLAUDE.md a folder started from the board opens with: an H1 and a
+    lead paragraph, the shape project_about() reads back, and the Opened line."""
+    when = when or datetime.date.today()
+    title = re.sub(r"\s+", " ", title or "").strip() or "Untitled project"
+    return ("# %s\n\n"
+            "Started from the board for the task \u201c%s\u201d. The background, the "
+            "decisions taken and the working files for it go here.\n\n"
+            "Opened %d %s.\n" % (title, title, when.day, when.strftime("%b %Y")))
+
+
+def start_project(name, title):
+    """Make a folder under projects_dir() and seed its CLAUDE.md.
+
+    Returns (folder name, None) or (None, (status, message)). The name is
+    slugified, so nothing typed can climb out of the default place, and the
+    result is checked the same way every other project path is.
+    """
+    slug = slugify(name or title)
+    if not slug:
+        return None, (400, "that name has nothing usable in it")
+    pdir = projects_dir()
+    os.makedirs(pdir, exist_ok=True)
+    target = os.path.join(pdir, slug)
+    if not project_folders.inside(os.path.realpath(pdir), os.path.realpath(target)):
+        return None, (400, "bad project name")
+    try:
+        os.mkdir(target)
+    except FileExistsError:
+        return None, (409, "there is already a project folder called \u201c%s\u201d" % slug)
+    with open(os.path.join(target, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+        fh.write(project_seed(title or name))
+    return slug, None
 
 
 # Same five states every other data set starts with, so a brand new list's
@@ -2003,15 +2062,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
             name = (q.get("name") or [""])[0]
-            # A folder name and not a path: anything with a separator or a
-            # parent hop in it is a way out of data/projects/.
-            if not name or name.startswith(".") or "/" in name or "\\" in name:
-                return self._json(400, {"error": "bad project name"})
-            meta = project_meta(os.path.join(projects_dir(), name), name)
+            # A bare folder name under data/projects/, or a path inside a
+            # folder he approved. project_folders.resolve() is the one check.
+            real, err = project_folders.resolve(name, dataset_dir(current_dataset()))
+            if err:
+                return self._json(err[0], {"error": err[1]})
+            meta = project_meta(real, name)
             if not meta:
                 return self._json(404, {"error": "no such project"})
-            meta["entries"] = project_entries(os.path.join(projects_dir(), name))
+            if os.path.isabs(name):
+                external_project(meta, real)
+            meta["entries"] = project_entries(real)
             return self._json(200, meta)
+        # The folders a Project: note may point at besides data/projects/.
+        if path == "/project-folders.json":
+            return self._json(200, {
+                "default": projects_dir(),
+                "folders": project_folders.read_approved(dataset_dir(current_dataset())),
+            })
         if path == "/plans.json":
             return self._json(200, {"plans": plan_listing()})
         # The run: a tail of the planning agent's log, read for the Spend and
@@ -2170,6 +2238,55 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(400, {"error": "body was not valid JSON"})
             got, err = ai_chat.forget(payload.get("owner"), payload.get("session"))
             return self._json(400 if err else 200, err or got)
+        # Start a project: a folder under data/projects/ with a CLAUDE.md in it.
+        # The Project: note on the task is written by the board, in memory, and
+        # saved by autosave — this server never writes todo.md.
+        if path == "/project/start":
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            try:
+                payload = json.loads((self._body() or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            slug, err = start_project(str(payload.get("name") or ""),
+                                      str(payload.get("title") or ""))
+            if err:
+                return self._json(err[0], {"error": err[1]})
+            return self._json(200, {"ok": True, "name": slug,
+                                    "note": "data/projects/" + slug})
+        # Reveal a project folder in Finder. Only on the machine the server
+        # runs on, which is why the board leaves the button off its static copy.
+        if path == "/project/open":
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            try:
+                payload = json.loads((self._body() or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            real, err = project_folders.resolve(str(payload.get("name") or ""),
+                                                dataset_dir(current_dataset()))
+            if err:
+                return self._json(err[0], {"error": err[1]})
+            try:
+                subprocess.Popen(["open", real], stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            except OSError as exc:
+                return self._json(500, {"error": "could not open it: %s" % exc})
+            return self._json(200, {"ok": True})
+        # Approve a folder of his own for Project: notes to point into. The
+        # board asks him to confirm before it posts here.
+        if path == "/project-folders":
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            try:
+                payload = json.loads((self._body() or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            folders, err = project_folders.approve(dataset_dir(current_dataset()),
+                                                   str(payload.get("path") or ""))
+            if err:
+                return self._json(err[0], {"error": err[1]})
+            return self._json(200, {"ok": True, "folders": folders})
         if path == "/chat-viewed":
             # Same guard as the Claude routes. Nothing here is dangerous —
             # worst case is a card reading as unread — but this server's rule is

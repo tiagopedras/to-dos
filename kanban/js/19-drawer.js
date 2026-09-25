@@ -531,17 +531,109 @@ function sideSection(label, key, body, count){
    worth holding the drawer open for. */
 function projectSection(t){
   const proj = taskProject(t);
+  // state.demo is the static copy (Vercel, or the board before its helper is
+  // up): no server to make a folder or open one, so no buttons that would
+  // fail. A backup preview can still open a folder, but not change the task.
+  const live = !state.demo;
+  const canEdit = live && !state.locked;
   if (!proj) return sideSection('Project', 'project',
-    emptyState('No folder yet. Name one in Description as `data/projects/<folder>`.'));
+    emptyState('No folder yet. Name one in Description as `data/projects/<folder>`, or a path of your own.') +
+    (canEdit
+      ? '<div class="pactions">' +
+          '<button type="button" class="btn small" id="f-projstart">Start a project</button>' +
+          '<button type="button" class="btn outline small" id="f-projpick">Use an existing folder</button>' +
+        '</div>' +
+        '<div class="ppick hidden" id="f-projpicker"></div>'
+      : ''));
+  const where = isProjectPath(proj) ? proj + '/' : 'data/projects/' + proj + '/';
   return sideSection('Project', 'project',
     '<div class="pcard" id="taskProjCard">' +
       '<button type="button" class="pcbody" data-project="' + esc(proj) + '">' +
-        '<span class="pctitle">' + esc(proj) + '</span>' +
-        '<code class="pcpath">data/projects/' + esc(proj) + '/</code>' +
+        '<span class="pctitle">' + esc(isProjectPath(proj) ? proj.split('/').pop() : proj) + '</span>' +
+        '<code class="pcpath">' + esc(where) + '</code>' +
         '<span class="pcblurb" id="taskProjBlurb"></span>' +
         '<span class="pcmeta" id="taskProjWhen"></span>' +
       '</button>' +
-    '</div>');
+    '</div>' +
+    (live
+      ? '<div class="pactions"><button type="button" class="btn outline small" id="f-projopen" ' +
+          'data-ref="' + esc(proj) + '">Open folder</button></div>'
+      : ''));
+}
+
+/* The buttons projectSection() draws, wired once the drawer is up. Start a
+   project and Use an existing folder both end the same way: the server has
+   the folder, and setTaskProject() writes the note in memory for autosave. */
+function bindProjectSection(t){
+  const openBtn = $('#f-projopen');
+  if (openBtn) openBtn.onclick = () => openProjectFolder(openBtn.dataset.ref);
+  const startBtn = $('#f-projstart');
+  if (startBtn) startBtn.onclick = async () => {
+    const name = prompt('Name the folder for this project. It is made under data/projects/.', t.title);
+    if (name == null) return;
+    try {
+      const got = await postJSON('/project/start', { name, title: t.title });
+      if (setTaskProject(t, got.name)) { refreshView(); openDrawer(t.id); }
+      showToast('Started data/projects/' + got.name);
+    } catch (err) {
+      showToast('Could not start the project: ' + (err.message || err), 'bad');
+    }
+  };
+  const pickBtn = $('#f-projpick');
+  if (pickBtn) pickBtn.onclick = () => drawProjectPicker(t);
+}
+
+async function openProjectFolder(ref){
+  try {
+    await postJSON('/project/open', { name: ref });
+  } catch (err) {
+    showToast('Could not open the folder: ' + (err.message || err), 'bad');
+  }
+}
+
+/* Pick a folder the board already knows (under data/projects/, or one he
+   approved), or approve a new one by its absolute path. Approving writes
+   data/<dataset>/project-folders.json, so it is confirmed first. */
+async function drawProjectPicker(t){
+  const box = $('#f-projpicker');
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.innerHTML = '<span class="help">Reading the folders…</span>';
+  let projects = [];
+  try {
+    projects = (await getJSON('/projects.json')).projects || [];
+  } catch (err) {
+    box.innerHTML = '<span class="help">Could not read the folders. ' + esc(String(err.message || err)) + '</span>';
+    return;
+  }
+  if (state.openTask !== t.id) return;
+  box.innerHTML =
+    (projects.length
+      ? '<div class="pprow"><select id="f-projsel">' +
+          projects.map(p => '<option value="' + esc(p.name) + '">' +
+            esc(p.external ? p.name : 'data/projects/' + p.name) + '</option>').join('') +
+        '</select><button type="button" class="btn small" id="f-projuse">Use</button></div>'
+      : '<span class="help">No project folders yet.</span>') +
+    '<div class="pprow"><input type="text" id="f-projpath" placeholder="/absolute/path/to/a/folder" spellcheck="false">' +
+      '<button type="button" class="btn outline small" id="f-projapprove">Approve</button></div>' +
+    '<span class="help">Approving lets a task on this list point at that folder, and anything inside it.</span>';
+  const use = $('#f-projuse');
+  if (use) use.onclick = () => {
+    const ref = $('#f-projsel').value;
+    if (ref && setTaskProject(t, ref)) { refreshView(); openDrawer(t.id); }
+  };
+  $('#f-projapprove').onclick = async () => {
+    const path = $('#f-projpath').value.trim();
+    if (!path) return;
+    if (!confirm('Approve ' + path + ' as a project folder for this list?\n\n' +
+                 'Tasks will be able to point at it and at any folder inside it.')) return;
+    try {
+      await postJSON('/project-folders', { path });
+      drawProjectPicker(t);
+    } catch (err) {
+      showToast('Could not approve that folder: ' + (err.message || err), 'bad');
+    }
+  };
 }
 
 /* The two lines under the folder name, out of the same read the project drawer
@@ -1144,6 +1236,7 @@ function openDrawer(id, focusTitle){
   // had; what the folder holds is a read off disk, and the panel does not wait
   // for it.
   if (proj) loadTaskProject(proj, t.id);
+  bindProjectSection(t);
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
@@ -1699,8 +1792,14 @@ function openProjectDrawer(name){
     // nothing.
     '<div class="projabout" id="projAbout"></div>' +
     '<div class="field"><span>Files in this folder</span>' +
-      '<a class="projpath" href="' + esc(projectUrl(name)) + '" target="_blank" rel="noopener">' +
-        'data/projects/' + esc(name) + '/</a>' +
+      // A folder of his own is not served over HTTP, so its path is text and
+      // Open folder (on the live board only) is the way in.
+      (isProjectPath(name)
+        ? '<code class="projpath">' + esc(name) + '/</code>'
+        : '<a class="projpath" href="' + esc(projectUrl(name)) + '" target="_blank" rel="noopener">' +
+            'data/projects/' + esc(name) + '/</a>') +
+      (state.demo ? '' : '<div class="pactions"><button type="button" class="btn outline small" ' +
+        'id="projOpenFolder">Open folder</button></div>') +
       '<div class="projfiles" id="projFiles"><span class="help">Reading the folder…</span></div>' +
     '</div>' +
     '<div class="field"><span>Tasks on this project</span>' +
@@ -1708,12 +1807,14 @@ function openProjectDrawer(name){
         ? '<div class="projlist">' + open.map(row).join('') + done.map(row).join('') + '</div>' +
           '<span class="help">' + esc(split) + '. Click one to open it.</span>'
         : '<span class="help">Nothing on the list points at this folder yet. A task joins it by ' +
-          'naming the folder in a note: <code>Project: data/projects/' + esc(name) + '</code>.</span>') +
+          'naming the folder in a note: <code>' + esc(projectNoteLine(name).trim().replace(/^- /, '')) + '</code>.</span>') +
     '</div>';
 
   $('#dbody').querySelectorAll('.projrow').forEach(el => {
     el.onclick = () => openDrawer(el.dataset.open);
   });
+  const openBtn = $('#projOpenFolder');
+  if (openBtn) openBtn.onclick = () => openProjectFolder(name);
 
   $('#dheadHelp').textContent = 'A project is a folder, not a task — nothing here can be edited.';
   $('#dheadHelp').title = $('#dheadHelp').textContent;
@@ -1800,17 +1901,20 @@ async function loadProjectFiles(name){
   const about = projectAboutHTML(meta, name);
   const list = meta.entries || [];
   if (!list.length) return paint('<span class="help">The folder is empty.</span>', about);
-  const base = projectUrl(name);
+  // A folder outside data/ is not served: its rows are plain text rather
+  // than links that would 404.
+  const base = isProjectPath(name) ? null : projectUrl(name);
   const row = e => {
     const meta = e.dir
       ? (e.children === null ? 'folder'
          : e.children + ' item' + (e.children === 1 ? '' : 's'))
       : fileSize(e.size);
-    return '<a class="projfile' + (e.dir ? ' isdir' : '') + '" target="_blank" rel="noopener" ' +
-        'href="' + esc(base + encodeURIComponent(e.name) + (e.dir ? '/' : '')) + '">' +
-      '<span class="pf">' + esc(e.name + (e.dir ? '/' : '')) + '</span>' +
-      '<span class="pfm">' + esc(meta) + '</span>' +
-    '</a>';
+    const inner = '<span class="pf">' + esc(e.name + (e.dir ? '/' : '')) + '</span>' +
+      '<span class="pfm">' + esc(meta) + '</span>';
+    return base
+      ? '<a class="projfile' + (e.dir ? ' isdir' : '') + '" target="_blank" rel="noopener" ' +
+          'href="' + esc(base + encodeURIComponent(e.name) + (e.dir ? '/' : '')) + '">' + inner + '</a>'
+      : '<div class="projfile' + (e.dir ? ' isdir' : '') + '">' + inner + '</div>';
   };
   paint(list.map(row).join(''), about);
 }
