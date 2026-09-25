@@ -166,13 +166,15 @@ browser and no server, because it runs `09-columns.js` in a `vm` with a stubbed
   reorder, the matrix dot's hover) is wired by `#lists`'s delegated listener
   rather than a prop, which reaches a React-rendered subtree the same way it
   reached a string one. Overview's cards are `RefCard`
-  (`kanban/ui/OverviewBodies.tsx`); the Matrix is `MatrixBody`/`ChainBody`. Every
+  (`kanban/ui/OverviewBodies.tsx`); the Matrix is `MatrixBody`/`ChainBody`; the
+  Timeline is `TimelineBody` since 25 Sep 2026, with its drags as props and row
+  reorder on Tenon's `bindReorder` bound per lane through a ref. Every
   control is an attribute the delegated listener in `25-archiving.js` reads, not
   a prop, except Hide Reviewing (`data-mxfilter`, kept as a prop for the suite).
-- **`mountFlushed()`** exists because `capMsgCards()` (Overview) and
-  `wireTimelineDrag()` (Timeline) both need real, painted DOM immediately after
-  render — neither is a handler a prop could carry. `mount()` alone would race
-  React's own schedule.
+- **`mountFlushed()`** exists because `capMsgCards()` (Overview) needs real,
+  painted DOM immediately after render, which no prop could carry. `mount()`
+  alone would race React's own schedule. The Timeline's `wireTimelineDrag()`
+  was the second case until its drags became props on 25 Sep 2026.
 
 ## Reports is two columns of Overview
 

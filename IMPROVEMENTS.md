@@ -1042,7 +1042,22 @@ they settled is written up in the README rather than left here:
   than a find and replace. The suites that read chip classes are
   `test_board.mjs`, `test_plans.mjs` and `test_overview.mjs`.
 
-- **The Timeline's body is still one HTML string.** `timelineSection()`
+- ~~**The Timeline's body is still one HTML string.**~~
+  **Done, 25 Sep 2026.** The lanes, bars, scale, legend and tray are
+  `TimelineBody` (`kanban/ui/TimelineBody.tsx`), drawn from the data
+  `timelineSection()` now returns, each mark a positioned `div` and each tray
+  card a Tenon `Card`. Every drag is a prop whose handler stays in
+  `kanban/js/18-timeline.js` (`timelineHandlers`), and row reorder is still
+  Tenon's `bindReorder`, bound once per lane through a ref. Every `data-*`
+  the delegated listeners read is kept. Two things changed underneath because
+  React keeps the same bar from one render to the next: a bar drag puts back
+  the position React drew before the redraw, and it swallows the click its
+  release fires, which the old redraw used to throw away. `test_timeline.mjs`
+  went from 11 checks to 29, driving a reorder, bar click and move, handle
+  resize, track click and tray drop; they were committed green against the
+  string version first.
+
+  What it said: `timelineSection()`
   (`kanban/js/18-timeline.js:290`) returns markup for the lanes, the scale and
   the tray of undated tasks, and `TimelineView` in `kanban/ui/SectionsView.tsx`
   draws it through `dangerouslySetInnerHTML`. Porting it means the lanes and

@@ -18,12 +18,12 @@
  * view, and `mountSync()` went with it.
  *
  * `mountFlushed()` is not that case again. Overview measures `.ref .msg`'s
- * real scrollHeight after every paint (`capMsgCards()`, kanban/js/18-timeline.js)
- * and the Timeline arms native `ondragstart`/`ondrop` on elements a card's
- * own drag depends on existing (`wireTimelineDrag()`) — neither is a handler
- * a prop could carry, because both need the real, painted DOM rather than
- * something React already holds. `mount()` alone leaves both racing React's
- * own schedule; `flushSync` is the fix, for a case a prop cannot reach.
+ * real scrollHeight after every paint (`capMsgCards()`, kanban/js/18-timeline.js),
+ * which is not a handler a prop could carry, because it needs the real, painted
+ * DOM rather than something React already holds. `mount()` alone leaves it
+ * racing React's own schedule; `flushSync` is the fix, for a case a prop
+ * cannot reach. The Timeline was the second case, arming native drag handlers
+ * after the paint, until its drags became props on 25 Sep 2026.
  */
 /* React's own element builder, for the board's classic scripts. They have no
    JSX and no build step of their own, so a ported view assembles its lists as
@@ -63,6 +63,11 @@ export type { RefBlock, RefModel, EmptyKind, ContextGroup, ContextItem } from '.
 export { ChainBody } from './ChainBody'
 export type { ChainEntry, ChainTicket } from './ChainBody'
 export { MatrixBody } from './MatrixBody'
+export { TimelineBody } from './TimelineBody'
+export type {
+  TimelineBodyProps, TimelineModel, TimelineLane, TimelineRow, TimelineMark, TimelineScale,
+  TimelineTrayCard, TimelineHandlers, TimelineDragKind,
+} from './TimelineBody'
 export type { MatrixBodyProps, MatrixModel, MatrixCell, MatrixDot, MatrixRead } from './MatrixBody'
 export { TaskCard } from './TaskCard'
 export type { TaskCardProps, TaskCardModel, Chip, CardProgress } from './TaskCard'

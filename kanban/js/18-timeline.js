@@ -136,264 +136,173 @@ function tlWeekends(scale){
   return out;
 }
 
-/* One row: a sticky label plus a track the width of the whole scale, with
-   the bar or diamond positioned inside it by day offset. `sub` narrows the
-   row for a step nested under its parent — same track, thinner mark, and no
-   drag handles: a step's dates live inside its line's own tags rather than
-   on a property the way a task's do, so rescheduling one by dragging would
-   mean rewriting that line's text rather than just setting a field — still
-   only done from the drawer, same as before this view existed. */
-function timelineRowHTML(row, scale, sub){
-  const trackWidth = scale.days * scale.dayPx;
+/* One row as data for TimelineBody (kanban/ui/TimelineBody.tsx): a sticky
+   label plus a track the width of the whole scale, with the bar or diamond
+   positioned inside it by day offset. `sub` is a step nested under its
+   parent: same track, thinner mark, and no drag. A step's dates live inside
+   its line's own tags rather than on a property the way a task's do, so
+   rescheduling one by dragging would mean rewriting that line's text rather
+   than just setting a field. That is still only done from the drawer. */
+function timelineRowModel(row, scale, sub){
   const s = tlOffset(scale, row.start), d = tlOffset(scale, row.due);
   const drag = !sub;
-  let mark = '';
+  let mark = null;
   if (s != null && d != null) {
-    const left = Math.min(s, d) * scale.dayPx;
-    const width = Math.max(1, Math.abs(d - s) + 1) * scale.dayPx;
     const di = dueInfo(row.due);
-    mark = '<div class="tlbar' + (di ? ' ' + di.cls : '') + '" style="left:' + left + 'px;width:' + width +
-      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
-      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="move"' : '') +
-      ' title="' + esc(row.title) + '">' +
-      (drag ? '<span class="tlhandle tlhandle-l" data-tlrow="' + row.id + '" data-tldrag="start"></span>' +
-              '<span class="tlhandle tlhandle-r" data-tlrow="' + row.id + '" data-tldrag="due"></span>' : '') +
-      '</div>';
+    mark = { kind: 'bar', left: Math.min(s, d) * scale.dayPx,
+             width: Math.max(1, Math.abs(d - s) + 1) * scale.dayPx,
+             dueCls: di ? di.cls : undefined, title: row.title,
+             drag: drag ? 'move' : null, handles: drag };
   } else if (s != null) {
     const t0 = tlOffset(scale, ymd(today()));
-    const left = Math.min(s, t0) * scale.dayPx;
-    const width = Math.max(1, Math.abs(t0 - s) + 1) * scale.dayPx;
-    mark = '<div class="tlbar tltrail" style="left:' + left + 'px;width:' + width +
-      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
-      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="start"' : '') +
-      ' title="' + esc(row.title) + ' — started, no due date yet"></div>';
+    mark = { kind: 'trail', left: Math.min(s, t0) * scale.dayPx,
+             width: Math.max(1, Math.abs(t0 - s) + 1) * scale.dayPx,
+             title: row.title + ' — started, no due date yet',
+             drag: drag ? 'start' : null, handles: false };
   } else if (d != null) {
     const di = dueInfo(row.due);
-    mark = '<div class="tlmilestone' + (di ? ' ' + di.cls : '') + '" style="left:' + (d * scale.dayPx) +
-      'px;--bc:' + row.color + '" data-open="' + row.id + '"' +
-      (drag ? ' data-tlrow="' + row.id + '" data-tldrag="due"' : '') +
-      ' title="' + esc(row.title) + '"></div>';
+    mark = { kind: 'milestone', left: d * scale.dayPx, dueCls: di ? di.cls : undefined,
+             title: row.title, drag: drag ? 'due' : null, handles: false };
   }
-  /* Only a task with steps gets a chevron, and only its own click toggles
-     them — the title stays a plain click-to-open, same as every other row,
-     so the two never fight over the same gesture. */
-  const chevron = (!sub && row.steps && row.steps.length)
-    ? '<button type="button" class="tlchevron' + (tlExpanded.has(row.id) ? ' open' : '') + '" data-tltoggle="' +
-      row.id + '" title="' + (tlExpanded.has(row.id) ? 'Hide' : 'Show') + ' ' + row.steps.length +
-      ' step' + (row.steps.length > 1 ? 's' : '') + '">›</button>'
-    : (sub ? '' : '<span class="tlchevron ph"></span>');
-  // The row's vertical position in its lane, dragged from anywhere on the
-  // label (see wireTlReorder) — a step has no lane position of its own to
-  // drag (see the file banner), so it gets nothing here, same as it gets no
-  // chevron. The dots are just the affordance now, not the only hit target:
-  // a native `draggable` ancestor still lets a plain click on the title
-  // through as a click, same as the board's own cards manage both at once.
-  const grip = sub ? '' : '<span class="tlgrip' + (state.locked ? ' ph' : '') + '">⋮⋮</span>';
-  const labelDrag = (sub || state.locked) ? '' :
-    ' title="Drag to reorder within ' + esc(row.bucket || '') + '"';
-  return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '"' +
-    // --bc here too, not only on the mark it may or may not have drawn (a
-    // task with neither start nor due but a dated step draws no mark of its
-    // own) — wireTlTrackClick's ghost bar reads it off the row rather than
-    // off a mark that might not exist.
-    (sub ? '' : ' data-tlreorder="' + row.id + '" style="--bc:' + row.color + '"') + '>' +
-    '<div class="tllabel"' + labelDrag + '>' + grip + chevron +
-      '<span class="tllabeltext" data-open="' + row.id + '" title="' + esc(row.title) + '">' + mdInline(row.title) + '</span>' +
-    '</div>' +
-    '<div class="tltrack" style="width:' + trackWidth + 'px">' + mark + '</div>' +
-  '</div>';
+  // A step carries no colour of its own (see timelineTasks), and never has.
+  return { id: row.id, title: row.title, titleHTML: mdInline(row.title), sub: !!sub,
+           blocked: !!row.blocked, color: row.color, mark,
+           steps: (!sub && row.steps) ? row.steps.length : 0, expanded: tlExpanded.has(row.id) };
 }
 
-function timelineLaneHTML(bucket, rows, scale){
-  if (!rows.length) return '';
+/* A lane: its tasks in order, each followed by its steps when expanded. */
+function timelineLaneModel(bucket, rows, scale){
   const key = 'tl:' + bucket;
-  // Same field a grip drag already writes (see wireTlReorder) — a one-off
-  // sort, not a standing rule, so a later drag on any single row overwrites
-  // its own rank same as it always did.
-  const sortBtn = state.locked ? '' : '<button type="button" class="tlsort" data-tlsort="' +
-    esc(bucket) + '" title="Sort this lane by earliest date — start, else due">Sort by date</button>';
-  const header = '<summary class="tlrow tllane"><div class="tllabel lanehead" style="--bc:' + rows[0].color + '">' +
-      '<i class="dot"></i>' + esc(bucket) + '<span class="lanecount">' + rows.length + '</span>' + sortBtn +
-    '</div><div class="tltrack" style="width:' + (scale.days * scale.dayPx) + 'px"></div></summary>';
-  const body = rows.map(row => timelineRowHTML(row, scale) +
-    (row.steps.length && tlExpanded.has(row.id) ? row.steps.map(s => timelineRowHTML(s, scale, true)).join('') : '')
-  ).join('');
-  return '<details class="tllanegroup" data-tlcollapse="' + esc(key) + '"' +
-    (sectionCollapsed(key) ? '' : ' open') + '>' + header + body + '</details>';
+  const out = [];
+  rows.forEach(row => {
+    out.push(timelineRowModel(row, scale));
+    if (row.steps.length && tlExpanded.has(row.id)) {
+      row.steps.forEach(st => out.push(timelineRowModel(st, scale, true)));
+    }
+  });
+  return { bucket, color: rows[0].color, collapseKey: key, open: !sectionCollapsed(key),
+           count: rows.length, rows: out };
 }
 
-/* Undated open tasks — most of a fresh list — sit here rather than being
-   left off the view entirely. Same `chainCard` mini-card the dependency
-   chain already draws blockers with: bucket colour, title, where it sits,
-   click to open. Dragging one onto the scale sets its `due:`. */
-function timelineTrayHTML(undated){
-  if (!undated.length) return '';
-  return '<div class="tltray" id="tlTray">' +
-    '<div class="tltrayhead"><strong>' + undated.length + ' with no date</strong>' +
-    '<span>Drag one onto the scale to give it a due date.</span></div>' +
-    '<div class="tltraycards">' +
-      undated.map(row => '<div class="chaincard tltraycard" style="--bc:' + row.color + '"' +
-        (state.locked ? '' : ' draggable="true"') + ' data-tlid="' +
-        row.id + '" data-open="' + row.id + '" title="Drag onto the scale, or click to open">' +
-        '<span class="chaintitle">' + mdInline(row.title) + '</span>' +
-        '<div class="chainwhere">' + esc(row.bucket) + '</div></div>').join('') +
-    '</div></div>';
+/* The header's months, week numbers, weekends and today, in day offsets. */
+function timelineScaleModel(scale){
+  return {
+    dayPx: scale.dayPx,
+    trackWidth: scale.days * scale.dayPx,
+    labelWidth: state.tlLabelWidth,
+    months: tlMonths(scale),
+    weeks: tlWeeks(scale),
+    weekends: tlWeekends(scale),
+    // Half a day in, so the line runs down the middle of today's column,
+    // the same place a diamond due today sits.
+    todayOffset: tlOffset(scale, ymd(today())) + 0.5,
+  };
 }
 
-/* What the colours mean, under the scale rather than over it — a bar or a
-   diamond is drawn in its bucket's colour until a date makes it urgent, at
-   which point `dueInfo` (06-dates-substeps.js) overrides it, and nothing on
-   the row itself says so. The bucket swatch is striped from the colours
-   actually on screen, so it reads as "one of these" rather than picking one
-   lane's colour and implying that one. */
-function timelineLegendHTML(colors){
-  const stripe = colors.length
-    ? 'linear-gradient(90deg,' + colors.map((c, i) =>
-        c + ' ' + (i / colors.length * 100) + '%,' + c + ' ' + ((i + 1) / colors.length * 100) + '%'
-      ).join(',') + ')'
-    : 'var(--tenon-stroke-default)';
-  const item = (sw, text) => '<span class="tllegitem">' + sw + text + '</span>';
-  return '<div class="tllegend">' +
-    item('<i class="tlswatch" style="background:' + stripe + '"></i>', 'Its bucket&rsquo;s colour') +
-    item('<i class="tlswatch" style="background:var(--tenon-status-over)"></i>', 'Due today, or overdue') +
-    item('<i class="tlswatch" style="background:var(--tenon-status-soon)"></i>', 'Due in the next 4 days') +
-    item('<i class="tlswatch dim" style="background:' + stripe + '"></i>', 'Waiting on a review or another task') +
-  '</div>';
-}
-
-function timelineHeaderHTML(scale){
-  const months = tlMonths(scale);
-  const weeks = tlWeeks(scale);
-  const weekends = tlWeekends(scale);
-  // Half a day in, so the line runs down the middle of today's column,
-  // the same place a diamond due today sits.
-  const todayOffset = tlOffset(scale, ymd(today())) + 0.5;
-  const trackWidth = scale.days * scale.dayPx;
-  return '<div class="tlrow tlheader">' +
-      '<div class="tllabel">' +
-        '<div class="tlresize" id="tlResize" title="Drag to resize the title column · double-click to reset"></div>' +
-      '</div>' +
-    '<div class="tltrack" style="width:' + trackWidth + 'px">' +
-      months.map(m => '<span class="tlmonth" style="left:' + (m.offset * scale.dayPx) + 'px">' + esc(m.label) + '</span>').join('') +
-      weeks.map(w => '<span class="tlweeknum" style="left:' + (w.offset * scale.dayPx) + 'px">W' + w.n + '</span>').join('') +
-      '<span class="tltodaytick" style="left:' + (todayOffset * scale.dayPx) + 'px"></span>' +
-      '<span class="tltodaylabel" style="left:' + (todayOffset * scale.dayPx) + 'px" title="Today">today</span>' +
-    '</div></div>' +
-    weekends.map(w => '<div class="tlweekend" style="left:' +
-      (state.tlLabelWidth + w.offset * scale.dayPx) + 'px;width:' + (2 * scale.dayPx) + 'px"></div>').join('') +
-    weeks.map(w => '<div class="tlweekline" data-dayoffset="' + w.offset + '" style="left:' +
-      (state.tlLabelWidth + w.offset * scale.dayPx) + 'px"></div>').join('') +
-    '<div class="tltoday" data-dayoffset="' + todayOffset + '" style="left:' +
-      (state.tlLabelWidth + todayOffset * scale.dayPx) + 'px" title="Today"></div>';
-}
-
+/* Everything the Timeline's body draws, as data for TimelineBody. It was one
+   HTML string until 25 Sep 2026. Undated open tasks, most of a fresh list, go
+   to the tray rather than being left off the view. The count is every open
+   top-level task, dated or not: the tray is part of the column. */
 function timelineSection(){
   const { dated, undated } = timelineTasks();
-  if (!dated.length && !undated.length) return { html: '<p class="empty">Nothing open on the list.</p>', n: 0 };
+  const tray = undated.map(row => ({ id: row.id, titleHTML: mdInline(row.title), color: row.color, bucket: row.bucket }));
+  if (!dated.length) return { model: { scale: null, lanes: [], legendColors: [], tray }, n: undated.length };
   const scale = timelineScale(dated);
   const byBucket = new Map();
   dated.forEach(row => {
     if (!byBucket.has(row.bucket)) byBucket.set(row.bucket, []);
     byBucket.get(row.bucket).push(row);
   });
-  let lanes = '';
+  const lanes = [];
   byBucket.forEach((rows, bucket) => {
     // Dragged rows carry a `tlrank` and sort by it; everything else falls
     // back to board order, same split Delegate uses for its own `rank`.
     const ranked = rows.filter(r => r.tlrank != null).sort((a, b) => a.tlrank - b.tlrank);
     const unranked = rows.filter(r => r.tlrank == null);
-    lanes += timelineLaneHTML(bucket, ranked.concat(unranked), scale);
+    lanes.push(timelineLaneModel(bucket, ranked.concat(unranked), scale));
   });
-  const body = dated.length
-    ? '<div class="tlscroll"><div class="tlbody" style="--tllabelw:' + state.tlLabelWidth + 'px;--tldaypx:' + scale.dayPx + 'px" data-daypx="' +
-        scale.dayPx + '">' + timelineHeaderHTML(scale) + lanes + '</div></div>' +
-      timelineLegendHTML(Array.from(byBucket.values()).map(rows => rows[0].color))
-    : '<p class="empty">Nothing with a date yet — everything open is in the tray below.</p>';
-  // Every open top-level task, dated or not — the tray is part of the column,
-  // not a footnote to it.
-  return { html: body + timelineTrayHTML(undated), n: dated.length + undated.length };
+  return {
+    model: { scale: timelineScaleModel(scale), lanes,
+             legendColors: Array.from(byBucket.values()).map(rows => rows[0].color), tray },
+    n: dated.length + undated.length,
+  };
 }
 
-/* The tray's cards drag the same way every board card does — same
-   `dataTransfer`/`dragId` convention — but drop onto the scale instead of a
-   tier, and the drop sets a date instead of a column. Wired after render,
-   same as renderBoard wires its own card drag handlers. */
-function wireTimelineDrag(){
-  // The previous render's .tlbody, and whatever the hover line appended to
-  // it, are already gone — drop the stale references rather than let
-  // hideTlHoverLine() try to remove a node from a tree that no longer exists.
-  tlHoverEl = null;
-  tlHoverLabelEl = null;
-  if (state.locked) return;
-  const scroll = $('.tlscroll');
-  $('#lists').querySelectorAll('.tltraycard').forEach(el => {
-    el.ondragstart = e => {
-      e.dataTransfer.setData('text/plain', el.dataset.tlid);
-      e.dataTransfer.effectAllowed = 'move';
-      dragId = el.dataset.tlid;
-      hideTlHoverLine();
-    };
-    el.ondragend = () => { dragId = null; hideTlTargetLine(); hideTlPopover(); };
-  });
-  if (!scroll) return;
-  const body = scroll.querySelector('.tlbody');
-  // Same day math the drop handler below uses, run on every dragover instead
-  // of only at drop — so the target line and the date popover track the
-  // pointer the whole way across the scale, not just announce where it
-  // landed after the fact.
-  scroll.ondragover = e => {
+/* Which day of the scale a pointer is over, measured against .tlbody. */
+function tlDayAt(body, clientX){
+  const rect = body.getBoundingClientRect();
+  const scale = timelineScale(timelineTasks().dated);
+  return { rect, scale, dayN: Math.floor((clientX - rect.left - state.tlLabelWidth) / scale.dayPx) };
+}
+
+/* Every drag the Timeline has, handed to TimelineBody as props. A locked tab
+   gets none of them: renderSections() passes null instead.
+
+   The tray's cards drag the same way every board card does, with the same
+   `dataTransfer`/`dragId` convention, but drop onto the scale instead of a
+   tier, and the drop sets a date instead of a column. */
+const timelineHandlers = {
+  onTrayDragStart(e, id){
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    dragId = id;
+    hideTlHoverLine();
+  },
+  onTrayDragEnd(){ dragId = null; hideTlTargetLine(); hideTlPopover(); },
+  // Same day math the drop uses, run on every dragover instead of only at
+  // drop, so the target line and the date popover track the pointer the
+  // whole way across the scale.
+  onScaleDragOver(e, body){
     if (!dragId) return;
     e.preventDefault();
-    const rect = body.getBoundingClientRect();
-    const x = e.clientX - rect.left - state.tlLabelWidth;
-    const scale = timelineScale(timelineTasks().dated);
-    const dayN = Math.floor(x / scale.dayPx);
+    const { scale, dayN } = tlDayAt(body, e.clientX);
     showTlTargetLine(state.tlLabelWidth + (dayN + 0.5) * scale.dayPx);
     showTlPopover(e.clientX, e.clientY, dueLabel(ymd(addDays(scale.min, dayN))));
-  };
-  scroll.ondragleave = e => { if (!scroll.contains(e.relatedTarget)) { hideTlTargetLine(); hideTlPopover(); } };
+  },
+  onScaleDragLeave(e){
+    if (!e.currentTarget.contains(e.relatedTarget)) { hideTlTargetLine(); hideTlPopover(); }
+  },
   // The hover guide and the tray's own drop-target line answer the same
-  // question — "which day is this" — so only one is ever on screen: a real
+  // question, "which day is this", so only one is ever on screen: a real
   // drag or an in-progress track click (tlTrackActive) suppresses this one.
-  scroll.onpointermove = e => {
+  onScalePointerMove(e, body){
     if (dragId || tlReorderId || tlTrackActive) { hideTlHoverLine(); return; }
-    const rect = body.getBoundingClientRect();
+    const { rect, scale, dayN } = tlDayAt(body, e.clientX);
     const x = e.clientX - rect.left - state.tlLabelWidth;
-    const scale = timelineScale(timelineTasks().dated);
-    const dayN = Math.floor(x / scale.dayPx);
     if (x < 0 || e.clientY < rect.top || dayN < 0 || dayN > scale.days) { hideTlHoverLine(); return; }
     showTlHoverLine(scale, dayN);
-  };
-  scroll.onpointerleave = () => hideTlHoverLine();
-  scroll.ondrop = e => {
+  },
+  onScalePointerLeave(){ hideTlHoverLine(); },
+  onScaleDrop(e, body){
     e.preventDefault();
     hideTlTargetLine();
     hideTlPopover();
     const id = e.dataTransfer.getData('text/plain') || dragId;
+    // Cleared here as well as on dragend: the card leaves the tray in the
+    // render below, and a card no longer in the page never hears its dragend.
+    dragId = null;
     const loc = id && locate(id);
     if (!loc) return;
-    const rect = body.getBoundingClientRect();
-    const x = e.clientX - rect.left - state.tlLabelWidth;
-    const scale = timelineScale(timelineTasks().dated);
-    const dayN = Math.floor(x / scale.dayPx);
-    const date = addDays(scale.min, dayN);
-    loc.task.due = ymd(date);
+    const { scale, dayN } = tlDayAt(body, e.clientX);
+    loc.task.due = ymd(addDays(scale.min, dayN));
     loc.task.dirty = true;
     markDirty();
     refreshView();
-  };
-
-  wireTlResize(scroll);
-  wireTlBarDrag();
-  wireTlReorder();
-  wireTlTrackClick();
-}
+  },
+  onMarkPointerDown(e, id, kind){ tlMarkPointerDown(e, id, kind); },
+  onTrackPointerDown(e, id){ tlTrackPointerDown(e, id); },
+  onResizePointerDown(e, scroll){ tlResizePointerDown(e, scroll); },
+  onResizeReset(){ setTlLabelWidth(200); },
+  onReorderStart(){ tlReorderId = true; hideTlHoverLine(); },
+  onReorderEnd(){ tlReorderId = null; },
+  onReorder(bucket, ids){ reorderTimelineLane(ids); },
+};
 
 /* The lane header's "Sort by date" button — a one-off, not a standing rule.
    Writes `tlrank` in earliest-date order (`start:` where it exists, else
    `due:`, both plain `YYYY-MM-DD` strings so a lexical compare is already a
    chronological one) across every dated task in that bucket, the same field
-   a grip drag writes one row at a time (see wireTlReorder below). A later
+   a grip drag writes one row at a time (see reorderTimelineLane below). A later
    drag on any single row overwrites its own rank same as it always did —
    this does not lock the lane into staying date-ordered. */
 function sortTimelineLane(bucket){
@@ -412,42 +321,26 @@ function sortTimelineLane(bucket){
 }
 
 /* Dragging a row's label up or down writes a `tlrank` on every task in that
-   lane, renumbered 0.. in the row's new visual order — the dedicated order
-   timelineSection() reads back (see there). One `bindReorder` per lane, so
-   rows outside the dragged one's own `.tllanegroup` never see its dragover —
-   a task can only be reordered against others in the same bucket, never
-   moved to another one's lane by dropping into it. `bindReorder` stops its
-   own dragover and drop at the list, which is what keeps a row drop from
-   bubbling to `.tlscroll`'s own drop (wired in wireTimelineDrag for the
-   undated tray) and being read as a date instead of a reorder.
+   lane, renumbered 0.. in the row's new visual order, the dedicated order
+   timelineSection() reads back (see there). The drag itself is Tenon's
+   `bindReorder`, bound once per lane by the `Lane` component in
+   kanban/ui/TimelineBody.tsx, so a task can only be reordered against others
+   in the same bucket. `bindReorder` stops its own dragover and drop at the
+   lane, which is what keeps a row drop from reaching the scale's drop (the
+   undated tray's) and being read as a date instead of a reorder. This is
+   what it calls with the lane's task ids in their new order.
 
-   tlReorderId is still tracked by hand, for onpointermove's guard above —
+   tlReorderId is still tracked by hand, for the hover line's guard above:
    bindReorder doesn't hand out a "mid-drag" flag of its own. */
 let tlReorderId = null;
-function wireTlReorder(){
-  if (state.locked) return;
-  $('#lists').querySelectorAll('.tllanegroup').forEach(group => {
-    group.addEventListener('dragstart', () => { tlReorderId = true; hideTlHoverLine(); });
-    group.addEventListener('dragend', () => { tlReorderId = null; });
-    BoardUI.bindReorder(group, {
-      item: '.tlrow[data-tlreorder]',
-      grip: '.tllabel',
-      keyOf: el => el.dataset.tlreorder,
-      onMove: (id, beforeId) => {
-        const rows = Array.from(group.querySelectorAll(':scope > .tlrow[data-tlreorder]'))
-          .map(el => el.dataset.tlreorder);
-        const ids = rows.filter(x => x !== id);
-        const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
-        ids.splice(at < 0 ? ids.length : at, 0, id);
-        ids.forEach((rowId, i) => {
-          const loc = locate(rowId);
-          if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
-        });
-        markDirty();
-        refreshView();
-      }
-    });
+function reorderTimelineLane(ids){
+  tlReorderId = null;
+  ids.forEach((rowId, i) => {
+    const loc = locate(rowId);
+    if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
   });
+  markDirty();
+  refreshView();
 }
 
 /* The grey hover guide — .tltoday's own line and label, but following the
@@ -455,9 +348,11 @@ function wireTlReorder(){
    which day is under the cursor before clicking or dragging on a row's
    track. The label lives in the sticky header's track, the same place
    .tltodaylabel does, so it stays visible through a horizontal scroll; the
-   line itself is a sibling of the rows, the same as .tltoday. Both are torn
-   down and rebuilt against whatever .tlbody the current render made — see
-   the reset at the top of wireTimelineDrag(). */
+   line itself is a sibling of the rows, the same as .tltoday. Both are
+   appended to the .tlbody React drew rather than drawn by it, since they
+   follow the pointer on every move; renderSections() removes them before
+   each render, because React keeps the same .tlbody from one render to the
+   next rather than replacing it. */
 let tlHoverEl = null, tlHoverLabelEl = null;
 function showTlHoverLine(scale, dayN){
   const body = $('.tlbody');
@@ -524,8 +419,9 @@ function hideTlTargetLine(){ if (tlTargetEl) { tlTargetEl.remove(); tlTargetEl =
      .tlbar itself       — data-tldrag="move", shifts start and due together
      .tlhandle-l/-r       — data-tldrag="start"/"due", resizes one end
      .tlmilestone         — data-tldrag="due", the only date it has
-   Sub-step marks carry none of these attributes (see timelineRowHTML), so
-   `querySelectorAll` simply finds nothing to wire for them.
+   Sub-step marks carry none of these and get no handler (see Mark in
+   kanban/ui/TimelineBody.tsx). This is the handler each mark's
+   onPointerDown calls, with the element as e.currentTarget.
 
    A stopped drag under a few pixels is treated as the click it probably
    was — `moved` stays false and nothing is written, so the native click
@@ -533,158 +429,173 @@ function hideTlTargetLine(){ if (tlTargetEl) { tlTargetEl.remove(); tlTargetEl =
    moved never gets that far: `ev.preventDefault()` inside move(), once
    movement is confirmed, is what stops the browser following through with
    that trailing click at all, so there is nothing left to suppress by hand
-   once the drag itself has run. */
-function wireTlBarDrag(){
-  $('#lists').querySelectorAll('[data-tldrag]').forEach(el => {
-    el.onpointerdown = e => {
-      if (e.button) return;
-      // A handle sits inside its own .tlbar, which carries data-tldrag="move"
-      // too — without this, the pointerdown a handle just handled keeps
-      // bubbling, reaches the bar's own handler as well, and that second
-      // handler's setPointerCapture() steals the pointer back off the
-      // handle, so every resize drag was actually moving the whole bar.
-      e.stopPropagation();
-      const kind = el.dataset.tldrag;
-      const loc = locate(el.dataset.tlrow);
-      const track = el.closest('.tltrack');
-      if (!loc || !track) return;
-      const t = loc.task;
-      const scale = timelineScale(timelineTasks().dated);
-      const bar = el.classList.contains('tlbar') ? el : el.closest('.tlbar');
-      const milestone = el.classList.contains('tlmilestone') ? el : null;
-      const trackRect = track.getBoundingClientRect();
-      const origStart = t.start ? tlOffset(scale, t.start) : null;
-      const origDue = t.due ? tlOffset(scale, t.due) : null;
-      const beginDay = Math.round((e.clientX - trackRect.left) / scale.dayPx);
-      let moved = false, newStart = origStart, newDue = origDue;
+   once the drag itself has run.
 
-      hideTlHoverLine();
-      el.setPointerCapture(e.pointerId);
+   React keeps the same element from one render to the next, where the string
+   version replaced it, so up() takes both its listeners off: one left behind
+   would fire on a later pointercancel and write this drag's dates again. */
+function tlMarkPointerDown(e, id, kind){
+  const el = e.currentTarget;
+  if (e.button) return;
+  // A handle sits inside its own .tlbar, which carries data-tldrag="move"
+  // too — without this, the pointerdown a handle just handled keeps
+  // bubbling, reaches the bar's own handler as well, and that second
+  // handler's setPointerCapture() steals the pointer back off the
+  // handle, so every resize drag was actually moving the whole bar.
+  e.stopPropagation();
+  const loc = locate(id);
+  const track = el.closest('.tltrack');
+  if (!loc || !track) return;
+  const t = loc.task;
+  const scale = timelineScale(timelineTasks().dated);
+  const bar = el.classList.contains('tlbar') ? el : el.closest('.tlbar');
+  const milestone = el.classList.contains('tlmilestone') ? el : null;
+  // What React drew, put back before the redraw. React compares the new
+  // position with the one it last drew, not with what this drag wrote to the
+  // element, so a scale that shifted by exactly the drag would leave the
+  // dragged position standing, twice as far along as it should be.
+  const drawn = (bar || milestone) ? { left: (bar || milestone).style.left, width: bar ? bar.style.width : '' } : null;
+  const trackRect = track.getBoundingClientRect();
+  const origStart = t.start ? tlOffset(scale, t.start) : null;
+  const origDue = t.due ? tlOffset(scale, t.due) : null;
+  const beginDay = Math.round((e.clientX - trackRect.left) / scale.dayPx);
+  let moved = false, newStart = origStart, newDue = origDue;
 
-      const move = ev => {
-        if (!moved && Math.abs(ev.clientX - e.clientX) < 3) return;
-        // Only once real movement is confirmed, and on this event rather than
-        // the pointerdown that started it: calling preventDefault there
-        // unconditionally suppresses the click a plain, unmoved press fires
-        // afterwards — the same click that opens the drawer the rest of the
-        // time. By now preventing it just stops the drag turning into a text
-        // selection.
-        ev.preventDefault();
-        moved = true;
-        const day = Math.round((ev.clientX - trackRect.left) / scale.dayPx);
-        if (kind === 'move') {
-          const delta = day - beginDay;
-          newStart = origStart != null ? origStart + delta : null;
-          newDue = origDue != null ? origDue + delta : null;
-        } else if (kind === 'start') {
-          newStart = origDue != null ? Math.min(day, origDue) : day;
-        } else if (kind === 'due') {
-          newDue = origStart != null ? Math.max(day, origStart) : day;
-        }
-        const lo = newStart != null && newDue != null ? Math.min(newStart, newDue) : (newStart != null ? newStart : newDue);
-        const hi = newStart != null && newDue != null ? Math.max(newStart, newDue) : (newStart != null ? newStart : newDue);
-        if (bar) {
-          bar.style.left = (lo * scale.dayPx) + 'px';
-          bar.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
-        } else if (milestone) {
-          milestone.style.left = (newDue * scale.dayPx) + 'px';
-        }
-        const label = newStart != null && newDue != null
-          ? dueLabel(ymd(addDays(scale.min, newStart))) + ' → ' + dueLabel(ymd(addDays(scale.min, newDue)))
-          : dueLabel(ymd(addDays(scale.min, newStart != null ? newStart : newDue)));
-        showTlPopover(ev.clientX, ev.clientY, label);
-      };
-      const up = () => {
-        el.removeEventListener('pointermove', move);
-        hideTlPopover();
-        if (!moved) return;
-        if (newStart != null) t.start = ymd(addDays(scale.min, newStart));
-        if (newDue != null) t.due = ymd(addDays(scale.min, newDue));
-        t.dirty = true;
-        markDirty();
-        refreshView();
-      };
-      el.addEventListener('pointermove', move);
-      el.addEventListener('pointerup', up, { once:true });
-      el.addEventListener('pointercancel', up, { once:true });
-    };
-  });
+  hideTlHoverLine();
+  el.setPointerCapture(e.pointerId);
+
+  const move = ev => {
+    if (!moved && Math.abs(ev.clientX - e.clientX) < 3) return;
+    // Only once real movement is confirmed, and on this event rather than
+    // the pointerdown that started it: calling preventDefault there
+    // unconditionally suppresses the click a plain, unmoved press fires
+    // afterwards — the same click that opens the drawer the rest of the
+    // time. By now preventing it just stops the drag turning into a text
+    // selection.
+    ev.preventDefault();
+    moved = true;
+    const day = Math.round((ev.clientX - trackRect.left) / scale.dayPx);
+    if (kind === 'move') {
+      const delta = day - beginDay;
+      newStart = origStart != null ? origStart + delta : null;
+      newDue = origDue != null ? origDue + delta : null;
+    } else if (kind === 'start') {
+      newStart = origDue != null ? Math.min(day, origDue) : day;
+    } else if (kind === 'due') {
+      newDue = origStart != null ? Math.max(day, origStart) : day;
+    }
+    const lo = newStart != null && newDue != null ? Math.min(newStart, newDue) : (newStart != null ? newStart : newDue);
+    const hi = newStart != null && newDue != null ? Math.max(newStart, newDue) : (newStart != null ? newStart : newDue);
+    if (bar) {
+      bar.style.left = (lo * scale.dayPx) + 'px';
+      bar.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
+    } else if (milestone) {
+      milestone.style.left = (newDue * scale.dayPx) + 'px';
+    }
+    const label = newStart != null && newDue != null
+      ? dueLabel(ymd(addDays(scale.min, newStart))) + ' → ' + dueLabel(ymd(addDays(scale.min, newDue)))
+      : dueLabel(ymd(addDays(scale.min, newStart != null ? newStart : newDue)));
+    showTlPopover(ev.clientX, ev.clientY, label);
+  };
+  const up = () => {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+    hideTlPopover();
+    if (!moved) return;
+    if (bar) { bar.style.left = drawn.left; bar.style.width = drawn.width; }
+    else if (milestone) milestone.style.left = drawn.left;
+    // The click this release is about to fire lands on the same element,
+    // which React keeps, and its data-open would open the drawer. The string
+    // version never saw it because the redraw had already replaced the bar.
+    const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
+    window.addEventListener('click', swallow, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+    if (newStart != null) t.start = ymd(addDays(scale.min, newStart));
+    if (newDue != null) t.due = ymd(addDays(scale.min, newDue));
+    t.dirty = true;
+    markDirty();
+    refreshView();
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up, { once:true });
+  el.addEventListener('pointercancel', up, { once:true });
 }
 
 /* Click anywhere on a row's own track, outside the mark it already draws, to
-   set its due date directly — no trip to the drawer for "give this a
+   set its due date directly, with no trip to the drawer for "give this a
    deadline". A click that moves before release sets start and due together,
-   the two ends of a fresh bar, the same shape wireTlBarDrag's own "move"
+   the two ends of a fresh bar, the same shape tlMarkPointerDown's "move"
    writes. A stopped drag under a few pixels is the click it probably was,
-   same rule wireTlBarDrag uses for the same reason.
+   same rule tlMarkPointerDown uses for the same reason.
 
    Guarded against the marks .tlbar/.tlmilestone/.tlhandle already draw on
-   top of the track — e.target.closest('[data-tldrag]') is true for any of
-   them, and this hands off to wireTlBarDrag's own handler rather than
-   fighting it for the same pointerdown. */
+   top of the track: e.target.closest('[data-tldrag]') is true for any of
+   them, and this leaves them to tlMarkPointerDown rather than fighting it for
+   the same pointerdown. Each task row's track calls this from its
+   onPointerDown; a step's track has none. */
 let tlTrackActive = false;
-function wireTlTrackClick(){
-  if (state.locked) return;
-  $('#lists').querySelectorAll('.tlrow[data-tlreorder] .tltrack').forEach(track => {
-    track.onpointerdown = e => {
-      if (e.button) return;
-      if (e.target.closest('[data-tldrag]')) return;
-      const row = track.closest('.tlrow');
-      const loc = locate(row.dataset.tlreorder);
-      if (!loc) return;
-      const t = loc.task;
-      const scale = timelineScale(timelineTasks().dated);
-      const trackRect = track.getBoundingClientRect();
-      const beginDay = Math.floor((e.clientX - trackRect.left) / scale.dayPx);
-      let moved = false, endDay = beginDay, ghost = null;
-      tlTrackActive = true;
-      hideTlHoverLine();
-      track.setPointerCapture(e.pointerId);
+function tlTrackPointerDown(e, id){
+  const track = e.currentTarget;
+  if (e.button) return;
+  if (e.target.closest('[data-tldrag]')) return;
+  const loc = locate(id);
+  if (!loc) return;
+  const t = loc.task;
+  const scale = timelineScale(timelineTasks().dated);
+  const trackRect = track.getBoundingClientRect();
+  const beginDay = Math.floor((e.clientX - trackRect.left) / scale.dayPx);
+  let moved = false, endDay = beginDay, ghost = null;
+  tlTrackActive = true;
+  hideTlHoverLine();
+  track.setPointerCapture(e.pointerId);
 
-      const move = ev => {
-        if (!moved && Math.abs(ev.clientX - e.clientX) < 3) return;
-        ev.preventDefault();
-        moved = true;
-        endDay = Math.floor((ev.clientX - trackRect.left) / scale.dayPx);
-        const lo = Math.min(beginDay, endDay), hi = Math.max(beginDay, endDay);
-        // The bar being drawn, live — the same shape the real one takes once
-        // it lands, not just a popover promising it.
-        if (!ghost) {
-          ghost = document.createElement('div');
-          ghost.className = 'tlbar tlghostbar';
-          track.appendChild(ghost);
-        }
-        ghost.style.left = (lo * scale.dayPx) + 'px';
-        ghost.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
-        showTlPopover(ev.clientX, ev.clientY,
-          dueLabel(ymd(addDays(scale.min, lo))) + ' → ' + dueLabel(ymd(addDays(scale.min, hi))));
-      };
-      const up = () => {
-        track.removeEventListener('pointermove', move);
-        hideTlPopover();
-        if (ghost) { ghost.remove(); ghost = null; }
-        tlTrackActive = false;
-        if (moved) {
-          const lo = Math.min(beginDay, endDay), hi = Math.max(beginDay, endDay);
-          t.start = ymd(addDays(scale.min, lo));
-          t.due = ymd(addDays(scale.min, hi));
-        } else {
-          t.due = ymd(addDays(scale.min, beginDay));
-        }
-        t.dirty = true;
-        markDirty();
-        refreshView();
-      };
-      track.addEventListener('pointermove', move);
-      track.addEventListener('pointerup', up, { once:true });
-      track.addEventListener('pointercancel', up, { once:true });
-    };
-  });
+  const move = ev => {
+    if (!moved && Math.abs(ev.clientX - e.clientX) < 3) return;
+    ev.preventDefault();
+    moved = true;
+    endDay = Math.floor((ev.clientX - trackRect.left) / scale.dayPx);
+    const lo = Math.min(beginDay, endDay), hi = Math.max(beginDay, endDay);
+    // The bar being drawn, live: the same shape the real one takes once it
+    // lands, not just a popover promising it.
+    if (!ghost) {
+      ghost = document.createElement('div');
+      ghost.className = 'tlbar tlghostbar';
+      track.appendChild(ghost);
+    }
+    ghost.style.left = (lo * scale.dayPx) + 'px';
+    ghost.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
+    showTlPopover(ev.clientX, ev.clientY,
+      dueLabel(ymd(addDays(scale.min, lo))) + ' → ' + dueLabel(ymd(addDays(scale.min, hi))));
+  };
+  // Both listeners come off, since React keeps this track for the next
+  // render (see tlMarkPointerDown).
+  const up = () => {
+    track.removeEventListener('pointermove', move);
+    track.removeEventListener('pointerup', up);
+    track.removeEventListener('pointercancel', up);
+    hideTlPopover();
+    if (ghost) { ghost.remove(); ghost = null; }
+    tlTrackActive = false;
+    if (moved) {
+      const lo = Math.min(beginDay, endDay), hi = Math.max(beginDay, endDay);
+      t.start = ymd(addDays(scale.min, lo));
+      t.due = ymd(addDays(scale.min, hi));
+    } else {
+      t.due = ymd(addDays(scale.min, beginDay));
+    }
+    t.dirty = true;
+    markDirty();
+    refreshView();
+  };
+  track.addEventListener('pointermove', move);
+  track.addEventListener('pointerup', up, { once:true });
+  track.addEventListener('pointercancel', up, { once:true });
 }
 
 /* Drag the title column's right edge to make it wider or narrower. The
-   handle itself sits inside the header's sticky label cell (see
-   timelineHeaderHTML), so it tracks the frozen column during a horizontal
+   handle itself sits inside the header's sticky label cell (see Header in
+   kanban/ui/TimelineBody.tsx), so it tracks the frozen column during a horizontal
    scroll for free — no separate offset to keep in step. Everything that
    isn't sticky (the today line, the week gridlines) carries its own day
    offset instead, so a resize can reposition them without a full re-render. */
@@ -699,24 +610,24 @@ function setTlLabelWidth(px){
     el.style.left = (state.tlLabelWidth + (+el.dataset.dayoffset) * dayPx) + 'px';
   });
 }
-function wireTlResize(scroll){
-  const grip = $('#tlResize');
-  if (!grip) return;
-  grip.onpointerdown = e => {
-    e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
-    grip.classList.add('active');
-    const rect = scroll.getBoundingClientRect();
-    const move = ev => setTlLabelWidth(ev.clientX - rect.left);
-    const up = () => {
-      grip.removeEventListener('pointermove', move);
-      grip.classList.remove('active');
-    };
-    grip.addEventListener('pointermove', move);
-    grip.addEventListener('pointerup', up, { once:true });
-    grip.addEventListener('pointercancel', up, { once:true });
+/* The resize grip's onPointerDown (see Header in kanban/ui/TimelineBody.tsx);
+   a double-click resets it through timelineHandlers.onResizeReset. */
+function tlResizePointerDown(e, scroll){
+  const grip = e.currentTarget;
+  e.preventDefault();
+  grip.setPointerCapture(e.pointerId);
+  grip.classList.add('active');
+  const rect = scroll.getBoundingClientRect();
+  const move = ev => setTlLabelWidth(ev.clientX - rect.left);
+  const up = () => {
+    grip.removeEventListener('pointermove', move);
+    grip.removeEventListener('pointerup', up);
+    grip.removeEventListener('pointercancel', up);
+    grip.classList.remove('active');
   };
-  grip.ondblclick = () => setTlLabelWidth(200);
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', up, { once:true });
+  grip.addEventListener('pointercancel', up, { once:true });
 }
 
 /* Overview, Matrix and Timeline draw their sections through the same Column
@@ -725,10 +636,9 @@ function wireTlResize(scroll){
    `OverviewView`/`MatrixView`/`TimelineView` (kanban/ui/SectionsView.tsx) are
    the components since 14 Sep 2026; `renderSections()` below builds the data
    they draw from. Each still calls the section builders it always called —
-   `bigRocksSection()`, `matrixSection()`, `timelineSection()` and the rest —
-   and their `{ html, n }` (and, on Quick wins and Matrix, `sort`/`filters`)
-   crosses as `{ __html }`, same as `PlanCard.summaryHTML`; porting the cards
-   themselves is a separate job.
+   `bigRocksSection()`, `matrixSection()`, `timelineSection()` and the rest.
+   Every one of those returns data for a body component now: Overview's and the
+   Matrix's since 20 Sep 2026, the Timeline's (TimelineBody) since 25 Sep.
 
    The five titles and hints that used to be built here — 'Big rocks', 'High
    impact, L effort...' and the rest — are hardcoded in SectionsView.tsx now,
@@ -764,20 +674,9 @@ function renderSections(viewId){
   const host = sectionsMountPoint();
   if (!host) return;
 
-  // { html, n, sort, filters } is what every section builder above has always
-  // returned; SectionBody (kanban/ui/SectionsView.tsx) spells the same four
-  // things bodyHTML/count/sortHTML/filtersHTML, since a bare `html` or `n` on
-  // a prop reads as a stray abbreviation once it is a name in a type rather
-  // than a local convention read next to where it is built.
-  const toBody = sec => ({
-    bodyHTML: sec.html, count: sec.n != null ? sec.n : null,
-    sortHTML: sec.sort, filtersHTML: sec.filters,
-  });
-
   // mountFlushed(), not mount(): capMsgCards() below measures the real,
-  // painted .ref .msg boxes, and wireTimelineDrag() arms native drag handlers
-  // on elements that have to exist first. Neither is a prop a component could
-  // take instead — see the note in kanban/ui/index.ts.
+  // painted .ref .msg boxes, which is not something a prop could carry — see
+  // the note in kanban/ui/index.ts.
   if (viewId === 'overview') {
     const ctx = contextSection();
     // One section per column, left to right, the same way the board reads.
@@ -807,11 +706,23 @@ function renderSections(viewId){
       dependencyChain: chainSection(items),
     }));
   } else if (viewId === 'timeline') {
-    BoardUI.mountFlushed(host, BoardUI.TimelineView({ timeline: toBody(timelineSection()) }));
+    // The hover line and a drag's target line are appended to .tlbody, not
+    // drawn by React, and React keeps the same .tlbody across renders, so
+    // take them down before this one rather than leave them where they were.
+    hideTlHoverLine();
+    hideTlTargetLine();
+    const tl = timelineSection();
+    BoardUI.mountFlushed(host, BoardUI.TimelineView({ timeline: {
+      body: BoardUI.h(BoardUI.TimelineBody, {
+        model: tl.model, locked: state.locked,
+        // A locked tab drags nothing, the same as when this was wired by hand.
+        handlers: state.locked ? null : timelineHandlers,
+      }),
+      count: tl.n,
+    } }));
   }
 
   capMsgCards();
-  if (viewId === 'timeline') wireTimelineDrag();
 }
 
 /* .ref .msg's three-line clamp is CSS, and CSS alone cannot tell a card that
