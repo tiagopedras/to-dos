@@ -2900,6 +2900,8 @@
     font-size: var(--tenon-typography-size-lg); line-height:1; padding:2px 4px; border-radius:var(--tenon-radius-default);
   }
   .attachpick-close:hover{background:var(--tenon-background-neutral); color:var(--tenon-text-default)}
+  .attachpick-search-wrap{padding:10px 12px 0}
+  input.attachpick-search{width:100%}
   .attachpick-body{overflow-y:auto; padding:8px}
   .attachpick-row{
     display:block; width:100%; text-align:left; border:0; background:none;

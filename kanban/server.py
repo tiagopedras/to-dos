@@ -2063,9 +2063,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             got, err = ai_chat.transcript((q.get("session") or [""])[0], (q.get("cwd") or [""])[0])
             return self._json(404 if err else 200, err or got)
         # Sessions Claude Code has on disk that aren't filed here yet — the
-        # drawer's "Attach a session…" reads this list.
+        # drawer's "Attach a session…" reads this list. ?q= narrows it
+        # server-side, before the newest-60 cap inside list_sessions().
         if ai_chat and path == "/claude/attachable.json":
-            return self._json(200, ai_chat.attachable())
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            return self._json(200, ai_chat.attachable((q.get("q") or [""])[0]))
         # The work-item model's browser half, read straight from the package.
         # Same shape as the ai-chat block below, and the same degradation: on a
         # checkout or a deployment without PACKAGES this 404s and the board

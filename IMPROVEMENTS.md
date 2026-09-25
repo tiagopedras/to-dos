@@ -1153,19 +1153,15 @@ they settled is written up in the README rather than left here:
   works on the machine the server runs on, so the button has to be absent or
   refused on the Vercel copy rather than failing silently.
 
-- **The Attach a session picker is sixty unsearchable rows.** `openAttachPicker()`
-  (`kanban/js/10-reference-sections.js:945`) draws one `.attachpick-row` per
-  session straight from `/claude/attachable.json` with no filter box above them,
-  and the list behind it is capped — `list_sessions(limit=60)` in
-  `PACKAGES/ai_chat_engine/engine.py:400` sorts every `.jsonl` under
-  `~/.claude/projects` by mtime and returns the newest sixty — so a search that
-  only filters what arrived would quietly miss anything older than that and the
-  filtering is pushed server-side: a search box above the rows sends its term
-  to `/claude/attachable.json`, which filters every session before the cap. No
-  status indicator: the board has no live process to ask
-  (`kanban/js/11-chat-cards.js:30`), and the row's second line,
-  `cvWhen(s.updated) + ' · ' + s.cwd`, already says how recently each session
-  was written.
+- ~~**The Attach a session picker is sixty unsearchable rows.**~~ **Done, 25 Sep
+  2026.** `openAttachPicker()` (`kanban/js/10-reference-sections.js`) now draws
+  an `.attachpick-search` box above the rows, debounced 200ms, sending its term
+  as `?q=` to `/claude/attachable.json`. `list_sessions()` in
+  `PACKAGES/ai_chat_engine/engine.py` takes an optional `query`, matching
+  title or cwd case-insensitively before the newest-sixty cap, not after —
+  `http_glue.py`'s `attachable()` and `kanban/server.py`'s
+  `/claude/attachable.json` route pass it through. Row layout and the no-status
+  read are unchanged.
 
 - **There is no way to talk to the PA while the board is in front of you.**
   Every conversation the board can start belongs to one card — `AIChat.create()`
