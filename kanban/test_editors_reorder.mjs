@@ -93,8 +93,11 @@ try {
   check('nothing has been written yet', await evalJS(`window.__blocked.length === 0`))
 
   // --- bucket editor: drag the first row onto the third ---------------------
-  const bStart = await evalJS(`(() => {
+  // openBucketEditor() now loads each row's brief summary before its first
+  // draw (the summary field beside the name), so opening it is async.
+  const bStart = await evalJS(`(async () => {
     openBucketEditor();
+    await new Promise(r => setTimeout(r, 200));
     return { rows: document.querySelectorAll('.bkrow').length, names: __names('.bkrow') };
   })()`)
   check('bucket editor opened with a grip on every row',
@@ -102,6 +105,15 @@ try {
   check('grip carries data-tenon-grip', await evalJS(`!!document.querySelector('.bkrow [data-tenon-grip]')`))
 
   const bNamesBefore = await evalJS(`[...document.querySelectorAll('.bkrow input[data-name]')].map(i => i.value)`)
+  // Every bucket picks its own colour (state.bucketColors, name-keyed) before
+  // the drag, so the check below can tell "colour followed the bucket" apart
+  // from "colour happened to match the position rule anyway".
+  await evalJS(`(async () => {
+    const list = state.doc.buckets;
+    await Promise.all(list.map((b, i) => setBucketColor(b, BUCKET_COLOR[i % BUCKET_COLOR.length])));
+    window.__blocked = [];   // colour setup, not the drag under test
+  })()`)
+  const bColorsBefore = await evalJS(`Object.assign({}, state.bucketColors)`)
   await evalJS(`(async () => {
     const rows = [...document.querySelectorAll('.bkrow')];
     const grip = rows[0].querySelector('[data-tenon-grip]');
@@ -119,6 +131,17 @@ try {
     JSON.stringify(bNamesAfter) === JSON.stringify(bWant),
     `${bNamesAfter.join(',')} vs wanted ${bWant.join(',')}`)
   check('the numbers renumbered', await evalJS(`document.querySelector('.bkrow .bknum').textContent === '1'`))
+  const bColorsAfter = await evalJS(`state.bucketColors`)
+  check('each bucket kept its own colour through the reorder, not the row it now sits in',
+    JSON.stringify(bColorsAfter) === JSON.stringify(bColorsBefore),
+    `${JSON.stringify(bColorsAfter)} vs before ${JSON.stringify(bColorsBefore)}`)
+  const bDotsAfter = await evalJS(`[...document.querySelectorAll('.bkrow')].map(r => {
+    const name = r.querySelector('input[data-name]').value;
+    return state.bucketColors[name] === r.querySelector('.bkpick').style.background ||
+      state.bucketColors[name].replace(/\\s/g, '') === r.querySelector('.bkpick').style.background.replace(/\\s/g, '');
+  })`)
+  check("and each row's dot on screen matches its own bucket's saved colour",
+    bDotsAfter.every(Boolean), JSON.stringify(bDotsAfter))
   check('no drag reached the file', await evalJS(`window.__blocked.length === 0`))
   await evalJS(`closeModal()`)
 

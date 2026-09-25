@@ -135,33 +135,33 @@ await evalJS(`setProjectSort('name-asc')`)
 await evalJS(`renderProjectsView()`)
 await new Promise(r => setTimeout(r, 500))
 check('both folders are listed, on disk order', await evalJS(`
-  [...document.querySelectorAll('#projectsOut .reptitle')].map(e => e.textContent).join(',')
+  [...document.querySelectorAll('#projectsRoot .reptitle')].map(e => e.textContent).join(',')
 `) === 'aop2027,nobody-here')
 check('a folder a task points at is Live', await evalJS(`
-  !!document.querySelector('#projectsOut .repitem:first-child .projlive')
+  !!document.querySelector('#projectsRoot .repitem:first-child .projlive')
 `))
 check('and one nothing points at is Orphaned', await evalJS(`
-  !!document.querySelector('#projectsOut .repitem:last-child .projorphan')
+  !!document.querySelector('#projectsRoot .repitem:last-child .projorphan')
 `))
 check('the file count is shown', await evalJS(`
-  /4 files/.test(document.querySelector('#projectsOut .repmeta').textContent)
+  /4 files/.test(document.querySelector('#projectsRoot .repmeta').textContent)
 `))
 check('a missing CLAUDE.md is called out', await evalJS(`
-  /no CLAUDE.md/.test(document.querySelectorAll('#projectsOut .repmeta')[1].textContent)
+  /no CLAUDE.md/.test(document.querySelectorAll('#projectsRoot .repmeta')[1].textContent)
 `))
 check('and when it was last edited, in words', await evalJS(`
-  /edited yesterday/.test(document.querySelector('#projectsOut .repmeta').textContent)
-`), await evalJS(`document.querySelector('#projectsOut .repmeta').textContent`))
+  /edited yesterday/.test(document.querySelector('#projectsRoot .repmeta').textContent)
+`), await evalJS(`document.querySelector('#projectsRoot .repmeta').textContent`))
 check('the card says what the project is', await evalJS(`
-  /FY27 Annual Operating Plan/.test(document.querySelector('#projectsOut .projcardblurb')?.textContent || '')
+  /FY27 Annual Operating Plan/.test(document.querySelector('#projectsRoot .projcardblurb')?.textContent || '')
 `))
 check('a folder with no CLAUDE.md gets no blurb rather than an empty one', await evalJS(`
-  document.querySelectorAll('#projectsOut .projcardblurb').length === 1
+  document.querySelectorAll('#projectsRoot .projcardblurb').length === 1
 `))
 /* The whole card is the target, not just its title strip. Clicking the blurb —
    the furthest thing on a card from the .rephead button that used to be the
    only live part — is what proves data-project sits on the <article>. */
-await evalJS(`document.querySelector('#projectsOut .projcardblurb').click()`)
+await evalJS(`document.querySelector('#projectsRoot .projcardblurb').click()`)
 await new Promise(r => setTimeout(r, 300))
 check('clicking below the title opens the project too', await evalJS(`
   state.openProject === 'aop2027'
@@ -319,13 +319,13 @@ await evalJS(`(() => {
 await evalJS(`renderProjectsView()`)
 await new Promise(r => setTimeout(r, 500))
 check('a folder every task on it has finished is Completed', await evalJS(`
-  document.querySelector('#projectsOut .repitem:first-child .tag')?.className === 'tag projcompleted'
-`), await evalJS(`document.querySelector('#projectsOut .repitem:first-child .tag')?.className`))
+  document.querySelector('#projectsRoot .repitem:first-child .tag')?.className === 'tag projcompleted'
+`), await evalJS(`document.querySelector('#projectsRoot .repitem:first-child .tag')?.className`))
 check('and the tag says so', await evalJS(`
-  document.querySelector('#projectsOut .repitem:first-child .tag')?.textContent === 'Completed'
+  document.querySelector('#projectsRoot .repitem:first-child .tag')?.textContent === 'Completed'
 `))
 check('one nothing points at is still Orphaned, not Completed', await evalJS(`
-  !!document.querySelector('#projectsOut .repitem:last-child .projorphan')
+  !!document.querySelector('#projectsRoot .repitem:last-child .projorphan')
 `))
 
 /* ---- the mechanics the React port changed, 13 Sep 2026 ----
@@ -348,7 +348,7 @@ await evalJS(`(() => {
   projectSort = 'name-asc';
 })()`)
 const projNames = () => evalJS(
-  `[...document.querySelectorAll('#projectsOut .reptitle')].map(e => e.textContent).join(',')`)
+  `[...document.querySelectorAll('#projectsRoot .reptitle')].map(e => e.textContent).join(',')`)
 
 await evalJS(`renderProjectsView()`)
 await new Promise(r => setTimeout(r, 500))
@@ -369,7 +369,7 @@ check('the head count is the number of folders',
 
 await evalJS(`$('#lists').innerHTML = '<div class="lists">another view was here</div>'`)
 await new Promise(r => setTimeout(r, 200))
-check('another view can take the container', await evalJS(`!!document.querySelector('#projectsOut')`) === false)
+check('another view can take the container', await evalJS(`!!document.querySelector('#projectsRoot')`) === false)
 
 await evalJS(`renderProjectsView()`)
 await new Promise(r => setTimeout(r, 600))

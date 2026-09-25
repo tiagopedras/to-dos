@@ -64,8 +64,9 @@ function matrixDot(t, color){
 
 /* ---- Hover preview ----
    The dot says where a task sits, not what it is. Rather than a tooltip that
-   paraphrases the card, this shows the card itself — the same cardHTML the board
-   renders — so hovering a dot answers the same question as looking at the board.
+   paraphrases the card, this shows the card itself — the same TaskCard the
+   board renders, from the same cardModel() — so hovering a dot answers the
+   same question as looking at the board.
 
    Fixed position and appended to the body, because the grid sits inside a
    scrolling column and an absolutely positioned child would be clipped by it.

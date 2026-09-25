@@ -18,14 +18,14 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
-- **The board's drop line can point at the top of a column when other buckets' cards still sit above the dragged card's own bucket.** `renderBoard()` (`kanban/js/18-timeline.js:1048-1077`) already groups a mixed column by bucket in the DOM — `shown.forEach(bucket => ...)` fills `entries` one bucket at a time, and manual (non-priority) mode does no further sort — so with several buckets showing, bucket A's cards sit above bucket B's on screen. `insertAfterEl()` (`:1199`), which both `onZoneOver()` (`:1141`, the drop line) and `dropTask()` (`:1232`, the actual move) call, skips every card whose bucket differs from the dragged one (`other.bucket !== dragBucket`), so dragging a card up past another bucket's cards can leave `after` at `null` — meaning "top of my own bucket's cards" — while the line is drawn at the top of the column, above cards that are still visually there. The drop itself lands in the right place; only where the line points is wrong. The fix is for the line's position to resolve against the first element of the dragged card's own bucket-group rather than against the column's actual top when `after` comes back `null` and other buckets' cards precede it.
+- ~~**The board's drop line can point at the top of a column when other buckets' cards still sit above the dragged card's own bucket.**~~ **Done, 25 Sep 2026.** `dropLineAnchorEl()` in `18-timeline.js` anchors the line to the last other-bucket card when the dragged bucket has none above the pointer, instead of jumping to the column's true top. `renderBoard()` (`kanban/js/18-timeline.js:1048-1077`) already groups a mixed column by bucket in the DOM — `shown.forEach(bucket => ...)` fills `entries` one bucket at a time, and manual (non-priority) mode does no further sort — so with several buckets showing, bucket A's cards sit above bucket B's on screen. `insertAfterEl()` (`:1199`), which both `onZoneOver()` (`:1141`, the drop line) and `dropTask()` (`:1232`, the actual move) call, skips every card whose bucket differs from the dragged one (`other.bucket !== dragBucket`), so dragging a card up past another bucket's cards can leave `after` at `null` — meaning "top of my own bucket's cards" — while the line is drawn at the top of the column, above cards that are still visually there. The drop itself lands in the right place; only where the line points is wrong. The fix is for the line's position to resolve against the first element of the dragged card's own bucket-group rather than against the column's actual top when `after` comes back `null` and other buckets' cards precede it.
 
-- **A bucket's row in the editor says its name and nothing about what kind of work it holds, so telling two buckets apart means opening each one's brief.** `openBucketEditor()`'s `draw()` (`kanban/js/08-buckets.js:184-213`) puts only the grip, the number, the colour dot, the name input and the Brief/Delete buttons on a `.bkrow` — the one-line summary that already exists in the brief's own template (`BUCKETS.md`, the line under the title, before the `<!-- NOT FILLED IN YET -->` marker) is nowhere on the row itself. A second input beside the name, reading and writing that same line, means `openBucketEditor()` reading each bucket's brief text up front (the same `bucket-brief.json` fetch `openBucketBrief()` already makes, `:319`) to populate it, and writing it back through `PUT /bucket-brief` (`:351`) on change — parsing out the second line the way the entry above this one already has to for its own split, so the two should land together rather than each writing its own reader for the same file's shape.
+- ~~**A bucket's row in the editor says its name and nothing about what kind of work it holds, so telling two buckets apart means opening each one's brief.**~~ **Done, 25 Sep 2026.** `.bkrow` in `08-buckets.js` carries a `.bksummary` input reading and writing the brief's one-line summary. `openBucketEditor()`'s `draw()` (`kanban/js/08-buckets.js:184-213`) puts only the grip, the number, the colour dot, the name input and the Brief/Delete buttons on a `.bkrow` — the one-line summary that already exists in the brief's own template (`BUCKETS.md`, the line under the title, before the `<!-- NOT FILLED IN YET -->` marker) is nowhere on the row itself. A second input beside the name, reading and writing that same line, means `openBucketEditor()` reading each bucket's brief text up front (the same `bucket-brief.json` fetch `openBucketBrief()` already makes, `:319`) to populate it, and writing it back through `PUT /bucket-brief` (`:351`) on change — parsing out the second line the way the entry above this one already has to for its own split, so the two should land together rather than each writing its own reader for the same file's shape.
 
-- **The bucket brief editor is one textarea for a file with a fixed shape, so writing one means remembering the template rather than filling in its parts.** `openBucketBrief()` (`kanban/js/08-buckets.js:310`) reads the whole file into `briefText`, one string, and draws it as a single `<textarea id="briefBody" class="briefbody">` (`:346-347`), saved whole through `PUT /bucket-brief` (`:351`). Every brief is the same shape, laid out in `BUCKETS.md`'s template: a title line, a one-line summary, then four named `##` sections — The processes I run in this bucket, What already does it, Who is involved, What good looks like here — plus the `<!-- NOT FILLED IN YET -->` marker line that has to be deleted by hand once real content replaces it. Splitting the one textarea into a field per section means parsing the file into those parts on open (splitting on the `## ` headings, the way the template names them) and reassembling them in the same order on save, so the file on disk is unchanged in shape; the title line and one-line summary need their own small fields above the sections, and the marker's removal could become automatic — clearing once a section that used to be empty has something typed into it — rather than a line he has to remember to delete.
+- ~~**The bucket brief editor is one textarea for a file with a fixed shape, so writing one means remembering the template rather than filling in its parts.**~~ **Done, 25 Sep 2026.** `openBucketBrief()` in `08-buckets.js` now draws title/summary and the four `##` sections as their own fields, parsed and reassembled by `parseBriefText()`/`serializeBriefText()`, with the `NOT FILLED IN YET` marker cleared automatically once a section gets real content. `openBucketBrief()` (`kanban/js/08-buckets.js:310`) reads the whole file into `briefText`, one string, and draws it as a single `<textarea id="briefBody" class="briefbody">` (`:346-347`), saved whole through `PUT /bucket-brief` (`:351`). Every brief is the same shape, laid out in `BUCKETS.md`'s template: a title line, a one-line summary, then four named `##` sections — The processes I run in this bucket, What already does it, Who is involved, What good looks like here — plus the `<!-- NOT FILLED IN YET -->` marker line that has to be deleted by hand once real content replaces it. Splitting the one textarea into a field per section means parsing the file into those parts on open (splitting on the `## ` headings, the way the template names them) and reassembling them in the same order on save, so the file on disk is unchanged in shape; the title line and one-line summary need their own small fields above the sections, and the marker's removal could become automatic — clearing once a section that used to be empty has something typed into it — rather than a line he has to remember to delete.
 
-- **The PA could be its own session, `claude --agent pa-agent`, and nothing
-  rules that out.** `agents/pa_agent/PA-PLAN.md:46-67` only weighed a background
+- ~~**The PA could be its own session, `claude --agent pa-agent`, and nothing
+  rules that out.**~~ **Done, 25 Sep 2026.** `agents/pa_agent/pa-agent.md`, symlinked into `~/.claude/agents/`. `CLAUDE.md`'s "why pa is a skill" paragraph updated to say the PA also runs as a session agent now. `agents/pa_agent/PA-PLAN.md:46-67` only weighed a background
   subagent, which cannot ask questions, and a standalone Agent SDK build, and
   settled on skills. `agents/pa_agent/CLAUDE.md:35`'s "Why `pa` is a skill and
   not a subagent" repeats that reasoning. `--agent` makes the agent the whole
@@ -37,8 +37,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   the `CLAUDE.md:35` paragraph to say the PA exists as a session agent. No
   skill changes.
 
-- **The Buckets sheet reorders with ↑/↓ buttons where the drawer's own
-  subtask rows already show the drag pattern to reuse.** `openBucketEditor()`
+- ~~**The Buckets sheet reorders with ↑/↓ buttons where the drawer's own
+  subtask rows already show the drag pattern to reuse.**~~ **Done, 24 Sep 2026.** Landed via Tenon's `bindReorder`, in the drag/drop reorder move covering bucket, column, drawer and timeline all at once. `openBucketEditor()`
   (`kanban/js/08-buckets.js:182`) draws each `.bkrow` with the shared
   `moveDeleteButtonsHTML()` trio (`:169`), wired to `moveBucket()` (`:426`) on
   click. The sidebar's subtask rows do the same reordering job with a
@@ -53,8 +53,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   (`:15`) already runs inside `moveBucket()`, so the row numbers and the
   written file stay correct however the drop lands.
 
-- **The board's chat opens as a fixed modal that cannot be moved or resized,
-  though the chat engine already knows how.** `AIChat.create()` at
+- ~~**The board's chat opens as a fixed modal that cannot be moved or resized,
+  though the chat engine already knows how.**~~ **Done, 25 Sep 2026.** `AIChat.create({ windowed: true, onRectChange: saveChatRect })` in `10-reference-sections.js`, rect persisted so the window reopens where it was left. `AIChat.create()` at
   `kanban/js/10-reference-sections.js:756` passes no `windowed` option, so
   `ChatWindow.tsx` (`PACKAGES/ai_chat_engine/src/ChatWindow.tsx:159`) takes the
   plain-modal branch, pinned at the 720px height `.aic-modal` sets in
@@ -67,8 +67,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   rect so the window opens where it was left. Nothing in the engine needs to
   change.
 
-- **The drawer's Tags section can edit or clear a tag the board does not own,
-  but never add one.** `taskTagChips()` (`kanban/js/19-drawer.js:606`) turns
+- ~~**The drawer's Tags section can edit or clear a tag the board does not own,
+  but never add one.**~~ **Done, 25 Sep 2026.** `.tagchip-add` in `19-drawer.js`, refuses any key already in `RESERVED_TAG_KEYS`. `taskTagChips()` (`kanban/js/19-drawer.js:606`) turns
   every entry in `t.extra` into an amber chip, and `wireTagChips()` (`:656`)
   lets one be rewritten or emptied in place, so the edit half already exists.
   There is no control to write a new one: `tagsSection()` (`:633`) draws only
@@ -82,8 +82,8 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   into `t.extra` would put a second copy beside the real field. Bare chips with
   no key, which `taskTagChips()` marks read-only, would stay read-only.
 
-- **A task can carry `[to:: Plan agent]` or `[to:: Implement agent]` with no
-  handover behind it, and nothing says so.** `plannable()` (`agents/plan-agent/pick.py:63`)
+- ~~**A task can carry `[to:: Plan agent]` or `[to:: Implement agent]` with no
+  handover behind it, and nothing says so.**~~ **Done, 25 Sep 2026.** `check_handover_hygiene()` in `check_todo.py`, importing `pick.py`'s own naming logic rather than re-deriving it, reports a CHECK when the tag has no matching sub-task. `plannable()` (`agents/plan-agent/pick.py:63`)
   and `CLAUDE.md`'s "One board" section are both explicit that the tag alone is not
   a handover — what makes a task the Plan agent's is the `<id>-plan`/`<id>-implement`
   sub-tasks `handOver()` (`kanban/js/04-tier-two-the-one-thing.js:462`) writes
@@ -127,12 +127,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   a plan's state lives, so `state:` and `production:` leave the plan documents. It closes
   when stage 7 of `handover-one-board.md` lands.
 
-- **On a phone, Plans opens on its first column, an empty Backlog, with the plans waiting for review four columns to the right and nothing saying so.**
-  Board has a column switcher on a phone, `renderColTabs()`
-  (`kanban/js/18-timeline.js:1147`), which `kanban/js/18-timeline.js:980` hides on
-  every other view, so `kanban/ui/PlansView.tsx` gets none. The smallest fix is
-  showing `#colTabs` on Plans too, and opening on Waiting for review when anything
-  is in it. Review finding 7 in `/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md`.
+- ~~**On a phone, Plans opens on its first column, an empty Backlog, with the plans waiting for review four columns to the right and nothing saying so.**~~ **Moot, 25 Sep 2026.** The Plans view it describes was removed in stage 8 (22 Sep) — no `PlansView.tsx`, folded into the one board.
 
 - ~~**Plans reuses To do, Doing and Backlog from the Board to mean the agent's progress, so "Doing" there reads as "I am doing this".**~~ **Done, 21 Sep 2026.** Superseded by the one-board entry under Big, which folds Plans into the Board.
   The five Plans columns in `kanban/ui/PlansView.tsx` share three names with
@@ -142,21 +137,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 - ~~**The planning agent's fallback to `planning-general` never reaches `claude`.**~~ **Done, 21 Sep 2026.** `planner_for()` in `agents/planning_agent/plan.py` is the one place that decides which planner a bucket runs against, and both the main loop and `run_agent()` read it. `test_fallback_planner()` in `test_planning_agent.py` stubs `subprocess.run` and checks the `--agent` a bucket with no planner file actually reaches `claude` with.
 
-- **The string twins of Column and Card have no caller left in the app.**
-  `colHTML()`, `cardShellHTML()`, `cardHTML()`, `chipHTML()` and `colEmptyHTML()`
-  in `kanban/js/09-columns.js` were kept so a half-ported board drew one shape
-  in two languages. Every view is React now, so they are read only by
-  `kanban/ui/test_primitives.mjs` and by the parity check in
-  `kanban/test_board.mjs`, and the comments in `13-plans.js` and `19-drawer.js`
-  that mention `colHTML()`. `numberBadgeHTML()` is still live, since the Plans
-  tab badge uses it, and `setColCount()` still serves Projects. Delete the
-  five, about 250 lines, and rewrite the parity cases in `test_primitives.mjs`
-  and `test_board.mjs` the way the three `PlanCard` cases already work: render
-  the React component and compare it against the expected markup written out
-  longhand, so the shape stays pinned without a second renderer to keep in
-  step. Update the comments in `13-plans.js`, `17-matrix.js` and
-  `19-drawer.js` that name the deleted functions, and the "change one of the
-  four and change the other" rule in `CLAUDE.md`.
+- ~~**The string twins of Column and Card have no caller left in the app.**~~ **Done, 25 Sep 2026.** `chipHTML()`, `cardHTML()`, `colHTML()`, `colEmptyHTML()` and `cardShellHTML()` deleted from `09-columns.js` (684→455 lines); `cardModel()`, `setColCount()` and `numberBadgeHTML()` kept, since they're still live. `test_primitives.mjs` and `test_board.mjs` rewritten to pin markup captured live before the deletion. Stale comments fixed in `17-matrix.js` and `19-drawer.js`.
 
 - **Two inline Markdown renderers know different things.** `mdInline()`
   (`kanban/js/10-reference-sections.js:687`) understands `[text](url)` links
@@ -168,48 +149,15 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   through `dangerouslySetInnerHTML`. Teaching `Markdown` the link and
   placeholder forms, in Tenon, would let both take a string and drop the
   markup, and `mdInline()` would go once the drawer and the Overview bodies did.
+  **Partly done, 25 Sep 2026.** `inlineNodes()` in `PACKAGES/tenon` now handles both forms, source and `dist/` rebuilt — but not tagged, and to-dos's pinned Tenon version is untouched, so `mdInline()` and the two `dangerouslySetInnerHTML` uses still stand. [needs you] Bump the tag and to-dos's `package.json` pin before the rest of this can land.
 
-- **A new task lands in the first bucket in the file even when that bucket is
-  filtered out.** `defaultAddBucket()` (`kanban/js/07-render-board.js:33`)
-  returns `state.doc.buckets[0]` unconditionally, so adding a card while only
-  Design System is toggled on creates it in People, where the filter then hides
-  it. The note above that function says the fixed answer was chosen because
-  multi-select leaves no single bucket to infer from, and the answer to that is
-  to take the first toggled-on bucket in `state.doc.buckets` order rather than
-  the first bucket overall: one bucket on means that bucket, several on means
-  the leftmost of them, none on keeps today's `buckets[0]`. `state.bucketFilter`
-  is a `Set` of names so the order has to come from `state.doc.buckets`, not
-  from the set's own iteration order.
+- ~~**A new task lands in the first bucket in the file even when that bucket is
+  filtered out.**~~ **Done, 25 Sep 2026.** `defaultAddBucket()` (`kanban/js/07-render-board.js`) now reads `state.bucketFilter`: one bucket toggled on means that bucket, several means the leftmost in `state.doc.buckets` order, none toggled keeps the old `buckets[0]` fallback. Covered in `test_board.mjs`.
 
-- **Opening a task from a plan throws away the Plans view to do it.**
-  `goToPlanTask()` (`kanban/js/13-plans.js:987`) sets `state.view = 'board'`
-  before calling `openTaskByKey()`, so every one of its six callers — the plan
-  card's Go to task, the queue and Backlog rows, the Doing and Producing cards —
-  leaves him on the board with the drawer over it, and getting back to the plan
-  he was reading is a tab click and a scroll. The drawer itself does not need
-  the board: `openDrawer()` (`kanban/js/19-drawer.js:738`) only reads `locate()`
-  and paints the panel, which sits above whatever view is up. What is tied to
-  the board is the rest of `openTaskByKey()` (`kanban/js/02-state.js:218`) —
-  it narrows `state.bucketFilter` to the card's own bucket and calls
-  `renderView()`, both so the card is visible behind the panel rather than
-  filtered out. Staying on Plans means skipping both, since neither means
-  anything with the plan columns underneath, and silently rewriting his bucket
-  filter from a view that does not use it is the worse half of the two.
+- ~~**Opening a task from a plan throws away the Plans view to do it.**~~ **Moot, 25 Sep 2026.** `goToPlanTask()` and the Plans view it describes were removed in stage 8 (22 Sep) — folded into the one board.
 
-- **Nine checks in `kanban/test_projects.mjs` have been failing silently since
-  the Projects view was ported to React on 13 Sep 2026.** The suite queries
-  `#projectsOut` in sixteen places; `renderProjectsView()`
-  (`kanban/js/26-projects.js:88-93`) makes and mounts into `#projectsRoot`, and
-  has since the port. So every check that reads the rendered list finds nothing
-  — the folder listing, the Live/Orphaned/Completed tags, the file count, the
-  missing-CLAUDE.md line and the edited date — while the seven that check the
-  load, the lock and the write guard still pass, which is why the run ends
-  "9 failed" rather than looking broken. It is the one suite in the repo
-  currently red, and it has been red for five days, so the port's own evidence
-  ("44 checks that passed through the port unchanged", per `CLAUDE.md`) is not
-  true of the run today. Renaming the selector is the whole fix, unless one of
-  the nine turns out to be asserting markup the port deliberately changed — in
-  which case that one is the finding and the rest is a rename.
+- ~~**Nine checks in `kanban/test_projects.mjs` have been failing silently since
+  the Projects view was ported to React on 13 Sep 2026.**~~ **Done, 25 Sep 2026.** All 16 `#projectsOut` occurrences renamed to `#projectsRoot`. One check (the "another view can take the container" guard) was passing vacuously — it checked absence of a selector that never existed post-port — fixed to actually test the guard. 52/52 passing, was 9 failing.
 
 - ~~**Nothing the board puts in the URL ever reaches the browser's history, so
   Back never returns to the view or the card you just left.**~~ **Done, 18 Sep 2026.** `syncHash()` (`kanban/js/07-render-board.js:82`) takes a `push` argument, and the three moves that are a new place pass it: a view switch (`18-timeline.js`), opening a card and opening a project (`19-drawer.js`). The hashchange listener (`kanban/js/25-archiving.js:506`) closes the drawer when the fragment comes back without a `!task=`, which is what Back out of a card now means, and sets `restoringHash` while it works so a restore pushes nothing of its own. `syncHash()` at

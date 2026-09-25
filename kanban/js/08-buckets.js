@@ -88,6 +88,15 @@ function addBucket(name){
      same things: the folder, the brief from BUCKETS.md's template, and the row
      in buckets/README.md that pins the stream. */
   scaffoldBucket(clean);
+  /* Picked and saved now rather than left to the positional fallback, so the
+     colour is this bucket's own from the start and reordering it later never
+     moves it — the same guarantee a manual pick already gets, just made
+     automatic for a bucket that never asks for one. The first swatch no
+     other bucket already holds; once all ten are claimed twice over, a new
+     bucket falls back to the position rule same as before this existed. */
+  const taken = new Set(Object.values(state.bucketColors || {}));
+  const swatch = BUCKET_COLOR.find(c => !taken.has(c));
+  if (swatch) setBucketColor(state.doc.buckets[state.doc.buckets.length - 1], swatch);
   markDirty(); refreshView();
   return '';
 }
@@ -181,6 +190,24 @@ function openBucketEditor(){
 
   const setErr = msg => { const el = modalEl && modalEl.querySelector('.bkerr'); if (el) el.textContent = msg; };
 
+  /* The one-line summary shown on each row lives in the bucket's own brief
+     file, not in todo.md, so it has to be fetched rather than read off
+     state.doc. Keyed by bucket name and reloaded whenever a brief might have
+     changed under it — on open, and after the Brief sheet closes — rather
+     than kept in step token by token, since it is read far more often than
+     it is written. */
+  let summaries = {};
+  async function loadSummaries(){
+    const list = state.doc.buckets;
+    const pairs = await Promise.all(list.map(async b => {
+      try {
+        const brief = await getJSON('/bucket-brief.json?bucket=' + encodeURIComponent(b.name));
+        return [b.name, parseBriefText(brief.text).summary];
+      } catch (err) { return [b.name, '']; }
+    }));
+    summaries = Object.fromEntries(pairs);
+  }
+
   const draw = () => {
     const list = state.doc.buckets;
     const rows = list.map((b, i) => {
@@ -204,12 +231,14 @@ function openBucketEditor(){
           '<div class="bkpalette hidden" data-palette-for="' + i + '">' + palette + '</div>' +
         '</span>' +
         '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
+        '<input type="text" class="bksummary" data-summary="' + i + '" value="' + esc(summaries[b.name] || '') +
+          '" placeholder="What kind of work lands here" aria-label="What this bucket is for, from its brief">' +
         /* The brief is the only thing on this row that is not a property of
            the bucket as the board draws it — it is a file, and a page of
            prose — so it is a button to somewhere rather than a control here.
            See openBucketBrief. */
         '<button type="button" class="btn small" data-brief="' + i + '" ' +
-          'title="What the agents read for what this bucket\u2019s work actually is">Brief</button>' +
+          'title="What the agents read for what this bucket’s work actually is">Brief</button>' +
         deleteButtonHTML(i, list.length, { delAttr: 'data-del', noun: 'bucket' }) +
       '</div>';
     }).join('');
@@ -218,8 +247,10 @@ function openBucketEditor(){
       'The headings your list is organised under. A rename rewrites that one heading in ' +
       esc(state.fileName) + ' and leaves every task under it alone. The number follows the ' +
       'order, so moving a bucket renumbers the ones it passes — the colour follows the dot ' +
-      'instead, so reordering never reshuffles it. Nothing reaches the file until you save; ' +
-      'a colour saves itself the moment you pick it, and Brief opens a file of its own.',
+      'instead, so reordering never reshuffles it. The summary is the one-line opener of the ' +
+      'bucket’s own brief, editable here too. Nothing reaches the file until you save; ' +
+      'a colour and a summary save themselves the moment you change them, and Brief opens ' +
+      'the rest of that file.',
       '<div class="bklist">' + rows + '</div>' +
       '<div class="bkadd">' +
         '<input type="text" id="bkNew" placeholder="New bucket name" aria-label="New bucket name">' +
@@ -244,6 +275,29 @@ function openBucketEditor(){
       inp.onchange = apply;
       inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } };
     });
+    modalEl.querySelectorAll('input[data-summary]').forEach(inp => {
+      const b = list[+inp.dataset.summary];
+      const apply = async () => {
+        const val = inp.value;
+        if (val === (summaries[b.name] || '')) return;
+        try {
+          const brief = await getJSON('/bucket-brief.json?bucket=' + encodeURIComponent(b.name));
+          const parts = parseBriefText(brief.text);
+          // A brief that has never been saved opens on the template, which
+          // carries the marker too — not just one that exists on disk and
+          // still has it (brief.filled covers the marker alone).
+          const wasEmpty = !brief.exists || !brief.filled;
+          parts.summary = val;
+          const text = serializeBriefText(parts, keepBriefMarker(wasEmpty, parts));
+          await putJSON('/bucket-brief', { bucket: b.name, text });
+          summaries[b.name] = val;
+        } catch (err) {
+          showToast('Could not save that summary: ' + (err.message || err), 'bad');
+        }
+      };
+      inp.onchange = apply;
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
+    });
     BoardUI.bindReorder(modalEl.querySelector('.bklist'), {
       onMove: (key, beforeKey) => {
         moveBucketTo(list[+key], beforeKey == null ? null : list[+beforeKey]);
@@ -254,7 +308,10 @@ function openBucketEditor(){
       el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
     });
     modalEl.querySelectorAll('[data-brief]').forEach(el => {
-      el.onclick = () => openBucketBrief(list[+el.dataset.brief].name, draw);
+      el.onclick = () => openBucketBrief(list[+el.dataset.brief].name, async () => {
+        await loadSummaries();
+        draw();
+      });
     });
     modalEl.querySelectorAll('[data-palette]').forEach(dot => {
       dot.onclick = e => {
@@ -289,7 +346,78 @@ function openBucketEditor(){
     modalEl.querySelector('#bkNew').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   };
 
-  draw();
+  loadSummaries().then(draw);
+}
+
+/* The four section headings BUCKETS.md's template carries, in the order the
+   template writes them. Fixed, since the brief editor below reassembles a
+   file in exactly this shape and a heading typed differently in a hand-edited
+   brief would otherwise fall out of every section and land nowhere. */
+const BRIEF_SECTIONS = [
+  'The processes I run in this bucket',
+  'What already does it',
+  'Who is involved',
+  'What good looks like here'
+];
+// The empty-marker line and the note under it, deleted together the moment a
+// section that used to hold nothing gets typed into — see keepBriefMarker().
+const BRIEF_MARKER = '<!-- NOT FILLED IN YET -->';
+
+/* Splits a brief's whole text into its named parts: the title line, the
+   one-line summary under it, and each of BRIEF_SECTIONS as a trimmed body.
+   Marker and note lines are dropped here — keepBriefMarker() is what decides
+   whether they come back on save. Tolerant of a brief that predates a
+   section (missing sections read as ''), since a hand-edited or very old
+   brief should still open rather than losing whatever text it does carry. */
+function parseBriefText(text){
+  const lines = String(text || '').split('\n');
+  let i = 0;
+  const title = (lines[i] || '').replace(/^#\s*/, '').trim(); i++;
+  while (lines[i] === '') i++;
+  let summary = '';
+  if (lines[i] !== undefined && !lines[i].startsWith('#') && !lines[i].startsWith('>') &&
+      lines[i].trim() !== BRIEF_MARKER) {
+    summary = lines[i].trim(); i++;
+  }
+  const rest = lines.slice(i).join('\n');
+  const sections = {};
+  BRIEF_SECTIONS.forEach((name, idx) => {
+    const re = new RegExp(
+      '^##\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'm');
+    const m = re.exec(rest);
+    if (!m) { sections[name] = ''; return; }
+    const from = m.index + m[0].length;
+    const nextHeading = /^##\s+/m.exec(rest.slice(from));
+    const to = nextHeading ? from + nextHeading.index : rest.length;
+    sections[name] = rest.slice(from, to).trim();
+  });
+  return { title, summary, sections };
+}
+
+/* The inverse of parseBriefText — rebuilds the file in the template's own
+   shape so a round trip through the structured fields changes nothing but
+   the words typed into them. The marker and its explaining note are written
+   back only when told to (see keepBriefMarker), never decided here. */
+function serializeBriefText(parts, keepMarker){
+  let body = '# ' + parts.title + '\n\n' + parts.summary + '\n\n';
+  if (keepMarker) {
+    body += BRIEF_MARKER + '\n\n' +
+      '> Delete the line above once this is written. While it is there, no agent is\n' +
+      '> pointed at this file.\n\n';
+  }
+  BRIEF_SECTIONS.forEach(name => {
+    body += '## ' + name + '\n\n' + (parts.sections[name] || '') + '\n\n';
+  });
+  return body.replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
+
+/* A brief starts with the marker on, since it opens on the template. It comes
+   off the moment any section that used to be empty has something in it —
+   the same "he wrote something real" signal the server's own brief_text()
+   uses for the one-line summary, applied here to the four sections too, so
+   he never has to remember to delete the line by hand. */
+function keepBriefMarker(wasEmpty, parts){
+  return wasEmpty && !BRIEF_SECTIONS.some(name => (parts.sections[name] || '').trim());
 }
 
 /* The brief behind a bucket: `data/<dataset>/buckets/<stream>/<stream>.md`,
@@ -306,7 +434,13 @@ function openBucketEditor(){
    Read fresh every time it opens and written whole. Nothing else writes it
    while the board is up, and the board holds no copy of it between openings,
    so there is nothing here of todo.md's preconditions. */
-let briefText = '';
+/* A field per part rather than one textarea, so writing a brief means filling
+   in what BUCKETS.md's template asks for rather than remembering its shape.
+   Held here rather than re-read from the DOM on save, for the same reason the
+   single textarea used to be: showModal closes the sheet before running a
+   button, so the fields are gone by the time one runs. */
+let briefParts = { title: '', summary: '', sections: {} };
+let briefWasEmpty = false;
 async function openBucketBrief(bucketName, back){
   let brief;
   try {
@@ -316,7 +450,10 @@ async function openBucketBrief(bucketName, back){
       (err.message || err), 'bad');
     return;
   }
-  briefText = brief.text || '';
+  briefParts = parseBriefText(brief.text);
+  // A brief that has never been saved opens on the template, which carries
+  // the marker too — not just one that exists on disk and still has it.
+  briefWasEmpty = !brief.exists || !brief.filled;
 
   const marker = brief.marker || '';
   /* Three things worth knowing before typing, and only when each is true: a
@@ -330,27 +467,38 @@ async function openBucketBrief(bucketName, back){
         'and saving writes the file.</p>') +
     (brief.exists && !brief.filled
       ? '<p>This one still carries <code>' + esc(marker) + '</code>, so no agent is ' +
-        'pointed at it. Delete that line once it is written.</p>'
+        'pointed at it. Filling in a section clears it automatically.</p>'
       : '') +
     (brief.fallback
-      ? '<p>This bucket\u2019s heading is mapped to the <strong>' + esc(brief.stream) +
+      ? '<p>This bucket’s heading is mapped to the <strong>' + esc(brief.stream) +
         '</strong> fallback rather than a stream of its own, so this is the ' +
         'catch-all brief — every unmapped bucket reads it.</p>'
       : '');
 
+  const sectionFields = BRIEF_SECTIONS.map((name, i) =>
+    '<label class="field briefsection">' +
+      '<span>' + esc(name) + '</span>' +
+      '<textarea data-brief-section="' + i + '" spellcheck="false" ' +
+        'aria-label="' + esc(name) + '">' + esc(briefParts.sections[name] || '') + '</textarea>' +
+    '</label>'
+  ).join('');
+
   showModal('Brief: ' + bucketName,
     'What the planning agents and the implementing agent read for the work in this ' +
-    'bucket \u2014 the processes it holds, what each produces, which skill already ' +
+    'bucket — the processes it holds, what each produces, which skill already ' +
     'does it, and who is involved. Markdown, saved to <code>' + esc(brief.path) + '</code>.',
     '<div class="repdoc">' + notes + '</div>' +
-    '<textarea id="briefBody" class="briefbody" spellcheck="false" ' +
-      'aria-label="This bucket\u2019s brief">' + esc(briefText) + '</textarea>',
+    '<label class="field"><span>One line: what kind of work lands here</span>' +
+      '<input type="text" id="briefSummary" value="' + esc(briefParts.summary) + '" ' +
+        'aria-label="What kind of work lands in this bucket"></label>' +
+    sectionFields,
     [{ label:'Cancel', run: () => { if (back) back(); } },
      { label:'Save brief', primary:true, run: async () => {
         try {
-          const res = await putJSON('/bucket-brief', { bucket: bucketName, text: briefText });
+          const text = serializeBriefText(briefParts, keepBriefMarker(briefWasEmpty, briefParts));
+          const res = await putJSON('/bucket-brief', { bucket: bucketName, text });
           showToast(res.filled ? 'Brief saved.'
-            : 'Brief saved \u2014 still carrying the empty marker, so no agent reads it yet.',
+            : 'Brief saved — still carrying the empty marker, so no agent reads it yet.',
             res.filled ? '' : 'bad');
         } catch (err) {
           showToast('Could not save that brief: ' + (err.message || err), 'bad');
@@ -360,14 +508,16 @@ async function openBucketBrief(bucketName, back){
     { wide: true });
 
   /* Read as he types. showModal closes the sheet before running a button, so
-     the textarea is gone by the time one runs — the same reason declinePlan()
+     the fields are gone by the time one runs — the same reason declinePlan()
      and replanPlan() keep theirs in a variable. */
-  const box = modalEl && modalEl.querySelector('#briefBody');
-  if (box) {
-    box.oninput = () => { briefText = box.value; };
-    box.focus();
-    box.setSelectionRange(0, 0);
-  }
+  const summaryBox = modalEl && modalEl.querySelector('#briefSummary');
+  if (summaryBox) summaryBox.oninput = () => { briefParts.summary = summaryBox.value; };
+  const sectionBoxes = modalEl ? modalEl.querySelectorAll('[data-brief-section]') : [];
+  sectionBoxes.forEach(box => {
+    const name = BRIEF_SECTIONS[+box.dataset.briefSection];
+    box.oninput = () => { briefParts.sections[name] = box.value; };
+  });
+  if (summaryBox) { summaryBox.focus(); summaryBox.setSelectionRange(0, 0); }
 }
 
 /* The one write a colour makes — straight to bucket-colors.json, independent

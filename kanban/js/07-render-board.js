@@ -17,10 +17,17 @@ function allMode(){ return state.bucketFilter.size === 0; }
 /* Where a new task lands. Deliberately not derived from which bucket tabs
    happen to be toggled on any more — once several can be on at once there is
    no single one of them to infer a card's home from, so this always means
-   the same thing regardless of the filter: the first bucket in the file,
-   the same fallback every ambiguous case already used before multi-select
-   existed. See addTask() in 18-timeline.js, its only caller. */
+   the bucket filter to guess which one a new task belongs in: one bucket
+   toggled on means that bucket, several toggled on means the leftmost of
+   them in state.doc.buckets order (not the Set's own iteration order, which
+   follows insertion rather than the file), and none toggled on falls back
+   to the first bucket in the file, same as before multi-select existed.
+   See addTask() in 18-timeline.js, its only caller. */
 function defaultAddBucket(){
+  if (state.bucketFilter.size) {
+    const active = state.doc.buckets.filter(b => state.bucketFilter.has(b.name));
+    if (active.length) return active[0];
+  }
   return state.doc.buckets[0];
 }
 /* A bucket name in the URL, lowercased and despaced — "Design System" becomes

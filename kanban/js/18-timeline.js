@@ -1142,8 +1142,11 @@ function renderBoard(){
       e.preventDefault();
       if (subDrag !== null || sortMode(tier) === 'priority') return null;
       const from = dragId ? locate(dragId) : null;
-      const after = insertAfterEl(e.currentTarget, e.clientY, from ? from.bucket : null, dragId);
-      return after ? after.dataset.id : '';
+      const dragBucket = from ? from.bucket : null;
+      const after = insertAfterEl(e.currentTarget, e.clientY, dragBucket, dragId);
+      if (after) return after.dataset.id;
+      const anchor = dragBucket ? dropLineAnchorEl(e.currentTarget, dragBucket, dragId) : null;
+      return anchor ? anchor.dataset.id : '';
     },
     onZoneDrop: (e, tier) => {
       e.preventDefault();
@@ -1206,6 +1209,30 @@ function insertAfterEl(zone, clientY, dragBucket, skipId){
     if (clientY > r.top + r.height / 2) after = el;
   });
   return after;
+}
+/* Where the drop line points when insertAfterEl finds no same-bucket card to
+   sit under — "top of my own bucket's cards", which is only the same as "top
+   of the column" when no other bucket's cards are drawn before it. Otherwise
+   the line has to sit right after the last other-bucket card so it doesn't
+   point above cards that are still visually there. Line-only: dropTask keeps
+   using insertAfterEl on its own, since a fallback here would return a card
+   from the wrong bucket's tier and misplace the drop itself. */
+function dropLineAnchorEl(zone, dragBucket, skipId){
+  let lastOther = null;
+  const cards = zone.querySelectorAll('.tenon-card');
+  for (let i = 0; i < cards.length; i++) {
+    const el = cards[i];
+    if (el.classList.contains('dragging') || el.dataset.id === skipId) continue;
+    const other = locate(el.dataset.id);
+    if (!other) continue;
+    // renderBoard() groups entries one bucket at a time, so the first card of
+    // the dragged bucket's own group is where its run of cards starts — any
+    // other-bucket card after that belongs to a later group, not one sitting
+    // above this one, so there is nothing more for the line to skip past.
+    if (dragBucket && other.bucket === dragBucket) break;
+    if (dragBucket && other.bucket !== dragBucket) lastOther = el;
+  }
+  return lastOther;
 }
 function hideDropLine(){ if (dropLine && dropLine.parentNode) dropLine.remove(); }
 

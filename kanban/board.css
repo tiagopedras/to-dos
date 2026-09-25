@@ -242,6 +242,11 @@
     flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
     border-radius:var(--tenon-radius-default); padding:5px 8px; font-size: var(--tenon-typography-size-sm);
   }
+  /* The name stays short enough to read as a label; the summary, next to it,
+     takes whatever room is left — it is a sentence, the name is a word or two. */
+  .bkrow input[data-name]{flex:0 1 160px}
+  .bkrow input.bksummary{flex:2 1 auto; color:var(--tenon-text-faint)}
+  .bkrow input.bksummary:focus{color:var(--tenon-text-default)}
   /* The brief button. Shrink-proof beside the name input, which takes the
      rest of the row — a two-line "Brief" is the one thing that would make
      these rows different heights from one another. */
@@ -266,6 +271,18 @@
     border:1px solid var(--tenon-stroke-default); border-radius:var(--tenon-radius-md);
   }
   .briefbody:focus{outline:2px solid var(--tenon-stroke-focus); outline-offset:1px}
+  /* One field per part of the template, in place of the single textarea —
+     the summary line above these shares the modal's ordinary .field styling,
+     these four are the same shape but sized for prose rather than a word. */
+  .briefsection{margin-top:14px}
+  .briefsection textarea{
+    width:100%; box-sizing:border-box; margin-top:4px; padding:8px 10px;
+    min-height:88px; resize:vertical;
+    font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color:var(--tenon-text-default); background:var(--tenon-background-raised);
+    border:1px solid var(--tenon-stroke-default); border-radius:var(--tenon-radius-md);
+  }
+  .briefsection textarea:focus{outline:2px solid var(--tenon-stroke-focus); outline-offset:1px}
   .bkadd{display:flex; gap:8px; margin-top:14px; padding-top:13px; border-top:1px solid var(--tenon-stroke-default)}
   .bkadd input{
     flex:1 1 auto; min-width:0; border:1px solid var(--tenon-stroke-default); background:var(--tenon-background-raised);
@@ -2661,6 +2678,14 @@
   .tagchip.tagchip-ro{cursor:default}
   .tagchip.tagchip-ro:hover{border-color:transparent}
   .tagchip.tagchip-extra{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning); border-color:color-mix(in srgb, var(--tenon-text-warning) 40%, transparent)}
+  /* The one chip that writes rather than edits — dashed, the same affordance
+     every other "add" control on the board uses, so it reads as an action
+     rather than as one more tag already on the task. */
+  .tagchip.tagchip-add{
+    background:transparent; color:var(--tenon-text-faint);
+    border:1px dashed var(--tenon-stroke-default);
+  }
+  .tagchip.tagchip-add:hover{color:var(--tenon-text-default); border-color:var(--tenon-text-default)}
   .tagchip input{
     font:inherit; font-weight:600; border:none; background:transparent; color:inherit;
     width:auto; min-width:40px; padding:0; outline:none;

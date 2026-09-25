@@ -46,6 +46,15 @@ _CORE = Path(__file__).resolve().parents[5] / "core"
 sys.path.insert(0, str(_CORE))
 import todo  # noqa: E402
 
+# plannable() is the Plan agent's own read of what counts as a real handover —
+# the tag plus the matching sub-task pick.py's docstring describes. Reused
+# rather than re-derived here, for the same reason todo.py is imported rather
+# than copied: two readers of "is this actually handed over" that can disagree
+# is worse than either being wrong on its own.
+_PLAN_AGENT = Path(__file__).resolve().parents[5] / "agents" / "plan-agent"
+sys.path.insert(0, str(_PLAN_AGENT))
+import pick  # noqa: E402
+
 # Two syntaxes, one meaning. impact, effort, due and ai are written as Dataview
 # inline fields — [due:: 2026-08-21] — because views.md queries them and Dataview
 # cannot see inside a code span. The older `due:2026-08-21` form is still read,
@@ -736,6 +745,78 @@ def check_tag_hygiene(lines, tasks):
     return findings
 
 
+def check_handover_hygiene(lines, text):
+    """`[to:: Plan agent]` or `[to:: Implement agent]` with no handover behind it.
+
+    pick.plannable() (agents/plan-agent/pick.py) is explicit that the tag alone
+    is not a handover: what makes a task the Plan agent's, or the Implement
+    agent's, is the `<id>-plan`/`<id>-implement` sub-task handOver() (the
+    board's 04-tier-two-the-one-thing.js) writes alongside the tag. A task
+    carrying the tag with neither sub-task present is silently skipped by the
+    overnight run rather than reported — the right behaviour for the planner,
+    since it has nothing to act on, but nothing on the file's own side used to
+    say so. `pa`'s own SKILL.md documents writing the tag directly as an
+    option, which is exactly how a task ends up looking delegated with nobody
+    ever having handed it over.
+
+    Works from a fresh todo.parse_doc() of the whole file rather than this
+    script's own dict-based tasks, since that shape has no id: or bracket-form
+    to: parsing — the bracket tags are what the board has written since the
+    one-board migration, and check_tag_hygiene()'s tasks predate that split.
+
+    Ticked or blocked sub-tasks are not the gap this checks: any sub-task
+    matching the naming pattern at all — done, waiting, whatever state — means
+    a real handover happened once, which is a different question from whether
+    the Plan agent has something to do about it tonight.
+    """
+    findings = []
+    doc_tasks = todo.parse_doc(text)
+    for task in doc_tasks:
+        agent = todo.agent_of(task.to)
+        if agent not in (todo.PLAN_AGENT, todo.IMPLEMENT_AGENT):
+            continue
+        # Task carries no line of its own past this point — todo.py's Task
+        # does not track one — so it is recovered from the id: tag, which is
+        # unique, or failing that from the title, the same fallback the
+        # "file" location already means for a check with nothing to point at.
+        line_no = None
+        needle = f"id:{task.stable_id}" if task.stable_id else None
+        for i, line in enumerate(lines, start=1):
+            if (needle and needle in line) or (not needle and task.title and task.title in line):
+                line_no = i
+                break
+        if not task.stable_id:
+            findings.append(
+                Finding(
+                    line_no,
+                    "CHECK",
+                    f"\"{task.title}\" carries [to:: {agent}] but has no id: tag, so it "
+                    f"cannot carry a handover sub-task either — nobody has actually "
+                    f"picked this up.",
+                )
+            )
+            continue
+        kind = "plan" if agent == todo.PLAN_AGENT else "implement"
+        pattern = re.compile(re.escape(task.stable_id) + r"-" + kind + r"$")
+        _, steps = todo.split_body(task)
+        made = any(
+            pattern.fullmatch(s["task"].slug or "") and todo.agent_of(s["task"].to) == agent
+            for s in steps
+        )
+        if not made:
+            findings.append(
+                Finding(
+                    line_no,
+                    "CHECK",
+                    f"\"{task.title}\" carries [to:: {agent}] but has no "
+                    f"`{task.stable_id}-{kind}` sub-task — the tag alone is not a "
+                    f"handover. Hand it over from the board, or drop the tag if it "
+                    f"was written by hand in error.",
+                )
+            )
+    return findings
+
+
 def check_field_syntax(lines):
     """The four queried tags have to be inline fields, not code spans.
 
@@ -1151,7 +1232,8 @@ def main():
     args = ap.parse_args()
 
     today = parse_date(args.today) if args.today else dt.date.today()
-    lines = load(args.path)
+    text = Path(args.path).read_text(encoding="utf-8")
+    lines = text.splitlines()
     tasks = parse_tasks(lines)
 
     groups = [
@@ -1165,6 +1247,7 @@ def main():
         ("The one thing", check_headline(lines)),
         ("Start dates", check_start_dates(lines)),
         ("Tag hygiene", check_tag_hygiene(lines, tasks)),
+        ("Handover hygiene", check_handover_hygiene(lines, text)),
         ("Cancellations", check_cancelled(tasks)),
         ("Field syntax", check_field_syntax(lines)),
         ("Suggested messages", check_suggested_messages(lines)),

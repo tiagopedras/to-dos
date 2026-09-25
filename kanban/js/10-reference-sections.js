@@ -753,7 +753,24 @@ function onChatStatusChanged(cfg){
   if (state.doc) renderView();
 }
 
+/* Where the chat window sits and how big it is, remembered the same way the
+   drawer's own width and the timeline's label column are — a drag he does
+   once should not repeat itself. One rect for the one chat instance the
+   board keeps: setRect() is not scoped to a single open the way growFrom()
+   is, so setting it once here holds for every openNew()/openSession() call
+   the board makes afterwards. */
+function loadChatRect(){
+  try {
+    const raw = localStorage.getItem('todo-board-chat-rect');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function saveChatRect(rect){
+  try { localStorage.setItem('todo-board-chat-rect', JSON.stringify(rect)); } catch (e) {}
+}
+
 const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
+  windowed: true,
   ownerLabel: taskId => {
     const loc = locate(taskId);
     return loc ? loc.task.title : '';
@@ -762,6 +779,7 @@ const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   // task's Chats section — see the Ask Claude / New chat tooltips.
   readOnlyHelp: '',
   onSessionsChanged, onSend: onPromptRunSend, onChange: onChatChange, onStatusChanged: onChatStatusChanged,
+  onRectChange: saveChatRect,
 }) : {
   available: () => false,
   renderSection: () => '',
@@ -777,6 +795,11 @@ const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   isOpen: () => false,
   closeChat: () => {},
 };
+// Applied once at startup, not per open — see loadChatRect() above.
+if (typeof AIChat !== 'undefined') {
+  const savedRect = loadChatRect();
+  if (savedRect) chat.setRect(savedRect);
+}
 
 /* A board link posted in a chat opens its card in this tab. The href differs
    from this page only after the `#`, which is what the hashchange listener in

@@ -14,10 +14,13 @@
  *     React's own events rather than through `onclick` assigned after a paint;
  *   - the drop line and the highlight under a dragged card are state inside
  *     `BoardView`, so it must appear where the pointer is and go when it leaves;
- *   - a task card drawn by React is the card `cardHTML()` draws as a string,
- *     element for element, once the one wrapper the title sits in is stepped
- *     over. That is the parity check, run over every task in demo.md.
+ *   - a task card drawn by React matches a shape pinned from `cardHTML()`'s
+ *     own output, captured while it still existed (it and `cardModel()` were
+ *     deleted from 09-columns.js on 25 Sep 2026, with no caller left but this
+ *     check and kanban/ui/test_primitives.mjs), element for element, once the
+ *     one wrapper the title sits in is stepped over.
  *
+
  * The tab is not locked, because the point is to drag and add. What keeps that
  * safe is the fetch guard: every non-GET is torn out of `fetch` and recorded,
  * so nothing here can reach `todo.md`, which the last assertion checks.
@@ -304,22 +307,29 @@ check('and a column does not take a drop', await evalJS(`(() => {
 })()`))
 await evalJS(`state.locked = false; renderBoard()`)
 
-/* ---- parity with cardHTML() ---- */
-
-/* The string builder and the component draw one model, and this is what says so.
-   Every task in demo.md, on the board, against cardHTML() for the same task,
-   with attributes sorted, inline style spacing ignored, and the one span the
-   title sits in stepped over. */
-await evalJS(`(async () => {
-  const md = await (await fetch('/kanban/demo.md')).text();
-  load(md, 'demo.md', {});
+/* ---- pinned card shapes ----
+   cardHTML() and cardModel() are gone from kanban/js/09-columns.js as of
+   25 Sep 2026 — every view is React now, so what used to be compared against
+   a live string builder is compared against markup captured from it while it
+   still existed, the same way kanban/ui/test_primitives.mjs pins Column and
+   Card. Three shapes, chosen to cover what the rest of this suite's own
+   fixture (Alpha/Beta/Gamma/Delta) actually varies: a progress bar, a bare
+   card and a delegated chip. Beta is left out here — its due chip's "Nd late"
+   note is relative to today, so pinning its full markup would go stale on a
+   clock rather than on a real change; its own structural check ("a due date
+   is a chip in its own corner") stays further up this file instead. */
+await evalJS(`(() => {
   state.locked = false;
-  state.bucketFilter = new Set(state.doc.buckets.map(b => b.name));
   state.view = 'board';
   renderView();
 })()`)
 await wait(200)
-const parity = await evalJS(`(() => {
+const CARD_PARITY = {
+  bd0001: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0001" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Alpha</div></div><div class="tenon-card__tags"><span class="tag impact-high" title="high impact">\u{1f525}</span><span class="tag">S</span></div><div class="tenon-card__body"><div class="prog"><span>1/2 steps</span><span class="bar"><i style="width:50%"></i></span></div></div></article>',
+  bd0003: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0003" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Gamma</div></div><div class="tenon-card__tags"><span class="tag impact-med" title="med impact">\u{1f324}️</span><span class="tag">M</span></div></article>',
+  bd0004: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0004" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Delta</div></div><div class="tenon-card__tags"><span class="tag impact-high" title="high impact">\u{1f525}</span><span class="tag">S</span><span class="tag who" title="Delegated to Plan agent">→ Plan agent</span></div></article>',
+}
+const pinCheck = await evalJS(`(() => {
   const canon = el => {
     if (el.nodeType === 3) return el.textContent;
     if (el.tagName === 'SPAN' && el.parentNode.classList && el.parentNode.classList.contains('tenon-card__title') &&
@@ -330,26 +340,47 @@ const parity = await evalJS(`(() => {
       (a.name === 'style' ? a.value.replace(/[\\s;]/g, '') : a.value) + '"').sort().join(' ');
     return '<' + el.tagName.toLowerCase() + ' ' + attrs + '>' + [...el.childNodes].map(canon).join('') + '</>';
   };
-  const many = shownBuckets().length > 1;
+  const expect = ${JSON.stringify(CARD_PARITY)};
   const bad = [];
-  let n = 0;
-  document.querySelectorAll('#board .tenon-card').forEach(card => {
-    const loc = locate(card.dataset.id);
-    if (!loc) return;
-    n++;
-    const tier = card.closest('.tenon-column').dataset.tier;
-    const color = card.style.getPropertyValue('--tenon-card-accent');
-    const label = many ? loc.bucket.name : '';
+  Object.entries(expect).forEach(([id, html]) => {
+    const card = document.querySelector('#board .tenon-card[data-id="' + id + '"]');
+    if (!card) { bad.push(id + ': not on the board'); return; }
     const holder = document.createElement('div');
-    holder.innerHTML = cardHTML(loc.task, color, label, { muted: tier === WAIT_COL, tier });
+    holder.innerHTML = html;
     const want = canon(holder.firstElementChild);
     const got = canon(card);
-    if (want !== got) bad.push(loc.task.title + '\\n  want ' + want.slice(0, 400) + '\\n  got  ' + got.slice(0, 400));
+    if (want !== got) bad.push(id + '\\n  want ' + want.slice(0, 400) + '\\n  got  ' + got.slice(0, 400));
   });
-  return { n, bad };
+  return bad;
 })()`)
-check(`every task on the demo board is the card cardHTML() draws (${parity.n} of them)`,
-  parity.n > 10 && parity.bad.length === 0, parity.bad.slice(0, 2).join('\n'))
+check(`the pinned cards (${Object.keys(CARD_PARITY).length} of them) match what the board actually draws`,
+  pinCheck.length === 0, pinCheck.slice(0, 3).join('\n'))
+
+/* ---- defaultAddBucket() reads the bucket filter ---- */
+
+/* A second bucket, added to state directly rather than through the fixture,
+   so the pinned card/column checks above stay against the one-bucket load
+   they were captured from. Nothing here renders. */
+const addBucketCheck = await evalJS(`(() => {
+  const second = { name: 'Design System', color: '#000', tiers: state.doc.buckets[0].tiers.map(t => ({ name: t.name, tasks: [] })) };
+  state.doc.buckets.push(second);
+  const bad = [];
+  const want = (label, expected) => { const got = defaultAddBucket().name; if (got !== expected) bad.push(label + ': want ' + expected + ', got ' + got); };
+
+  state.bucketFilter = new Set();
+  want('none toggled falls back to the first bucket in the file', 'People');
+
+  state.bucketFilter = new Set(['Design System']);
+  want('one bucket toggled on is that bucket', 'Design System');
+
+  state.bucketFilter = new Set(['Design System', 'People']);
+  want('several toggled on use the leftmost in file order, not Set order', 'People');
+
+  state.doc.buckets.pop();
+  state.bucketFilter = new Set();
+  return bad;
+})()`)
+check('defaultAddBucket() guesses the bucket from the filter', addBucketCheck.length === 0, addBucketCheck.join(' | '))
 
 /* ---- the point of the guard ---- */
 

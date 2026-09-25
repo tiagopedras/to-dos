@@ -72,6 +72,12 @@ export function BoardView(props: BoardViewProps) {
   const [dragging, setDragging] = useState<string | null>(null)
 
   const clear = () => { setOver(null); setLine(null) }
+  /* The drop is the real end of the drag, not dragend — dropTask() re-renders
+     the board (refreshView()), and if that re-render lands before the browser
+     fires dragend on the original element, the card has already moved to a
+     different column's DOM subtree and dragend never reaches it, leaving
+     dragging stuck on an id that no longer needs it. */
+  const clearAll = () => { clear(); setDragging(null) }
 
   return (
     <>
@@ -112,7 +118,7 @@ export function BoardView(props: BoardViewProps) {
             if (e.currentTarget.contains(e.relatedTarget as Node)) return
             clear()
           },
-          onDrop: (e: DragEvent<HTMLElement>) => { clear(); onZoneDrop(e, col.tier) },
+          onDrop: (e: DragEvent<HTMLElement>) => { clearAll(); onZoneDrop(e, col.tier) },
         }
 
         return (

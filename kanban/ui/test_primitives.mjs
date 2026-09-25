@@ -1,29 +1,35 @@
 #!/usr/bin/env node
-/* Tenon's components against the string builders they share a board with.
+/* Tenon's components, pinned against markup written out longhand.
  *
  *     node kanban/ui/test_primitives.mjs      (or: npm test)
  *
  * Column, Card, Badge and Stat live in @tiagopedras/tenon now. They were four
- * files in this folder until 19 Sep 2026, written to be exactly what colHTML()
- * and cardShellHTML() emit; Tenon's are a port of those four and the builders
- * were changed to emit Tenon's markup the same day, so the rule is unchanged:
- * one stylesheet answers for both halves of a half-ported board, and "three
- * boards, one shape" rests on there being one column rather than a family
- * resemblance. This suite renders each case both ways and fails on any
- * difference.
+ * files in this folder until 19 Sep 2026, written to be exactly what
+ * colHTML() and cardShellHTML() emitted; Tenon's are a port of those four.
+ * colHTML(), cardShellHTML(), cardHTML() and chipHTML() are gone from
+ * kanban/js/09-columns.js as of 25 Sep 2026 — every view is React now, and
+ * they had no caller left but this suite and kanban/test_board.mjs's own
+ * parity check. What pinned the shape until then was comparing the string
+ * builder's output against the component's; what pins it now is comparing the
+ * component's render against the markup itself, written out once below, the
+ * same way the three PlanCard cases already did before the Plans view went on
+ * 22 Sep 2026.
  *
- * What moved with them is the vocabulary. colHTML() still speaks the board's —
- * cls, stripe, position, note, body — and Tenon speaks className, accent,
- * lead, footer, children. The tables below stay in the board's words and
- * toTenon() maps them, in one place, which is worth pinning on its own: it is
- * the same translation every call site in kanban/ui/ does by hand.
+ * Each EXPECT table was captured by rendering the component from the exact
+ * props colHTML()/cardShellHTML() used to take, on 25 Sep 2026, while both
+ * were still in the tree and the two sides still agreed — so this suite is
+ * the same 50 cases, at the values the deleted comparison last confirmed were
+ * right, not a fresh guess at what the markup should be.
+ *
+ * numberBadgeHTML() and setColCount() are still live — the Plans tab badge
+ * and Projects use them — so Badge is still checked the same way, against
+ * numberBadgeHTML()'s own output rather than a pinned string, since there is
+ * still a string builder on the other side of that one.
  *
  * It needs no browser and no server. kanban/js/09-columns.js is run in a `vm`
  * with a stubbed `document` — it registers two delegated click listeners at
  * top level and touches nothing else a host would provide — Tenon is imported
- * as the built package a consumer gets. PlanCard, the one component that was
- * written here and needed esbuild to be imported, went with the Plans view on
- * 22 Sep 2026.
+ * as the built package a consumer gets.
  *
  * The last check is a different kind and belongs here anyway: that the built
  * bundle carries React's production build. Vite substitutes NODE_ENV for an
@@ -43,16 +49,16 @@ const REPO = path.join(HERE, '..', '..')
 let failures = 0
 const fail = (...m) => { console.log('FAIL', ...m); failures++ }
 
-/* ---- the string builders, out of the board's own file ---------------------
-   esc() lives in 04-tier-two-the-one-thing.js and is the one symbol these two
-   functions need from outside their file. It is copied here rather than
-   imported because pulling in that file drags the rest of the board with it,
-   and a four-line escape is not the thing this suite is testing. If it ever
-   diverges, every case below fails loudly on the escaping ones. */
+/* ---- what's left of the string builders -----------------------------------
+   numberBadgeHTML() is still live — Plans' tab badge and Projects still call
+   it — so Badge is still checked against it. esc() lives in
+   04-tier-two-the-one-thing.js and is the one symbol it needs from outside its
+   file, copied here rather than imported for the same reason it always was:
+   pulling in that file drags the rest of the board with it. */
 const ESC = `const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));`
 const columnsSrc = fs.readFileSync(path.join(REPO, 'kanban/js/09-columns.js'), 'utf8')
 const legacy = vm.runInNewContext(
-  ESC + '\n' + columnsSrc + '\n;({ colHTML, cardShellHTML, numberBadgeHTML, esc });',
+  ESC + '\n' + columnsSrc + '\n;({ numberBadgeHTML, esc });',
   { document: { addEventListener() {} } },
   { filename: 'kanban/js/09-columns.js' })
 
@@ -64,7 +70,9 @@ const { Column, Card, Badge, Stat } = await import('@tiagopedras/tenon')
 
 /* ---- the board's words, in Tenon's ---------------------------------------
    Every call site in kanban/ui/ does this by hand. Here it is once, so the
-   tables below can stay in the vocabulary colHTML() still speaks. */
+   props tables below can stay in the board's own vocabulary — cls, stripe,
+   position, note, body — rather than Tenon's className, accent, lead,
+   footer, children. */
 const toTenonColumn = o => {
   const { heading, cls, bodyCls, style, hot, body, ...rest } = o
   return {
@@ -93,148 +101,169 @@ const toTenonCard = o => {
   }
 }
 
-/* ---- comparing two spellings of the same markup ---------------------------
-   Neither side is wrong where they differ, so both are put in one form first:
-   React writes a boolean attribute as open="" and the string builder writes a
-   bare `open`; React escapes an apostrophe as &#x27; where esc() writes &#39;;
-   and attribute order follows each side's own source, which is nobody's
-   contract. Anything left after that is a real difference. */
+/* ---- comparing rendered markup against what was pinned --------------------
+   React writes a boolean attribute as open="" where the board's own esc()
+   writes &#39; for an apostrophe and React writes &#x27; — both still meet
+   here, in the badge case (against numberBadgeHTML(), which uses esc()) and
+   in the hand-pinned strings that were written to match esc()'s spelling. */
 const canon = html => html
   .replace(/&#x27;/g, '&#39;')
-  .replace(/&#x2F;/g, '/')
   .replace(/ open=""/g, ' open')
-  .replace(/<([a-z0-9]+)((?:\s+[a-zA-Z-]+(?:="[^"]*")?)+)(\s*\/?)>/g,
-    (_, tag, attrs, close) =>
-      '<' + tag + ' ' + (attrs.match(/[a-zA-Z-]+(?:="[^"]*")?/g) || []).sort().join(' ') + close + '>')
 
 let checks = 0
-const check = (why, legacyHTML, node) => {
+const check = (why, expectedHTML, node) => {
   checks++
-  const a = canon(legacyHTML)
+  const a = canon(expectedHTML)
   const b = canon(renderToStaticMarkup(node))
   if (a === b) return
   let i = 0
   while (i < a.length && a[i] === b[i]) i++
-  fail(`${why}\n     colHTML  ...${a.slice(Math.max(0, i - 40), i + 60)}\n     Column   ...${b.slice(Math.max(0, i - 40), i + 60)}`)
+  fail(`${why}\n     expect  ...${a.slice(Math.max(0, i - 40), i + 60)}\n     got     ...${b.slice(Math.max(0, i - 40), i + 60)}`)
 }
 
-/* ---- the columns ----------------------------------------------------------
+/* ---- the columns ------------------------------------------------------------
    Every optional part the component carries, on its own and together, plus the
    two variants that are not parts at all — the agent dash and the collapsible
-   <details>. */
+   <details>. Pinned 25 Sep 2026, from colHTML()'s own output for each of
+   these exact props while it still existed — see the file header. */
+const COLUMN_EXPECT = {
+  bare: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Backlog</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  h3: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h3 class=\"tenon-column__title\">To do</h3></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  hint: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Doing</h2><span class=\"tenon-column__hint\">one at a time</span></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  count: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Done</h2></div><div class=\"tenon-column__head-end\"><span class=\"tenon-column__count\">12</span></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  countZero: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Done</h2></div><div class=\"tenon-column__head-end\"><span class=\"tenon-column__count\">0</span></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  clsHalfEmpty: "<section class=\"tenon-column wide plans\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">X</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  bodyCls: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">X</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body droptarget\"></div></section>",
+  agent: "<section class=\"tenon-column tenon-column--dashed\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Waiting for review</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  hot: "<section class=\"tenon-column tenon-column--running\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Producing</h2><span class=\"colgear\" aria-hidden=\"true\"></span></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  hotAgent: "<section class=\"tenon-column tenon-column--running tenon-column--dashed\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Handed to AI</h2><span class=\"colgear\" aria-hidden=\"true\"></span></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  titleEscape: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Alex&#x27;s &quot;review&quot; &amp; &lt;b&gt;bold&lt;/b&gt;</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  hintEscape: "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">X</h2><span class=\"tenon-column__hint\">a &lt; b &amp; c&#x27;s</span></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div></section>",
+  collapsibleOpen: "<details class=\"tenon-column\" open=\"\"><summary class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><span class=\"tenon-column__chevron\" aria-hidden=\"true\"></span><h2 class=\"tenon-column__title\">Overview</h2></div><div class=\"tenon-column__head-end\"></div></div></summary><div class=\"tenon-column__body\"></div></details>",
+  collapsibleShut: "<details class=\"tenon-column\"><summary class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><span class=\"tenon-column__chevron\" aria-hidden=\"true\"></span><h2 class=\"tenon-column__title\">Overview</h2></div><div class=\"tenon-column__head-end\"></div></div></summary><div class=\"tenon-column__body\"></div></details>",
+  collapsibleKey: "<details class=\"tenon-column\" data-column-collapse=\"ov-1\" open=\"\"><summary class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><span class=\"tenon-column__chevron\" aria-hidden=\"true\"></span><h2 class=\"tenon-column__title\">Overview</h2></div><div class=\"tenon-column__head-end\"></div></div></summary><div class=\"tenon-column__body\"></div></details>",
+  everyPart: "<section class=\"tenon-column tenon-column--dashed pcol\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h3 class=\"tenon-column__title\">Ready to be produced</h3><span class=\"tenon-column__hint\">six</span></div><div class=\"tenon-column__head-end\"><span class=\"tenon-column__count\">3</span></div></div></div><div class=\"tenon-column__body pbody\"></div></section>",
+}
+
 const COLUMNS = [
-  ['a bare column', { title: 'Backlog' }],
-  ['a heading of h3', { title: 'To do', heading: 'h3' }],
-  ['a hint', { title: 'Doing', hint: 'one at a time' }],
-  ['a count', { title: 'Done', count: 12 }],
-  ['a count of nought, which is not nothing', { title: 'Done', count: 0 }],
-  ['extra classes, half-empty the way callers build them', { title: 'X', cls: '  wide   plans ' }],
-  ['a body class', { title: 'X', bodyCls: 'droptarget' }],
-  ['the agent variant', { title: 'Waiting for review', style: 'agent' }],
-  ['a hot column', { title: 'Producing', hot: true }],
-  ['hot and agent together', { title: 'Handed to AI', style: 'agent', hot: true }],
-  ['a title needing escaping', { title: `Alex's "review" & <b>bold</b>` }],
-  ['a hint needing escaping', { title: 'X', hint: `a < b & c's` }],
-  ['collapsible, open by default', { title: 'Overview', collapsible: true }],
-  ['collapsible, starting shut', { title: 'Overview', collapsible: true, open: false }],
-  ['collapsible under its own key', { title: 'Overview', collapsible: true, collapseKey: 'ov-1' }],
-  ['every part at once', {
+  ['a bare column', 'bare', { title: 'Backlog' }],
+  ['a heading of h3', 'h3', { title: 'To do', heading: 'h3' }],
+  ['a hint', 'hint', { title: 'Doing', hint: 'one at a time' }],
+  ['a count', 'count', { title: 'Done', count: 12 }],
+  ['a count of nought, which is not nothing', 'countZero', { title: 'Done', count: 0 }],
+  ['extra classes, half-empty the way callers build them', 'clsHalfEmpty', { title: 'X', cls: '  wide   plans ' }],
+  ['a body class', 'bodyCls', { title: 'X', bodyCls: 'droptarget' }],
+  ['the agent variant', 'agent', { title: 'Waiting for review', style: 'agent' }],
+  ['a hot column', 'hot', { title: 'Producing', hot: true }],
+  ['hot and agent together', 'hotAgent', { title: 'Handed to AI', style: 'agent', hot: true }],
+  ['a title needing escaping', 'titleEscape', { title: `Alex's "review" & <b>bold</b>` }],
+  ['a hint needing escaping', 'hintEscape', { title: 'X', hint: `a < b & c's` }],
+  ['collapsible, open by default', 'collapsibleOpen', { title: 'Overview', collapsible: true }],
+  ['collapsible, starting shut', 'collapsibleShut', { title: 'Overview', collapsible: true, open: false }],
+  ['collapsible under its own key', 'collapsibleKey', { title: 'Overview', collapsible: true, collapseKey: 'ov-1' }],
+  ['every part at once', 'everyPart', {
     title: 'Ready to be produced', heading: 'h3', hint: 'six', count: 3,
     cls: 'pcol', bodyCls: 'pbody', style: 'agent',
   }],
 ]
 
-for (const [why, o] of COLUMNS) {
-  check('column — ' + why, legacy.colHTML(o), h(Column, toTenonColumn(o)))
+for (const [why, key, o] of COLUMNS) {
+  check('column — ' + why, COLUMN_EXPECT[key], h(Column, toTenonColumn(o)))
 }
 
-/* The parts a caller passes as markup. The string builder takes them
-   pre-escaped and the component takes nodes, so the two are given the same
-   thing in each one's own currency — which is the one place the signatures
-   deliberately differ, and worth pinning precisely because of that. */
+/* The parts a caller passes as markup. Pinned from a string the caller had
+   already escaped, so the component is given the same thing in its own
+   currency — a node — which is the one place the comparison deliberately
+   differs case to case. */
 check('column — a sort control in the head',
-  legacy.colHTML({ title: 'Backlog', sort: '<button class="sortbtn">Priority</button>' }),
+  "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Backlog</h2></div><div class=\"tenon-column__head-end\"><button class=\"sortbtn\">Priority</button></div></div></div><div class=\"tenon-column__body\"></div></section>",
   h(Column, { title: 'Backlog', sort: h('button', { className: 'sortbtn' }, 'Priority') }))
 
 check('column — an action button',
-  legacy.colHTML({ title: 'Plans', action: '<button class="act">Run</button>' }),
+  "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Plans</h2></div><div class=\"tenon-column__head-end\"><button class=\"act\">Run</button></div></div></div><div class=\"tenon-column__body\"></div></section>",
   h(Column, { title: 'Plans', action: h('button', { className: 'act' }, 'Run') }))
 
 check('column — a description',
-  legacy.colHTML({ title: 'People', desc: 'What this bucket is for.' }),
+  "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">People</h2></div><div class=\"tenon-column__head-end\"></div></div><p class=\"tenon-column__desc\">What this bucket is for.</p></div><div class=\"tenon-column__body\"></div></section>",
   h(Column, { title: 'People', desc: 'What this bucket is for.' }))
 
 check('column — a footer outside the body',
-  legacy.colHTML({ title: 'Backlog', footer: '<button class="addtask">+ Add task</button>' }),
+  "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Backlog</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"></div><div class=\"tenon-column__footer\"><button class=\"addtask\">+ Add task</button></div></section>",
   h(Column, { title: 'Backlog', footer: h('button', { className: 'addtask' }, '+ Add task') }))
 
 check('column — a body',
-  legacy.colHTML({ title: 'Backlog', body: '<article class="tenon-card"></article>' }),
+  "<section class=\"tenon-column\"><div class=\"tenon-column__head\"><div class=\"tenon-column__head-row\"><div class=\"tenon-column__head-start\"><h2 class=\"tenon-column__title\">Backlog</h2></div><div class=\"tenon-column__head-end\"></div></div></div><div class=\"tenon-column__body\"><article class=\"tenon-card\"></article></div></section>",
   h(Column, { title: 'Backlog', children: h('article', { className: 'tenon-card' }) }))
 
-/* ---- the cards ------------------------------------------------------------ */
+/* ---- the cards -------------------------------------------------------------
+   Pinned 25 Sep 2026, from cardShellHTML()'s own output for each of these
+   exact props while it still existed — see the file header. */
+const CARD_EXPECT = {
+  bare: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">Write the review</div></div></article>",
+  eyebrow: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__eyebrow\">PEOPLE</div><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></article>",
+  position: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><span class=\"tenon-card__lead\">1</span><div class=\"tenon-card__title\">X</div></div></article>",
+  stripe: "<article class=\"tenon-card tenon-card--flat tenon-card--accent\" style=\"--tenon-card-accent:#2f6feb\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></article>",
+  noStripe: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></article>",
+  cls: "<article class=\"tenon-card tenon-card--flat agreed plan\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></article>",
+  note: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__footer\">3 notes</div></article>",
+  summary: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__summary\">What the plan proposes.</div></article>",
+  meta: "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__meta\">Design System · To do</div></article>",
+}
+
 const CARDS = [
-  ['a bare card', { title: 'Write the review' }],
-  ['an eyebrow', { title: 'X', eyebrow: 'PEOPLE' }],
-  ['a position', { title: 'X', position: '1' }],
-  ['a stripe', { title: 'X', stripe: '#2f6feb' }],
-  ['no stripe, which is not a grey one', { title: 'X' }],
-  ['extra classes', { title: 'X', cls: ' agreed  plan ' }],
-  ['a note count', { title: 'X', note: '3 notes' }],
-  ['a summary', { title: 'X', summary: 'What the plan proposes.' }],
-  ['a meta row', { title: 'X', meta: 'Design System · To do' }],
+  ['a bare card', 'bare', { title: 'Write the review' }],
+  ['an eyebrow', 'eyebrow', { title: 'X', eyebrow: 'PEOPLE' }],
+  ['a position', 'position', { title: 'X', position: '1' }],
+  ['a stripe', 'stripe', { title: 'X', stripe: '#2f6feb' }],
+  ['no stripe, which is not a grey one', 'noStripe', { title: 'X' }],
+  ['extra classes', 'cls', { title: 'X', cls: ' agreed  plan ' }],
+  ['a note count', 'note', { title: 'X', note: '3 notes' }],
+  ['a summary', 'summary', { title: 'X', summary: 'What the plan proposes.' }],
+  ['a meta row', 'meta', { title: 'X', meta: 'Design System · To do' }],
 ]
 
-for (const [why, o] of CARDS) {
-  /* Every row above is plain text, so the string builder's markup and the
-     component's node are the same characters and passing one object to both is
-     comparing like with like. The two below are not: a row holding markup has
-     to be given to each side in its own currency, or the component escapes
-     what the string builder passed through — which is the components being
-     right and the test being lazy. */
-  check('card — ' + why, legacy.cardShellHTML(o), h(Card, toTenonCard(o)))
+for (const [why, key, o] of CARDS) {
+  check('card — ' + why, CARD_EXPECT[key], h(Card, toTenonCard(o)))
 }
 
 check('card — tags, which are markup rather than text',
-  legacy.cardShellHTML({ title: 'X', tags: '<span class="tag">S</span>' }),
+  "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__tags\"><span class=\"tag\">S</span></div></article>",
   h(Card, { title: 'X', tags: h('span', { className: 'tag' }, 'S') }))
 
-check('card — every row at once', legacy.cardShellHTML({
-  title: 'X', eyebrow: 'DS', position: '2', tags: '<span class="tag">M</span>',
-  meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
-  cls: 'plancard',
-}), h(Card, toTenonCard({
-  title: 'X', eyebrow: 'DS', position: '2', tags: h('span', { className: 'tag' }, 'M'),
-  meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
-  cls: 'plancard',
-})))
+check('card — every row at once',
+  "<article class=\"tenon-card tenon-card--flat tenon-card--accent plancard\" style=\"--tenon-card-accent:#1f8a5f\"><div class=\"tenon-card__eyebrow\">DS</div><div class=\"tenon-card__head\"><span class=\"tenon-card__lead\">2</span><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__tags\"><span class=\"tag\">M</span></div><div class=\"tenon-card__meta\">Design System</div><div class=\"tenon-card__summary\">A summary.</div><div class=\"tenon-card__footer\">1 note</div></article>",
+  h(Card, toTenonCard({
+    title: 'X', eyebrow: 'DS', position: '2', tags: h('span', { className: 'tag' }, 'M'),
+    meta: 'Design System', summary: 'A summary.', note: '1 note', stripe: '#1f8a5f',
+    cls: 'plancard',
+  })))
 
-/* The card's own element, which a view wires itself against. The string
-   builder takes them as one pre-spelled attribute string and the component
-   takes props, which is the same deliberate difference as the markup rows. */
+/* The card's own element, which a view wires itself against. Pinned as
+   attributes rather than a pre-spelled string, which is the same deliberate
+   difference the markup rows above keep. */
 check('card — attributes on the element itself',
-  legacy.cardShellHTML({ title: 'X', draggable: true, attrs: 'data-plan="a/b.md"' }),
+  "<article class=\"tenon-card tenon-card--flat tenon-card--draggable\" draggable=\"true\" data-plan=\"a/b.md\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></article>",
   h(Card, { title: 'X', draggable: true, 'data-plan': 'a/b.md' }))
 
 /* A row given as markup the board already built rather than as nodes. It has
-   to land on the row's own div, or the component puts a wrapper in the markup
-   that cardShellHTML does not emit — which is the whole reason CardRow takes
-   two currencies. */
+   to land on the row's own div, with nothing wrapping it. */
 check('card — a raw row goes on the row div, with nothing around it',
-  legacy.cardShellHTML({ title: 'X', tags: '<span class="planscore">S</span>' }),
+  "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div><div class=\"tenon-card__tags\"><span class=\"planscore\">S</span></div></article>",
   h(Card, { title: 'X', tags: { __html: '<span class="planscore">S</span>' } }))
 
 check('card — a different tag',
-  legacy.cardShellHTML({ title: 'X', tag: 'li' }),
+  "<li class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div></div></li>",
   h(Card, { title: 'X', as: 'li' }))
 
 check('card — an action',
-  legacy.cardShellHTML({ title: 'X', action: '<button class="cardact-btn">Open</button>' }),
+  "<article class=\"tenon-card tenon-card--flat\"><div class=\"tenon-card__head\"><div class=\"tenon-card__title\">X</div><span class=\"tenon-card__action\"><button class=\"cardact-btn\">Open</button></span></div></article>",
   h(Card, { title: 'X', action: h('button', { className: 'cardact-btn' }, 'Open') }))
 
 /* ---- the number badge -----------------------------------------------------
    Nought draws nothing on both sides, which is what lets the Plans tab carry
-   one unconditionally rather than asking first. */
+   one unconditionally rather than asking first. numberBadgeHTML() is still
+   live, so this is still the string builder against the component, the
+   original comparison. */
 const BADGES = [
   ['a count', { n: 3 }],
   ['a count with a label', { n: 3, label: 'plans waiting for review' }],
@@ -250,10 +279,10 @@ for (const [why, o] of BADGES) {
 /* ---- the stat card --------------------------------------------------------
    One headline figure in a box. It has never been a string builder, so there
    is nothing to render it against; what these pin is the shape, written out
-   longhand the same way the plan card's cases below are. The order of the
-   three parts is the whole point of the thing — eyebrow, figure, caption, all
-   inside one box — so a part moving out of it, or the eyebrow drifting back
-   above the box as a heading, fails here.
+   longhand the same way every case above is now. The order of the three parts
+   is the whole point of the thing — eyebrow, figure, caption, all inside one
+   box — so a part moving out of it, or the eyebrow drifting back above the
+   box as a heading, fails here.
 
    The escaping case is not incidental: nothing calls esc() on the way in, and
    that is only safe for as long as React writes these itself. */
@@ -328,5 +357,5 @@ if (!fs.existsSync(bundle)) {
     fail('the bundle does not hang the BoardUI global the page loads it for')
 }
 
-console.log(`${checks} primitives against their string builders — ${failures ? 'see above' : 'all agree'}`)
+console.log(`${checks} primitives against pinned markup — ${failures ? 'see above' : 'all agree'}`)
 process.exit(failures ? 1 : 0)

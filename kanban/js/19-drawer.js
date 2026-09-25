@@ -604,6 +604,15 @@ const KNOWN_TAG_FIELDS = [
   { field: 'chat',    label: 'chat' },
   { field: 'repeat',  label: 'repeat' }
 ];
+/* Every key readTags() (core/todo.js) already claims as a first-class field,
+   plus the bare tags it reads on their own syntax. A new tag typed in below
+   is refused on one of these, since writing it into t.extra anyway would put
+   a second, unread copy beside the field the board actually uses. */
+const RESERVED_TAG_KEYS = [
+  'impact', 'effort', 'due', 'start', 'done', 'to', 'blocked-by', 'rank',
+  'tlrank', 'headline', 'chat', 'repeat', 'id', 'cancelled', 'archived',
+  'urgent', 'week', 'doing'
+];
 function taskTagChips(t){
   const chips = [];
   KNOWN_TAG_FIELDS.forEach(f => {
@@ -632,10 +641,10 @@ function taskTagChips(t){
 }
 function tagsSection(t){
   const chips = taskTagChips(t);
-  if (!chips.length) return sideSection('Tags', 'tags',
+  const ro = state.locked;
+  if (!chips.length && ro) return sideSection('Tags', 'tags',
     emptyState('No tags beyond the fields above. Anything written as '
              + '`[key:: value]` in the task line shows up here.'));
-  const ro = state.locked;
   const body = chips.map((c, i) => {
     const cls = 'tagchip' + (c.unrecognised ? ' tagchip-extra' : '') + (!c.editable || ro ? ' tagchip-ro' : '');
     const text = c.value ? esc(c.label) + ': ' + esc(c.value) : esc(c.label);
@@ -643,7 +652,13 @@ function tagsSection(t){
       (c.editable && !ro ? '' : ' disabled') + '>' + text + '</button>';
   }).join('');
   const hasExtra = chips.some(c => c.unrecognised && c.editable);
-  return sideSection('Tags', 'tags', '<div class="tagchips">' + body + '</div>' +
+  // The one control that writes a new tag rather than editing or clearing an
+  // existing one — a plain-text key and value on click, the same way editing
+  // an existing chip swaps it for an input, so a tag never has to be typed
+  // into the raw task line by hand.
+  const addChip = ro ? '' :
+    '<button type="button" class="tagchip tagchip-add" data-chip="add">+ Add tag</button>';
+  return sideSection('Tags', 'tags', '<div class="tagchips">' + body + addChip + '</div>' +
     (hasExtra ? '<span class="help">Amber ones are tags nothing else on the board reads — click to edit or clear.</span>' : ''),
     chips.length);
 }
@@ -655,7 +670,8 @@ function wireTagChips(t){
   const wrap = $('#drawer').querySelector('.tagchips');
   if (!wrap) return;
   const chips = taskTagChips(t);
-  wrap.querySelectorAll('.tagchip').forEach(btn => {
+  wireAddTagChip(wrap, t);
+  wrap.querySelectorAll('.tagchip:not(.tagchip-add)').forEach(btn => {
     if (btn.disabled) return;
     const c = chips[+btn.dataset.chip];
     btn.onclick = () => {
@@ -689,6 +705,66 @@ function wireTagChips(t){
       };
     };
   });
+}
+
+/* The one control on the section that writes a tag rather than editing one
+   already there. Swaps itself for a key field and a value field, the same
+   in-place shape an existing chip takes when clicked, and pushes
+   `[key:: value]` onto t.extra on commit — the exact syntax readTags()
+   (core/todo.js) already reads back into an amber chip, so nothing here
+   needs its own reader. A key that collides with a field the board already
+   parses is refused rather than written, since a second copy in t.extra
+   would sit beside the real field and never be read. */
+function wireAddTagChip(wrap, t){
+  const btn = wrap.querySelector('.tagchip-add');
+  if (!btn) return;
+  btn.onclick = () => {
+    const key = document.createElement('input');
+    key.type = 'text';
+    key.placeholder = 'key';
+    key.setAttribute('aria-label', 'New tag key');
+    const value = document.createElement('input');
+    value.type = 'text';
+    value.placeholder = 'value';
+    value.setAttribute('aria-label', 'New tag value');
+    btn.textContent = '';
+    btn.appendChild(key);
+    btn.appendChild(document.createTextNode(': '));
+    btn.appendChild(value);
+    key.focus();
+    let done = false;
+    const cancel = () => { done = true; openDrawer(t.id); };
+    const commit = () => {
+      if (done) return;
+      const k = key.value.trim();
+      const v = value.value.trim();
+      if (!k && !v) { cancel(); return; }
+      if (!k || !v) { showToast('A tag needs both a key and a value.', 'bad'); key.focus(); return; }
+      if (RESERVED_TAG_KEYS.includes(k.toLowerCase())) {
+        showToast('“' + k + '” is already a field the board reads on its own — ' +
+          'pick a different key.', 'bad');
+        key.focus();
+        return;
+      }
+      done = true;
+      t.extra = t.extra || [];
+      t.extra.push('[' + k + ':: ' + v + ']');
+      t.dirty = true;
+      markDirty(); refreshView(); openDrawer(t.id);
+    };
+    key.onkeydown = value.onkeydown = e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    };
+    // Either field losing focus without the other taking it is "done typing",
+    // the same moment an existing chip commits on blur — but not the blur
+    // that happens when focus moves from the key to the value field itself.
+    const onBlur = () => setTimeout(() => {
+      if (document.activeElement !== key && document.activeElement !== value) commit();
+    }, 0);
+    key.onblur = onBlur;
+    value.onblur = onBlur;
+  };
 }
 
 /* ---- Messages and prompts written for this task ----
@@ -1822,10 +1898,11 @@ function setQuickDismissed(set){
 document.addEventListener('toggle', e => {
   const ds = e.target.dataset || {};
   if (ds.collapse) setSectionCollapsed(ds.collapse, !e.target.open);
-  // Overview's columns, since 12 Sep 2026 drawn by colHTML() like every other
-  // column rather than by a `.listcard` of their own — so the attribute is the
-  // component's (data-column-collapse) while the keys are still Overview's `ov:`
-  // ones, and a section he shut before the change stays shut after it.
+  // Overview's columns, since 12 Sep 2026 drawn by Tenon's Column like every
+  // other column rather than by a `.listcard` of their own — so the attribute
+  // is the component's (data-column-collapse) while the keys are still
+  // Overview's `ov:` ones, and a section he shut before the change stays shut
+  // after it.
   else if (ds.columnCollapse) setOverviewOpen(ds.columnCollapse, e.target.open);
   else if (ds.tlcollapse) setSectionCollapsed(ds.tlcollapse, !e.target.open);
 }, true);

@@ -35,9 +35,17 @@ wrong, rather than six copies that drift.
 **Why `pa` is a skill and not a subagent.** Writing means stopping to ask, and a
 subagent cannot: it runs in its own context and returns one report, so every
 question becomes a guess. It is the same reason `implement-agent` only ever runs
-from a session he is in. The one job here that would suit an agent is a
+from a session he is in. The one job here that would suit a subagent is a
 read-only status read, which `PA-PLAN.md` calls `board-read` and nothing has
 needed yet.
+
+The PA also exists as a session agent, `pa-agent.md`, run whole with
+`claude --agent pa-agent` — a different thing from a subagent, since the whole
+session converses the way `business-advisor-agent` already does, rather than
+running in the background and returning one report. It changes nothing about
+who writes: every `pa-*` skill invoked from that session, including `pa`
+itself, works exactly as it does from any other session, and `todo.md` still
+has the one writer.
 
 ## What lives where
 
