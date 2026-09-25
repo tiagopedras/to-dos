@@ -18,6 +18,23 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- ~~**Every browser suite defaults to the live server on 8765, so a test that
+  unlocks the tab is one autosave away from the real list.**~~ **Done, 25 Sep
+  2026.** `scripts/test-board.sh` starts `kanban/server.py` over a temp folder
+  holding one `_test` dataset seeded from `kanban/demo.md`, on a free port, runs
+  the named suites (or `--all`) against it, prints one line per suite and the
+  failures only, and removes the server, any Chrome and the folder on exit,
+  Ctrl-C included. The server reads `TODOS_DATA_ROOT` (moves `data/` and
+  `.current` with it), `TODOS_PORT` and `TODOS_NO_BROWSER`; unset, nothing
+  changes. `agents/plan-agent/paths.py` and `core/tick_queue.py` read the same
+  root, and Run the Plan agent now refuses on a scratch root. Each suite's
+  headless Chrome takes `CDP_PORT` and `CHROME_PROFILE`, and a suite run without
+  `BOARD_PORT` prints a one-line hint pointing at the script. It refuses to
+  start if the data root resolves inside the repo's own `data/`, and checks the
+  server answers with `_test` before any suite runs. Before this, six agents in
+  one night each hand-rolled a second server, and one's scratch `.current`
+  leaked into another's lookup.
+
 - ~~**The board's drop line can point at the top of a column when other buckets' cards still sit above the dragged card's own bucket.**~~ **Done, 25 Sep 2026.** `dropLineAnchorEl()` in `18-timeline.js` anchors the line to the last other-bucket card when the dragged bucket has none above the pointer, instead of jumping to the column's true top. `renderBoard()` (`kanban/js/18-timeline.js:1048-1077`) already groups a mixed column by bucket in the DOM — `shown.forEach(bucket => ...)` fills `entries` one bucket at a time, and manual (non-priority) mode does no further sort — so with several buckets showing, bucket A's cards sit above bucket B's on screen. `insertAfterEl()` (`:1199`), which both `onZoneOver()` (`:1141`, the drop line) and `dropTask()` (`:1232`, the actual move) call, skips every card whose bucket differs from the dragged one (`other.bucket !== dragBucket`), so dragging a card up past another bucket's cards can leave `after` at `null` — meaning "top of my own bucket's cards" — while the line is drawn at the top of the column, above cards that are still visually there. The drop itself lands in the right place; only where the line points is wrong. The fix is for the line's position to resolve against the first element of the dragged card's own bucket-group rather than against the column's actual top when `after` comes back `null` and other buckets' cards precede it.
 
 - ~~**A bucket's row in the editor says its name and nothing about what kind of work it holds, so telling two buckets apart means opening each one's brief.**~~ **Done, 25 Sep 2026.** `.bkrow` in `08-buckets.js` carries a `.bksummary` input reading and writing the brief's one-line summary. `openBucketEditor()`'s `draw()` (`kanban/js/08-buckets.js:184-213`) puts only the grip, the number, the colour dot, the name input and the Brief/Delete buttons on a `.bkrow` — the one-line summary that already exists in the brief's own template (`BUCKETS.md`, the line under the title, before the `<!-- NOT FILLED IN YET -->` marker) is nowhere on the row itself. A second input beside the name, reading and writing that same line, means `openBucketEditor()` reading each bucket's brief text up front (the same `bucket-brief.json` fetch `openBucketBrief()` already makes, `:319`) to populate it, and writing it back through `PUT /bucket-brief` (`:351`) on change — parsing out the second line the way the entry above this one already has to for its own split, so the two should land together rather than each writing its own reader for the same file's shape.

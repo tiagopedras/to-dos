@@ -13,8 +13,9 @@
 
 import { spawn } from 'node:child_process'
 
-const PORT = 9453
+const PORT = Number(process.env.CDP_PORT) || 9453
 const BOARD = process.env.BOARD_PORT || 8765
+if (!process.env.BOARD_PORT) console.error('Note: this runs against the live board on 8765. For a throwaway copy: scripts/test-board.sh test_drawer_subtask_reorder.mjs')
 const checks = []
 const check = (name, pass, detail = '') => {
   checks.push(pass)
@@ -23,7 +24,7 @@ const check = (name, pass, detail = '') => {
 
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${PORT}`, '--no-first-run',
-  '--user-data-dir=/tmp/todo-drawer-subtask-reorder-profile', '--window-size=1400,1000',
+  `--user-data-dir=${process.env.CHROME_PROFILE || '/tmp/todo-drawer-subtask-reorder-profile'}`, '--window-size=1400,1000',
   `http://127.0.0.1:${BOARD}/kanban/index.html`
 ], { stdio: ['ignore', 'pipe', 'pipe'] })
 

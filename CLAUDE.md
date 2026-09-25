@@ -173,17 +173,27 @@ classic script.
 
 ## Testing the board
 
-Full per-suite detail: [docs/TESTING.md](docs/TESTING.md). Two rules that apply
-every time:
+Full per-suite detail: [docs/TESTING.md](docs/TESTING.md). Run the browser
+suites through the script, never against the live server on 8765:
+
+```
+scripts/test-board.sh test_board.mjs timeline   # named suites
+scripts/test-board.sh --all                     # every kanban/test_*.mjs
+```
+
+It starts a second server over a throwaway `_test` copy of `kanban/demo.md` on
+a free port (`TODOS_DATA_ROOT`, `TODOS_PORT`), gives each suite's headless
+Chrome a free port of its own, and deletes all of it on exit. Neither the real
+`data/` nor `data/.current` is touched, so there is nothing to switch back.
+Two rules still apply inside it:
 
 - **Default: lock the tab.** Load the fixture with `load(text, 'name.md', {})`,
   then immediately `state.locked = true` before anything else. A locked tab
   cannot save, full stop. Covers essentially all UI testing.
-- **The one exception — testing a real save:** use `data/_test/` and nothing
-  else. Note `data/.current`, switch to `_test`, run the one check that needs
-  real persistence, switch `data/.current` back immediately, verify it stuck.
-  It's one file shared by every tab and session on this server — a switch is
-  visible to anyone else with the board open the moment you make it.
+- **Testing a real save:** do it through the script, where the `_test` list
+  it saves to is a temp copy, reseeded before every suite. Never switch the real
+  `data/.current`: it is one file shared by every tab and session on the live
+  server.
 
 Never write into `data/twinkl/` or `data/personal/` from a test.
 

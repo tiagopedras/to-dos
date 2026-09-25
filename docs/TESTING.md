@@ -1,9 +1,53 @@
 # Testing the board, in detail
 
-Moved out of `CLAUDE.md` on 22 Sep 2026. `CLAUDE.md` keeps the two rules that
-matter every time (lock the tab; use `data/_test/` for a real save). This file
-has the per-suite detail — what each one covers and why it's shaped the way it
-is — for when you're touching the area it protects.
+Moved out of `CLAUDE.md` on 22 Sep 2026. `CLAUDE.md` keeps the rules that
+matter every time (run through the script; lock the tab). This file has the
+per-suite detail — what each one covers and why it's shaped the way it is — for
+when you're touching the area it protects.
+
+## Run them through `scripts/test-board.sh`
+
+```
+scripts/test-board.sh test_board.mjs timeline test_bucket_brief.py
+scripts/test-board.sh --all          # every kanban/test_*.mjs
+scripts/test-board.sh --no-build ... # skip npm run build when nothing in kanban/ui/ changed
+```
+
+Added 25 Sep 2026, after six agents in one night each hand-rolled a second
+server and one's scratch `data/.current` leaked into another's lookup. The
+script:
+
+1. Builds `kanban/ui/` (`npm run build`) unless told `--no-build`.
+2. Makes a temp folder holding `data/_test/todo.md` (a copy of
+   `kanban/demo.md`) and `data/.current` naming it.
+3. Starts `kanban/server.py` on a free port with `TODOS_DATA_ROOT` (the temp
+   `data/`), `TODOS_PORT` and `TODOS_NO_BROWSER=1`, and waits until
+   `/datasets.json` answers `_test` and nothing else.
+4. Runs each suite with `BOARD_PORT` at that server, `CDP_PORT` (headless
+   Chrome's debugging port) free, and `CHROME_PROFILE` inside the temp folder.
+   The dataset is reseeded before every suite.
+5. Prints one line per suite, and the `FAIL` lines (or the log's tail) of the
+   ones that failed.
+6. Kills the server and any Chrome it started and deletes the temp folder on
+   exit, Ctrl-C and failure included.
+
+It refuses to start if the data root resolves inside the repo's own `data/`.
+With the three `TODOS_*` variables unset, `server.py` behaves exactly as it
+always has. `agents/plan-agent/paths.py` and `core/tick_queue.py` read
+`TODOS_DATA_ROOT` too, since the server calls into them, and Run the Plan agent
+now refuses on a scratch root rather than start a real run.
+
+A suite run on its own, without `BOARD_PORT`, still goes to 8765 and prints a
+one-line hint saying so. Python suites named on the command line run exactly as
+they would by hand: `kanban/test_bucket_brief.py` starts its own in-process
+server over a temp folder and needs none of this, so `--all` leaves it out.
+
+`test_chats.mjs` fails when run from a worktree under `.claude/worktrees/`, with
+or without the script: `server.py` finds `ai_chat_engine` at
+`ROOT/../PACKAGES/`, which does not exist from there. Run it from the main
+checkout.
+
+## The suites
 
 A test that talks to the running `kanban/server.py` can save for real — the
 board's autosave fires within seconds of anything that marks the document dirty
@@ -16,8 +60,7 @@ It drives the board in headless Chrome, locks the tab before loading `demo.md`,
 and then tears every non-GET out of `fetch` so nothing can reach disk even if
 something unlocks the tab later — that second guard isn't belt and braces for
 its own sake: a past run recorded an attempted `PUT /data/todo.md` that it
-stopped. Run it with `node kanban/test_chats.mjs`, or
-`BOARD_PORT=8799 node ...` against a server on another port.
+stopped. Run it with `scripts/test-board.sh test_chats.mjs`.
 
 **`kanban/test_one_board.mjs` and `kanban/test_subtasks.mjs`** are the ones that
 unlock the tab, because handing a task over, approving and draining the agents'
@@ -53,8 +96,10 @@ misses.
 `chrome.kill()` leaves a headless Chrome holding the debugging port and the
 page it had loaded. The next run finds the port taken, connects to that orphan,
 and asserts against a stale copy of `index.html` — three real failures in code
-that's actually fine. If a test fails on text you can see is correct on disk,
-that's what happened:
+that's actually fine. `scripts/test-board.sh` kills every Chrome it started
+after each suite and hands each a free port, so this only bites a suite run by
+hand. If one fails on text you can see is correct on disk, that's what
+happened:
 
 ```
 pkill -f "remote-debugging-port=94"
@@ -76,7 +121,8 @@ node kanban/ui/test_primitives.mjs # the React primitives against colHTML/cardSh
 python3 agents/plan-agent/test_planning_agent.py    # the schedule, the picker, the runner
 python3 companion/test_companion.py
 python3 kanban/test_bucket_brief.py # the brief routes — no board, no browser
-node kanban/test_schedule.mjs       # the ones below need the board running
+# the ones below need the board: scripts/test-board.sh --all runs every one
+node kanban/test_schedule.mjs
 node kanban/test_one_board.mjs     # handing a task over, the two reviews, whose move it is
 node kanban/test_subtasks.mjs      # sub-tasks in the drawer, and the agents' tick queue
 node kanban/test_board.mjs         # drag, drop, sort, add, Done as a heading, string card vs React one

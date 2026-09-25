@@ -25,6 +25,10 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FALLBACK = "twinkl"
+# The folder the datasets sit in. $TODOS_DATA_ROOT moves it, the same variable
+# kanban/server.py reads, so a test server over a scratch root never has this
+# module look at the real lists behind it.
+DATA_ROOT = os.environ.get("TODOS_DATA_ROOT") or os.path.join(ROOT, "data")
 
 # Set by using(), and the first thing dataset() asks. A module global rather
 # than an argument threaded through forty call sites: everything downstream
@@ -42,7 +46,7 @@ def pointer():
     belonged to.
     """
     try:
-        with open(os.path.join(ROOT, "data", ".current"), encoding="utf-8") as fh:
+        with open(os.path.join(DATA_ROOT, ".current"), encoding="utf-8") as fh:
             name = fh.read().strip()
     except OSError:
         return FALLBACK
@@ -80,7 +84,7 @@ def datasets():
 
     Sorted, so the cards on the page do not reorder themselves between reads.
     """
-    root = os.path.join(ROOT, "data")
+    root = DATA_ROOT
     try:
         names = os.listdir(root)
     except OSError:
@@ -92,7 +96,7 @@ def datasets():
 
 
 def data_dir():
-    return os.path.join(ROOT, "data", dataset())
+    return os.path.join(DATA_ROOT, dataset())
 
 
 def todo_path():
