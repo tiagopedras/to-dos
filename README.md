@@ -118,6 +118,14 @@ the buckets — the presentation is Design System work, the deck review that fee
 work, and the columns are right to keep them apart. Which also means a task without the note
 is missing from it.
 
+A project can also live in a folder of your own, anywhere on disk. The note then carries its
+absolute path, `- Project: /Users/me/Work/client-a`, and the server answers for it only once
+that folder sits inside one approved in `data/<dataset>/project-folders.json`. The drawer's
+Project section writes that file (after asking), starts a new folder under `data/projects/`
+with a `CLAUDE.md` in it, and opens a folder in Finder. `core/project_folders.py` holds the one
+check every route and the planning agent use: real paths compared with `os.path.commonpath`,
+so a symlink or a `..` cannot lead out of an approved folder.
+
 The board reads the pointer and nothing else. It never opens the folder, so what is in there
 can be in any shape the work needs.
 

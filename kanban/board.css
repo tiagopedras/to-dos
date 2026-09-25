@@ -379,6 +379,13 @@
   .pcpath{display:block; font-size: var(--tenon-typography-size-sm); font-family:var(--mono, monospace); color:var(--tenon-text-faint); margin-top:2px}
   .pcblurb{display:block; font-size: var(--tenon-typography-size-sm); line-height:1.45; color:var(--tenon-text-subtle); margin-top:3px}
   .pcblurb:empty{display:none}
+  /* Start a project, Use an existing folder, Open folder: see projectSection(). */
+  .pactions{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .ppick{margin-top:8px; display:flex; flex-direction:column; gap:6px}
+  .ppick.hidden{display:none}
+  .pprow{display:flex; gap:6px; align-items:center}
+  .pprow select, .pprow input{flex:1; min-width:0; font:inherit; font-size: var(--tenon-typography-size-sm)}
+  .pprow input{font-family:var(--mono, monospace)}
   .pcmeta{display:block; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); margin-top:5px}
   .pcmeta:empty{display:none}
   /* The path is a caption for the card under it, not a field of its own —

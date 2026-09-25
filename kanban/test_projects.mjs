@@ -387,6 +387,118 @@ check('nothing in this whole view wrote anything', await evalJS(`
   window.__blocked.length === 0
 `), await evalJS(`window.__blocked.join(' | ')`))
 
+/* ---- starting, choosing and opening a folder, 25 Sep 2026 ----
+   After the no-writes check on purpose: Open folder and Start a project each
+   post to the server. The posts are still caught by the stub above, and the
+   tab is only unlocked for the two clicks that add a note, then locked again. */
+await evalJS(`(() => {
+  window.__blocked = [];
+  const stubbed = window.fetch;
+  window.fetch = (url, opts) => {
+    const u = String(url);
+    if (u === '/project/start') {
+      window.__blocked.push('POST ' + u + ' ' + opts.body);
+      return Promise.resolve(new Response(JSON.stringify({ ok:true, name:'write-the-brief',
+        note:'data/projects/write-the-brief' }), { status: 200 }));
+    }
+    return stubbed(url, opts);
+  };
+  window.__projects = [
+    { name:'aop2027', has_claude_md:true, file_count:1, modified:'2026-09-10T09:00:00' },
+    { name:'/Users/someone/Work/client a', external:true, url:null, has_claude_md:false,
+      file_count:1, modified:'2026-09-10T09:00:00' }
+  ];
+  window.prompt = (msg, def) => def;
+  window.confirm = () => true;
+  load([
+    '# To-do', '', '## 1. Tasks', '', '### To do', '',
+    '- [ ] Write the brief [bucket:: Strategic]',
+    '  - [ ] First step',
+    '  - Waiting on: HR',
+    '- [ ] Pick a folder [bucket:: Strategic]',
+    '  - A note already here',
+    '- [ ] On the AOP [bucket:: Strategic]',
+    '  - Project: data/projects/aop2027', ''
+  ].join('\\n'), 'demo.md', {});
+  state.locked = true;
+  // A board with no todo.md of its own falls back to the example list, which
+  // sets state.demo; this section is about the live board, so it is cleared.
+  state.demo = false;
+})()`)
+const idOf = title => evalJS(`(() => { let f=''; state.doc.buckets.forEach(b => b.tiers.forEach(t =>
+  t.tasks.forEach(x => { if (x.title === ${JSON.stringify(title)}) f = x.id; }))); return f; })()`)
+const briefId = await idOf('Write the brief')
+const pickId = await idOf('Pick a folder')
+const aopId = await idOf('On the AOP')
+
+await evalJS(`openDrawer(${JSON.stringify(aopId)})`)
+await new Promise(r => setTimeout(r, 400))
+check('a task with a folder offers Open folder, even locked', await evalJS(`!!document.querySelector('#f-projopen')`))
+await evalJS(`document.querySelector('#f-projopen').click()`)
+await new Promise(r => setTimeout(r, 200))
+check('which asks the server to open that folder', await evalJS(`window.__blocked.some(b =>
+  b.startsWith('POST /project/open') && b.includes('aop2027'))`), await evalJS(`window.__blocked.join(' | ')`))
+
+await evalJS(`openDrawer(${JSON.stringify(briefId)})`)
+await new Promise(r => setTimeout(r, 300))
+check('a locked tab offers no Start a project', await evalJS(`!document.querySelector('#f-projstart')`))
+
+await evalJS(`state.locked = false; openDrawer(${JSON.stringify(briefId)})`)
+await new Promise(r => setTimeout(r, 300))
+check('an unlocked one does', await evalJS(`!!document.querySelector('#f-projstart')`))
+await evalJS(`document.querySelector('#f-projstart').click()`)
+await new Promise(r => setTimeout(r, 400))
+await evalJS(`state.locked = true`)
+check('Start a project posts the task title', await evalJS(`window.__blocked.some(b =>
+  b.startsWith('POST /project/start') && b.includes('Write the brief'))`))
+const briefBody = await evalJS(`locate(${JSON.stringify(briefId)}).task.body`)
+check('the note lands above every other note, in a code span',
+  briefBody[0] === '  - Project: `data/projects/write-the-brief`', JSON.stringify(briefBody))
+check('and the rest of the body keeps its order',
+  briefBody[1] === '  - [ ] First step' && briefBody[2] === '  - Waiting on: HR', JSON.stringify(briefBody))
+check('the task reads the new folder back', await evalJS(`taskProject(locate(${JSON.stringify(briefId)}).task)`) === 'write-the-brief')
+check('the task is marked for autosave', await evalJS(`locate(${JSON.stringify(briefId)}).task.dirty === true`))
+check('the drawer now shows the folder card', await evalJS(`!!document.querySelector('#taskProjCard')`))
+
+await evalJS(`state.locked = false; openDrawer(${JSON.stringify(pickId)})`)
+await new Promise(r => setTimeout(r, 300))
+await evalJS(`document.querySelector('#f-projpick').click()`)
+await new Promise(r => setTimeout(r, 400))
+check('the picker lists the default and the approved folders', await evalJS(`
+  [...document.querySelectorAll('#f-projsel option')].map(o => o.textContent).join('|')
+`) === 'data/projects/aop2027|/Users/someone/Work/client a')
+await evalJS(`document.querySelector('#f-projpath').value = '/Users/someone/Elsewhere';
+  document.querySelector('#f-projapprove').click()`)
+await new Promise(r => setTimeout(r, 300))
+check('approving a path posts it once confirmed', await evalJS(`window.__blocked.some(b =>
+  b.startsWith('POST /project-folders') && b.includes('/Users/someone/Elsewhere'))`))
+await evalJS(`document.querySelector('#f-projsel').value = '/Users/someone/Work/client a';
+  document.querySelector('#f-projuse').click()`)
+await new Promise(r => setTimeout(r, 300))
+await evalJS(`state.locked = true`)
+const pickBody = await evalJS(`locate(${JSON.stringify(pickId)}).task.body`)
+check('picking an approved folder writes its path', pickBody[0] === '  - Project: `/Users/someone/Work/client a`',
+  JSON.stringify(pickBody))
+check('which taskProject() reads back whole', await evalJS(`taskProject(locate(${JSON.stringify(pickId)}).task)`) ===
+  '/Users/someone/Work/client a')
+
+await evalJS(`openProjectDrawer('/Users/someone/Work/client a')`)
+await new Promise(r => setTimeout(r, 500))
+check('a folder of his own shows its path as text, not a link', await evalJS(`
+  document.querySelector('.projpath')?.tagName === 'CODE'`))
+check('its files are rows, not links that would 404', await evalJS(`
+  document.querySelectorAll('#projFiles a.projfile').length === 0 &&
+  document.querySelectorAll('#projFiles .projfile').length > 0`))
+check('and the panel offers Open folder', await evalJS(`!!document.querySelector('#projOpenFolder')`))
+
+await evalJS(`state.demo = true; openDrawer(${JSON.stringify(aopId)})`)
+await new Promise(r => setTimeout(r, 300))
+check('the static copy offers no Open folder', await evalJS(`!document.querySelector('#f-projopen')`))
+await evalJS(`openProjectDrawer('aop2027')`)
+await new Promise(r => setTimeout(r, 300))
+check('in either panel', await evalJS(`!document.querySelector('#projOpenFolder')`))
+await evalJS(`state.demo = false`)
+
 ws.close()
 chrome.kill()
 const failed = checks.filter(c => !c).length

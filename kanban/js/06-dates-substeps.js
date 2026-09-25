@@ -104,14 +104,42 @@ function noteLines(t){
    pointer was already written this way in the file before the board knew about
    projects, and a second syntax for the same fact would only give the two a
    chance to disagree. Only the name is taken; the rest of the sentence stays a
-   note, where a person put it. */
+   note, where a person put it.
+
+   A folder of his own, outside data/projects/, is named by its absolute path
+   instead — `- Project: \`/Users/me/Work/client-a\`` — and taskProject()
+   returns that path whole. The server only answers for it once the folder
+   sits inside one he approved (project_folders.py in core/, which reads the
+   note with the same two rules for the agents). */
 const PROJECT_RE = /(?:^|[\s`(\[])data\/projects\/([A-Za-z0-9][A-Za-z0-9._-]*)/;
+const PROJECT_PATH_RE = /^\s*-\s*Project:\s*(?:`(\/[^`]+)`|(\/\S+))/;
 function taskProject(t){
   for (let i = 0; i < t.body.length; i++) {
     const m = PROJECT_RE.exec(t.body[i]);
     if (m) return m[1];
+    const p = PROJECT_PATH_RE.exec(t.body[i]);
+    if (p) return (p[1] || p[2].replace(/[.,;:)]+$/, '')).replace(/\/+$/, '') || '/';
   }
   return '';
+}
+/* Whether a project reference is a path of his own rather than a folder name
+   under data/projects/. */
+function isProjectPath(ref){ return String(ref || '').charAt(0) === '/'; }
+/* The note line that points a task at a folder, in the shape taskProject()
+   reads back: a code span either way, so a path with a space survives. */
+function projectNoteLine(ref){
+  return '  - Project: `' + (isProjectPath(ref) ? ref : 'data/projects/' + ref) + '`';
+}
+/* Point a task at a folder: the note goes above every other note, where
+   taskProject() looks first, and autosave writes it. The server never does. */
+function setTaskProject(t, ref){
+  if (state.locked || taskProject(t)) return false;
+  const p = bodyParts(t);
+  p.notes.unshift(projectNoteLine(ref));
+  rebuildBody(t, p.notes, p.subs, p.subsAt + 1);
+  t.dirty = true;
+  markDirty();
+  return true;
 }
 /* Every task pointing at one folder, in board order, Done included — a project
    is the whole of the work, and half of it being finished is the answer to

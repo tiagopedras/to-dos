@@ -33,6 +33,8 @@ export interface ProjectSummary {
   has_claude_md?: boolean
   file_count: number
   modified?: string
+  /** A folder he approved outside data/projects/, named by its absolute path. */
+  external?: boolean
 }
 
 export interface ProjectSortOption {
@@ -96,10 +98,10 @@ function ProjectItem(props: {
   return (
     <article className="repitem projitem" data-project={p.name}>
       <button className="rephead">
-        <span className="reptitle">{p.name}</span>
+        <span className="reptitle">{p.external ? p.name.split('/').pop() : p.name}</span>
         <span className={'tag ' + tagClass}>{tagLabel}</span>
       </button>
-      <code className="pcpath">{'data/projects/' + p.name + '/'}</code>
+      <code className="pcpath">{(p.external ? '' : 'data/projects/') + p.name + '/'}</code>
       <div className="repmeta">
         {status}
         {p.has_claude_md ? '' : ' · no CLAUDE.md'}

@@ -218,7 +218,7 @@ def options(item, target):
             # Named here as well as in each agent definition. A definition is a
             # request; this is what holds, and it runs unattended.
             "tools": ["Read", "Grep", "Glob", "WebFetch", "WebSearch"],
-            "dirs": list(plan.EXTRA_DIRS), "budget": plan.BUDGET_PER_TASK,
+            "dirs": list(plan.EXTRA_DIRS) + plan.project_dirs(item["task"]), "budget": plan.BUDGET_PER_TASK,
             "timeout": plan.TASK_TIMEOUT, "cwd": paths.ROOT}
 
 

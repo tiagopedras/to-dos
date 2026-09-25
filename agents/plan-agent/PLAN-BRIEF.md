@@ -34,7 +34,8 @@ concrete enough to start on a Monday morning.
   that, and a plan that ignores it will confidently schedule work into somebody's
   annual leave.
 - The task's own `Project:` note, if it has one. It names a folder under
-  `data/<dataset>/projects/`, and that folder's `CLAUDE.md` holds the background
+  `data/<dataset>/projects/`, or gives an absolute path to a folder of his own;
+  follow the note as written. That folder's `CLAUDE.md` holds the background
   and the decisions already taken. **A plan written without reading it will
   re-propose something already rejected.**
 
