@@ -64,6 +64,8 @@ def main():
     # at a temp folder is the whole of the isolation.
     server.dataset_dir = lambda name=None: tmp
     server.current_dataset = lambda: "brief-test"
+    # The People planner exists under twinkl; pin it so data/.current can't flip the check.
+    os.environ["PLANNING_DATASET"] = "twinkl"
 
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
     base = "http://127.0.0.1:%d" % httpd.server_address[1]
