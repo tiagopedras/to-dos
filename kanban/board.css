@@ -2646,6 +2646,12 @@
      these two rules only make it a full-width, resettable <button>. */
   .chaincard.deplink{display:block; width:100%; margin:0; font:inherit; appearance:none; -webkit-appearance:none}
   .depdates{display:flex; flex-wrap:wrap; gap:4px; margin-top:5px}
+  /* Editing: a × beside each card, and Add under each list, which opens the
+     same search-and-pick dialog Attach a session uses. */
+  .depitem{display:flex; align-items:flex-start; gap:2px}
+  .depitem > .chaincard{flex:1; min-width:0}
+  .depremove{flex:none; align-self:center}
+  .depadd{margin-top:6px}
 
   /* Every tag actually on the task, in one place — see the Tags side section.
      Plain ones look like any other chip; an unrecognised one (parseTaskLine's
