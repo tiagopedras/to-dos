@@ -116,7 +116,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   `plannable()` already does, and reports a CHECK when the matching sub-task is
   missing.
 
-- **The personal and pet-projects lists still carry `ai:` tags, which their next save drops without giving the tasks an assignee.**
+- ~~**The personal and pet-projects lists still carry `ai:` tags, which their next save drops without giving the tasks an assignee.**~~ **Done, 25 Sep 2026.** The board had already dropped them on save. Recovered from the W38/W39 backups: the one open task still unassigned (the work-log tool, now on `work`) got `[to:: Plan agent]`, the UX replan already had it, the two ticked ones got nothing.
   Stage 1 of the one board migrated only `data/twinkl/todo.md`. `personal` holds 2
   (1 full, 1 partial) and `pet-projects` 6 (2 full, 4 partial). Since `parseTask()`
   in `core/todo.js` drops `ai:` on read (`else if (key === 'ai') {}`), the board

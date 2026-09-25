@@ -54,9 +54,9 @@ against code without a validated capture is not trustworthy, and a plan that
 proposes it is proposing the wrong thing. Check what is actually on disk and how
 old it is, and say so.
 
-**The bucket has five streams** — ways of working, audits, improvements,
-documentation, enablement — and the task's first note line names its one. The
-stream changes what a good plan looks like: an audit wants a source and a
+**The bucket has five themes** — ways of working, audits, improvements,
+documentation, enablement — and the task's `[theme:: ]` tag names its one. The
+theme changes what a good plan looks like: an audit wants a source and a
 comparison, enablement wants a session and an audience, documentation wants a
 standard to write against.
 
