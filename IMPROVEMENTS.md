@@ -716,7 +716,8 @@ they settled is written up in the README rather than left here:
   drawn by Tenon's `Window` as `.tenon-window--peeked`) is a fade for
   `ai_canvas` and is not reused for this.
 
-- **A sub-task row carries two separate icon buttons instead of being one clickable row.** `.subopen`
+- ~~**A sub-task row carries two separate icon buttons instead of being one clickable row.**~~ **Done, 25 Sep 2026.** The row opens the sub-task in `#subpanel`, a second panel over the drawer sized to `.dcol-main`, with the step's note inside it; Escape and the faded area close only that panel.
+  `.subopen`
   (`kanban/js/19-drawer.js:1026`, the ↗ that calls `openDrawer(btn.dataset.sub)`) and `.noteicon`
   (`:1027-1028`, the 💬 that toggles the step's note box) sit side by side on every `.sub` row, and
   Tiago wants both gone in favour of a chevron on the right and the whole row clickable to open the
@@ -745,7 +746,8 @@ they settled is written up in the README rather than left here:
   else. Needs that decided before either the planner or the checker entry above
   it can be built.
 
-- **A sub-task added by hand has no way to open its own drawer, only one an agent handover minted.** The `↗` button that opens a
+- ~~**A sub-task added by hand has no way to open its own drawer, only one an agent handover minted.**~~ **Done, 25 Sep 2026.** `addSub()` mints an `id:`, a bare step gets one on its first click, and `core/migrations/migrate-sub-ids.py` does the lists already written (not yet run on any real list).
+  The `↗` button that opens a
   sub-task's own view (`s.stableId ? '<button ... class="subopen" ...'`, `kanban/js/19-drawer.js:1026`, wired to
   `openSubtaskDrawer()` at `:1416` through `locateSub()`) only renders when the sub-task line carries an `id:` tag. Only two
   paths mint one: `handOver()` for the four Plan/Review/Implement/Review sub-tasks

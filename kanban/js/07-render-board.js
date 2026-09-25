@@ -93,9 +93,13 @@ let restoringHash = false;
 function syncHash(push){
   const withBucket = !!state.doc;
   const openLoc = state.openTask && state.doc && locate(state.openTask);
+  /* A sub-task open over its task is named by the id on its own line, which
+     openTaskByKey reads back the same way. */
+  const openSub = !openLoc && state.openSubParent && state.openTask && state.doc && locateSub(state.openTask);
+  const key = openLoc ? taskKey(openLoc.task) : (openSub ? state.openTask : '');
   const hash = '#' + state.view +
     (withBucket ? '/' + bucketNamesToSlug(state.bucketFilter) : '') +
-    (openLoc ? '!task=' + encodeTaskKey(taskKey(openLoc.task)) : '');
+    (key ? '!task=' + encodeTaskKey(key) : '');
   if (location.hash === hash) return;
   if (push && !restoringHash) history.pushState(null, '', hash);
   else history.replaceState(null, '', hash);

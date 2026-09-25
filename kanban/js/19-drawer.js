@@ -14,7 +14,7 @@ fetch('/people.json', { cache: 'no-store' })
   .then(d => { peopleNames = (d && d.people || []).map(p => p.name).filter(Boolean); })
   .catch(() => {});
 
-function delegateSelectHTML(value, dis){
+function delegateSelectHTML(value, dis, id){
   const cur = String(value || '').trim();
   const opt = (v, label) => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>';
   /* A name already on the task that people.md does not list, "Ana" where the
@@ -22,7 +22,7 @@ function delegateSelectHTML(value, dis){
   const known = new Set(AGENT_NAMES.concat(peopleNames));
   const people = peopleNames.slice();
   if (cur && !agentOf(cur) && !known.has(cur)) people.unshift(cur);
-  return '<select id="f-to"' + dis + '>' + opt('', 'Nobody') +
+  return '<select id="' + (id || 'f-to') + '"' + dis + '>' + opt('', 'Nobody') +
     '<optgroup label="Agents">' + AGENT_NAMES.map(a => opt(agentOf(cur) === a ? cur : a, a)).join('') + '</optgroup>' +
     (people.length ? '<optgroup label="People">' + people.map(p => opt(p)).join('') + '</optgroup>' : '') +
   '</select>';
@@ -333,8 +333,9 @@ function wireStepPicker(id, stops, onCommit){
 /* One picker per date field, so `field` says which one is being edited. Both
    dates use the same calendar; only the value they write differs. */
 const calMonth = {};
-function wireDatePicker(t, touch, field){
-  const btn = $('#f-' + field), cal = $('#f-cal-' + field);
+function wireDatePicker(t, touch, field, prefix){
+  const pre = prefix || 'f';
+  const btn = $('#' + pre + '-' + field), cal = $('#' + pre + '-cal-' + field);
   if (!btn || !cal) return;
   const draw = () => { cal.innerHTML = calendarHTML(calMonth[field], parseDue(t[field]) ? t[field] : ''); };
   btn.onclick = () => {
@@ -1122,7 +1123,7 @@ function editSubtext(span, t, lineIdx, id, opts){
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'subedit';
-  input.value = m[3];
+  input.value = subEditText(m[3]);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -1159,7 +1160,6 @@ function editSubtext(span, t, lineIdx, id, opts){
 /* Adds a step and puts the cursor straight in it. Shared by the Add button and
    by Enter inside a new step, so both arrive in the same state. */
 function addStepAndEdit(t, id){
-  openStepNote = null;
   addSub(t);
   refreshView();
   openDrawer(id);
@@ -1168,26 +1168,52 @@ function addStepAndEdit(t, id){
   if (last) editSubtext(last, t, +last.dataset.line, id, { chain: true });
 }
 
-/* Which step's note box is open, as `<taskId>:<lineIdx>`, or null. Remembered
-   the same way the drawer's own width and the Description field's height are —
-   a preference about what is showing, not about one render of it, so it
-   survives the redraw a commit triggers. Reset on anything that can shift a
-   step's line index (adding, deleting, reordering), since a stale line number
-   would open the wrong row's box after one of those. */
-let openStepNote = null;
+/* A sub-task row opens that sub-task in the second panel. The checkbox, the
+   drag grip, the delete button, a link in the text and a step being typed
+   into each keep their own click. Wired in a read-only tab as well, since
+   looking at a sub-task changes nothing. */
+function wireSubRows(t){
+  const subsEl = $('#f-subs');
+  if (!subsEl) return;
+  const open = row => {
+    let sid = row.dataset.sub;
+    if (!sid) {
+      sid = ensureSubId(t, +row.dataset.line);
+      if (!sid) return;
+      refreshView();
+    }
+    openDrawer(sid);
+  };
+  subsEl.querySelectorAll('.sub.opens').forEach(row => {
+    row.onclick = e => {
+      if (e.target.closest('input, button, a, [data-tenon-grip], .subedit')) return;
+      open(row);
+    };
+    row.onkeydown = e => {
+      if (e.target !== row || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      open(row);
+    };
+  });
+}
 
 function openDrawer(id, focusTitle){
   const loc = locate(id);
   if (!loc) {
-    /* Not a task, so it may be the id written on a sub-task's line. */
+    /* Not a task, so it may be the id written on a sub-task's line. Its task
+       opens underneath and the sub-task slides in over it. */
     const found = locateSub(id);
-    if (found) openSubtaskDrawer(found);
+    if (!found) return;
+    drawingUnderSub = true;
+    try { openDrawer(found.loc.task.id); } finally { drawingUnderSub = false; }
+    openSubtaskDrawer(locateSub(id));
     return;
   }
   state.openTask = id;
   state.openSubParent = null;
-  $('#drawer').classList.remove('subview');
-  $('#dheadBack').classList.add('hidden');
+  /* Drawn under an open sub-task (see openSubtaskDrawer), the task's own panel
+     is only being brought up to date behind it, so the second panel stays. */
+  if (!drawingUnderSub) hideSubPanel();
   const t = loc.task;
   // A backup preview opens the same panel to look at a task, but nothing in it
   // may change — every field below is disabled and nothing is wired to it.
@@ -1354,7 +1380,7 @@ function openDrawer(id, focusTitle){
       '<label class="toggle"><input type="checkbox" id="f-urgent"' + (t.urgent ? ' checked' : '') + dis + '> urgent</label>' +
     '</div>' +
     '<div class="field"><span class="fieldhead">Subtasks' +
-      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to edit</em>' : '') +
+      (subs.length && !ro ? ' <em class="sublabel">drag to reorder, click to open</em>' : '') +
       (!ro && subs.some(s => !s.done)
         ? '<button type="button" class="btn outline small completeall" id="f-completeall">Complete all</button>'
         : '') +
@@ -1362,28 +1388,26 @@ function openDrawer(id, focusTitle){
       '<div class="substeps" id="f-subs">' +
       subs.map((s, i) => {
         const sd = dueInfo(s.due);
-        const note = ro ? '' : stepNoteText(t, s.line);
-        const noteOpen = !ro && openStepNote === (t.id + ':' + s.line);
-        return '<div class="sub' + (s.done ? ' checked' : '') + '" data-tenon-reorder="' + i + '">' +
+        /* The whole row opens the sub-task in its own panel, which is where its
+           title, note and everything else are edited. A step with no id yet is
+           given one on the click, so every row opens the same way; only a
+           read-only tab, which cannot write one, leaves such a row shut. */
+        const opens = !!s.stableId || !ro;
+        const hasNote = !!stepNoteText(t, s.line);
+        return '<div class="sub' + (s.done ? ' checked' : '') + (opens ? ' opens' : '') + '" data-tenon-reorder="' + i +
+            '" data-line="' + s.line + '"' + (s.stableId ? ' data-sub="' + esc(s.stableId) + '"' : '') +
+            (opens ? ' role="button" tabindex="0" title="Open this sub-task"' : '') + '>' +
           (ro ? '' : BoardUI.dragHandleHTML()) +
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
           /* Rendered, like the Description above it and like the card titles
-             on the board, and edited raw by editSubtext the moment it is
-             clicked. A subtask is one line, so this is mdInline rather than
-             the block renderer. */
-          '<span class="subtext" data-line="' + s.line + '"' + (ro ? '' : ' title="Click to edit"') + '>' + mdInline(s.clean) +
-          (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') + '</span>' +
-          (s.stableId ? '<button type="button" class="subopen" data-sub="' + esc(s.stableId) + '" title="Open this sub-task">↗</button>' : '') +
-          (ro ? '' : '<button type="button" class="noteicon' + (note ? ' has-note' : '') + '" data-line="' + s.line +
-            '" title="' + (note ? 'Edit the note on this step' : 'Add a note to this step') + '">💬</button>') +
+             on the board. A subtask is one line, so this is mdInline rather
+             than the block renderer. */
+          '<span class="subtext" data-line="' + s.line + '">' + mdInline(s.clean) +
+          (sd ? '<em class="mini ' + sd.cls + '">' + esc(sd.label) + '</em>' : '') +
+          (hasNote ? '<em class="subnotemark" title="Has a note">note</em>' : '') + '</span>' +
           (ro ? '' : '<button type="button" class="subdel" data-line="' + s.line + '" title="Delete this subtask">×</button>') +
-          '</div>' +
-          (noteOpen
-            ? '<div class="noterow" data-line="' + s.line + '">' +
-                '<textarea class="notebox" data-line="' + s.line +
-                  '" placeholder="What happened, when, and what it’s waiting on">' + esc(note) + '</textarea>' +
-              '</div>'
-            : '');
+          (opens ? '<span class="subchev" aria-hidden="true">›</span>' : '') +
+          '</div>';
       }).join('') +
       '</div>' +
       (ro ? '' : '<button type="button" class="btn dashed small addsub" id="f-addsub" title="Enter keeps adding, blank Enter stops">+ Add subtask</button>') +
@@ -1422,6 +1446,7 @@ function openDrawer(id, focusTitle){
   if (proj) loadTaskProject(proj, t.id);
   bindProjectSection(t);
   bindDependencySection(t);
+  wireSubRows(t);
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what
@@ -1505,18 +1530,6 @@ function openDrawer(id, focusTitle){
         toggleSub(t, lineIdx); refreshView(); openDrawer(id);
       };
     });
-    subsEl.querySelectorAll('.subtext').forEach(span => {
-      span.onclick = e => {
-        // A link in a rendered subtask is there to be followed. Opening the
-        // editor on top of it would make it the one bit of text you cannot
-        // click, so the click goes to the link and the editor stays shut.
-        if (e.target.closest('a')) return;
-        editSubtext(span, t, +span.dataset.line, id);
-      };
-    });
-    subsEl.querySelectorAll('.subopen').forEach(btn => {
-      btn.onclick = e => { e.stopPropagation(); openDrawer(btn.dataset.sub); };
-    });
     subsEl.querySelectorAll('.subdel').forEach(btn => {
       btn.onclick = e => {
         e.stopPropagation();
@@ -1524,38 +1537,8 @@ function openDrawer(id, focusTitle){
         const m = SUB_RE.exec(t.body[lineIdx]);
         const label = m ? stripTags(m[3]).replace(/\s+/g, ' ').trim() : 'this step';
         if (!confirm('Delete "' + label + '"? This removes it from todo.md when you save.')) return;
-        openStepNote = null;
         removeSubLine(t, lineIdx);
         refreshView(); openDrawer(id);
-      };
-    });
-    subsEl.querySelectorAll('.noteicon').forEach(btn => {
-      btn.onclick = e => {
-        e.stopPropagation();
-        const lineIdx = +btn.dataset.line;
-        const key = t.id + ':' + lineIdx;
-        const opening = openStepNote !== key;
-        openStepNote = opening ? key : null;
-        refreshView(); openDrawer(id);
-        if (opening) {
-          const box = $('#f-subs').querySelector('.notebox[data-line="' + lineIdx + '"]');
-          if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
-        }
-      };
-    });
-    subsEl.querySelectorAll('.notebox').forEach(box => {
-      const lineIdx = +box.dataset.line;
-      const saved = box.value;
-      const commit = () => {
-        if (box.value === saved) return;
-        setStepNoteText(t, lineIdx, box.value);
-        markDirty(); refreshView();
-      };
-      box.onblur = commit;
-      box.onkeydown = e => {
-        // Escape leaves the box rather than the drawer, same as Description —
-        // there is no draft here to throw away, the text is the step's.
-        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); box.blur(); }
       };
     });
     /* subDrag is the timeline's own flag (18-timeline.js) that a sub-step drag
@@ -1566,7 +1549,6 @@ function openDrawer(id, focusTitle){
       onMove: (key, beforeKey) => {
         const from = +key;
         const to = beforeKey == null ? subsEl.querySelectorAll('.sub').length : +beforeKey;
-        openStepNote = null;
         moveSub(t, from, to);
         refreshView(); openDrawer(id);
       }
@@ -1713,9 +1695,31 @@ function openDrawer(id, focusTitle){
   // Written into the URL now rather than left for the next full render —
   // opening the drawer alone doesn't otherwise touch the hash. It pushes: a
   // card is somewhere he went, and Back is the way out of it. See syncHash()
-  // in 07-render-board.js.
-  syncHash(true);
+  // in 07-render-board.js. Not when the sub-task panel is about to go over
+  // it, which writes its own.
+  if (!drawingUnderSub) syncHash(!closingSub);
 }
+
+/* Set while openDrawer draws the task behind an open sub-task, and while the
+   sub-task panel is closing back onto its task — the one move that is a step
+   back rather than somewhere new, so it overwrites the history entry. */
+let drawingUnderSub = false;
+let closingSub = false;
+
+function hideSubPanel(){
+  $('#subpanel').classList.remove('open');
+  $('#subscrim').classList.remove('open');
+}
+/* Escape, the faded area and the panel's own Close all land here: the
+   sub-task goes, and the task it sits under is left open behind it. */
+function closeSubPanel(){
+  const parent = state.openSubParent;
+  subSendBackFor = null;
+  if (!parent || !locate(parent)) { hideSubPanel(); return; }
+  closingSub = true;
+  try { openDrawer(parent); } finally { closingSub = false; }
+}
+function subPanelOpen(){ return $('#subpanel').classList.contains('open'); }
 
 /* ---- The panel, showing a sub-task ----
    Opened by the id written on its line: `openDrawer(id)` takes either a task's
@@ -1753,6 +1757,7 @@ async function openPlanReader(rel, title){
 function openSubtaskDrawer(found){
   const { loc, step } = found;
   const t = loc.task, line = step.line, subId = step.stableId;
+  const wasOpen = subPanelOpen() && state.openTask === subId;
   state.openTask = subId;
   state.openSubParent = t.id;
   const ro = state.locked;
@@ -1762,14 +1767,10 @@ function openSubtaskDrawer(found){
   const took = k => inh.inherited.indexOf(k) > -1;
   const proj = taskProject(t);
 
-  state.openProject = null;
-  $('#drawer').classList.remove('projectview');
-  $('#drawer').classList.add('subview');
-  $('#drawer').classList.toggle('readonly', ro);
-  $('#drawerTitle').textContent = ro ? 'View sub-task (read-only)' : 'Sub-task';
-  $('#dheadHl').classList.add('hidden');
-  $('#dheadBack').classList.remove('hidden');
-  const help = $('#dheadHelp');
+  const panel = $('#subpanel');
+  panel.classList.toggle('readonly', ro);
+  $('#subTitle').textContent = ro ? 'View sub-task (read-only)' : 'Sub-task';
+  const help = $('#subHelp');
   help.textContent = ro ? 'Read-only — from a backup, nothing here can be changed.' : 'Changes save automatically';
   help.title = help.textContent;
 
@@ -1811,38 +1812,37 @@ function openSubtaskDrawer(found){
         : '') +
     '</div>';
 
-  $('#dbody').innerHTML = '<div class="dcols"><div class="dcol dcol-main">' +
-    '<label class="field"><span>Title</span><input type="text" id="f-title" value="' + esc(f.title) + '"' + dis + '></label>' +
+  $('#sbody').innerHTML = '<div class="dcols"><div class="dcol dcol-main">' +
+    '<label class="field"><span>Title</span><input type="text" id="s-title" value="' + esc(f.title) + '"' + dis + '></label>' +
     reviewHTML +
-    '<div class="field"><span>State</span>' + stepPickerHTML('f-substate', SUB_STATES, now, ro, 'State') + '</div>' +
-    '<label class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis) + '</label>' +
+    '<div class="field"><span>State</span>' + stepPickerHTML('s-substate', SUB_STATES, now, ro, 'State') + '</div>' +
+    '<label class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis, 's-to') + '</label>' +
     '<div class="grid2">' +
-      field('impact', 'Impact', stepSliderHTML('f-impact', IMPACT_STOPS, inh.impact, ro, 'Impact')) +
-      '<div class="field"><span>Effort</span>' + stepSliderHTML('f-effort', EFFORT_STOPS, f.effort, ro, 'Effort') + '</div>' +
+      field('impact', 'Impact', stepSliderHTML('s-impact', IMPACT_STOPS, inh.impact, ro, 'Impact')) +
+      '<div class="field"><span>Effort</span>' + stepSliderHTML('s-effort', EFFORT_STOPS, f.effort, ro, 'Effort') + '</div>' +
     '</div>' +
     '<div class="grid2">' +
       '<div class="field"><span>Can start</span>' +
-        '<button type="button" class="dpbtn' + (parseDue(f.start) ? '' : ' empty') + '" id="f-start"' + dis + '>' +
+        '<button type="button" class="dpbtn' + (parseDue(f.start) ? '' : ' empty') + '" id="s-start"' + dis + '>' +
           esc(f.start ? dueLabel(f.start) : 'Any time') + '</button></div>' +
-      field('due', 'Due', '<button type="button" class="dpbtn' + (parseDue(inh.due) ? '' : ' empty') + '" id="f-due"' + dis + '>' +
+      field('due', 'Due', '<button type="button" class="dpbtn' + (parseDue(inh.due) ? '' : ' empty') + '" id="s-due"' + dis + '>' +
           esc(dueLabel(inh.due)) + '</button>') +
     '</div>' +
-    '<div class="cal hidden" id="f-cal-start"></div>' +
-    '<div class="cal hidden" id="f-cal-due"></div>' +
+    '<div class="cal hidden" id="s-cal-start"></div>' +
+    '<div class="cal hidden" id="s-cal-due"></div>' +
     '<div class="field' + (took('urgent') || took('week') ? ' inherited' : '') + '"><span>Flags</span>' +
-      '<label class="toggle"><input type="checkbox" id="f-urgent"' + (inh.urgent ? ' checked' : '') + dis + '> urgent</label>' +
-      '<label class="toggle"><input type="checkbox" id="f-week"' + (inh.week ? ' checked' : '') + dis + '> this week</label>' +
+      '<label class="toggle"><input type="checkbox" id="s-urgent"' + (inh.urgent ? ' checked' : '') + dis + '> urgent</label>' +
+      '<label class="toggle"><input type="checkbox" id="s-week"' + (inh.week ? ' checked' : '') + dis + '> this week</label>' +
       (took('urgent') || took('week') ? '<span class="help">Any that is ticked and faded is the task\'s.</span>' : '') +
     '</div>' +
     (waitingOn ? '<div class="field"><span>Waiting on</span>' + waitingOn + '</div>' : '') +
     '<details class="field" data-collapse="subnote" open><summary>Note</summary>' +
-      '<textarea id="f-subnote" spellcheck="false"' + dis + '>' + esc(stepNoteText(t, line)) + '</textarea></details>' +
+      '<textarea id="s-note" spellcheck="false"' + dis + '>' + esc(stepNoteText(t, line)) + '</textarea></details>' +
     '<div class="field inherited"><span>Task</span><span class="dpbtn" style="cursor:default">' + mdInline(t.title) + '</span></div>' +
     '<div class="field inherited"><span>Bucket</span><span class="dpbtn" style="cursor:default">' + esc(loc.bucket.name) + '</span></div>' +
     (proj ? '<div class="field inherited"><span>Project</span><span class="dpbtn" style="cursor:default">' + esc(proj) + '</span></div>' : '') +
   '</div></div>';
 
-  $('#dheadBack').onclick = () => { subSendBackFor = null; openDrawer(t.id); };
   if (kind) {
     const readBtn = $('#f-readplan');
     if (readBtn) readBtn.onclick = () => openPlanReader(planRel, t.title);
@@ -1876,9 +1876,9 @@ function openSubtaskDrawer(found){
       };
     }
 
-    $('#f-title').oninput = e => edit(cur => { cur.title = e.target.value; });
-    $('#f-to').onchange = e => { edit(cur => { cur.to = e.target.value; }); again(); };
-    wireStepPicker('f-substate', SUB_STATES, pick => {
+    $('#s-title').oninput = e => edit(cur => { cur.title = e.target.value; });
+    $('#s-to').onchange = e => { edit(cur => { cur.to = e.target.value; }); again(); };
+    wireStepPicker('s-substate', SUB_STATES, pick => {
       const cur = readSub(t, line);
       if (pick === 'done' && !cur.done) {
         const msg = blockedMessage(allItems(), (cur.blockedBy || []).concat(t.blockedBy || []));
@@ -1891,34 +1891,38 @@ function openSubtaskDrawer(found){
       });
       again();
     });
-    wireStepSlider('f-impact', IMPACT_STOPS, v => { edit(cur => { cur.impact = v; }); again(); });
-    wireStepSlider('f-effort', EFFORT_STOPS, v => { edit(cur => { cur.effort = v; }); again(); });
+    wireStepSlider('s-impact', IMPACT_STOPS, v => { edit(cur => { cur.impact = v; }); again(); });
+    wireStepSlider('s-effort', EFFORT_STOPS, v => { edit(cur => { cur.effort = v; }); again(); });
     /* The date pickers read and write one field of whatever they are given, and
        reopen the drawer by state.openTask, which is this sub-task's id. */
     const dates = {
       get start(){ return readSub(t, line).start; }, set start(v){ edit(cur => { cur.start = v; }); },
       get due(){ return inh.due; }, set due(v){ edit(cur => { cur.due = v; }); }
     };
-    wireDatePicker(dates, () => {}, 'start');
-    wireDatePicker(dates, () => {}, 'due');
-    $('#f-urgent').onchange = e => { edit(cur => { cur.urgent = e.target.checked; }); again(); };
-    $('#f-week').onchange = e => { edit(cur => { cur.week = e.target.checked; }); again(); };
-    const note = $('#f-subnote');
+    wireDatePicker(dates, () => {}, 'start', 's');
+    wireDatePicker(dates, () => {}, 'due', 's');
+    $('#s-urgent').onchange = e => { edit(cur => { cur.urgent = e.target.checked; }); again(); };
+    $('#s-week').onchange = e => { edit(cur => { cur.week = e.target.checked; }); again(); };
+    const note = $('#s-note');
     const saved = note.value;
     note.onblur = () => { if (note.value !== saved) { setStepNoteText(t, line, note.value); refreshView(); } };
     note.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); note.blur(); } };
   }
 
-  $('#drawer').classList.add('open');
-  $('#scrim').classList.add('open');
-  syncHash(true);
+  /* As wide as the task drawer's own left column, where the sub-task's row
+     sits, rather than the whole drawer's dragged width. */
+  const main = $('#dbody .dcol-main');
+  const w = main ? Math.round(main.getBoundingClientRect().width) : 0;
+  panel.style.width = Math.max(w + 28, 340) + 'px';
+  panel.classList.add('open');
+  $('#subscrim').classList.add('open');
+  syncHash(!wasOpen);
 }
 
 function closeDrawer(){
   state.openTask = null;
   state.openSubParent = null;
-  $('#dheadBack').classList.add('hidden');
-  $('#drawer').classList.remove('subview');
+  hideSubPanel();
   state.openProject = null;
   $('#drawer').classList.remove('open');
   $('#drawer').classList.remove('projectview');
@@ -1943,8 +1947,7 @@ function openProjectDrawer(name){
   syncHash(true);
 
   state.openSubParent = null;
-  $('#dheadBack').classList.add('hidden');
-  $('#drawer').classList.remove('subview');
+  hideSubPanel();
   $('#drawer').classList.add('projectview');
   $('#drawer').classList.toggle('readonly', state.locked);
   $('#drawerTitle').textContent = name;
@@ -2236,6 +2239,8 @@ window.addEventListener('resize', applyDrawerWidth);
 
 $('#closeDrawer').onclick = closeDrawer;
 $('#scrim').onclick = closeDrawer;
+$('#closeSub').onclick = closeSubPanel;
+$('#subscrim').onclick = closeSubPanel;
 
 /* Project chips are drawn inside cards, and a card opens its task on click.
    Capture phase, on the document, so the chip answers first and the card behind
@@ -2301,7 +2306,9 @@ $('#del').onclick = () => {
 };
 $('#undo').onclick = undo;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeDrawer();
+  /* The sub-task panel sits over the task drawer, so Escape takes off only
+     the top one. */
+  if (e.key === 'Escape') { if (subPanelOpen()) closeSubPanel(); else closeDrawer(); }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveFile(); }
   // Not while a field has focus — cmd/ctrl+Z there means "undo my last few
   // keystrokes", which the browser already does natively on that one field.

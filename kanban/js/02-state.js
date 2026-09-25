@@ -227,6 +227,16 @@ function encodeTaskKey(key){
    the view underneath — a drawer over an empty board reads as a bug. */
 function openTaskByKey(key){
   const t = findTaskByKey(key);
+  /* Not a task: it may be a sub-task's id, which opens over its task. */
+  const sub = !t && locateSub(String(key || '').trim().toLowerCase());
+  if (sub && sub.loc) {
+    if (state.bucketFilter.size && !state.bucketFilter.has(sub.loc.bucket.name)) {
+      state.bucketFilter = new Set([sub.loc.bucket.name]);
+    }
+    renderView();
+    openDrawer(sub.step.stableId);
+    return true;
+  }
   if (!t) {
     renderView();
     $('#status').textContent = 'no task called “' + key + '” on this list';

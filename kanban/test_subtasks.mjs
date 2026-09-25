@@ -137,41 +137,88 @@ try {
   /* ---- the drawer ---- */
 
   await evalJS(`state.view = 'board'; renderView(); openDrawer(__parent.id)`)
-  check('a task with sub-tasks offers to open each one that has an id', await evalJS(`document.querySelectorAll('#f-subs .subopen').length`) === 4)
-  check('and the task\'s own drawer has no way back', await evalJS(`document.querySelector('#dheadBack').classList.contains('hidden')`))
+  check('every sub-task row opens, with a chevron and no separate icon buttons', await evalJS(`
+    document.querySelectorAll('#f-subs .sub.opens').length === 4 &&
+    document.querySelectorAll('#f-subs .sub .subchev').length === 4 &&
+    !document.querySelector('#f-subs .subopen, #f-subs .noteicon')`))
+  check('and the second panel is shut', await evalJS(`!document.querySelector('#subpanel').classList.contains('open')`))
 
-  await evalJS(`openDrawer('aa0002')`)
-  check('openDrawer takes a sub-task\'s id and shows its title', await evalJS(`document.querySelector('#f-title').value`) === 'Review the plan')
-  check('the drawer says it is a sub-task, with the way back top left', await evalJS(`
-    document.querySelector('#drawerTitle').textContent === 'View sub-task (read-only)' &&
-    !document.querySelector('#dheadBack').classList.contains('hidden') &&
-    document.querySelector('.dhead').firstElementChild.id === 'dheadBack'`))
+  await evalJS(`document.querySelectorAll('#f-subs .sub')[1].querySelector('input[type=checkbox]').click()`)
+  check('the checkbox does not open the panel', await evalJS(`!document.querySelector('#subpanel').classList.contains('open')`))
+
+  await evalJS(`openDrawer(__parent.id); document.querySelectorAll('#f-subs .sub')[1].querySelector('.subtext').click()`)
+  check('a click on the row opens the sub-task in the second panel', await evalJS(`
+    document.querySelector('#subpanel').classList.contains('open') && document.querySelector('#s-title').value === 'Review the plan'`))
+  check('with the task drawer still open behind it, faded', await evalJS(`
+    document.querySelector('#drawer').classList.contains('open') && document.querySelector('#f-title').value === 'Write the handover' &&
+    document.querySelector('#subscrim').classList.contains('open')`))
+  check('the scrim sits over the drawer and under the panel', await evalJS(`(() => {
+    const z = s => +getComputedStyle(document.querySelector(s)).zIndex;
+    return z('#subpanel') > z('#subscrim') && z('#subscrim') > z('#drawer'); })()`))
+  check('as wide as the task drawer\'s left column, not the drawer', await evalJS(`(() => {
+    const p = document.querySelector('#subpanel').getBoundingClientRect().width;
+    const m = document.querySelector('#dbody .dcol-main').getBoundingClientRect().width;
+    const d = document.querySelector('#drawer').getBoundingClientRect().width;
+    return Math.abs(p - Math.max(m + 28, 340)) < 2 && (d < 700 || p < d); })()`))
+  check('the address names the sub-task', await evalJS(`location.hash.endsWith('!task=aa0002')`), await evalJS(`location.hash`))
+  check('the panel says it is a sub-task', await evalJS(`document.querySelector('#subTitle').textContent`) === 'View sub-task (read-only)')
   check('what it takes from its task is faded, and what it has of its own is not', await evalJS(`
-    [...document.querySelectorAll('#dbody .field')].filter(f => f.classList.contains('inherited'))
+    [...document.querySelectorAll('#sbody .field')].filter(f => f.classList.contains('inherited'))
       .map(f => f.querySelector('span').textContent).join('|')`) === 'Impact|Due|Flags|Task|Bucket')
   check('the assignee and the state are its own', await evalJS(`
-    document.querySelector('#f-to').value === 'Tiago' || document.querySelector('#f-to').selectedOptions[0].textContent === 'Tiago'`))
-  check('the delete and headline controls are hidden for it', await evalJS(`
-    getComputedStyle(document.querySelector('#del')).display === 'none' && getComputedStyle(document.querySelector('#dheadHl')).display === 'none'`))
+    document.querySelector('#s-to').value === 'Tiago' || document.querySelector('#s-to').selectedOptions[0].textContent === 'Tiago'`))
+  check('the step\'s note is in the panel', await evalJS(`!!document.querySelector('#sbody #s-note')`))
   check('what it is waiting on is named', await evalJS(`document.querySelector('.subwait')?.textContent`) === 'Plan — done')
 
-  await evalJS(`openDrawer('aa0003')`)
-  check('one with a date of its own does not fade it', await evalJS(`
-    ![...document.querySelectorAll('#dbody .field.inherited')].some(f => f.querySelector('span').textContent === 'Due')`))
-  check('and the state shows Doing', await evalJS(`document.querySelector('#f-substate').getAttribute('aria-valuetext')`) === 'Doing')
+  await evalJS(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
+  check('Escape closes only the sub-task panel', await evalJS(`
+    !document.querySelector('#subpanel').classList.contains('open') && document.querySelector('#drawer').classList.contains('open') &&
+    state.openTask === __parent.id`))
 
-  await evalJS(`document.querySelector('#dheadBack').click()`)
-  check('the button goes back to the task', await evalJS(`state.openTask === __parent.id && document.querySelector('#f-title').value === 'Write the handover'`))
+  await evalJS(`openDrawer('aa0003')`)
+  check('openDrawer takes a sub-task\'s id and opens its task underneath', await evalJS(`
+    document.querySelector('#subpanel').classList.contains('open') && state.openSubParent === __parent.id && document.querySelector('#f-title').value === 'Write the handover'`))
+  check('one with a date of its own does not fade it', await evalJS(`
+    ![...document.querySelectorAll('#sbody .field.inherited')].some(f => f.querySelector('span').textContent === 'Due')`))
+  check('and the state shows Doing', await evalJS(`document.querySelector('#s-substate').getAttribute('aria-valuetext')`) === 'Doing')
+
+  await evalJS(`document.querySelector('#subscrim').click()`)
+  check('a click on the faded area closes only the panel', await evalJS(`
+    state.openTask === __parent.id && !document.querySelector('#subpanel').classList.contains('open') && document.querySelector('#drawer').classList.contains('open')`))
   check('and a sub-task\'s id is not a task\'s', await evalJS(`locate('aa0002') === null && locateSub('aa0002') !== null`))
   await evalJS(`closeDrawer()`)
+  check('the address opens a sub-task by its key', await evalJS(`openTaskByKey('aa0004') &&
+    document.querySelector('#subpanel').classList.contains('open') && document.querySelector('#s-title').value === 'Review the work'`))
+  await evalJS(`closeDrawer()`)
+  check('closing the drawer closes both', await evalJS(`!document.querySelector('#subpanel').classList.contains('open') && !document.querySelector('#drawer').classList.contains('open')`))
 
   /* ---- editing one, on a tab that is allowed to ---- */
 
   await evalJS(`state.locked = false; window.__saved = []; window.fetch = (u, o) => { window.__saved.push(((o && o.method) || 'GET') + ' ' + u); return Promise.resolve(new Response('{}', { status: 200 })) }; openDrawer('aa0002')`)
-  await evalJS(`(() => { const sel = document.querySelector('#f-to'); sel.value = 'Implement agent'; sel.onchange({ target: sel }); })()`)
+  await evalJS(`(() => { const sel = document.querySelector('#s-to'); sel.value = 'Implement agent'; sel.onchange({ target: sel }); })()`)
   check('changing the assignee rewrites its line in the tag order of a task and keeps every tag', await evalJS(`
     __parent.body.find(l => l.includes('aa0002'))`) === '  - [ ] Review the plan \`#ab12cd-plan-review\` [to:: Implement agent] \`blocked-by:ab12cd-plan\` \`id:aa0002\`', await evalJS(`__parent.body.find(l => l.includes('aa0002'))`))
-  await evalJS(`state.locked = true`)
+  await evalJS(`closeDrawer(); openDrawer(__parent.id); document.querySelectorAll('#f-subs .sub')[1].querySelector('[data-tenon-grip]').click()`)
+  check('the drag grip does not open the panel', await evalJS(`!document.querySelector('#subpanel').classList.contains('open')`) === true)
+  await evalJS(`closeDrawer()`)
+
+  /* ---- a step added by hand ---- */
+
+  await evalJS(`addSub(__parent)`)
+  const added = await evalJS(`__parent.body[__parent.body.length - 1]`)
+  check('a step added by hand is minted an id, the way a handover mints one', /^  - \[ \] `id:[a-z0-9]{6}`$/.test(added), added)
+  const addedId = added.match(/id:([a-z0-9]{6})/)[1]
+  await evalJS(`openDrawer(__parent.id)`)
+  check('its edit box leaves the id out', await evalJS(`subEditText(SUB_RE.exec(__parent.body[__parent.body.length - 1])[3])`) === '')
+  await evalJS(`setSubText(__parent, __parent.body.length - 1, 'Tell the team')`)
+  check('and typing its text keeps the id', await evalJS(`__parent.body[__parent.body.length - 1]`) === '  - [ ] Tell the team `id:' + addedId + '`')
+  check('so it opens its own panel like any other', await evalJS(`openDrawer('${addedId}'); document.querySelector('#subpanel').classList.contains('open') && document.querySelector('#s-title').value === 'Tell the team'`))
+  await evalJS(`closeDrawer(); __parent.body.push('  - [ ] An old step with no id'); openDrawer(__parent.id)`)
+  await evalJS(`[...document.querySelectorAll('#f-subs .sub')].pop().click()`)
+  check('a step written before ids is given one on the click, and opens', await evalJS(`
+    /\`id:[a-z0-9]{6}\`$/.test(__parent.body[__parent.body.length - 1]) && document.querySelector('#s-title').value === 'An old step with no id'`),
+    await evalJS(`__parent.body[__parent.body.length - 1]`))
+  await evalJS(`closeDrawer(); state.locked = true`)
 
   /* ---- the agents' queue ---- */
 
