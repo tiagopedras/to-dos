@@ -373,19 +373,23 @@ function wireDatePicker(t, touch, field){
    for the headline bar, just kept as a list instead of collapsed to a
    number. A task or sub-step with neither a slug nor a `blocked-by:` has
    nothing to say either way, so it is left out rather than shown empty. */
-function taskDependencies(t){
+function taskDependencies(t, editable){
   const items = allItems();
   const parts = splitBody(t);
   const out = [];
   const notes = waitingNotes(t);
-  const addFor = (slug, blockedBy, where) => {
+  /* `line` says which line an edit in this group is written to: -1 for the task
+     itself, otherwise the body index of the sub-step. The task's own group is
+     kept even when empty once the panel can edit, since that is where Add sits. */
+  const addFor = (slug, blockedBy, where, line, keep) => {
     const waitingOn = (blockedBy || []).map(s => ({ slug: s, item: itemBySlug(items, s) }));
     const blocks = slug ? items.filter(i => !i.done && i.blockedBy.indexOf(slug) > -1) : [];
     const people = notes.filter(n => n.where === where);
-    if (waitingOn.length || blocks.length || people.length) out.push({ where, waitingOn, blocks, people });
+    if (keep || waitingOn.length || blocks.length || people.length)
+      out.push({ where, line, slug, waitingOn, blocks, people, editable: !!editable });
   };
-  addFor(t.slug, t.blockedBy, '');
-  parts.steps.forEach(s => addFor(s.slug, s.blockedBy, s.clean));
+  addFor(t.slug, t.blockedBy, '', -1, editable);
+  parts.steps.forEach(s => addFor(s.slug, s.blockedBy, s.clean, s.line, false));
   return out;
 }
 /* Stripped down from the full ref card: no bucket, no tier, no impact/effort/ai
@@ -393,9 +397,19 @@ function taskDependencies(t){
    the two facts that matter while reading a chain of blockers rather than one
    task on its own. Same chaincard shape the Matrix dependency view already
    uses, so a mini task-card reads the same wherever it turns up. */
-function depLink(item, missingSlug){
+function depLink(item, missingSlug, remove){
+  /* The × sits beside the card rather than inside it, since the card is itself
+     a button that opens the task. */
+  const x = remove
+    ? '<button type="button" class="attachpick-close depremove" aria-label="Remove this dependency"' +
+        ' title="Remove this dependency" data-depremove="' + esc(remove.dir) + '"' +
+        ' data-dep-line="' + remove.line + '" data-dep-slug="' + esc(remove.slug) + '"' +
+        (remove.task ? ' data-dep-task="' + esc(remove.task) + '"' : '') +
+        (remove.otherLine != null ? ' data-dep-other-line="' + remove.otherLine + '"' : '') +
+      '>×</button>'
+    : '';
   if (!item) return '<li class="depitem"><div class="chaincard dep missing" title="No task carries this slug">' +
-    '<span class="chaintitle">#' + esc(missingSlug) + ' missing</span></div></li>';
+    '<span class="chaintitle">#' + esc(missingSlug) + ' missing</span></div>' + x + '</li>';
   const due = dueInfo(item.due, item.tier === WAIT_COL);
   const si = startInfo(item.start);
   const dates = (due || si) ? '<div class="depdates">' +
@@ -407,7 +421,7 @@ function depLink(item, missingSlug){
       ' style="--bc:' + item.color + '" data-open="' + item.id + '" title="Open this task">' +
       '<span class="chaintitle">' + (item.done ? '✓ ' : '') + mdInline(item.title) + '</span>' +
       dates +
-    '</button></li>';
+    '</button>' + x + '</li>';
 }
 function depGroupHTML(g){
   /* The two kinds sit under one heading, cards first: waiting on a task and
@@ -417,18 +431,164 @@ function depGroupHTML(g){
     '<li class="depitem"><div class="chaincard dep depnote">' +
       '<span class="chaintitle">' + mdInline(p.text) + '</span>' +
     '</div></li>').join('');
-  const waiting = (g.waitingOn.length || people)
-    ? '<div class="depcol"><span class="deplabel">Waiting on</span><ul class="deplist">' +
-      g.waitingOn.map(w => depLink(w.item, w.slug)).join('') + people + '</ul></div>'
+  const ed = g.editable;
+  const add = dir => ed
+    ? '<button type="button" class="btn outline small depadd" data-depadd="' + dir + '"' +
+        ' data-dep-line="' + g.line + '">Add</button>'
     : '';
-  const blocks = g.blocks.length
+  const waiting = (ed || g.waitingOn.length || people)
+    ? '<div class="depcol"><span class="deplabel">Waiting on</span><ul class="deplist">' +
+      g.waitingOn.map(w => depLink(w.item, w.slug,
+        ed && { dir: 'waiting', line: g.line, slug: w.slug })).join('') + people + '</ul>' + add('waiting') + '</div>'
+    : '';
+  const blocks = (ed || g.blocks.length)
     ? '<div class="depcol"><span class="deplabel">Blocks</span><ul class="deplist">' +
-      g.blocks.map(i => depLink(i)).join('') + '</ul></div>'
+      g.blocks.map(i => depLink(i, '',
+        ed && { dir: 'blocks', line: g.line, slug: g.slug, task: i.id, otherLine: i.sub ? i.sub.line : -1 })).join('') +
+      '</ul>' + add('blocks') + '</div>'
     : '';
   return '<div class="depgroup">' +
     (g.where ? '<em class="suggwhere">for: ' + esc(g.where) + '</em>' : '') +
     '<div class="depcols">' + waiting + blocks + '</div>' +
   '</div>';
+}
+
+/* ---- Setting and clearing a dependency from the panel ----
+   Both directions are one tag, `blocked-by:`, written on whichever line waits.
+   Waiting on writes it here; Blocks writes it onto the other task, naming this
+   one. `line` is -1 for a task, or the body index of a sub-step under it. */
+function depRead(task, line){
+  if (line < 0) return { slug: task.slug || '', blockedBy: (task.blockedBy || []).slice(), title: task.title };
+  const s = readSub(task, line);
+  return s ? { slug: s.slug || '', blockedBy: (s.blockedBy || []).slice(), title: s.title } : null;
+}
+function depWrite(task, line, patch){
+  if (line < 0) { Object.assign(task, patch); task.dirty = true; return; }
+  const cur = readSub(task, line);
+  if (cur) writeSub(task, line, Object.assign(cur, patch));
+}
+/* A slug for a task that never needed one, by the rule in CONVENTIONS.md: short,
+   readable, lowercase and hyphens. The first few words of the title that carry
+   meaning, with a number on the end only if the file already has that one. */
+const SLUG_STOPWORDS = new Set(['the','a','an','and','or','of','to','for','in','on','with','from','by','at','is','it','my']);
+function mintSlug(title, taken){
+  const words = String(title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  const kept = words.filter(w => !SLUG_STOPWORDS.has(w));
+  const base = (kept.length ? kept : words).slice(0, 4).join('-').slice(0, 32).replace(/-+$/, '') || 'task';
+  let slug = base, n = 2;
+  while (taken.has(slug)) slug = base + '-' + n++;
+  return slug;
+}
+function ensureSlug(task, line){
+  const cur = depRead(task, line);
+  if (cur.slug) return cur.slug;
+  const slug = mintSlug(cur.title, new Set(allItems().map(i => i.slug).filter(Boolean)));
+  depWrite(task, line, { slug });
+  return slug;
+}
+/* `dir` is from this line's side: 'waiting' makes this wait on `other`,
+   'blocks' makes `other` wait on this. Returns '' when written, or why not. */
+function addDependency(t, line, dir, other){
+  if (state.locked) return 'locked';
+  if (other.task === t && other.line === line) return 'self';
+  const waiter  = dir === 'waiting' ? { task: t, line } : other;
+  const blocker = dir === 'waiting' ? other : { task: t, line };
+  const w = depRead(waiter.task, waiter.line), b = depRead(blocker.task, blocker.line);
+  if (!w || !b) return 'missing';
+  if (w.slug && b.blockedBy.indexOf(w.slug) > -1) {
+    showToast('“' + b.title + '” already waits on “' + w.title + '”, so that would be a loop.', 'bad');
+    return 'cycle';
+  }
+  if (b.slug && w.blockedBy.indexOf(b.slug) > -1) return 'exists';
+  const slug = ensureSlug(blocker.task, blocker.line);
+  depWrite(waiter.task, waiter.line, { blockedBy: depRead(waiter.task, waiter.line).blockedBy.concat(slug) });
+  markDirty();
+  return '';
+}
+function removeDependency(task, line, slug){
+  if (state.locked) return false;
+  const w = depRead(task, line);
+  if (!w || w.blockedBy.indexOf(slug) < 0) return false;
+  depWrite(task, line, { blockedBy: w.blockedBy.filter(s => s !== slug) });
+  markDirty();
+  return true;
+}
+/* The picker is the attach-a-session dialog's shape: a search box over a list
+   of rows. Every open task and sub-step, less this line and whatever is
+   already linked in that direction. */
+function depCandidates(t, line, dir){
+  const me = depRead(t, line);
+  return allItems().filter(i => {
+    if (i.done) return false;
+    const iLine = i.sub ? i.sub.line : -1;
+    if (i.task === t && iLine === line) return false;
+    if (dir === 'waiting') return !(i.slug && me.blockedBy.indexOf(i.slug) > -1);
+    return !(me.slug && i.blockedBy.indexOf(me.slug) > -1);
+  });
+}
+function openDepPicker(t, line, dir){
+  const overlay = document.createElement('div');
+  overlay.className = 'attachpick-wrap deppick';
+  overlay.innerHTML = '<div class="attachpick" role="dialog" aria-label="' + (dir === 'waiting' ? 'Waiting on' : 'Blocks') + '">' +
+    '<header>' + (dir === 'waiting' ? 'Waiting on…' : 'Blocks…') +
+      '<button type="button" class="attachpick-close" aria-label="Close">×</button>' +
+    '</header>' +
+    '<div class="attachpick-search-wrap">' +
+      '<input type="search" class="attachpick-search" placeholder="Search open tasks…" aria-label="Search open tasks">' +
+    '</div>' +
+    '<div class="attachpick-body"></div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+  overlay.querySelector('.attachpick-close').onclick = close;
+  const body = overlay.querySelector('.attachpick-body');
+  const searchBox = overlay.querySelector('.attachpick-search');
+  const all = depCandidates(t, line, dir);
+  const render = term => {
+    const q = term.toLowerCase();
+    const rows = all.filter(i => !q || (i.title + ' ' + i.parent).toLowerCase().indexOf(q) > -1);
+    body.innerHTML = rows.length
+      ? rows.map(i =>
+          '<button type="button" class="attachpick-row" data-dep-task="' + esc(i.id) + '"' +
+            ' data-dep-line="' + (i.sub ? i.sub.line : -1) + '">' +
+            '<span class="attachpick-title">' + esc(i.title) + '</span>' +
+            '<span class="attachpick-meta">' + esc((i.parent ? i.parent + ' · ' : '') + i.bucket + ' · ' + i.tier) + '</span>' +
+          '</button>').join('')
+      : '<p class="aic-none">' + (q ? 'Nothing matches that.' : 'No other open tasks.') + '</p>';
+  };
+  body.onclick = e => {
+    const row = e.target.closest('.attachpick-row');
+    if (!row) return;
+    const loc = locate(row.dataset.depTask);
+    if (!loc) return;
+    const why = addDependency(t, line, dir, { task: loc.task, line: +row.dataset.depLine });
+    if (why === 'cycle') return;
+    close();
+    if (!why) { refreshView(); openDrawer(t.id); }
+  };
+  searchBox.oninput = () => render(searchBox.value.trim());
+  render('');
+  searchBox.focus();
+}
+function bindDependencySection(t){
+  $('#dbody').querySelectorAll('[data-depadd]').forEach(b => {
+    b.onclick = () => openDepPicker(t, +b.dataset.depLine, b.dataset.depadd);
+  });
+  $('#dbody').querySelectorAll('[data-depremove]').forEach(b => {
+    b.onclick = () => {
+      const line = +b.dataset.depLine, slug = b.dataset.depSlug;
+      let done = false;
+      if (b.dataset.depremove === 'waiting') done = removeDependency(t, line, slug);
+      else {
+        const loc = locate(b.dataset.depTask);
+        done = !!loc && removeDependency(loc.task, +b.dataset.depOtherLine, slug);
+      }
+      if (done) { refreshView(); openDrawer(t.id); }
+    };
+  });
 }
 /* ---- The note lines the second column already draws ----
    A suggested message, a prompt, an agenda, a Jira ticket, the project folder
@@ -680,12 +840,12 @@ async function loadTaskProject(name, taskId){
 }
 
 function dependenciesSection(t){
-  const groups = taskDependencies(t);
-  const body = groups.length
-    ? groups.map(depGroupHTML).join('')
-    : emptyState('Nothing waiting on this, and nothing holding it up. '
+  const groups = taskDependencies(t, !state.locked);
+  const empty = !groups.some(g => g.waitingOn.length || g.blocks.length || g.people.length);
+  const hint = emptyState('Nothing waiting on this, and nothing holding it up. '
                + 'Written as `blocked-by:slug` on whichever task is waiting, '
                + 'or as `- Waiting on: ...` in Notes where it is a person.');
+  const body = groups.map(depGroupHTML).join('') + (empty ? hint : '');
   return sideSection('Dependencies', 'deps', body);
 }
 
@@ -1261,6 +1421,7 @@ function openDrawer(id, focusTitle){
   // for it.
   if (proj) loadTaskProject(proj, t.id);
   bindProjectSection(t);
+  bindDependencySection(t);
 
   // Every handler below changes the task, so none of them are wired up in a
   // backup preview — the fields are also disabled above, but this is what

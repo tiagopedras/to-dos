@@ -759,7 +759,8 @@ they settled is written up in the README rather than left here:
   mints and writes an `id:` tag onto every existing sub-task line that lacks one, so all of them open the same way rather
   than only the ones an agent happened to create.
 
-- **The Dependencies section in the drawer only shows blockers, it does not let you set one.** `dependenciesSection()` at
+- ~~**The Dependencies section in the drawer only shows blockers, it does not let you set one.**~~ **Done, 25 Sep 2026.** Waiting on and Blocks each get an Add (the Attach-a-session search dialog) and a × per entry, a missing slug is minted from the title, a direct loop is refused; `kanban/test_dependencies.mjs`.
+  `dependenciesSection()` at
   `kanban/js/19-drawer.js:574`, backed by `taskDependencies()` and `depGroupHTML()`
   (`kanban/js/19-drawer.js:360` and `:396`), renders both "Waiting on" and "Blocks" as
   `depLink` cards you can open but not create, edit or remove — the only way to set one is
