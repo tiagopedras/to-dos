@@ -754,12 +754,9 @@ function onChatStatusChanged(cfg){
   if (state.doc) renderView();
 }
 
-/* Where the chat window sits and how big it is, remembered the same way the
+/* Where a chat window sits and how big it is, remembered the same way the
    drawer's own width and the timeline's label column are — a drag he does
-   once should not repeat itself. One rect for the one chat instance the
-   board keeps: setRect() is not scoped to a single open the way growFrom()
-   is, so setting it once here holds for every openNew()/openSession() call
-   the board makes afterwards. */
+   once should not repeat itself. Every chat opens at the last rect saved. */
 function loadChatRect(){
   try {
     const raw = localStorage.getItem('todo-board-chat-rect');
@@ -770,18 +767,103 @@ function saveChatRect(rect){
   try { localStorage.setItem('todo-board-chat-rect', JSON.stringify(rect)); } catch (e) {}
 }
 
-const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
+/* One AIChat instance per open chat, the way ai_canvas keeps one per card, so
+   several can sit minimised or anchored along the bottom edge at once. The
+   `hub` instance is never opened: it holds the status and the sessions index
+   the drawer reads, and files and forgets sessions. Each chat window is its
+   own instance in `chatWins`, found again by its session id, or by its owner
+   key while it is a new chat not sent yet, and is taken down when it closes — unless a run is still
+   going, in which case it stays hidden until the run ends, so closing a
+   window never stops the work inside it. */
+const chatWins = new Map();   // counter → { inst, newFor }
+let chatWinSeq = 0;
+let chatZ = 100;
+
+function findChatWin(sessionId, ownerKey){
+  for (const w of chatWins.values()) {
+    const s = w.inst.session();
+    if (sessionId ? s === sessionId : (!s && w.newFor === ownerKey)) return w.inst;
+  }
+  return null;
+}
+
+function focusChatWin(inst){
+  for (const w of chatWins.values()) w.inst.setActive(w.inst === inst);
+  inst.setZIndex(++chatZ);
+}
+
+function reapChatWins(){
+  for (const [k, w] of chatWins) {
+    const inst = w.inst;
+    if (inst.isOpen() || inst.running()) continue;
+    chatWins.delete(k);
+    // After the event that closed it has finished, not inside it.
+    setTimeout(() => inst.destroy(), 0);
+  }
+}
+
+function makeChatWin(newFor){
+  let inst;
+  inst = AIChat.create({
+    windowed: true,
+    dockable: true,
+    ownerLabel: chatOwnerLabel,
+    readOnlyHelp: '',
+    onSessionsChanged, onSend: onPromptRunSend,
+    onChange: () => { reapChatWins(); onChatChange(); },
+    onRectChange: saveChatRect,
+    onFocus: () => focusChatWin(inst),
+  });
+  const saved = loadChatRect();
+  if (saved) inst.setRect(saved);
+  inst.loadStatus();
+  chatWins.set(++chatWinSeq, { inst, newFor });
+  return inst;
+}
+
+function openChatWin(ownerId, ownerKey, sessionId, seed, o){
+  const found = findChatWin(sessionId, ownerKey);
+  if (found && found.isOpen()) {
+    // Asked for again: brought forward, and a bar opens up to its panel.
+    if (found.dockState() === 'minimised') found.anchor();
+    focusChatWin(found);
+    return found;
+  }
+  const inst = found || makeChatWin(sessionId ? '' : ownerKey);
+  if (sessionId) inst.openSession(ownerId, ownerKey, sessionId);
+  else inst.openNew(ownerId, ownerKey, seed, o);
+  focusChatWin(inst);
+  return inst;
+}
+
+function chatOwnerLabel(taskId){
+  const loc = locate(taskId);
+  return loc ? loc.task.title : '';
+}
+
+const hub = (typeof AIChat !== 'undefined') ? AIChat.create({
   windowed: true,
-  ownerLabel: taskId => {
-    const loc = locate(taskId);
-    return loc ? loc.task.title : '';
-  },
+  ownerLabel: chatOwnerLabel,
   // Worth explaining once, on the button that starts a chat, not on every
   // task's Chats section — see the Ask Claude / New chat tooltips.
   readOnlyHelp: '',
   onSessionsChanged, onSend: onPromptRunSend, onChange: onChatChange, onStatusChanged: onChatStatusChanged,
-  onRectChange: saveChatRect,
-}) : {
+}) : null;
+
+const chat = hub ? {
+  available: hub.available,
+  home: hub.home,
+  sessionsFor: hub.sessionsFor,
+  newOwnerKey: hub.newOwnerKey,
+  forget: hub.forget,
+  loadSessions: hub.loadSessions,
+  loadStatus: hub.loadStatus,
+  openNew: (ownerId, ownerKey, seed, o) => { openChatWin(ownerId, ownerKey, '', seed, o); },
+  openSession: (ownerId, ownerKey, sessionId) => { openChatWin(ownerId, ownerKey, sessionId, ''); },
+  /* Open and not docked: the one in the way of the board. */
+  isOpen: () => [...chatWins.values()].some(w => w.inst.isOpen() && w.inst.dockState() === 'none'),
+  closeChat: () => { for (const w of chatWins.values()) if (w.inst.isOpen() && w.inst.dockState() === 'none') w.inst.closeChat(); },
+} : {
   available: () => false,
   renderSection: () => '',
   newOwnerKey: () => '',
@@ -796,11 +878,6 @@ const chat = (typeof AIChat !== 'undefined') ? AIChat.create({
   isOpen: () => false,
   closeChat: () => {},
 };
-// Applied once at startup, not per open — see loadChatRect() above.
-if (typeof AIChat !== 'undefined') {
-  const savedRect = loadChatRect();
-  if (savedRect) chat.setRect(savedRect);
-}
 
 /* A board link posted in a chat opens its card in this tab. The href differs
    from this page only after the `#`, which is what the hashchange listener in

@@ -353,6 +353,44 @@ check('the picker lists what is on disk', picked.rows === 1, `${picked.rows} row
 check('picking one closes the picker', picked.closed)
 check('and attaches it', !!picked.attachCall)
 
+// ---- One window per open chat, minimised and anchored ----
+// See IMPROVEMENTS.md, "A chat can only be open or closed". Each open chat is
+// its own AIChat instance; the engine docks them along the bottom edge.
+const until = async (expr, ms = 3000) => {
+  for (let t = 0; t < ms; t += 50) { if (await evalJS(expr)) return true; await new Promise(r => setTimeout(r, 50)) }
+  return false
+}
+const S1 = '11111111-1111-1111-1111-111111111111', S3 = '33333333-3333-3333-3333-333333333333'
+await evalJS(`(() => { for (const w of chatWins.values()) w.inst.closeChat(); })()`)
+await until(`chatWins.size === 0`)
+await evalJS(`chat.openSession('${built.ids[0]}', 'aaaaaa', '${S1}')`)
+check('opening a chat makes one window for it', await until(`chatWins.size === 1 && document.querySelectorAll('.tenon-window.aic-box').length === 1`),
+  await evalJS(`chatWins.size + ' instances'`))
+await evalJS(`chat.openSession('${built.ids[1]}', 'bbbbbb', '${S3}')`)
+check('a second chat opens beside it rather than replacing it', await until(`chatWins.size === 2 && document.querySelectorAll('.tenon-window.aic-box').length === 2`))
+await evalJS(`chat.openSession('${built.ids[0]}', 'aaaaaa', '${S1}')`)
+check('re-opening an open chat focuses it rather than duplicating it', await until(`chatWins.size === 2 && document.querySelectorAll('.tenon-window.aic-box').length === 2`))
+await evalJS(`findChatWin('${S1}').minimise()`)
+check('minimising docks it as a bar on the bottom-right edge', await until(`(() => {
+  const el = document.querySelector('.aic-minimised'); if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return Math.abs(r.bottom - innerHeight) < 2 && innerWidth - r.right < 40;
+})()`))
+check('  and it is no longer the window in the way of the board', await evalJS(`chat.isOpen() === true && findChatWin('${S1}').dockState() === 'minimised'`))
+await evalJS(`findChatWin('${S3}').minimise()`)
+check('two minimised chats line up leftwards', await until(`(() => {
+  const bars = [...document.querySelectorAll('.aic-minimised')].map(e => e.getBoundingClientRect());
+  return bars.length === 2 && Math.abs(bars[0].bottom - bars[1].bottom) < 2 && Math.abs(bars[0].left - bars[1].left) >= 300;
+})()`))
+await evalJS(`chat.openSession('${built.ids[0]}', 'aaaaaa', '${S1}')`)
+check('re-opening a minimised chat opens it anchored', await until(`findChatWin('${S1}').dockState() === 'anchored' && !!document.querySelector('.aic-anchored')`))
+check('  with buttons to minimise and expand it', await evalJS(`!!document.querySelector('.aic-anchored .aic-minimise') && !!document.querySelector('.aic-anchored .aic-expand')`))
+await evalJS(`findChatWin('${S1}').closeChat()`)
+check('closing a chat takes its instance down', await until(`chatWins.size === 1 && !findChatWin('${S1}') && document.querySelectorAll('[data-ai-chat]').length === 1`),
+  await evalJS(`chatWins.size + ' instances, ' + document.querySelectorAll('[data-ai-chat]').length + ' roots'`))
+await evalJS(`findChatWin('${S3}').closeChat()`)
+check('  and the last one leaves nothing docked', await until(`chatWins.size === 0 && !document.querySelector('.aic-docked')`))
+
 check('a locked tab refuses to write down what was opened', await evalJS(`
   (() => {
     state.locked = true;
