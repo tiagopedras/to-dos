@@ -34,18 +34,20 @@ import sys
 import uuid
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# $TODOS_DATA_ROOT moves the datasets, as it does for kanban/server.py.
+DATA_ROOT = os.environ.get("TODOS_DATA_ROOT") or os.path.join(ROOT, "data")
 
 
 def current_dataset():
     try:
-        with open(os.path.join(ROOT, "data", ".current"), encoding="utf-8") as fh:
+        with open(os.path.join(DATA_ROOT, ".current"), encoding="utf-8") as fh:
             return fh.read().strip() or "twinkl"
     except OSError:
         return "twinkl"
 
 
 def queue_path(dataset=None):
-    return os.path.join(ROOT, "data", dataset or current_dataset(), "tick-queue.json")
+    return os.path.join(DATA_ROOT, dataset or current_dataset(), "tick-queue.json")
 
 
 class _Locked:

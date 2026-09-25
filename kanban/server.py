@@ -72,10 +72,20 @@ except ImportError:
 # It is also what Obsidian opens as its vault, so the vault holds the list and
 # nothing else: no board, no skill, no README to index.
 DATA = "data"
-CURRENT_FILE = os.path.join(ROOT, DATA, ".current")
+# Where the datasets really sit on disk. The board still asks for /data/..., so
+# URLs never change; only the folder they resolve to does. TODOS_DATA_ROOT
+# (an absolute path) moves it, and .current with it, which is what lets
+# scripts/test-board.sh run a second server over a throwaway copy rather than
+# the real lists. Unset, it is ROOT/data exactly as before.
+DEFAULT_DATA_ROOT = os.path.join(ROOT, DATA)
+DATA_ROOT = os.environ.get("TODOS_DATA_ROOT") or DEFAULT_DATA_ROOT
+SCRATCH = os.path.realpath(DATA_ROOT) != os.path.realpath(DEFAULT_DATA_ROOT)
+CURRENT_FILE = os.path.join(DATA_ROOT, ".current")
 TARGET = DATA + "/todo.md"
 PAGE = "kanban/index.html"
-PORT = 8765
+PORT = int(os.environ.get("TODOS_PORT") or 8765)
+# A test server must never open a window: it would steal focus mid-run.
+OPEN_BROWSER = not os.environ.get("TODOS_NO_BROWSER")
 MAX_BYTES = 5 * 1024 * 1024
 # One-backup-per-run applies per dataset, not to the server as a whole — the
 # rare session that visits two lists gets one grace save on each.
@@ -93,7 +103,7 @@ backup_made = set()
 # covers a dataset removed by hand outside the board.
 
 def list_datasets():
-    base = os.path.join(ROOT, DATA)
+    base = DATA_ROOT
     if not os.path.isdir(base):
         return []
     out = [name for name in os.listdir(base)
@@ -115,7 +125,7 @@ def current_dataset():
 
 
 def set_current_dataset(name):
-    os.makedirs(os.path.join(ROOT, DATA), exist_ok=True)
+    os.makedirs(DATA_ROOT, exist_ok=True)
     with open(CURRENT_FILE, "w", encoding="utf-8") as fh:
         fh.write(name)
 
@@ -129,7 +139,7 @@ def slugify(raw):
 
 
 def dataset_dir(name):
-    return os.path.join(ROOT, DATA, name)
+    return os.path.join(DATA_ROOT, name)
 
 
 def people_path(name=None):
@@ -1393,7 +1403,7 @@ def planning_lock():
     and a shared lock would have the second wait on the first. The board only
     ever shows one list, so it only ever asks about that one's.
     """
-    return os.path.join(ROOT, DATA, ".plan-agent-%s.lock" % current_dataset())
+    return os.path.join(DATA_ROOT, ".plan-agent-%s.lock" % current_dataset())
 
 
 # The log lines plan.py writes, and which of them mean what. Matched here rather
@@ -1431,6 +1441,10 @@ def start_planning_agent_run():
     import subprocess
     if planning_agent_pick is None:
         return None, {"error": "no planning agent in this checkout"}
+    if SCRATCH:
+        # A test server over a throwaway data root: a real run would spend
+        # money and plan against whatever run.sh resolves, not this folder.
+        return None, {"error": "not started from a server on a scratch data root"}
     script = os.path.join(ROOT, "agents", "plan-agent", "run.sh")
     if not os.path.isfile(script):
         return None, {"error": "agents/plan-agent/run.sh is not here"}
@@ -1890,7 +1904,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             ds = current_dataset()
             if ds:
                 rest = p[len(prefix):]
-                return super().translate_path(prefix + "/" + ds + rest)
+                real = super().translate_path(prefix + "/" + ds + rest)
+                if SCRATCH:
+                    # Same resolution, then moved from ROOT/data to the
+                    # scratch root. Anything that climbs out stays refused
+                    # by pointing at a path that cannot exist.
+                    rel = os.path.relpath(real, DEFAULT_DATA_ROOT)
+                    if rel == ".." or rel.startswith(".." + os.sep):
+                        return os.path.join(DATA_ROOT, ".outside-data-root")
+                    return os.path.join(DATA_ROOT, rel)
+                return real
         return super().translate_path(path)
 
     def do_GET(self):
@@ -2616,7 +2639,8 @@ def main():
             print("")
             print("then start run.command again.")
             print("")
-            webbrowser.open("http://127.0.0.1:%d/%s" % (PORT, PAGE))
+            if OPEN_BROWSER:
+                webbrowser.open("http://127.0.0.1:%d/%s" % (PORT, PAGE))
             return 0
         raise
 
@@ -2634,7 +2658,8 @@ def main():
     # way out here means it is in the scrollback when it is needed.
     print("Running as process %d. If this window is gone, stop it with:" % os.getpid())
     print("    lsof -ti tcp:%d | xargs kill" % PORT)
-    threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    if OPEN_BROWSER:
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

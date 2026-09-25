@@ -20,6 +20,7 @@
  */
 
 const BOARD = process.env.BOARD_PORT || 8765
+if (!process.env.BOARD_PORT) console.error('Note: this runs against the live board on 8765. For a throwaway copy: scripts/test-board.sh test_save_guard.mjs')
 const BASE = `http://127.0.0.1:${BOARD}`
 const FILE = `${BASE}/data/todo.md`
 
