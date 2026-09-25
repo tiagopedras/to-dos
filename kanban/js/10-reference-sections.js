@@ -1016,6 +1016,9 @@ async function openAttachPicker(taskId){
     '<header>Attach a session' +
       '<button type="button" class="attachpick-close" aria-label="Close">×</button>' +
     '</header>' +
+    '<div class="attachpick-search-wrap">' +
+      '<input type="search" class="attachpick-search" placeholder="Search sessions…" aria-label="Search sessions">' +
+    '</div>' +
     '<div class="attachpick-body"><p class="aic-none">Loading…</p></div>' +
   '</div>';
   document.body.appendChild(overlay);
@@ -1025,40 +1028,62 @@ async function openAttachPicker(taskId){
   overlay.onclick = e => { if (e.target === overlay) close(); };
   overlay.querySelector('.attachpick-close').onclick = close;
 
-  let sessions = [];
-  try {
-    sessions = (await getJSON('/claude/attachable.json')).sessions || [];
-  } catch (err) { sessions = []; }
-  if (!overlay.isConnected) return;   // closed while the list was loading
-
   const body = overlay.querySelector('.attachpick-body');
-  if (!sessions.length) {
-    body.innerHTML = '<p class="aic-none">Nothing on disk that isn’t filed against a task already.</p>';
-    return;
-  }
-  body.innerHTML = sessions.map(s =>
-    '<button type="button" class="attachpick-row" data-session="' + esc(s.id) + '"' +
-      ' data-cwd="' + esc(s.cwd) + '" data-title="' + esc(s.title || '') + '">' +
-      '<span class="attachpick-title">' + esc(s.title || 'Untitled conversation') + '</span>' +
-      '<span class="attachpick-meta">' + esc(cvWhen(s.updated)) + ' · ' + esc(s.cwd) + '</span>' +
-    '</button>'
-  ).join('');
-  body.querySelectorAll('.attachpick-row').forEach(row => {
-    row.onclick = async () => {
-      body.querySelectorAll('.attachpick-row').forEach(r => r.disabled = true);
-      const key = chatKeyFor(loc.task, true);
-      try {
-        await postJSON('/claude/attach', {
-          owner: key, session: row.dataset.session,
-          cwd: row.dataset.cwd, title: row.dataset.title
-        });
-      } catch (err) { /* nothing to do — the drawer just won't show it */ }
-      close();
-      await chat.loadSessions();
-      refreshView();
-      openDrawer(taskId);
-    };
-  });
+  const searchBox = overlay.querySelector('.attachpick-search');
+
+  const render = (sessions, term) => {
+    if (!overlay.isConnected) return;   // closed while the list was loading
+    if (!sessions.length) {
+      body.innerHTML = '<p class="aic-none">' +
+        (term ? 'Nothing matches that.' : 'Nothing on disk that isn’t filed against a task already.') +
+        '</p>';
+      return;
+    }
+    body.innerHTML = sessions.map(s =>
+      '<button type="button" class="attachpick-row" data-session="' + esc(s.id) + '"' +
+        ' data-cwd="' + esc(s.cwd) + '" data-title="' + esc(s.title || '') + '">' +
+        '<span class="attachpick-title">' + esc(s.title || 'Untitled conversation') + '</span>' +
+        '<span class="attachpick-meta">' + esc(cvWhen(s.updated)) + ' · ' + esc(s.cwd) + '</span>' +
+      '</button>'
+    ).join('');
+    body.querySelectorAll('.attachpick-row').forEach(row => {
+      row.onclick = async () => {
+        body.querySelectorAll('.attachpick-row').forEach(r => r.disabled = true);
+        const key = chatKeyFor(loc.task, true);
+        try {
+          await postJSON('/claude/attach', {
+            owner: key, session: row.dataset.session,
+            cwd: row.dataset.cwd, title: row.dataset.title
+          });
+        } catch (err) { /* nothing to do — the drawer just won't show it */ }
+        close();
+        await chat.loadSessions();
+        refreshView();
+        openDrawer(taskId);
+      };
+    });
+  };
+
+  const load = async term => {
+    let sessions = [];
+    try {
+      const q = term ? '?q=' + encodeURIComponent(term) : '';
+      sessions = (await getJSON('/claude/attachable.json' + q)).sessions || [];
+    } catch (err) { sessions = []; }
+    render(sessions, term);
+  };
+
+  // Debounced rather than one request per keystroke — the filter runs
+  // server-side, over every session on disk, not just the ones on screen.
+  let debounceTimer = null;
+  searchBox.oninput = () => {
+    clearTimeout(debounceTimer);
+    const term = searchBox.value.trim();
+    debounceTimer = setTimeout(() => load(term), 200);
+  };
+
+  await load('');
+  if (overlay.isConnected) searchBox.focus();
 }
 
 /* A prompt written on the task starts its own conversation, seeded with the
