@@ -200,8 +200,33 @@ function setSubText(t, lineIdx, text){
   if (state.locked) return;
   const m = SUB_RE.exec(t.body[lineIdx]);
   if (!m) return;
+  /* The edit box leaves the line's `id:` out (see subEditText), so it is put
+     back here: retyping a step's text must not cost it the id its panel and
+     every link to it are keyed on. */
+  const had = SUB_ID_RE.exec(m[3]);
+  if (had && !SUB_ID_RE.test(text)) text = text + ' ' + had[0].trim();
   t.body[lineIdx] = m[1] + '- [' + m[2] + '] ' + text;
   markDirty();
+}
+/* A step's `id:` tag, in either spelling the parser reads. */
+const SUB_ID_RE = /\s*(`id:[^`]*`|\[id::[^\]]*\])/i;
+/* What the inline edit box shows: the raw line, minus the id. */
+function subEditText(raw){
+  return String(raw || '').replace(SUB_ID_RE, '').trim();
+}
+/* Gives a step without one an `id:`, so it can open its own panel. Appended
+   rather than re-serialised, so nothing else on the line moves. Returns the
+   id, or '' when the tab is read-only or the line is not a step. */
+function ensureSubId(t, lineIdx){
+  const m = SUB_RE.exec(t.body[lineIdx] || '');
+  if (!m) return '';
+  const had = /`id:([^`]+)`|\[id::\s*([^\]]+)\]/i.exec(m[3]);
+  if (had) return (had[1] || had[2]).trim().toLowerCase();
+  if (state.locked) return '';
+  const id = mintId(idsInDoc(state.doc));
+  t.body[lineIdx] = t.body[lineIdx].replace(/\s*$/, '') + ' `id:' + id + '`';
+  markDirty();
+  return id;
 }
 function removeSubLine(t, lineIdx){
   if (state.locked) return;
@@ -213,7 +238,9 @@ function removeSubLine(t, lineIdx){
 function addSub(t){
   if (state.locked) return;
   const p = bodyParts(t);
-  p.subs.push('  - [ ] ');
+  /* Minted now, the way handOver() mints its four, so a step typed in by hand
+     opens its own panel like any other. */
+  p.subs.push('  - [ ] `id:' + mintId(idsInDoc(state.doc)) + '`');
   rebuildBody(t, p.notes, p.subs, p.subsAt);
   markDirty();
 }

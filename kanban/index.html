@@ -139,9 +139,6 @@
        are all decisions about the task as a whole, so they are one group at the
        other end, drawn at one size (see .dhead .btn in the stylesheet). -->
   <div class="dhead">
-    <!-- Only on a sub-task, and first so it sits top left: the way back to the
-         task it belongs to. See openSubtaskDrawer() in 19-drawer.js. -->
-    <button class="btn ghost hidden" id="dheadBack" type="button">← Back to task</button>
     <strong id="drawerTitle">Edit task</strong>
     <span class="help" id="dheadHelp">Changes save automatically</span>
     <span class="spacer"></span>
@@ -150,6 +147,19 @@
     <button class="btn ghost" id="closeDrawer">Close</button>
   </div>
   <div class="dbody" id="dbody"></div>
+</aside>
+<!-- A sub-task opens here, over the task drawer rather than in place of it, so
+     the task it belongs to is still there, faded, when it closes. As wide as
+     the drawer's left column. See openSubtaskDrawer() in 19-drawer.js. -->
+<div class="scrim subscrim" id="subscrim"></div>
+<aside id="subpanel" aria-label="Sub-task">
+  <div class="dhead">
+    <strong id="subTitle">Sub-task</strong>
+    <span class="help" id="subHelp">Changes save automatically</span>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="closeSub" type="button">Close</button>
+  </div>
+  <div class="dbody" id="sbody"></div>
 </aside>
 
 <!-- The chat window itself is mounted by ai_chat_engine's ai-chat.js the first

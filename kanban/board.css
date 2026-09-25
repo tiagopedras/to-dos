@@ -1849,7 +1849,7 @@
   #drawer.projectview #del{display:none}
   /* A sub-task is deleted from its task's Subtasks list, and is never the
      headline, so neither control in the frame applies to it. */
-  #drawer.subview #del, #drawer.subview #dheadHl{display:none}
+  #subpanel.readonly #subHelp{color:var(--tenon-text-warning)}
   /* A value the sub-task does not carry and takes from its task. Faded, with the
      line under it saying where it comes from. */
   /* The next move on a card is his: the chip on the card and the count in its column's head. */
@@ -1861,11 +1861,6 @@
   .reviewbtns{display:flex; flex-wrap:wrap; gap:6px}
   #f-sendback-text{min-height:70px}
   .subwait.done{color:var(--tenon-text-faint)}
-  .sub .subopen{
-    flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:.55;
-    font-size: var(--tenon-typography-size-sm); line-height:1; padding:2px 3px; border-radius:var(--tenon-radius-default);
-  }
-  .sub .subopen:hover{opacity:1; background:var(--tenon-background-neutral)}
   #drawer.readonly #dheadHelp{color:var(--tenon-text-warning)}
   /* A suggestion, not a fact about the task — a message, a prompt, a ticket to
      raise, an agenda. Dashed and faded rather than a solid coloured stripe, so
@@ -2281,6 +2276,10 @@
   /* ---------- drawer ---------- */
   .scrim{position:fixed; inset:0; background:rgba(10,12,16,.28); opacity:0; pointer-events:none; transition:opacity .15s; z-index:30}
   .scrim.open{opacity:1; pointer-events:auto}
+  /* The sub-task panel's own scrim fades the board and the task drawer
+     together, so it sits above the drawer and under the panel. */
+  .subscrim{z-index:32}
+  #subpanel{z-index:33; width:420px}
   /* A container as well as a panel, so the head can answer to the drawer's own
      width the way .dcols already answers to #dbody's. The drawer is dragged
      between 340px and 1200px, so "is there room for this" is a question about
@@ -2520,32 +2519,21 @@
   .sub:hover{border-color:var(--tenon-stroke-default)}
   .sub.checked .subtext{color:var(--tenon-text-faint); text-decoration:line-through}
   .sub input{margin-top:3px; flex:none}
-  .sub .subtext{flex:1; cursor:text}
-  .sub .subtext:hover{color:var(--tenon-text-accent)}
-  .sub.checked .subtext:hover{color:var(--tenon-text-faint)}
+  .sub .subtext{flex:1}
+  /* The whole row opens the sub-task; the chevron says so. */
+  .sub.opens{cursor:pointer}
+  .sub.opens:hover .subtext{color:var(--tenon-text-accent)}
+  .sub.checked.opens:hover .subtext{color:var(--tenon-text-faint)}
+  .sub.opens:focus-visible{outline:2px solid var(--tenon-stroke-accent); outline-offset:-1px}
+  .sub .subchev{flex:none; color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-lg); line-height:1; padding:0 2px}
+  .sub.opens:hover .subchev{color:var(--tenon-text-default)}
+  .sub .subnotemark{font-style:normal; margin-left:6px; color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-xs)}
   .sub .subdel{
     flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
     font-size: var(--tenon-typography-size-lg); line-height:1; padding:0 2px; border-radius:var(--tenon-radius-default);
   }
   .sub:hover .subdel{opacity:.6}
   .sub .subdel:hover{opacity:1; color:var(--tenon-text-error)}
-  /* A note on one step, scoped to it rather than to the whole task the way
-     Description is. Quiet until there is something in it — most rows carry
-     none, so the icon should not read as a row of empty controls. */
-  .sub .noteicon{
-    flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
-    font-size: var(--tenon-typography-size-sm); line-height:1; padding:2px 3px; border-radius:var(--tenon-radius-default);
-  }
-  .sub:hover .noteicon{opacity:.55}
-  .sub .noteicon:hover{opacity:1 !important; background:var(--tenon-background-neutral)}
-  .sub .noteicon.has-note{opacity:.85; color:var(--tenon-text-accent)}
-  .sub:hover .noteicon.has-note{opacity:1}
-  .noterow{padding:0 6px 6px 34px}
-  .noterow .notebox{
-    width:100%; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-raised); color:var(--tenon-text-default);
-    border-radius:var(--tenon-radius-default); padding:6px 8px; font-size: var(--tenon-typography-size-sm); line-height:1.5; font-family:inherit;
-    resize:vertical; min-height:44px;
-  }
   .subedit{
     flex:1; border:1px solid var(--tenon-stroke-accent); background:var(--tenon-background-raised); color:var(--tenon-text-default);
     border-radius:var(--tenon-radius-default); padding:2px 6px; font-size: var(--tenon-typography-size-sm); font-family:inherit;
