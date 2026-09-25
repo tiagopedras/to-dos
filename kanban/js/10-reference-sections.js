@@ -263,15 +263,16 @@ function refChips(it){
   const chips = [];
   /* First, because on a recurring task how often it comes round is what frames
      every other tag on the card: the deadline is the next occurrence. */
-  if (it.repeat) chips.push({ cls: 'tag repeat', text: it.repeat.label, title: 'Recurring ' + it.repeat.label });
+  if (it.repeat) chips.push({ tone: 'neutral', text: it.repeat.label, title: 'Recurring ' + it.repeat.label });
   const si = startInfo(it.start);
+  // Kept as the board's own chip — see cardModel()'s startdate comment.
   if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
   const di = dueInfo(it.due, it.tier === WAIT_COL);
-  if (di) chips.push({ cls: 'tag due ' + di.cls, text: di.label + (di.note ? ' · ' + di.note : '') });
-  if (it.urgent) chips.push({ cls: 'tag urgent', text: 'urgent' });
-  if (it.impact) chips.push({ cls: 'tag impact-' + it.impact, text: IMPACT_EMOJI[it.impact] || it.impact, title: it.impact + ' impact' });
-  if (it.effort) chips.push({ cls: 'tag', text: it.effort });
-  if (it.to && it.to.trim()) chips.push({ cls: 'tag who', text: '→ ' + it.to.trim(),
+  if (di) chips.push({ tone: DUE_TONE[di.cls] || 'neutral', text: di.label + (di.note ? ' · ' + di.note : '') });
+  if (it.urgent) chips.push({ tone: 'urgent', text: 'urgent' });
+  if (it.impact) chips.push({ tone: 'neutral', text: IMPACT_EMOJI[it.impact] || it.impact, title: it.impact + ' impact' });
+  if (it.effort) chips.push({ tone: 'neutral', text: it.effort });
+  if (it.to && it.to.trim()) chips.push({ tone: 'accent', text: '→ ' + it.to.trim(),
     title: 'Delegated to ' + it.to.trim() });
   return chips;
 }

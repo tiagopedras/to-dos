@@ -13,10 +13,17 @@
  * the string version does not emit; the test steps over it.
  */
 import type { DragEvent, KeyboardEvent } from 'react'
-import { Card } from '@tiagopedras/tenon'
+import { Card, Tag } from '@tiagopedras/tenon'
+import type { TagTone } from '@tiagopedras/tenon'
 
 export interface Chip {
-  cls: string
+  /** One of Tenon's `Tag` tones — draws a Tenon `Tag`. Set instead of `cls`. */
+  tone?: TagTone
+  /** The board's own `.tag` classes, for the handful of chips no tone fits:
+   *  your move (solid, no filled tone matches it), the project chip (a button
+   *  with its own hover state) and the start-date gate (a dashed border).
+   *  Set instead of `tone`. */
+  cls?: string
   text: string
   title?: string
   /** Set on the project chip, which opens the project rather than the card. */
@@ -54,6 +61,7 @@ export interface TaskCardProps {
 }
 
 function ChipSpan({ c }: { c: Chip }) {
+  if (c.tone) return <Tag tone={c.tone} title={c.title}>{c.text}</Tag>
   return (
     <span className={c.cls} data-project={c.project} title={c.title}>{c.text}</span>
   )

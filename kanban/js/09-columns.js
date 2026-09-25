@@ -333,22 +333,28 @@ function cardModel(t, opts){
   /* What is on the card, as data. Two things draw it: cardHTML() below, as a
      string, for the matrix's hover preview, and TaskCard (kanban/ui/TaskCard.tsx)
      for the board. Deciding which chips a task earns lives here once, so the two
-     cannot disagree about it. A chip is { cls, text, title?, project? }. */
+     cannot disagree about it. A chip is { cls, text, title?, project? } for one
+     still drawn as the board's own `.tag` classes, or { tone, text, title? } for
+     one drawn as Tenon's `Tag` — see DUE_TONE below for why due has three. */
   const chips = [];
   /* The card sitting in its own column is the same task as the one pinned in
      the headline bar, and used to give no sign of that — open two tabs and
      they read as two different tasks. The ring round the card and the tag
      both point back at the bar rather than duplicating it. */
-  if (t.headline) chips.push({ cls: 'tag onething', text: 'the one thing',
+  if (t.headline) chips.push({ tone: 'accent', text: 'the one thing',
     title: 'This is the headline — pinned at the top as the one thing' });
   /* A sub-task assigned to him is open and what it waits on is ticked, so the
      next move on this card is his. Worked out from the sub-tasks each time; the
-     column head counts the cards carrying it. */
+     column head counts the cards carrying it. Kept as the board's own chip: it
+     is the one solid, filled-in chip on a card on purpose, and Tenon's `Tag`
+     has no filled tone to match it. */
   if (!t.done && yourMove(t)) chips.push({ cls: 'tag yourmove', text: 'your move',
     title: 'A sub-task on this card is waiting on you' });
   /* First, because it says which piece of work this belongs to, and that frames
      everything after it. Clicking it opens the project rather than the card —
-     see the capture-phase handler on [data-project]. */
+     see the capture-phase handler on [data-project]. Kept as the board's own
+     chip: it is a button with a hover state and its own icon, which `Tag` does
+     not draw. */
   const proj = taskProject(t);
   if (proj) chips.push({ cls: 'tag proj', text: proj, project: proj, title: 'Everything on ' + proj });
   /* The bucket's own sub-organisation — `[theme:: ]`, values declared per
@@ -356,29 +362,33 @@ function cardModel(t, opts){
      both answer "what does this belong to", one level up and one level down. */
   if (t.theme) chips.push({ cls: 'tag theme', text: t.theme, title: 'Theme: ' + t.theme });
   // Says it once, on the card, rather than leaving a gap that reads as "low".
-  if (unscored(t) && !t.done) chips.push({ cls: 'tag needsscore', text: 'needs scoring' });
+  if (unscored(t) && !t.done) chips.push({ tone: 'warning', text: 'needs scoring' });
   /* A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), so
      on the board it is an ordinary done card wearing one more chip rather than
      a state of its own — the same shape every other tag already renders as. It
      sits here rather than with the dates because it answers "was this done",
-     which is the first thing to know about a ticked card. */
-  if (t.done && t.cancelled) chips.push({ cls: 'tag cancelled', text: 'cancelled',
+     which is the first thing to know about a ticked card. Warning rather than
+     error — it is a normal answer, and red on a card in Done would read as a
+     mistake. */
+  if (t.done && t.cancelled) chips.push({ tone: 'warning', text: 'cancelled',
     title: 'Decided against on ' + t.cancelled + ' — not counted as finished work' });
-  if (t.done && t.archived) chips.push({ cls: 'tag cancelled', text: 'archived',
+  if (t.done && t.archived) chips.push({ tone: 'warning', text: 'archived',
     title: 'No longer relevant, ' + t.archived + ' — not counted as finished work' });
-  if (t.impact) chips.push({ cls: 'tag impact-' + t.impact, text: IMPACT_EMOJI[t.impact] || t.impact,
+  if (t.impact) chips.push({ tone: 'neutral', text: IMPACT_EMOJI[t.impact] || t.impact,
     title: t.impact + ' impact' });
-  if (t.effort) chips.push({ cls: 'tag', text: t.effort });
+  if (t.effort) chips.push({ tone: 'neutral', text: t.effort });
   const si = startInfo(t.start);
+  /* Kept as the board's own chip: the dashed border says "gate", not "warning",
+     which is the one thing none of Tenon's tones draw. */
   if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
-  if (t.to && t.to.trim()) chips.push({ cls: 'tag who', text: '→ ' + t.to.trim(),
+  if (t.to && t.to.trim()) chips.push({ tone: 'accent', text: '→ ' + t.to.trim(),
     title: 'Delegated to ' + t.to.trim() });
   /* A ticket waiting to be raised is a fact about the task worth seeing in the
      column, but the button belongs where there is room for it — the task panel
      and the reference cards. So the card gets the marker and not the link. */
   const tickets = jiraNotes(t);
   if (tickets.length && !t.done) {
-    tickets.forEach(n => chips.push({ cls: 'tag jira', text: n.key ? n.key + ' ticket' : 'ticket' }));
+    tickets.forEach(n => chips.push({ tone: 'neutral', text: n.key ? n.key + ' ticket' : 'ticket' }));
   }
   /* How often the task comes round, and nothing about whether it is prepared.
      There is no "agenda ready" chip on purpose: on a recurring task the tick
@@ -387,13 +397,13 @@ function cardModel(t, opts){
      passed and the board rolls it onto the next date. A chip saying the same
      thing a second way is a second thing to keep in step. */
   const rep = readRepeat(t.repeat);
-  if (rep) chips.push({ cls: 'tag repeat', text: rep.label,
+  if (rep) chips.push({ tone: 'neutral', text: rep.label,
     title: 'Recurring ' + rep.label + '. The board moves the date on once this one has passed.' });
   // Urgent and due are the "look at this now" signals, so they get their own
   // corner rather than sitting in the wrap with everything else.
   const when = [];
-  if (t.urgent) when.push({ cls: 'tag urgent', text: 'urgent' });
-  if (di) when.push({ cls: 'tag due ' + di.cls, text: di.label + (di.note ? ' · ' + di.note : '') });
+  if (t.urgent) when.push({ tone: 'urgent', text: 'urgent' });
+  if (di) when.push({ tone: DUE_TONE[di.cls] || 'neutral', text: di.label + (di.note ? ' · ' + di.note : '') });
 
   let progress = null;
   if (subs.length) {
