@@ -351,6 +351,10 @@ function cardModel(t, opts){
      see the capture-phase handler on [data-project]. */
   const proj = taskProject(t);
   if (proj) chips.push({ cls: 'tag proj', text: proj, project: proj, title: 'Everything on ' + proj });
+  /* The bucket's own sub-organisation — `[theme:: ]`, values declared per
+     bucket (see state.bucketThemes in 02-state.js). Beside the project chip:
+     both answer "what does this belong to", one level up and one level down. */
+  if (t.theme) chips.push({ cls: 'tag theme', text: t.theme, title: 'Theme: ' + t.theme });
   // Says it once, on the card, rather than leaving a gap that reads as "low".
   if (unscored(t) && !t.done) chips.push({ cls: 'tag needsscore', text: 'needs scoring' });
   /* A cancellation is a tick plus a tag (CONVENTIONS.md, Cancelling a task), so

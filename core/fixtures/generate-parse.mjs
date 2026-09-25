@@ -31,7 +31,7 @@ const old = JSON.parse(fs.readFileSync(path.join(HERE, 'parse.json'), 'utf8'))
    the other shows up as a missing key rather than as nothing at all. `id` is
    not here: it is uid(), fresh every parse, and means nothing outside one tab. */
 const FIELDS = ['done', 'title', 'bold', 'impact', 'effort', 'due', 'start', 'doneOn',
-  'to', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
+  'to', 'theme', 'urgent', 'week', 'slug', 'blockedBy', 'rank', 'tlrank', 'headline',
   'chat', 'repeat', 'stableId', 'cancelled', 'archived', 'extra', 'doing']
 
 /* New cases, appended as the grammar grows. The existing lines are untouched
@@ -61,7 +61,12 @@ const NEW_LINES = [
      other. */
   '- [ ] **Plan** `doing` [to:: Plan agent] `#ab12cd-plan` `id:pl0001`',
   '- [ ] **Review the plan** [to:: Tiago] `blocked-by:ab12cd-plan` `#ab12cd-plan-review` `id:pl0002`',
-  '- [x] **Implement** [to:: Implement agent] `done:2026-09-21` `#ab12cd-implement` `id:pl0003`'
+  '- [x] **Implement** [to:: Implement agent] `done:2026-09-21` `#ab12cd-implement` `id:pl0003`',
+  /* 25 Sep 2026: a bucket's own sub-organisation, `[theme:: ]`, values declared
+     per bucket rather than invented per task — see IMPROVEMENTS.md. */
+  '- [ ] **Filed under a theme** [impact:: high] [theme:: audits]',
+  '- [ ] **The other syntax reads too** `theme:ways-of-working`',
+  '- [ ] **No theme at all, the way every task looked before today** [impact:: low]'
 ]
 
 /* Sub-tasks, read out of a task's body. Each entry is a task line and the

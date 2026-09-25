@@ -28,6 +28,22 @@ function delegateSelectHTML(value, dis){
   '</select>';
 }
 
+/* The Theme field's dropdown, offered only from the values declared for the
+   task's own bucket (state.bucketThemes, see 02-state.js and the Themes
+   field in openBucketEditor, 08-buckets.js) — a query can only ever mean one
+   of a fixed set, which is the whole point of declaring them rather than
+   typing one in per task. A value already on the task that the bucket no
+   longer declares — moved there, or dropped from the list since — stays
+   offered as written rather than silently lost, the same rule
+   delegateSelectHTML above applies to a name people.md has stopped naming. */
+function themeSelectHTML(value, themes, dis){
+  const cur = String(value || '').trim();
+  const opt = (v, label) => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>';
+  const list = themes.slice();
+  if (cur && !list.includes(cur)) list.unshift(cur);
+  return '<select id="f-theme"' + dis + '>' + opt('', 'None') + list.map(v => opt(v)).join('') + '</select>';
+}
+
 function dedent(lines){ return lines.map(l => l.replace(/^ {1,2}/, '')).join('\n').replace(/\n+$/, ''); }
 function indent(text){
   return text.replace(/\s+$/,'').split('\n').map(l => l.trim() === '' ? '' : '  ' + l);
@@ -609,7 +625,7 @@ const KNOWN_TAG_FIELDS = [
    is refused on one of these, since writing it into t.extra anyway would put
    a second, unread copy beside the field the board actually uses. */
 const RESERVED_TAG_KEYS = [
-  'impact', 'effort', 'due', 'start', 'done', 'to', 'blocked-by', 'rank',
+  'impact', 'effort', 'due', 'start', 'done', 'to', 'theme', 'blocked-by', 'rank',
   'tlrank', 'headline', 'chat', 'repeat', 'id', 'cancelled', 'archived',
   'urgent', 'week', 'doing'
 ];
@@ -939,6 +955,7 @@ function openDrawer(id, focusTitle){
   const subs = subSteps(t);
   const sugg = suggestions(t);
   const proj = taskProject(t);
+  const bucketThemes = (state.bucketThemes && state.bucketThemes[loc.bucket.name]) || [];
   const rep = t.repeat ? readRepeat(t.repeat) : null;
   /* The same fallback rollRecurring() itself uses (04-tier-two-the-one-thing.js):
      trust `due` when it's a real, future date — that's the occurrence the roll
@@ -1023,6 +1040,13 @@ function openDrawer(id, focusTitle){
         '</div>') +
       '</div>' +
     '</div>' +
+    /* Only when the bucket has declared themes, or the task already carries
+       one the bucket no longer does (see themeSelectHTML above) — most
+       buckets have none, and a field offering an empty dropdown on every
+       task would be a question with no answer worth asking. */
+    (bucketThemes.length || t.theme
+      ? '<div class="field"><span>Theme</span>' + themeSelectHTML(t.theme, bucketThemes, dis) + '</div>'
+      : '') +
     /* Full width rather than sharing a grid2 with Bucket: a column name like
        "Reviewing" needs the room a slider half that wide wouldn't give
        its label, where the old <select> never had to fit the whole word next
@@ -1182,6 +1206,7 @@ function openDrawer(id, focusTitle){
     }
     touch();
   };
+  if ($('#f-theme')) $('#f-theme').onchange = e => { t.theme = e.target.value; touch(); };
   wireStepSlider('f-impact', IMPACT_STOPS, v => { t.impact = v; touch(); });
   wireStepSlider('f-effort', EFFORT_STOPS, v => { t.effort = v; touch(); });
   $('#f-urgent').onchange = e => { t.urgent = e.target.checked; touch(); };

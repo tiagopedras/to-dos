@@ -76,7 +76,7 @@ ANY_TAG_RE = re.compile(r"\[([A-Za-z][\w-]*)::\s*([^\]]*)\]|`([A-Za-z][\w-]*):([
 SLUG_RE = re.compile(r"`#([a-z0-9][a-z0-9-]*)`", re.I)
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-INLINE_KEYS = {"impact", "effort", "due", "start", "done", "to"}
+INLINE_KEYS = {"impact", "effort", "due", "start", "done", "to", "theme"}
 
 # The two agents a task can be handed to, spelt the way `[to::]` writes them.
 # Anything else in `[to::]` is a person. `ai:` was retired on 21 Sep 2026 and is
@@ -97,7 +97,7 @@ class Task:
     promoted to attributes; anything else stays in `extra` exactly as written."""
 
     __slots__ = ("done", "title", "impact", "effort", "due", "start", "done_on",
-                 "to", "urgent", "week", "doing", "slug", "blocked_by", "rank",
+                 "to", "theme", "urgent", "week", "doing", "slug", "blocked_by", "rank",
                  "tlrank", "headline", "chat", "repeat", "stable_id",
                  "cancelled", "archived", "extra",
                  "body", "raw", "bucket", "column", "plan_sub")
@@ -106,7 +106,7 @@ class Task:
         self.done = False
         self.title = ""
         self.impact = self.effort = self.due = self.start = ""
-        self.done_on = self.to = ""
+        self.done_on = self.to = self.theme = ""
         self.urgent = self.week = self.doing = False
         self.slug = self.headline = self.chat = self.repeat = ""
         # The task's own identity, minted once and written on the line. See

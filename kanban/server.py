@@ -240,6 +240,20 @@ def bucket_colors_path(name=None):
     return os.path.join(dataset_dir(name or current_dataset()), "bucket-colors.json")
 
 
+def bucket_themes_path(name=None):
+    """Where a bucket's own declared themes live: name -> an ordered list of
+    theme strings (see state.bucketThemes in kanban/js/02-state.js).
+
+    A separate file for the same reason bucket-colors.json is one: which
+    themes a bucket is sub-organised into is a fact about how he works, not a
+    fact any one task carries, and todo.md has exactly one writer. Keyed by
+    name rather than position, same trade bucket-colors.json makes: a rename
+    orphans the entry, and re-declaring the list after a rename costs less
+    than losing it silently would.
+    """
+    return os.path.join(dataset_dir(name or current_dataset()), "bucket-themes.json")
+
+
 def column_names_path(name=None):
     """What a column is *called on screen*, when that differs from its heading.
 
@@ -1944,6 +1958,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 # No file yet, or one written by hand and broken. Either way
                 # every bucket falls back to its position in the list.
                 return self._json(200, {})
+        if path == "/bucket-themes.json":
+            try:
+                with open(bucket_themes_path(), encoding="utf-8") as fh:
+                    themes = json.load(fh)
+                    return self._json(200, themes if isinstance(themes, dict) else {})
+            except (OSError, ValueError):
+                # No file yet, or one written by hand and broken. Either way
+                # every bucket falls back to having no themes declared, which
+                # is what it always had.
+                return self._json(200, {})
         if path == "/column-names.json":
             try:
                 with open(column_names_path(), encoding="utf-8") as fh:
@@ -2249,6 +2273,35 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if not isinstance(k, str) or not isinstance(v, str) or len(k) > 200 or len(v) > 40:
                     return self._json(400, {"error": "bad name or colour"})
             path_out = bucket_colors_path()
+            os.makedirs(os.path.dirname(path_out), exist_ok=True)
+            tmp = path_out + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path_out)
+            return self._json(200, {"ok": True})
+        if path == "/bucket-themes":
+            # Same guard, same shape as /bucket-colors: the whole map is sent
+            # and written back whole. A list rather than a string per entry,
+            # since a bucket declares several themes at once — worst case of
+            # getting one wrong is a pill on the board that says the wrong
+            # thing.
+            if self.headers.get("X-Board") != "1":
+                return self._json(403, {"error": "not from the board"})
+            data = self._body()
+            try:
+                payload = json.loads((data or b"{}").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return self._json(400, {"error": "body was not valid JSON"})
+            if not isinstance(payload, dict) or len(payload) > 200:
+                return self._json(400, {"error": "expected a name -> theme list map"})
+            for k, v in payload.items():
+                if not isinstance(k, str) or len(k) > 200 or not isinstance(v, list) or len(v) > 100:
+                    return self._json(400, {"error": "bad bucket name or theme list"})
+                if not all(isinstance(x, str) and len(x) <= 60 for x in v):
+                    return self._json(400, {"error": "bad theme value"})
+            path_out = bucket_themes_path()
             os.makedirs(os.path.dirname(path_out), exist_ok=True)
             tmp = path_out + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="") as fh:

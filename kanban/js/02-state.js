@@ -34,6 +34,18 @@ const state = {
      a fact the list itself needs to carry, and todo.md has exactly one writer
      already. */
   bucketColors: {},
+  /* name -> the ordered list of themes declared for that bucket — the
+     sub-organisation inside a bucket, `[theme:: ]` on the task line — loaded
+     from bucket-themes.json alongside the document. See loadBucketThemes() and
+     the Themes field in openBucketEditor(), both in 08-buckets.js. Same
+     reasoning as bucketColors: a value declared once per bucket rather than
+     typed per task, and todo.md has exactly one writer already. */
+  bucketThemes: {},
+  /* Which theme pills are toggled on, under the bucket strip — see
+     renderThemeTabs() in 07-render-board.js. Only meaningful, and only ever
+     populated, while exactly one bucket is filtered; several can be on at
+     once, the same shape as bucketFilter above. */
+  themeFilter: new Set(),
   // Heading -> what that column is called on screen, loaded from
   // column-names.json alongside the document. See tierLabel() in 09-columns.js.
   columnNames: {},

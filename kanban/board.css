@@ -148,6 +148,12 @@
      both of which are now optional parts of the one tab rather than a second
      kind of tab. The dividers are the header's own, switched on there and off
      in the strip, which is the third thing that used to fork them. */
+  /* The second row, under the bucket strip — see renderThemeTabs() in
+     07-render-board.js. Shares .bucketbar's layout but not its stickiness:
+     two sticky bars stacking would need their own offset maths against
+     --header-h, and a sub-filter scrolling away with the page costs less
+     than getting that wrong. */
+  .themebar{position:static; top:auto; z-index:auto; padding-top:0}
   .tabs{display:inline-flex; gap:3px; background:var(--tenon-background-neutral); padding:3px; border-radius:var(--tenon-radius-md)}
   .tab{
     border:1px solid transparent; background:transparent; border-radius:var(--tenon-radius-default);
@@ -366,6 +372,11 @@
   }
   .tag.proj:hover{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   .tag.proj::before{content:'▣ '; opacity:.6}
+  /* A bucket's own sub-organisation (`[theme:: ]`). Outlined like .tag.proj
+     rather than filled — one more way to see the task, not a status on it. */
+  .tag.theme{
+    background:transparent; border:1px solid var(--tenon-stroke-default); color:var(--tenon-text-subtle);
+  }
   /* The project the task's work lives in, in the drawer's second column. Built
      on the same shell as a conversation card next to it — see the shared rule
      down in the conversation-cards section — because they are the same kind of thing in

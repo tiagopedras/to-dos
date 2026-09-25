@@ -12,6 +12,7 @@ loadFile();
 loadJira();
 loadDatasets();
 loadBucketColors();
+loadBucketThemes();
 loadColumnNames();
 loadChatViewed();
 loadBriefings();
