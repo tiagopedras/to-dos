@@ -233,6 +233,16 @@ function openBucketEditor(){
         '<input type="text" data-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bucket name">' +
         '<input type="text" class="bksummary" data-summary="' + i + '" value="' + esc(summaries[b.name] || '') +
           '" placeholder="What kind of work lands here" aria-label="What this bucket is for, from its brief">' +
+        /* The sub-organisation inside this bucket — `[theme:: ]` on the task
+           line — comma-separated here rather than one row per value, the way
+           a short, freely-edited list is typed everywhere else on this board
+           (blocked-by, people.md). Empty is a normal state: most buckets have
+           no themes, and the Theme field simply does not appear on their
+           tasks. */
+        '<input type="text" class="bkthemes" data-themes="' + i + '" value="' +
+          esc((state.bucketThemes[b.name] || []).join(', ')) +
+          '" placeholder="Themes: comma-separated, e.g. audits, docs" ' +
+          'aria-label="This bucket’s themes, comma-separated">' +
         /* The brief is the only thing on this row that is not a property of
            the bucket as the board draws it — it is a file, and a page of
            prose — so it is a button to somewhere rather than a control here.
@@ -248,9 +258,10 @@ function openBucketEditor(){
       esc(state.fileName) + ' and leaves every task under it alone. The number follows the ' +
       'order, so moving a bucket renumbers the ones it passes — the colour follows the dot ' +
       'instead, so reordering never reshuffles it. The summary is the one-line opener of the ' +
-      'bucket’s own brief, editable here too. Nothing reaches the file until you save; ' +
-      'a colour and a summary save themselves the moment you change them, and Brief opens ' +
-      'the rest of that file.',
+      'bucket’s own brief, editable here too. Themes are this bucket’s own sub-organisation — ' +
+      'leave it empty for a bucket that has none, and a Theme field appears on its tasks the ' +
+      'moment it does. Nothing reaches the file until you save; a colour, a summary and the ' +
+      'themes save themselves the moment you change them, and Brief opens the rest of that file.',
       '<div class="bklist">' + rows + '</div>' +
       '<div class="bkadd">' +
         '<input type="text" id="bkNew" placeholder="New bucket name" aria-label="New bucket name">' +
@@ -294,6 +305,14 @@ function openBucketEditor(){
         } catch (err) {
           showToast('Could not save that summary: ' + (err.message || err), 'bad');
         }
+      };
+      inp.onchange = apply;
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
+    });
+    modalEl.querySelectorAll('input[data-themes]').forEach(inp => {
+      const apply = () => {
+        const b = list[+inp.dataset.themes];
+        setBucketThemes(b, inp.value.split(','));
       };
       inp.onchange = apply;
       inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
@@ -561,6 +580,38 @@ async function loadBucketColors(){
       Object.entries(raw || {}).map(([name, swatch]) => [name, currentSwatch(swatch)]));
   } catch (err) {
     state.bucketColors = {};
+  }
+  if (state.doc) refreshView();
+}
+
+/* The one write a bucket's theme list makes — straight to bucket-themes.json,
+   the same bargain setBucketColor() makes for a colour. Optimistic: the
+   dropdown offering it and the pills under the bucket strip update
+   immediately, and a failed save says so rather than reverting, since
+   state.bucketThemes already has the new list either way. */
+async function setBucketThemes(b, themes){
+  const clean = themes.map(s => s.trim()).filter(Boolean);
+  if (clean.length) state.bucketThemes[b.name] = clean;
+  else delete state.bucketThemes[b.name];
+  refreshView();
+  try {
+    await postJSON('/bucket-themes', state.bucketThemes);
+  } catch (err) {
+    showToast('Could not save that bucket’s themes: ' + (err.message || err), 'bad');
+  }
+}
+
+/* Loaded once alongside bucket-colors.json — see loadBucketColors above and
+   boot.js. A server too old to know the route, or a first run with no file
+   yet, leaves every bucket with no themes declared, which is what it always
+   had: no Theme field in the drawer and no pills under the bucket strip. */
+async function loadBucketThemes(){
+  try {
+    const raw = await getJSON('/bucket-themes.json');
+    state.bucketThemes = Object.fromEntries(
+      Object.entries(raw || {}).map(([name, list]) => [name, Array.isArray(list) ? list : []]));
+  } catch (err) {
+    state.bucketThemes = {};
   }
   if (state.doc) refreshView();
 }

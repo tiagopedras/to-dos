@@ -30,6 +30,7 @@ async function loadBackupPreview(url, label){
     state.originalText = text;
     state.fileName = url.split('/').pop();
     state.bucketFilter = new Set();
+    state.themeFilter = new Set();
     state.view = 'board';
     state.locked = true;
     state.demo = false;

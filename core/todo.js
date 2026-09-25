@@ -120,7 +120,7 @@ function readTags(rest){
     const k = bk != null ? bk : sk, v = bk != null ? bv : sv;
     const key = k.toLowerCase();
     if (key === 'impact' || key === 'effort' || key === 'due' ||
-        key === 'start' || key === 'done' || key === 'to') tags[key] = v.trim();
+        key === 'start' || key === 'done' || key === 'to' || key === 'theme') tags[key] = v.trim();
     /* Retired 21 Sep 2026. `[to::]` says who does the work, an agent included,
        and a backup still carrying `ai:` loses it on the next save. */
     else if (key === 'ai') {}
@@ -188,6 +188,13 @@ function readTags(rest){
     /* Who does the work: one of AGENT_NAMES, or a person from people.md.
        Blank means he is doing it himself, which is most of the list. */
     to: tags.to || '',
+    /* Which of the bucket's declared themes this task sits under — the
+       sub-organisation inside a bucket (Design System's ways-of-working,
+       audits, and so on), values declared per bucket rather than invented per
+       task (see loadBucketThemes() in kanban/js/08-buckets.js). Until 25 Sep
+       2026 this lived as free prose in the first line of Notes, `- Stream:
+       audits.`, readable only by a language model rather than by a query. */
+    theme: tags.theme || '',
     urgent, week, doing, slug, blockedBy, rank, tlrank, headline, chat, repeat, stableId,
     cancelled, archived, extra
   };
@@ -268,6 +275,7 @@ function serializeTask(t){
     if (t.week)   tags.push('`week`');
     if (t.doing)  tags.push('`doing`');
     if (t.to && t.to.trim()) tags.push('[to:: ' + t.to.trim() + ']');
+    if (t.theme && t.theme.trim()) tags.push('[theme:: ' + t.theme.trim() + ']');
     if (t.blockedBy && t.blockedBy.length) tags.push('`blocked-by:' + t.blockedBy.join(',') + '`');
     if (t.rank != null && !isNaN(t.rank)) tags.push('`rank:' + t.rank + '`');
     if (t.tlrank != null && !isNaN(t.tlrank)) tags.push('`tlrank:' + t.tlrank + '`');

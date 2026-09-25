@@ -96,6 +96,14 @@
   <input type="search" id="q" placeholder="Search tasks…">
 </div>
 
+<!-- A second row, only ever visible under exactly one bucket tab: the themes
+     that bucket is declared to have (data/<dataset>/bucket-themes.json),
+     [theme:: ] on the task line. Built by renderThemeTabs() (07-render-board.js),
+     which is also what keeps this hidden the rest of the time. -->
+<div class="bucketbar themebar hidden" id="themeBar">
+  <span class="tabs" id="themeFilters"></span>
+</div>
+
 <!-- Which column is on screen, and how many there are. Phone only: at that
      width every column is the screen's width and snaps, so the only clue that
      five more sit to the right is a sliver of the next one's edge, and nothing

@@ -8,6 +8,9 @@ function matches(t, tierName){
   // Scoring a task he has already finished is busywork, so done ones never
   // count as needing it however they are tagged.
   if (state.unscoredOnly && (t.done || !unscored(t))) return false;
+  // Only ever populated while a single bucket is on screen — see
+  // renderThemeTabs() below — so this costs nothing everywhere else.
+  if (state.themeFilter.size && !state.themeFilter.has(t.theme)) return false;
   const q = state.query.trim().toLowerCase();
   if (!q) return true;
   return (t.title + ' ' + t.body.join(' ')).toLowerCase().indexOf(q) > -1;
@@ -135,6 +138,49 @@ function renderTabs(){
   });
   $('#editBuckets').onclick = openBucketEditor;
   $('#editTiers').onclick = openTierEditor;
+  renderThemeTabs();
   syncHash();
+}
+
+/* A second row of pills, under the bucket strip, naming the themes declared
+   for the one bucket in view — the sub-organisation inside a bucket
+   (`[theme:: ]` on the task line, declared per bucket, see state.bucketThemes
+   in 02-state.js and the Themes field in openBucketEditor, 08-buckets.js).
+   Shown only when exactly one bucket is filtered and that bucket has themes
+   declared: with none or several buckets on screen there is no single set of
+   themes to offer pills for. Toggling copies state.bucketFilter's own shape —
+   several can be on at once — and reuses BUCKET_COLOR the same way the
+   bucket tabs above it do, cycling the same ten swatches by position rather
+   than picking a colour of their own, since a theme has none to remember. */
+function renderThemeTabs(){
+  const wrap = $('#themeFilters');
+  const bar = $('#themeBar');
+  if (!wrap || !bar) return;
+  const only = state.bucketFilter.size === 1 ? [...state.bucketFilter][0] : null;
+  const themes = (only && state.bucketThemes && state.bucketThemes[only]) || [];
+  // Dropped rather than kept stale: a theme filter left over from a bucket no
+  // longer declaring it would otherwise hide every card silently.
+  [...state.themeFilter].forEach(name => { if (!themes.includes(name)) state.themeFilter.delete(name); });
+  if (!themes.length) {
+    bar.classList.add('hidden');
+    wrap.innerHTML = '';
+    return;
+  }
+  bar.classList.remove('hidden');
+  wrap.innerHTML = themes.map((name, i) => {
+    const on = state.themeFilter.has(name);
+    return '<button class="tab' + (on ? ' on' : '') + '" data-theme="' + esc(name) + '"' +
+      ' title="tasks under this theme — click to toggle, several can be on at once" aria-pressed="' + on + '"' +
+      ' style="--bc:' + BUCKET_COLOR[i % BUCKET_COLOR.length] + '">' +
+      '<i class="dot"></i>' + esc(name) + '</button>';
+  }).join('');
+  wrap.querySelectorAll('.tab').forEach(el => {
+    el.onclick = () => {
+      const name = el.dataset.theme;
+      if (state.themeFilter.has(name)) state.themeFilter.delete(name);
+      else state.themeFilter.add(name);
+      renderThemeTabs(); refreshView();
+    };
+  });
 }
 

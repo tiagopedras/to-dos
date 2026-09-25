@@ -1106,7 +1106,23 @@ they settled is written up in the README rather than left here:
   its file for a second definition of every name replaced, since a later
   duplicate in a classic script wins.
 
-- **A theme is a real layer of the list and the board has never heard of it.**
+- ~~**A theme is a real layer of the list and the board has never heard of it.**~~
+  **Done, 25 Sep 2026.** `[theme:: ]` is a first-class field in `core/todo.js`/
+  `core/todo.py` and `RESERVED_TAG_KEYS` (`kanban/js/19-drawer.js`), with fixture
+  cases in `core/fixtures/parse.json`. Values are declared per bucket in
+  `bucket-themes.json` — `loadBucketThemes()`/`setBucketThemes()`
+  (`kanban/js/08-buckets.js`), `/bucket-themes` in `kanban/server.py` — the exact
+  shape `bucket-colors.json` already uses for a preference about the list rather
+  than a fact `todo.md` carries, edited through a new Themes field on each row of
+  the bucket editor rather than the brief or the heading, which would have meant
+  a second reader/writer of a shape already owned elsewhere. The board: a second
+  row of pills under the bucket tabs (`renderThemeTabs()`, `07-render-board.js`),
+  shown only while a single themed bucket is filtered and toggled the same way
+  `state.bucketFilter` is; a `.tag.theme` chip on the card (`cardModel()`,
+  `09-columns.js`); a Theme field in the drawer offering only the bucket's own
+  declared values. Still to do, and out of scope here: migrating the 49
+  `- Stream: …` note lines in `twinkl` to the tag, and rewriting the DS brief's
+  instruction to read the first note line — both private data, through `pa`.
   The Design System bucket is sub-organised into five themes — ways of working,
   audits, improvements, documentation, enablement — and the only record is a
   sentence at the top of the task's notes, `- Stream: audits.`, on 49 of the 152
