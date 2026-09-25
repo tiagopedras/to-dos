@@ -2091,10 +2091,20 @@ they settled is written up in the README rather than left here:
   guards are the whole of what makes it safe; dropping the row fails four
   checks, and archiving before the copy lands fails four more.
 
-  Still open and named in the entry: `check_todo.py` has no archive reader, so a
+  ~~Still open and named in the entry: `check_todo.py` has no archive reader, so a
   task that has aged out is invisible to the checker and to every `pa-*` skill
   that reads `todo.md` directly. That gap gets wider now that ageing out happens
-  on its own.
+  on its own.~~ **Done, 25 Sep 2026.** `check_todo.py` reuses `archive.read_archive()`
+  (`core/archive.py`) rather than a second parser — that module already existed,
+  built for the written-reports entry below and already used by
+  `core/aggregate.py`, so `archived_slugs()` (`check_todo.py`) just reads it
+  against `backups/done-archive.md` next to whichever `todo.md` was checked.
+  `check_slugs()` takes the result and stops treating an archived task's
+  `blocked-by:` target as dangling; it also flags, as a `CHECK`, a live slug
+  that collides with one already sitting in the archive, since `blocked-by:`
+  would then point at whichever one the script happens to see first. Tests in
+  the new `agents/pa_agent/skills/pa/scripts/test_check_todo.py`, next to the
+  script for the first time.
 
   The original entry follows.
 

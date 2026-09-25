@@ -45,6 +45,7 @@ from pathlib import Path
 _CORE = Path(__file__).resolve().parents[5] / "core"
 sys.path.insert(0, str(_CORE))
 import todo  # noqa: E402
+import archive  # noqa: E402
 
 # plannable() is the Plan agent's own read of what counts as a real handover —
 # the tag plus the matching sub-task pick.py's docstring describes. Reused
@@ -882,12 +883,39 @@ def check_stale(lines, today):
     return [Finding(None, "CHECK", "No 'Last updated' line found near the top of the file.")]
 
 
-def check_slugs(tasks):
+def archived_slugs(todo_path):
+    """Slugs of tasks the board has already lifted into done-archive.md.
+
+    A blocked-by: pointing at one of these is finished and filed, not
+    missing — archiveOldDone()/performArchive() in kanban/js/25-archiving.js
+    move a task out of todo.md once it has sat done for more than
+    ARCHIVE_DAYS, and check_slugs() below used to have no way to tell that
+    apart from a slug that never existed. archive.read_archive()
+    (core/archive.py) is the one Python reader of that file — the same one
+    core/aggregate.py already uses for reports — so this borrows it rather
+    than teaching this script a second way to parse an archived line.
+
+    The archive lives at backups/done-archive.md next to todo.md, the same
+    layout backup_dir() in kanban/server.py and report_path() in
+    agents/plan-agent/report.py both already assume.
+    """
+    path = Path(todo_path).parent / "backups" / "done-archive.md"
+    return {t.slug for t in archive.read_archive(str(path)) if t.slug}
+
+
+def check_slugs(tasks, archived=frozenset()):
     """Slugs must be unique, and every blocked-by: must point at one that exists.
 
     This is the check that replaced reading the dependency chain against the
     notes by eye. A blocked-by: pointing at nothing used to be invisible; now it
     is the one thing that silently drops a link out of the chain.
+
+    `archived` is the set of slugs archived_slugs() found in
+    done-archive.md. A task ages out of todo.md once it has been done for
+    long enough, and its slug ages out with it — without this, a
+    blocked-by: pointing at a since-archived task reads exactly like a typo,
+    and the more archiving runs on its own (13 Sep 2026), the more often
+    that would be a false alarm rather than a real one.
     """
     findings = []
     entries = all_entries(tasks)
@@ -904,10 +932,24 @@ def check_slugs(tasks):
                     f"Slugs have to be unique or blocked-by: points at both.",
                 )
             )
+        elif entry["slug"] in archived:
+            findings.append(
+                Finding(
+                    entry["line"],
+                    "CHECK",
+                    f"slug #{entry['slug']} is also carried by a task already in "
+                    f"done-archive.md. blocked-by:{entry['slug']} would point at "
+                    f"whichever one this script happens to see first — give one of "
+                    f"them a different slug.",
+                )
+            )
         seen[entry["slug"]] = entry["line"]
 
     for entry in entries:
         for slug in entry["blocked_by"]:
+            if slug in archived:
+                # Finished and filed, not missing — see archived_slugs() above.
+                continue
             if slug not in seen:
                 findings.append(
                     Finding(
@@ -1235,13 +1277,14 @@ def main():
     text = Path(args.path).read_text(encoding="utf-8")
     lines = text.splitlines()
     tasks = parse_tasks(lines)
+    archived = archived_slugs(args.path)
 
     groups = [
         ("Status", check_overdue(tasks, today)),
         ("Working days", check_working_days(lines)),
         ("Sub-step chronology", check_substep_chronology(tasks)),
         ("This week", check_week_health(tasks, today)),
-        ("Slugs and dependencies", check_slugs(tasks)),
+        ("Slugs and dependencies", check_slugs(tasks, archived)),
         ("Prompts on tasks", check_prompt_coverage(tasks)),
         ("Delegate ranks", check_ranks(tasks)),
         ("The one thing", check_headline(lines)),
@@ -1256,7 +1299,8 @@ def main():
     ]
 
     print(f"Checked {args.path} against {today.isoformat()} ({today.strftime('%A')})")
-    print(f"{len(tasks)} top-level tasks, {sum(len(t['subs']) for t in tasks)} sub-steps\n")
+    print(f"{len(tasks)} top-level tasks, {sum(len(t['subs']) for t in tasks)} sub-steps, "
+          f"{len(archived)} slugs in done-archive.md\n")
 
     problems = 0
     for name, findings in groups:
