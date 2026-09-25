@@ -190,7 +190,7 @@ function timelineRowHTML(row, scale, sub){
   // through as a click, same as the board's own cards manage both at once.
   const grip = sub ? '' : '<span class="tlgrip' + (state.locked ? ' ph' : '') + '">⋮⋮</span>';
   const labelDrag = (sub || state.locked) ? '' :
-    ' draggable="true" title="Drag to reorder within ' + esc(row.bucket || '') + '"';
+    ' title="Drag to reorder within ' + esc(row.bucket || '') + '"';
   return '<div class="tlrow' + (sub ? ' tlsub' : '') + (row.blocked ? ' blocked' : '') + '"' +
     // --bc here too, not only on the mark it may or may not have drawn (a
     // task with neither start nor due but a dated step draws no mark of its
@@ -413,77 +413,40 @@ function sortTimelineLane(bucket){
 
 /* Dragging a row's label up or down writes a `tlrank` on every task in that
    lane, renumbered 0.. in the row's new visual order — the dedicated order
-   timelineSection() reads back (see there). One lane at a time: rows outside
-   the dragged one's own `.tllanegroup` never see its dragover, so a task can
-   only be reordered against others in the same bucket, never moved to
-   another one's lane by dropping into it.
+   timelineSection() reads back (see there). One `bindReorder` per lane, so
+   rows outside the dragged one's own `.tllanegroup` never see its dragover —
+   a task can only be reordered against others in the same bucket, never
+   moved to another one's lane by dropping into it. `bindReorder` stops its
+   own dragover and drop at the list, which is what keeps a row drop from
+   bubbling to `.tlscroll`'s own drop (wired in wireTimelineDrag for the
+   undated tray) and being read as a date instead of a reorder.
 
-   Reuses the board's own `dropLine`/`hideDropLine`, defined further down in
-   this file, rather than a second floating divider — a plain div is a plain
-   div whichever view asked for it, and the two views are never on screen at
-   once. */
+   tlReorderId is still tracked by hand, for onpointermove's guard above —
+   bindReorder doesn't hand out a "mid-drag" flag of its own. */
 let tlReorderId = null;
-function tlReorderRows(group){
-  return Array.from(group.querySelectorAll(':scope > .tlrow[data-tlreorder]'));
-}
-function tlInsertAfterEl(group, clientY, skipId){
-  let after = null;
-  tlReorderRows(group).forEach(el => {
-    if (el.dataset.tlreorder === skipId) return;
-    const r = el.getBoundingClientRect();
-    if (clientY > r.top + r.height / 2) after = el;
-  });
-  return after;
-}
 function wireTlReorder(){
   if (state.locked) return;
   $('#lists').querySelectorAll('.tllanegroup').forEach(group => {
-    group.querySelectorAll('.tllabel[draggable]').forEach(label => {
-      label.ondragstart = e => {
-        tlReorderId = label.closest('.tlrow').dataset.tlreorder;
-        e.dataTransfer.setData('text/plain', tlReorderId);
-        e.dataTransfer.effectAllowed = 'move';
-        hideTlHoverLine();
-      };
-      label.ondragend = () => { tlReorderId = null; hideDropLine(); };
-    });
-    group.ondragover = e => {
-      if (!tlReorderId) return;
-      e.preventDefault();
-      if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'tenon-dropline'; }
-      const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
-      if (after) after.after(dropLine);
-      else {
-        const summary = group.querySelector(':scope > summary');
-        if (summary) summary.after(dropLine); else group.prepend(dropLine);
+    group.addEventListener('dragstart', () => { tlReorderId = true; hideTlHoverLine(); });
+    group.addEventListener('dragend', () => { tlReorderId = null; });
+    BoardUI.bindReorder(group, {
+      item: '.tlrow[data-tlreorder]',
+      grip: '.tllabel',
+      keyOf: el => el.dataset.tlreorder,
+      onMove: (id, beforeId) => {
+        const rows = Array.from(group.querySelectorAll(':scope > .tlrow[data-tlreorder]'))
+          .map(el => el.dataset.tlreorder);
+        const ids = rows.filter(x => x !== id);
+        const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
+        ids.splice(at < 0 ? ids.length : at, 0, id);
+        ids.forEach((rowId, i) => {
+          const loc = locate(rowId);
+          if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
+        });
+        markDirty();
+        refreshView();
       }
-    };
-    group.ondragleave = e => { if (!group.contains(e.relatedTarget)) hideDropLine(); };
-    group.ondrop = e => {
-      if (!tlReorderId) return;
-      e.preventDefault();
-      // Without this, the drop event bubbles up to .tlscroll's own ondrop
-      // (wired in wireTimelineDrag for the undated tray), which reads the
-      // same dataTransfer id and treats the reorder as a drop onto the
-      // scale — overwriting the task's due date with whatever day sits
-      // under the pointer.
-      e.stopPropagation();
-      const after = tlInsertAfterEl(group, e.clientY, tlReorderId);
-      const before = tlReorderRows(group).map(el => el.dataset.tlreorder);
-      const ids = before.slice();
-      ids.splice(ids.indexOf(tlReorderId), 1);
-      const at = after ? ids.indexOf(after.dataset.tlreorder) + 1 : 0;
-      ids.splice(at, 0, tlReorderId);
-      hideDropLine();
-      tlReorderId = null;
-      if (ids.join() === before.join()) return;          // dropped back where it started
-      ids.forEach((id, i) => {
-        const loc = locate(id);
-        if (loc) { loc.task.tlrank = i; loc.task.dirty = true; }
-      });
-      markDirty();
-      refreshView();
-    };
+    });
   });
 }
 

@@ -149,12 +149,16 @@ function addTier(name){
   return '';
 }
 
-function moveTier(name, dir){
+/* Put `name` just before `beforeName`, or at the end when `beforeName` is
+   null — the position bindReorder hands back from a drop, rather than a
+   step of ±1. */
+function moveTierTo(name, beforeName){
   const order = tierOrder();
-  const i = order.indexOf(name), j = i + dir;
-  if (i < 0 || j < 0 || j >= order.length) return;
+  const i = order.indexOf(name);
+  if (i < 0 || name === beforeName) return;
   order.splice(i, 1);
-  order.splice(j, 0, name);
+  const j = beforeName ? order.indexOf(beforeName) : order.length;
+  order.splice(j < 0 ? order.length : j, 0, name);
   syncTierShapes(order);
   markDirty(); refreshView();
 }
@@ -231,16 +235,14 @@ function openTierEditor(focusOn){
          way the field means the same thing — what this column is called on
          screen — which is what he was reaching for in both cases. */
       const fixed = RESERVED_TIERS.indexOf(name) > -1;
-      return '<div class="bkrow">' +
+      return '<div class="bkrow" data-tenon-reorder="' + i + '">' +
+        BoardUI.dragHandleHTML() +
         '<input type="text" data-tiername="' + i + '" value="' + esc(tierLabel(name)) + '" aria-label="Column name"' +
           (fixed ? ' title="' + esc('Everything that reads the list matches “' + name + '” by this exact text, so the heading in todo.md stays as it is and this changes only what you see on the board.') + '"' : '') + '>' +
           (fixed && tierLabel(name) !== name
             ? '<span class="bkwas" title="the heading in todo.md, left as it is">' + esc(name) + '</span>' : '') +
         '<span class="bkn" title="tasks in it, across every bucket, finished ones included">' + n + '</span>' +
-        moveDeleteButtonsHTML(i, order.length, {
-          upAttr: 'data-tierback', downAttr: 'data-tierfwd', delAttr: 'data-tierdel',
-          upTitle: 'Move up (left on the board)', downTitle: 'Move down (right on the board)', noun: 'column'
-        }) +
+        deleteButtonHTML(i, order.length, { delAttr: 'data-tierdel', noun: 'column' }) +
       '</div>';
     }).join('');
 
@@ -285,11 +287,11 @@ function openTierEditor(focusOn){
       inp.onchange = apply;
       inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } };
     });
-    modalEl.querySelectorAll('[data-tierback]').forEach(el => {
-      el.onclick = () => { moveTier(order[+el.dataset.tierback], -1); draw(); };
-    });
-    modalEl.querySelectorAll('[data-tierfwd]').forEach(el => {
-      el.onclick = () => { moveTier(order[+el.dataset.tierfwd], 1); draw(); };
+    BoardUI.bindReorder(modalEl.querySelector('.bklist'), {
+      onMove: (key, beforeKey) => {
+        moveTierTo(order[+key], beforeKey == null ? null : order[+beforeKey]);
+        draw();
+      }
     });
     modalEl.querySelectorAll('[data-tierdel]').forEach(el => {
       el.onclick = () => {

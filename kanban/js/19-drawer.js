@@ -773,10 +773,8 @@ function jiraSection(list){
 function editSubtext(span, t, lineIdx, id, opts){
   if (state.locked) return;
   const chain = !!(opts && opts.chain);
-  const row = span.closest('.sub');
   const m = SUB_RE.exec(t.body[lineIdx]);
   if (!m) return;
-  row.draggable = false;
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'subedit';
@@ -1014,8 +1012,8 @@ function openDrawer(id, focusTitle){
         const sd = dueInfo(s.due);
         const note = ro ? '' : stepNoteText(t, s.line);
         const noteOpen = !ro && openStepNote === (t.id + ':' + s.line);
-        return '<div class="sub' + (s.done ? ' checked' : '') + '"' + (ro ? '' : ' draggable="true"') + ' data-i="' + i + '">' +
-          '<span class="grip" title="Drag to reorder">⠿</span>' +
+        return '<div class="sub' + (s.done ? ' checked' : '') + '" data-tenon-reorder="' + i + '">' +
+          (ro ? '' : BoardUI.dragHandleHTML()) +
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
           /* Rendered, like the Description above it and like the card titles
              on the board, and edited raw by editSubtext the moment it is
@@ -1205,37 +1203,21 @@ function openDrawer(id, focusTitle){
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); box.blur(); }
       };
     });
-    const rows = subsEl.querySelectorAll('.sub');
-    const clear = () => rows.forEach(r => r.classList.remove('over-top','over-bottom','dragging'));
-    rows.forEach(row => {
-      row.ondragstart = e => {
-        subDrag = +row.dataset.i;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', 'substep');
-        row.classList.add('dragging');
-      };
-      row.ondragend = () => { subDrag = null; clear(); };
-      row.ondragover = e => {
-        if (subDrag === null) return;
-        e.preventDefault();
-        const r = row.getBoundingClientRect();
-        const after = e.clientY > r.top + r.height / 2;
-        row.classList.toggle('over-bottom', after);
-        row.classList.toggle('over-top', !after);
-      };
-      row.ondragleave = () => row.classList.remove('over-top','over-bottom');
-      row.ondrop = e => {
-        if (subDrag === null) return;
-        e.preventDefault(); e.stopPropagation();
-        const r = row.getBoundingClientRect();
-        const to = +row.dataset.i + (e.clientY > r.top + r.height / 2 ? 1 : 0);
-        const from = subDrag;
-        subDrag = null; clear();
+    /* subDrag is the timeline's own flag (18-timeline.js) that a sub-step drag
+       is live somewhere on the page, so its board drop zone knows to ignore
+       it rather than read it as a card. bindReorder doesn't carry that, so it
+       is still set and cleared by hand around the drag it runs. */
+    BoardUI.bindReorder(subsEl, {
+      onMove: (key, beforeKey) => {
+        const from = +key;
+        const to = beforeKey == null ? subsEl.querySelectorAll('.sub').length : +beforeKey;
         openStepNote = null;
         moveSub(t, from, to);
         refreshView(); openDrawer(id);
-      };
+      }
     });
+    subsEl.addEventListener('dragstart', () => { subDrag = 0; });
+    subsEl.addEventListener('dragend', () => { subDrag = null; });
   }
   /* Ticks every open subtask in one click — the same blocked check each box
      makes on its own, applied per subtask rather than to the button as a

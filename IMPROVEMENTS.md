@@ -18,6 +18,25 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **The board's drop line can point at the top of a column when other buckets' cards still sit above the dragged card's own bucket.** `renderBoard()` (`kanban/js/18-timeline.js:1048-1077`) already groups a mixed column by bucket in the DOM — `shown.forEach(bucket => ...)` fills `entries` one bucket at a time, and manual (non-priority) mode does no further sort — so with several buckets showing, bucket A's cards sit above bucket B's on screen. `insertAfterEl()` (`:1199`), which both `onZoneOver()` (`:1141`, the drop line) and `dropTask()` (`:1232`, the actual move) call, skips every card whose bucket differs from the dragged one (`other.bucket !== dragBucket`), so dragging a card up past another bucket's cards can leave `after` at `null` — meaning "top of my own bucket's cards" — while the line is drawn at the top of the column, above cards that are still visually there. The drop itself lands in the right place; only where the line points is wrong. The fix is for the line's position to resolve against the first element of the dragged card's own bucket-group rather than against the column's actual top when `after` comes back `null` and other buckets' cards precede it.
+
+- **A bucket's row in the editor says its name and nothing about what kind of work it holds, so telling two buckets apart means opening each one's brief.** `openBucketEditor()`'s `draw()` (`kanban/js/08-buckets.js:184-213`) puts only the grip, the number, the colour dot, the name input and the Brief/Delete buttons on a `.bkrow` — the one-line summary that already exists in the brief's own template (`BUCKETS.md`, the line under the title, before the `<!-- NOT FILLED IN YET -->` marker) is nowhere on the row itself. A second input beside the name, reading and writing that same line, means `openBucketEditor()` reading each bucket's brief text up front (the same `bucket-brief.json` fetch `openBucketBrief()` already makes, `:319`) to populate it, and writing it back through `PUT /bucket-brief` (`:351`) on change — parsing out the second line the way the entry above this one already has to for its own split, so the two should land together rather than each writing its own reader for the same file's shape.
+
+- **The bucket brief editor is one textarea for a file with a fixed shape, so writing one means remembering the template rather than filling in its parts.** `openBucketBrief()` (`kanban/js/08-buckets.js:310`) reads the whole file into `briefText`, one string, and draws it as a single `<textarea id="briefBody" class="briefbody">` (`:346-347`), saved whole through `PUT /bucket-brief` (`:351`). Every brief is the same shape, laid out in `BUCKETS.md`'s template: a title line, a one-line summary, then four named `##` sections — The processes I run in this bucket, What already does it, Who is involved, What good looks like here — plus the `<!-- NOT FILLED IN YET -->` marker line that has to be deleted by hand once real content replaces it. Splitting the one textarea into a field per section means parsing the file into those parts on open (splitting on the `## ` headings, the way the template names them) and reassembling them in the same order on save, so the file on disk is unchanged in shape; the title line and one-line summary need their own small fields above the sections, and the marker's removal could become automatic — clearing once a section that used to be empty has something typed into it — rather than a line he has to remember to delete.
+
+- **The PA could be its own session, `claude --agent pa-agent`, and nothing
+  rules that out.** `agents/pa_agent/PA-PLAN.md:46-67` only weighed a background
+  subagent, which cannot ask questions, and a standalone Agent SDK build, and
+  settled on skills. `agents/pa_agent/CLAUDE.md:35`'s "Why `pa` is a skill and
+  not a subagent" repeats that reasoning. `--agent` makes the agent the whole
+  session, so it converses the way
+  `~/Code/AGENTS/business-advisor-agent/business-advisor-agent.md` already does.
+  The build is one agent file carrying or pointing at `PA.md`, running the
+  `pa-*` skills and sending every write through `pa`, so the one-writer rule
+  holds. Link it into `~/.claude/agents/` like the business advisor, and rewrite
+  the `CLAUDE.md:35` paragraph to say the PA exists as a session agent. No
+  skill changes.
+
 - **The Buckets sheet reorders with ↑/↓ buttons where the drawer's own
   subtask rows already show the drag pattern to reuse.** `openBucketEditor()`
   (`kanban/js/08-buckets.js:182`) draws each `.bkrow` with the shared
@@ -619,6 +638,22 @@ they settled is written up in the README rather than left here:
   frozen table, so the JavaScript third copy cannot drift either.
 
 ## Big
+
+- **The board edits one task at a time, so moving or deleting ten cards is ten
+  trips through the drawer.** Every change goes through the open task:
+  `state.openTask` feeds the bucket menu's click handler
+  (`kanban/js/19-drawer.js:1918`) and the `#del` button (`:1945`), whose
+  `confirm()` and `splice()` act on the one card `locate()` returns. Bulk
+  editing needs a selection held in `state` (a `Set` of ids beside
+  `state.bucketFilter`), a way to add to it from a card (shift- or cmd-click
+  in `cardHTML()`/`TaskCard`, `kanban/js/09-columns.js:427`, with the selected
+  look drawn in both), and an action bar offering at least Move to column,
+  Move to bucket and Delete. The moves can loop the existing splices: the
+  bucket menu's `ensureTier(nb, loc.tier.name)` push, and a column move like
+  `moveCardTo()` (`kanban/js/04-tier-two-the-one-thing.js:498`) without its
+  Done guard. Delete keeps one `confirm()` naming the count and the first few
+  titles, and the whole action should be one `markDirty()` so a single undo
+  (`kanban/js/05-undo.js`) puts every card back.
 
 - **An agent has no face on the board, so a task handed to one reads the same as
   a task handed to a person, and there is no way to see only the agents' work.**

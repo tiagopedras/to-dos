@@ -50,6 +50,11 @@ export { Alert, Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } fro
 export type {
   AlertProps, CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
 } from '@tiagopedras/tenon'
+/* Drag to reorder for the classic scripts: bindReorder(list, opts) for a list
+   built as an HTML string, dragHandleHTML() for the grip inside each row.
+   Reached as BoardUI.bindReorder / BoardUI.dragHandleHTML. */
+export { bindReorder, dragHandleHTML } from '@tiagopedras/tenon'
+export type { BindReorderOptions } from '@tiagopedras/tenon'
 export { ProjectsView, ProjectsEmpty } from './ProjectsView'
 export { BackupsView } from './BackupsView'
 export { TasksFinishedColumn, WrittenReportsColumn } from './ReportsColumns'

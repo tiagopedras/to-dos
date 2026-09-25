@@ -161,19 +161,13 @@ function confirmDeleteBucket(b, back){
   });
 }
 
-/* The move-up/move-down/delete trio both list editors below draw for every
-   row — identical in shape, different only in which data attribute each
-   button carries and in the two bits of wording that are genuinely different
-   between a bucket and a column (a column reads left-to-right on the board,
-   a bucket does not; "one bucket" isn't "one column"). */
-function moveDeleteButtonsHTML(i, len, opts){
-  return '<button class="btn small" ' + opts.upAttr + '="' + i + '" title="' + opts.upTitle + '" aria-label="Move up"' +
-      (i === 0 ? ' disabled' : '') + '>↑</button>' +
-    '<button class="btn small" ' + opts.downAttr + '="' + i + '" title="' + opts.downTitle + '" aria-label="Move down"' +
-      (i === len - 1 ? ' disabled' : '') + '>↓</button>' +
-    '<button class="btn small danger" ' + opts.delAttr + '="' + i + '"' +
-      (len < 2 ? ' disabled title="A list needs at least one ' + opts.noun + '"' : '') +
-      '>Delete</button>';
+/* The delete button both list editors below draw for every row — identical
+   in shape, different only in which data attribute it carries and the noun
+   in its disabled title. Reordering is a drag by the grip now, not a button. */
+function deleteButtonHTML(i, len, opts){
+  return '<button class="btn small danger" ' + opts.delAttr + '="' + i + '"' +
+    (len < 2 ? ' disabled title="A list needs at least one ' + opts.noun + '"' : '') +
+    '>Delete</button>';
 }
 
 /* The editor is one sheet holding every bucket, because the questions it answers
@@ -201,7 +195,8 @@ function openBucketEditor(){
         '<button type="button" class="bkswatch' + (c === color ? ' on' : '') + '" data-pick="' + i +
           '" data-swatch="' + esc(c) + '" style="background:' + c + '" aria-label="Use this colour"></button>'
       ).join('');
-      return '<div class="bkrow">' +
+      return '<div class="bkrow" data-tenon-reorder="' + i + '">' +
+        BoardUI.dragHandleHTML() +
         '<span class="bknum">' + (i + 1) + '</span>' +
         '<span class="bkcolor">' +
           '<button type="button" class="bkpick" data-palette="' + i + '" style="background:' + color +
@@ -215,10 +210,7 @@ function openBucketEditor(){
            See openBucketBrief. */
         '<button type="button" class="btn small" data-brief="' + i + '" ' +
           'title="What the agents read for what this bucket\u2019s work actually is">Brief</button>' +
-        moveDeleteButtonsHTML(i, list.length, {
-          upAttr: 'data-up', downAttr: 'data-down', delAttr: 'data-del',
-          upTitle: 'Move up', downTitle: 'Move down', noun: 'bucket'
-        }) +
+        deleteButtonHTML(i, list.length, { delAttr: 'data-del', noun: 'bucket' }) +
       '</div>';
     }).join('');
 
@@ -252,11 +244,11 @@ function openBucketEditor(){
       inp.onchange = apply;
       inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } };
     });
-    modalEl.querySelectorAll('[data-up]').forEach(el => {
-      el.onclick = () => { moveBucket(list[+el.dataset.up], -1); draw(); };
-    });
-    modalEl.querySelectorAll('[data-down]').forEach(el => {
-      el.onclick = () => { moveBucket(list[+el.dataset.down], 1); draw(); };
+    BoardUI.bindReorder(modalEl.querySelector('.bklist'), {
+      onMove: (key, beforeKey) => {
+        moveBucketTo(list[+key], beforeKey == null ? null : list[+beforeKey]);
+        draw();
+      }
     });
     modalEl.querySelectorAll('[data-del]').forEach(el => {
       el.onclick = () => confirmDeleteBucket(list[+el.dataset.del], draw);
@@ -423,12 +415,15 @@ async function loadBucketColors(){
   if (state.doc) refreshView();
 }
 
-function moveBucket(b, dir){
+/* Put `b` just before `beforeB`, or at the end when `beforeB` is null — the
+   position bindReorder hands back from a drop, rather than a step of ±1. */
+function moveBucketTo(b, beforeB){
   const list = state.doc.buckets;
-  const i = list.indexOf(b), j = i + dir;
-  if (i < 0 || j < 0 || j >= list.length) return;
+  const i = list.indexOf(b);
+  if (i < 0 || b === beforeB) return;
   list.splice(i, 1);
-  list.splice(j, 0, b);
+  const j = beforeB ? list.indexOf(beforeB) : list.length;
+  list.splice(j < 0 ? list.length : j, 0, b);
   renumberBuckets();
   markDirty(); refreshView();
 }

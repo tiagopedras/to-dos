@@ -206,6 +206,10 @@
   .iconbtn:focus-visible{outline:2px solid var(--tenon-stroke-focus); outline-offset:2px}
 
   /* ---------- bucket editor ---------- */
+  /* Its rows drag to reorder by the grip (BoardUI.bindReorder). The gap
+     between them is a border, not a flex gap, so the drop line — centred in
+     --tenon-reorder-gap — is told there is none to centre in. */
+  .bklist{--tenon-reorder-gap: 0px}
   .bkrow{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--tenon-stroke-subtle)}
   .bkrow:last-child{border-bottom:0}
   .bknum{flex:0 0 auto; width:14px; font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint); font-variant-numeric:tabular-nums}
@@ -576,6 +580,10 @@
   .tlbody{position:relative; min-width:max-content}
   .tlrow{display:flex; align-items:stretch; border-bottom:1px solid var(--tenon-stroke-subtle)}
   .tlrow:last-child{border-bottom:0}
+  /* Tenon's own rule for the drop line's ::after is scoped to
+     [data-tenon-reorder], and a row here carries data-tlreorder instead — so
+     it needs position:relative of its own to give that ::after a box. */
+  .tlrow[data-tlreorder]{position:relative}
   /* Sticky rather than a second scroll container kept in sync by hand — the
      label stays put while the dates scroll underneath it, for free. */
   .tllabel{
@@ -598,9 +606,12 @@
   .tlrow:not(.tlheader):not(.tllane):hover .tllabel{background:var(--tenon-background-neutral)}
   /* Draggable from anywhere on the row now, not just the dots — a native
      `draggable` ancestor still lets a plain click on .tllabeltext through as
-     a click, same as the board's own cards already manage both at once. */
-  .tllabel[draggable]{cursor:grab}
-  .tllabel[draggable]:active{cursor:grabbing}
+     a click, same as the board's own cards already manage both at once.
+     bindReorder only sets the label's own `draggable` attribute the moment
+     the pointer is down on it (see reorderCore.ts), so the grab cursor is on
+     the row unconditionally rather than gated on that attribute. */
+  .tlrow[data-tlreorder] .tllabel{cursor:grab}
+  .tlrow[data-tlreorder] .tllabel:active{cursor:grabbing}
   /* flex:1 rather than auto width — the click target (data-open) then fills
      whatever room is left in the label after the grip and chevron, not just
      the width of the text itself, so a short title's row is clickable all
@@ -2489,7 +2500,7 @@
   details.field > summary::before, details.sugg > summary::before{content:'▸'; font-size: var(--tenon-typography-size-sm); display:inline-block}
   details.field[open] > summary::before, details.sugg[open] > summary::before{content:'▾'}
   .sublabel{font-style:normal; font-weight:550; text-transform:none; letter-spacing:0; color:var(--tenon-text-faint); opacity:.85; margin-left:6px}
-  .substeps{display:flex; flex-direction:column; gap:1px}
+  .substeps{display:flex; flex-direction:column; gap:1px; --tenon-reorder-gap: 1px}
   .sub{
     display:flex; gap:7px; align-items:flex-start; font-size: var(--tenon-typography-size-sm); padding:5px 6px; color:var(--tenon-text-default);
     border:1px solid transparent; border-radius:var(--tenon-radius-default); background:var(--tenon-background-default);
@@ -2500,17 +2511,12 @@
   .sub .subtext{flex:1; cursor:text}
   .sub .subtext:hover{color:var(--tenon-text-accent)}
   .sub.checked .subtext:hover{color:var(--tenon-text-faint)}
-  .sub .grip{cursor:grab; color:var(--tenon-text-faint); opacity:.45; font-size: var(--tenon-typography-size-sm); line-height:1.5; user-select:none; flex:none}
-  .sub:hover .grip{opacity:.9}
   .sub .subdel{
     flex:none; border:none; background:transparent; color:var(--tenon-text-faint); opacity:0;
     font-size: var(--tenon-typography-size-lg); line-height:1; padding:0 2px; border-radius:var(--tenon-radius-default);
   }
   .sub:hover .subdel{opacity:.6}
   .sub .subdel:hover{opacity:1; color:var(--tenon-text-error)}
-  .sub.dragging{opacity:.4}
-  .sub.over-top{box-shadow:inset 0 2px 0 var(--tenon-stroke-accent)}
-  .sub.over-bottom{box-shadow:inset 0 -2px 0 var(--tenon-stroke-accent)}
   /* A note on one step, scoped to it rather than to the whole task the way
      Description is. Quiet until there is something in it — most rows carry
      none, so the icon should not read as a row of empty controls. */
