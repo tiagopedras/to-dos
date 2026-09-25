@@ -157,11 +157,11 @@ try {
     await new Promise(r => setTimeout(r, 120));
     const sections = [...document.querySelectorAll('[data-brief-section]')].map(b => b.value);
     return {
-      heading: document.querySelector('.sheet h2')?.textContent || '',
+      heading: document.querySelector('.tenon-modal__title')?.textContent || '',
       summary: document.querySelector('#briefSummary')?.value ?? null,
       sections,
-      sub: document.querySelector('.msub')?.textContent || '',
-      buttons: [...document.querySelectorAll('.foot .btn')].map(b => b.textContent)
+      sub: document.querySelector('.tenon-modal__subtitle')?.textContent || '',
+      buttons: [...document.querySelectorAll('.tenon-modal__footer button')].map(b => b.textContent)
     };
   })()`)
   check('the brief sheet opened', sheet.summary !== null)
@@ -177,7 +177,7 @@ try {
   // --- Cancel puts the editor back, and sends nothing of its own ------------
   const beforeCancel = await evalJS(`window.__sent.length`)
   const cancelled = await evalJS(`(async () => {
-    [...document.querySelectorAll('.foot .btn')].find(b => b.textContent === 'Cancel').click();
+    [...document.querySelectorAll('.tenon-modal__footer button')].find(b => b.textContent === 'Cancel').click();
     await new Promise(r => setTimeout(r, 120));
     return { rows: document.querySelectorAll('.bkrow').length, sent: window.__sent.length };
   })()`)
@@ -198,7 +198,7 @@ try {
     const sections = document.querySelectorAll('[data-brief-section]');
     sections[0].value = 'Triage, edited.';
     sections[0].dispatchEvent(new Event('input'));
-    [...document.querySelectorAll('.foot .btn')].find(b => b.textContent === 'Save brief').click();
+    [...document.querySelectorAll('.tenon-modal__footer button')].find(b => b.textContent === 'Save brief').click();
     await new Promise(r => setTimeout(r, 200));
     const last = window.__sent[window.__sent.length - 1] || {};
     return {
@@ -231,7 +231,7 @@ try {
       stream: 'general', text: '# <Bucket name>\\n\\n<!-- NOT FILLED IN YET -->\\n' };
     document.querySelector('.bkrow [data-brief]').click();
     await new Promise(r => setTimeout(r, 120));
-    const prose = document.querySelector('.sheet .repdoc')?.textContent || '';
+    const prose = document.querySelector('.tenon-modal__box .repdoc')?.textContent || '';
     return { prose, summary: document.querySelector('#briefSummary')?.value ?? null };
   })()`)
   check('a brief with no file says so', /No brief yet/.test(fresh.prose), fresh.prose.slice(0, 120))
@@ -254,7 +254,7 @@ try {
     const box = document.querySelectorAll('[data-brief-section]')[0];
     box.value = 'Now written.';
     box.dispatchEvent(new Event('input'));
-    [...document.querySelectorAll('.foot .btn')].find(b => b.textContent === 'Save brief').click();
+    [...document.querySelectorAll('.tenon-modal__footer button')].find(b => b.textContent === 'Save brief').click();
     await new Promise(r => setTimeout(r, 200));
     const last = window.__sent[window.__sent.length - 1] || {};
     return { text: last.body ? JSON.parse(last.body).text : '' };

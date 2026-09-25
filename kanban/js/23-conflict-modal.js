@@ -4,74 +4,43 @@
    Conflict modal
    ========================================================================= */
 
+/* The open modal's outermost node (Tenon's .tenon-modal), or null. Callers
+   query their own body through it straight after showModal() returns. */
 let modalEl = null;
+/* The node the React root lives on. The Modal portals to body beside it. */
+let modalHost = null;
 /* Set by a modal whose body is a React tree, so shutting it lets the tree go
    rather than leaving a root subscribed to a node that has left the page. */
 let modalOnClose = null;
 
 function closeModal(){
-  if (modalEl) { modalEl.remove(); modalEl = null; }
-  document.removeEventListener('keydown', modalKeys);
+  if (modalHost) { BoardUI.unmountBoardModal(modalHost); modalHost.remove(); modalHost = null; }
+  modalEl = null;
   if (modalOnClose) { const done = modalOnClose; modalOnClose = null; done(); }
-}
-/* Escape closes. ⌘↵ / Ctrl+↵ presses the primary button, so a sheet with a
-   reason box in it can be sent without reaching for the mouse — but only from
-   inside a text field, so a plain confirmation like offerReload()'s cannot be
-   answered by a stray shortcut aimed at something else. */
-function modalKeys(e){
-  if (e.key === 'Escape') return closeModal();
-  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
-  if (!modalEl || !modalEl.contains(e.target) || !isTextField(e.target)) return;
-  const primary = modalEl.querySelector('.foot .btn.primary');
-  if (!primary) return;
-  e.preventDefault();
-  primary.click();
-}
-
-/* A field you type prose into. A checkbox or a button inside the sheet is not
-   one, and neither is a select. */
-function isTextField(el){
-  if (!el || !el.tagName) return false;
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'textarea') return true;
-  if (el.isContentEditable) return true;
-  if (tag !== 'input') return false;
-  const type = (el.type || 'text').toLowerCase();
-  return ['text','search','url','email','tel','password','number','date'].includes(type);
 }
 
 /* buttons: [{ label, primary, danger, agree, reject, run }] — the first is the
-   safe default. The × in .top always closes without running anything.
-   opts: { wide, cls, onClose } — wide is the document-width variant a written report
-   opens in, rather than the confirmation-sized default; cls is one more class
-   on the sheet, for a modal with a body shape of its own (the plan modal);
-   onClose runs once when the modal goes, whichever way it goes. */
+   safe default, and takes focus. The × in the head, the scrim and Escape all
+   close without running anything. ⌘↵ / Ctrl+↵ presses the primary button, but
+   only from inside a text field, so a plain confirmation like offerReload()'s
+   cannot be answered by a stray shortcut aimed at something else. Tenon's
+   Modal does both; this function only says what the buttons run.
+   opts: { wide, cls, onClose } — wide is the document-width variant a written
+   report opens in, rather than the confirmation-sized default; cls is one more
+   class on the box, for a modal with a body shape of its own (the plan
+   reader); onClose runs once when the modal goes, whichever way it goes.
+   The body is drawn into .mid, which callers query. */
 function showModal(heading, sub, bodyHTML, buttons, opts){
   closeModal();
   modalOnClose = (opts && opts.onClose) || null;
-  modalEl = document.createElement('div');
-  modalEl.className = 'mscrim';
-  modalEl.innerHTML =
-    '<div class="sheet' + (opts && opts.wide ? ' wide' : '') + (opts && opts.cls ? ' ' + opts.cls : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(heading) + '">' +
-      '<div class="top"><button type="button" class="mclose" aria-label="Close">×</button>' +
-        '<h2>' + esc(heading) + '</h2><p class="msub">' + sub + '</p></div>' +
-      '<div class="mid">' + bodyHTML + '</div>' +
-      '<div class="foot">' + buttons.map((b, i) =>
-        '<button class="btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : '') +
-        (b.agree ? ' agree' : '') + (b.reject ? ' reject' : '') +
-        '" data-i="' + i + '">' + esc(b.label) + '</button>').join('') +
-      '</div>' +
-    '</div>';
-  // Clicking the backdrop is a cancel, not a choice. Nothing is decided by it.
-  modalEl.onclick = e => { if (e.target === modalEl) closeModal(); };
-  modalEl.querySelector('.mclose').onclick = closeModal;
-  modalEl.querySelectorAll('.foot .btn').forEach(btn => {
-    btn.onclick = () => { const b = buttons[+btn.dataset.i]; closeModal(); if (b.run) b.run(); };
+  modalHost = document.createElement('div');
+  document.body.appendChild(modalHost);
+  modalEl = BoardUI.mountBoardModal(modalHost, {
+    heading, subHTML: sub || '', bodyHTML, wide: !!(opts && opts.wide), cls: (opts && opts.cls) || '',
+    buttons: buttons.map(b => ({ label: b.label, primary: !!b.primary, danger: !!b.danger, agree: !!b.agree, reject: !!b.reject })),
+    onPick: i => { const b = buttons[i]; closeModal(); if (b.run) b.run(); },
+    onClose: closeModal,
   });
-  document.body.appendChild(modalEl);
-  document.addEventListener('keydown', modalKeys);
-  const first = modalEl.querySelector('.foot .btn');
-  if (first) first.focus();
 }
 
 /* Changes of his own, as against the board's own tidy-up on load. Only the

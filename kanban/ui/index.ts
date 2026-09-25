@@ -74,6 +74,9 @@ export type { TaskCardProps, TaskCardModel, Chip, CardProgress } from './TaskCar
 export { BoardView } from './BoardView'
 export type { BoardViewProps, BoardColumn, BoardCard } from './BoardView'
 export { ColumnFilter } from './ColumnFilter'
+/* showModal()'s sheet, on Tenon's Modal since 25 Sep 2026. */
+export { BoardModal, mountBoardModal, unmountBoardModal } from './BoardModal'
+export type { BoardModalProps, BoardModalButton } from './BoardModal'
 export { RefCards } from './RefCards'
 export type {
   RefCardsProps, Usage, UsageState, ScheduleJob, ScheduleState, RunResults,

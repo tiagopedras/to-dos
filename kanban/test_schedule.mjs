@@ -164,7 +164,7 @@ await new Promise(r => setTimeout(r, 700))
 check('the clock card is its own column, stacked under Token Session', await evalJS(`
   (() => { const card = document.querySelector('#schedOut').closest('.tenon-column');
     return card && card.parentElement.classList.contains('pvcol') &&
-      card.closest('.mscrim') &&
+      card.closest('.tenon-modal') &&
       card.querySelector('h3').textContent === 'What runs on a clock' &&
       card.previousElementSibling.querySelector('h3').textContent === 'Token Session' })()
 `))
