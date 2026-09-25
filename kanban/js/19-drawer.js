@@ -1585,7 +1585,7 @@ async function openPlanReader(rel, title){
   } catch (err) {
     html = '<p class="empty">The plan could not be read.</p>';
   }
-  const mid = modalEl && modalEl.querySelector('.sheet.planmodal .mid');
+  const mid = modalEl && modalEl.querySelector('.planmodal .mid');
   if (mid) mid.innerHTML = '<div class="planmain">' + html + '</div>';
 }
 

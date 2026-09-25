@@ -349,11 +349,9 @@ function openBucketEditor(){
       };
     });
     // Anywhere else in the sheet closes whichever palette is open — the same
-    // click-away a native <select> gets for free. modalEl's own onclick
-    // already closes the whole modal on a backdrop click (23-conflict-modal.js)
-    // and is a single assignment, so this listens on the sheet inside it
-    // rather than overwriting that.
-    modalEl.querySelector('.sheet').addEventListener('click', () => {
+    // click-away a native <select> gets for free. The scrim beside the box
+    // already closes the whole modal, so this listens on the box.
+    modalEl.querySelector('.tenon-modal__box').addEventListener('click', () => {
       modalEl.querySelectorAll('.bkpalette').forEach(p => p.classList.add('hidden'));
     });
     const add = () => {

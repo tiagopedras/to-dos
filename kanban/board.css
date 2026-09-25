@@ -1383,7 +1383,7 @@
   /* No shadow and no bottom margin on them in there: a column is drawn to sit
      on the page background, and the sheet it is in is already a panel with a
      border of its own. */
-  .sheet .pvcol .tenon-column{margin:0; box-shadow:none}
+  .tenon-modal__box .pvcol .tenon-column{margin:0; box-shadow:none}
   /* A column with nothing in it, in the two styles there are and no third:
      plain grey text on the board, and a dashed box on Plans and Execution,
      where a column of prose with one line of grey text in it read as a column
@@ -2310,7 +2310,6 @@
   @media (max-width:640px){
     aside{width:100vw !important; border-left:0}
     .dgrip{display:none}
-    .mscrim{padding:12px}
   }
   aside .dbody{padding:14px; overflow:auto; flex:1; container-type:inline-size}
   /* Two columns when the drawer is wide enough to hold them side by side —
@@ -2697,42 +2696,14 @@
   .start .drops.over{border-color:var(--tenon-stroke-accent); color:var(--tenon-text-accent)}
   .err{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error); padding:9px 11px; border-radius:var(--tenon-radius-md); font-size: var(--tenon-typography-size-sm); margin-top:12px}
 
-  /* ---------- conflict modal ----------
-     The one place the board interrupts. It only appears when the file on disk
-     and the unsaved work in the tab have both moved, because that is the only
-     situation where picking wrong loses something. */
-  /* Its own class, not the drawer's .scrim — that one is a permanent element
-     kept at opacity 0, and sharing the rule would break it. */
-  .mscrim{
-    position:fixed; inset:0; z-index:60; background:rgba(16,20,28,.45);
-    display:flex; align-items:center; justify-content:center; padding:24px;
-  }
-  .sheet{
-    background:var(--tenon-background-raised); border:1px solid var(--tenon-stroke-default); border-radius:var(--tenon-radius-lg);
-    box-shadow:0 12px 40px rgba(16,20,28,.28); width:min(560px,100%);
-    max-height:min(78vh,660px); display:flex; flex-direction:column; overflow:hidden;
-  }
-  /* A written report is a document and wants a document's width — the default
-     560px is sized for a confirmation, not 600 words read down a gutter. */
-  .sheet.wide{width:min(760px,100%); max-height:min(84vh,760px)}
-  /* The plan modal, 15 Sep 2026, to Figma 61:9227 and 61:9333: History down
-     the left, then the Summary and two tabs. The head and foot are the sheet's
-     own; only the body changes shape, so it drops the .mid padding and each
-     column scrolls on its own. */
-  /* Resizeable, 15 Sep 2026: a plan is a document and 912px is a window on to
-     it however big the screen is. The native corner rather than a handle of
-     its own — the footer's buttons are right-aligned and the corner lands on
-     top of the last one, so .planmodal .foot below buys it 20px of clearance,
-     which is cheaper than a second grip to build and to explain. The caps are
-     lifted to the viewport so there is something to drag towards; the floors
-     stop it being dragged to nothing. The size is remembered — see
-     planModalSize in 13-plans.js. */
-  .sheet.wide.planmodal{
-    width:min(912px,100%); resize:both;
-    max-width:96vw; max-height:92vh; min-width:420px; min-height:320px;
-  }
-  .sheet.planmodal .foot{padding-right:30px}
-  .sheet.planmodal .mid{padding:0; display:flex; overflow:hidden; min-height:0}
+  /* ---------- modals ----------
+     showModal() draws Tenon's Modal since 25 Sep 2026 (kanban/ui/BoardModal.tsx),
+     so the scrim, the box, its head and its footer are Tenon's rules. What is
+     left here is the plan reader's body shape: History down the left, then
+     the plan, each column scrolling on its own, so the body drops its padding
+     and .mid is the row. `wide` + `planmodal` is Tenon's xl, resizable box. */
+  .boardmodal.planmodal .tenon-modal__body{padding:0; display:flex; overflow:hidden}
+  .planmodal .mid{flex:1 1 auto; display:flex; min-height:0; min-width:0}
   .planhistory{
     flex:0 0 198px; box-sizing:border-box; padding:14px; overflow:auto;
     background:var(--tenon-background-default); border-right:1px solid var(--tenon-stroke-subtle);
@@ -2768,31 +2739,9 @@
   .plantabs .tab[aria-selected="true"] .n{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
   .planpanel h4{margin-top:16px}
   @media (max-width:700px){
-    .sheet.planmodal .mid{flex-direction:column; overflow:auto}
+    .planmodal .mid{flex-direction:column; overflow:auto}
     .planmain, .planhistory{overflow:visible}
     .planhistory{order:2; flex-basis:auto; border-right:0; border-top:1px solid var(--tenon-stroke-subtle)}
-    /* A size dragged out on a desktop means nothing here, and an inline width
-       of 1200px on a 400px screen is a modal off the side of the screen. The
-       !important is what beats the inline style resize writes. */
-    .sheet.wide.planmodal{
-      width:100% !important; height:auto !important; resize:none;
-      min-width:0; max-height:min(84vh,760px);
-    }
-    .sheet.planmodal .foot{padding-right:20px}
-  }
-  .sheet h2{font-size: var(--tenon-typography-size-lg); font-weight:660; margin:0; letter-spacing:-.01em}
-  .sheet .top{padding:18px 20px 12px; border-bottom:1px solid var(--tenon-stroke-subtle); position:relative}
-  .sheet .top h2{padding-right:24px}
-  .mclose{
-    position:absolute; top:14px; right:14px; border:0; background:none; cursor:pointer;
-    color:var(--tenon-text-faint); font-size: var(--tenon-typography-size-xl); line-height:1; padding:3px 7px; border-radius:var(--tenon-radius-default);
-  }
-  .mclose:hover{background:var(--tenon-background-neutral); color:var(--tenon-text-default)}
-  .sheet .msub{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-subtle); margin:7px 0 0; line-height:1.5}
-  .sheet .mid{padding:14px 20px; overflow:auto; flex:1 1 auto}
-  .sheet .foot{
-    padding:13px 20px; border-top:1px solid var(--tenon-stroke-subtle);
-    display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; background:var(--tenon-background-default);
   }
   .changes{margin:0 0 16px}
   .changes:last-child{margin-bottom:0}

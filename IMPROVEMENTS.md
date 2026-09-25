@@ -1112,16 +1112,25 @@ they settled is written up in the README rather than left here:
   (`renderViewTabs()`, `:879`), the bucket tabs (`renderTabs()`,
   `kanban/js/07-render-board.js:118`), the phone's column strip
   (`renderColTabs()`, `:1147`), the drawer (`openDrawer()`,
-  `kanban/js/19-drawer.js:820`, in a 1,725-line file), the conflict modal
-  (`kanban/js/23-conflict-modal.js`, which `showModal()` also serves to every
-  other modal on the board) and the plan modal behind Plans
-  (`openPlanModal()`).
+  `kanban/js/19-drawer.js:820`, in a 1,725-line file) and the plan modal
+  behind Plans (`openPlanModal()`).
+
+  `showModal()` went first, on 25 Sep 2026. It keeps its signature and still
+  lives in `kanban/js/23-conflict-modal.js`, but it now mounts Tenon's `Modal`
+  through `BoardUI.mountBoardModal()` (`kanban/ui/BoardModal.tsx`), so every
+  modal on the board, the conflict modal included, is Tenon's box, head,
+  footer and `Button`s. Escape, ⌘↵ from a text field and focus on the first
+  button are Tenon's now, and `modalKeys()`/`isTextField()` went with it. The
+  body and subtitle are still HTML strings drawn into `.mid`, which callers
+  query through `modalEl`. `wide` + `planmodal` is Tenon's `xl` resizable box.
+  One change in behaviour: Escape with a modal over the drawer now closes the
+  modal only, because Tenon stops the key there.
 
   The `.err` boxes show the gap. Six views draw Tenon's `Alert`, and eleven in
   plain JS (six in `13-plans.js`, three in `14-schedule.js`, one each in
   `12-reports.js` and `20-loading-saving.js`) still use the `.err` rule in
   `board.css`. The same split holds for `.tabs` against `SegmentedControl`, the
-  drawer's `#scrim` and the modals against `Modal`, and the drawer's
+  drawer's `#scrim` against `Modal`, and the drawer's
   `<textarea>` and `<details>` markup against `Textarea`, `EditableText` and
   `Disclosure`. `Disclosure` is a button that unmounts its panel and the
   board's folds are native `<details>`, so Tenon's `Disclosure` gains an option
@@ -1129,9 +1138,7 @@ they settled is written up in the README rather than left here:
   collapsible, and the `ufold` and `schedlog` folds move onto that, keeping the
   browser's own open state and find-in-page.
 
-  Order: `showModal()` first, since it is one function every
-  modal shares and `Modal` fits it, and the conflict modal is 114 lines. Then
-  the tab strips and the filter bar onto `SegmentedControl`. The drawer goes
+  Order: the tab strips and the filter bar onto `SegmentedControl`. The drawer goes
   last, as a job of its own, because `openDrawer()` is reached from every view
   and the Markdown and report builders it uses are shared with Plans. After
   splicing any renderer out, grep
