@@ -2251,6 +2251,16 @@
   }
   .mdtag{background:var(--tenon-background-neutral); color:var(--tenon-text-faint)}
   .mdhole{background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning)}
+  /* The React views draw a title with Tenon's `Markdown` (kanban/ui/InlineMd.tsx),
+     which brings its own body type. A title takes the type of whatever holds
+     it — a card, a timeline label, a report row — so the span inherits, and
+     its `[placeholder]` wears the same amber chip as .mdhole above. */
+  .tenon-markdown.mdinline{font:inherit; line-height:inherit; color:inherit; letter-spacing:inherit}
+  .mdinline .tenon-markdown__placeholder{
+    font-style:normal; font-size:.92em; font-weight:600; padding:1px 4px;
+    border-radius:var(--tenon-radius-default); white-space:nowrap;
+    background:var(--tenon-background-warning-subtle); color:var(--tenon-text-warning);
+  }
   /* `.tag.impact-high` was a rule that brightened the text on a chip whose
      content is always an emoji, and an emoji renders in its own colours
      whatever `color` says. So it drew a plain chip and always had. Gone. */

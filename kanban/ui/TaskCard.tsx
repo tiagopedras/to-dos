@@ -7,14 +7,15 @@
  * element. Change what a card shows in cardModel() and both follow; change how
  * a chip or the progress line is drawn and change it in both.
  *
- * The title arrives as the HTML the board's own inline Markdown made, because
- * that renderer knows `[text](url)` links and `[placeholder]` markers Tenon's
- * `Markdown` does not, and the drawer shares it. It sits in one span, which
- * the string version does not emit; the test steps over it.
+ * The title arrives as the plain string from todo.md and Tenon's `Markdown`
+ * draws it (InlineMd.tsx), links and `[placeholder]` markers included. It sits
+ * in one span, which the pinned string shapes do not have; the test steps
+ * over it.
  */
 import type { DragEvent, KeyboardEvent } from 'react'
 import { Card, Tag } from '@tiagopedras/tenon'
 import type { TagTone } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 
 export interface Chip {
   /** One of Tenon's `Tag` tones — draws a Tenon `Tag`. Set instead of `cls`. */
@@ -40,7 +41,8 @@ export interface TaskCardModel {
   id: string
   /** `done`, `waiting` or `backlog`, plus `onething` for the headline. */
   cls: string
-  titleHTML: string
+  /** The title as written, inline Markdown and all. */
+  title: string
   chips: Chip[]
   /** Urgent and due, drawn together in the row's own corner. */
   when: Chip[]
@@ -113,7 +115,7 @@ export function TaskCard(props: TaskCardProps) {
       onDragStart={still || !onDragStart ? undefined : e => onDragStart(e, m.id)}
       onDragEnd={still || !onDragEnd ? undefined : e => onDragEnd(e, m.id)}
       eyebrow={bucketLabel ? <span className="bucket">{bucketLabel}</span> : undefined}
-      title={<span dangerouslySetInnerHTML={{ __html: m.titleHTML }} />}
+      title={<InlineMd text={m.title} />}
       tags={tags}
       body={body}
     />

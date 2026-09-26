@@ -165,7 +165,7 @@ function timelineRowModel(row, scale, sub){
              title: row.title, drag: drag ? 'due' : null, handles: false };
   }
   // A step carries no colour of its own (see timelineTasks), and never has.
-  return { id: row.id, title: row.title, titleHTML: mdInline(row.title), sub: !!sub,
+  return { id: row.id, title: row.title, sub: !!sub,
            blocked: !!row.blocked, color: row.color, mark,
            steps: (!sub && row.steps) ? row.steps.length : 0, expanded: tlExpanded.has(row.id) };
 }
@@ -205,7 +205,7 @@ function timelineScaleModel(scale){
    top-level task, dated or not: the tray is part of the column. */
 function timelineSection(){
   const { dated, undated } = timelineTasks();
-  const tray = undated.map(row => ({ id: row.id, titleHTML: mdInline(row.title), color: row.color, bucket: row.bucket }));
+  const tray = undated.map(row => ({ id: row.id, title: row.title, color: row.color, bucket: row.bucket }));
   if (!dated.length) return { model: { scale: null, lanes: [], legendColors: [], tray }, n: undated.length };
   const scale = timelineScale(dated);
   const byBucket = new Map();

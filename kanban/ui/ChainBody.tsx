@@ -11,14 +11,15 @@
  */
 import type { CSSProperties } from 'react'
 import { Card, ColumnEmpty } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 
 export interface ChainTicket {
   /** Absent on a blocker whose slug names no task. */
   id?: string
   slug?: string
   color: string
-  /** The board's inline Markdown, already rendered. */
-  titleHTML: string
+  /** The title as written, inline Markdown and all. */
+  title: string
   where: string
   done: boolean
 }
@@ -51,7 +52,7 @@ function Ticket({ t, role }: { t: ChainTicket, role: 'dep' | 'target' }) {
         ) : (
           <>
             <span className="chaintitle">
-              <span dangerouslySetInnerHTML={{ __html: t.titleHTML }} />
+              <InlineMd text={t.title} />
               {t.done ? ' \u2713' : ''}
             </span>
             <div className="chainwhere">{t.where}</div>

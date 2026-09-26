@@ -19,13 +19,14 @@
  * to tidy a class name in passing.
  *
  * The board's own helpers arrive as props rather than being read off the global
- * scope. cvWhen, mdInline and projectTasks are all reachable from the bundle as
+ * scope. cvWhen and projectTasks are both reachable from the bundle as
  * bare globals, but taking them as arguments keeps the component testable
  * without a board around it, and makes the dependency visible in one place
  * instead of buried at the point of use.
  */
 import type { ReactNode } from 'react'
 import { Alert, Column, ColumnEmpty } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 
 export interface ProjectSummary {
   name: string
@@ -63,17 +64,14 @@ export interface ProjectsViewProps {
   countsFor: (name: string) => { open: number; total: number }
   /** The board's cvWhen: an ISO stamp as "yesterday". */
   when: (iso?: string) => string
-  /** The board's mdInline, which returns HTML. */
-  inline: (s: string) => string
 }
 
 function ProjectItem(props: {
   project: ProjectSummary
   countsFor: ProjectsViewProps['countsFor']
   when: ProjectsViewProps['when']
-  inline: ProjectsViewProps['inline']
 }) {
-  const { project: p, countsFor, when, inline } = props
+  const { project: p, countsFor, when } = props
   const { open, total } = countsFor(p.name)
   const live = total > 0
 
@@ -112,14 +110,14 @@ function ProjectItem(props: {
         {edited ? ' · edited ' + edited : ''}
       </div>
       {p.blurb
-        ? <div className="projcardblurb" dangerouslySetInnerHTML={{ __html: inline(p.blurb) }} />
+        ? <div className="projcardblurb"><InlineMd text={p.blurb} /></div>
         : null}
     </article>
   )
 }
 
 export function ProjectsView(props: ProjectsViewProps) {
-  const { projects, error, sort, sorts, onSortChange, countsFor, when, inline } = props
+  const { projects, error, sort, sorts, onSortChange, countsFor, when } = props
 
   let body: ReactNode
   if (error) {
@@ -132,7 +130,7 @@ export function ProjectsView(props: ProjectsViewProps) {
     body = <div className="empty">Nothing under <code>data/projects/</code> yet.</div>
   } else {
     body = projects.map(p => (
-      <ProjectItem key={p.name} project={p} countsFor={countsFor} when={when} inline={inline} />
+      <ProjectItem key={p.name} project={p} countsFor={countsFor} when={when} />
     ))
   }
 
