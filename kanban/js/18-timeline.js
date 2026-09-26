@@ -741,23 +741,20 @@ function capMsgCards(){
 /* The tab strip. Board, Matrix and Timeline were folded behind one tab with a
    chevron opening a panel of the other two, until 22 Sep 2026 — unfolded back
    into three plain tabs since the strip has the room and a menu was a click
-   spent finding what was already named on the tab underneath it. */
+   spent finding what was already named on the tab underneath it. Drawn by
+   BoardUI.ViewTabs (kanban/ui/ViewTabs.tsx), Tenon's SegmentedControl, since
+   26 Sep 2026; what picking a view does stays here. */
 function renderViewTabs(defs){
-  const tab = (d, attrs) => '<button class="tab' + (d.id === state.view ? ' on' : '') + '" ' +
-    attrs + '>' + esc(d.label) + '</button>';
-
-  $('#viewToggle').innerHTML = defs.map(d =>
-    d.sep ? '<span class="tabsep"></span>' : tab(d, 'data-view="' + d.id + '"')
-  ).join('');
-
-  $('#viewToggle').querySelectorAll('[data-view]').forEach(b => {
+  BoardUI.mount($('#viewToggle'), BoardUI.h(BoardUI.ViewTabs, {
+    defs,
+    value: state.view,
     /* syncHash() before the render rather than after it: the write it makes
        has to land while location.hash still names the view being left, or
        there is nothing for Back to return to. renderView() reaches syncHash()
        again through renderTabs(), finds the URL already right and does
        nothing. */
-    b.onclick = () => { state.view = b.dataset.view; syncHash(true); renderView(); };
-  });
+    onPick: id => { state.view = id; syncHash(true); renderView(); },
+  }));
 }
 
 /* Which view the last renderView() drew, so arriving somewhere can be told

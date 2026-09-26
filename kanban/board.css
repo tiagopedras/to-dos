@@ -168,6 +168,15 @@
   .tab .n{font-size: var(--tenon-typography-size-sm); font-weight:650; color:var(--tenon-text-faint); background:var(--tenon-background-raised); border-radius:var(--tenon-radius-default); padding:0 5px; min-width:19px; text-align:center}
   .tab:hover{color:var(--tenon-text-default)}
   .tabsep{width:1px; align-self:stretch; background:var(--tenon-stroke-default); margin:0 2px}
+  /* The header's view tabs are Tenon's SegmentedControl (kanban/ui/ViewTabs.tsx),
+     which has no divider of its own: the option after a `sep` in viewDefs()
+     carries `.sepbefore` on its label, and the hairline is drawn from that,
+     at .tabsep's width and colour. */
+  .viewtabs .tenon-segmented__option:has(> .sepbefore){position:relative; margin-left:5px}
+  .viewtabs .tenon-segmented__option:has(> .sepbefore)::before{
+    content:''; position:absolute; left:-4px; top:2px; bottom:2px; width:1px;
+    background:var(--tenon-stroke-default);
+  }
   .tab.on{background:var(--tenon-background-raised); color:var(--tenon-text-default); border-color:var(--tenon-stroke-default); box-shadow:0 1px 2px rgba(16,20,28,.07); font-weight:640}
   .tab.on .dot{opacity:1}
   .tab.on .n{background:var(--tenon-background-neutral); color:var(--tenon-text-subtle)}
@@ -192,6 +201,9 @@
   @media (max-width:640px){
     .tabs{flex-wrap:wrap; max-width:100%}
     .tabsep{display:none}
+    .viewtabs{flex-wrap:wrap; max-width:100%}
+    .viewtabs .tenon-segmented__option:has(> .sepbefore){margin-left:0}
+    .viewtabs .tenon-segmented__option:has(> .sepbefore)::before{display:none}
     .status{white-space:normal}
   }
 

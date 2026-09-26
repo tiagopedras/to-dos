@@ -1221,8 +1221,19 @@ they settled is written up in the README rather than left here:
   collapsible, and the `ufold` and `schedlog` folds move onto that, keeping the
   browser's own open state and find-in-page.
 
-  Order: the tab strips and the filter bar onto `SegmentedControl`. The drawer goes
-  last, as a job of its own, because `openDrawer()` is reached from every view
+  The tab strips went next, on 26 Sep 2026, as far as `SegmentedControl` fits
+  them. The header's view tabs (`renderViewTabs()`, `kanban/js/18-timeline.js`)
+  mount `BoardUI.ViewTabs` (`kanban/ui/ViewTabs.tsx`), one radiogroup: Tab lands
+  on the view that is on and the arrow keys switch views. `SegmentedControl` has
+  no divider, so the option after a `sep` in `viewDefs()` carries `.sepbefore`
+  and `board.css` draws the hairline. The bucket tabs and theme pills
+  (`renderTabs()`, `renderThemeTabs()`, `07-render-board.js`) stay strings,
+  because several can be on at once and `SegmentedControl` picks exactly one.
+  `renderFilterBar()` is those tabs plus the score chip, an on/off toggle, so it
+  stays too, as does the Reports window picker on `.tabs.small`. Moving those
+  needs a multi-select toggle group in Tenon first.
+
+  What remains is the drawer, as a job of its own, because `openDrawer()` is reached from every view
   and the Markdown and report builders it uses are shared with Plans. After
   splicing any renderer out, grep
   its file for a second definition of every name replaced, since a later
