@@ -357,7 +357,7 @@ await evalJS(`closeModal()`)
 await evalJS(`state.view = 'board'; renderView()`)
 await new Promise(r => setTimeout(r, 300))
 check('there is no Plans tab any more, and an old #plans link lands on the board', await evalJS(`
-  ![...document.querySelectorAll('#viewToggle .tab')].some(t => t.textContent.startsWith('Plans')) &&
+  ![...document.querySelectorAll('#viewToggle [role=radio]')].some(t => t.textContent.startsWith('Plans')) &&
   (state.view = 'plans', renderView(), state.view === 'board')
 `))
 await evalJS(`document.querySelector('#refCardsBtn').click()`)

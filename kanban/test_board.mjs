@@ -384,6 +384,30 @@ const addBucketCheck = await evalJS(`(() => {
 })()`)
 check('defaultAddBucket() guesses the bucket from the filter', addBucketCheck.length === 0, addBucketCheck.join(' | '))
 
+/* ---- the view tabs, Tenon's SegmentedControl since 26 Sep 2026 ---- */
+
+await evalJS(`state.view = 'board'; renderView()`)
+await new Promise(r => setTimeout(r, 150))
+check('the view tabs are one radiogroup with the board checked', await evalJS(`(() => {
+  const g = document.querySelector('#viewToggle [role=radiogroup].tenon-segmented')
+  const on = g && g.querySelector('[role=radio][aria-checked=true]')
+  return !!on && on.dataset.value === 'board' && on.tabIndex === 0 &&
+    g.querySelectorAll('[role=radio]').length === 5 &&
+    g.querySelectorAll('.sepbefore').length === 2
+})()`))
+await evalJS(`document.querySelector('#viewToggle [data-value=matrix]').click()`)
+await new Promise(r => setTimeout(r, 150))
+check('picking a tab switches the view and the URL', await evalJS(`
+  state.view === 'matrix' && location.hash.startsWith('#matrix') &&
+  document.querySelector('#viewToggle [data-value=matrix]').getAttribute('aria-checked') === 'true'
+`))
+await evalJS(`document.querySelector('#viewToggle [data-value=matrix]').dispatchEvent(
+  new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))`)
+await new Promise(r => setTimeout(r, 150))
+check('the arrow keys move between views', await evalJS(`state.view === 'timeline'`))
+await evalJS(`state.view = 'board'; renderView()`)
+await new Promise(r => setTimeout(r, 150))
+
 /* ---- the point of the guard ---- */
 
 /* The tab is unlocked here, so the board tries to save after every move. The
