@@ -1836,7 +1836,7 @@ function openSubtaskDrawer(found){
       '</div>' +
       (waiting && !f.done ? '<span class="help">' + (kind === 'plan' ? 'The plan is not written yet.' : 'The work is not finished yet.') + '</span>' : '') +
       (subSendBackFor === subId
-        ? '<textarea id="f-sendback-text" placeholder="What should change? The agent reads this when it takes it up again."></textarea>' +
+        ? '<div id="f-sendback-mount"></div>' +
           '<button type="button" class="btn small reject" id="f-sendback-go">Send it back</button>'
         : '') +
     '</div>';
@@ -1866,11 +1866,27 @@ function openSubtaskDrawer(found){
     '</div>' +
     (waitingOn ? '<div class="field"><span>Waiting on</span>' + waitingOn + '</div>' : '') +
     '<details class="field" data-collapse="subnote" open><summary>Note</summary>' +
-      '<textarea id="s-note" spellcheck="false"' + dis + '>' + esc(stepNoteText(t, line)) + '</textarea></details>' +
+      '<div id="s-note-mount"></div></details>' +
     '<div class="field inherited"><span>Task</span><span class="dpbtn" style="cursor:default">' + mdInline(t.title) + '</span></div>' +
     '<div class="field inherited"><span>Bucket</span><span class="dpbtn" style="cursor:default">' + esc(loc.bucket.name) + '</span></div>' +
     (proj ? '<div class="field inherited"><span>Project</span><span class="dpbtn" style="cursor:default">' + esc(proj) + '</span></div>' : '') +
   '</div></div>';
+
+  // The sub-task's Note, and the send-back message when that box is open, on
+  // Tenon's Textarea since 26 Sep 2026 — same mount-a-placeholder approach as
+  // the task drawer's own Description field above.
+  if (subNoteMountEl) BoardUI.unmount(subNoteMountEl);
+  subNoteMountEl = $('#s-note-mount');
+  BoardUI.mountFlushed(subNoteMountEl, BoardUI.h(BoardUI.Textarea, {
+    id: 's-note', spellCheck: false, disabled: ro, defaultValue: stepNoteText(t, line),
+  }));
+  if (sendbackMountEl) BoardUI.unmount(sendbackMountEl);
+  sendbackMountEl = $('#f-sendback-mount');
+  if (sendbackMountEl) {
+    BoardUI.mountFlushed(sendbackMountEl, BoardUI.h(BoardUI.Textarea, {
+      id: 'f-sendback-text', placeholder: 'What should change? The agent reads this when it takes it up again.',
+    }));
+  }
 
   if (kind) {
     const readBtn = $('#f-readplan');
@@ -2173,6 +2189,9 @@ let noteResizeObs = null;
    ever telling React — see the note above mount()/unmount() in kanban/ui —
    so this is torn down explicitly before the next one is created. */
 let bodyMountEl = null;
+/* Same for the sub-task panel's own Note and its send-back message. */
+let subNoteMountEl = null;
+let sendbackMountEl = null;
 
 const SECTION_KEY = 'todo-board-collapsed';
 function sectionCollapsed(key){
