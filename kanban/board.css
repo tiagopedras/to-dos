@@ -2928,3 +2928,7 @@
   .cvcard:hover .cvclose, .cvclose:focus{opacity:1}
   .cvclose:hover{background:var(--tenon-background-error-subtle); color:var(--tenon-text-error)}
 
+
+/* Tenon's Textarea sets display:block, which beats the browser's own rule for
+   the hidden attribute, so the drawer's raw-edit boxes would never hide. */
+.tenon-textarea[hidden] { display: none; }

@@ -105,7 +105,7 @@ const roDrawn = await evalJS(`
     t.body = ['  A note with **bold** in it.'];
     openDrawer(t.id);
     const v = document.querySelector('#f-body-view');
-    return { html: v ? v.innerHTML : null, taHidden: document.querySelector('#f-body').hidden,
+    return { html: v ? v.innerHTML : null, taHidden: getComputedStyle(document.querySelector('#f-body')).display === 'none',
              clickable: !!(v && v.onclick) };
   })()
 `)
