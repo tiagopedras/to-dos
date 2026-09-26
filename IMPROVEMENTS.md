@@ -1253,6 +1253,15 @@ they settled is written up in the README rather than left here:
   splicing any renderer out, grep
   its file for a second definition of every name replaced, since a later
   duplicate in a classic script wins.
+  The drawer's three free-text boxes went on 26 Sep 2026: the Description
+  field (`#f-body`), the sub-task Note (`#s-note`) and the send-back message
+  (`#f-sendback-text`) mount Tenon's `Textarea` (`BoardUI.Textarea`, newly
+  re-exported from `kanban/ui/index.ts`), keeping their ids. Everything else
+  in `openDrawer()` is still built as a string: the steps, date pickers,
+  dependency picker, tag chips, project section and the sub-task list. That
+  needs `openDrawer()`'s rebuild-the-panel-as-a-string model turned into React
+  state. The drawer has no `.err` box, and `#drawer`/`#scrim` are a docked
+  panel that 31 places query, so Tenon's centred `Modal` does not fit them.
   Build: Sonnet. Id `drawer-header-modal-to-react`.
   Files: `kanban/js/18-timeline.js`, `kanban/js/07-render-board.js`, `kanban/js/19-drawer.js`, `kanban/js/23-conflict-modal.js`, `kanban/ui/BoardModal.tsx`.
   Tests: `scripts/test-board.sh test_board.mjs`, `node kanban/ui/test_primitives.mjs`.
