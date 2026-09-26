@@ -820,6 +820,7 @@ function renderView(){
   // fetch itself is ensureWrittenReports(), from renderSections().
   if (def.id === 'overview' && lastRenderedView !== 'overview') { forgetWrittenReports(); refreshOrphanPlans(); }
   lastRenderedView = def.id;
+  if (def.id !== 'agents') leaveAgentsView();
 
   renderViewTabs(defs);
 
@@ -837,6 +838,7 @@ function renderView(){
   // on every tab rather than popping in and out as he switches between them.
   $('#headline').classList.add('hidden');
   if (def.id === 'projects') { renderFilterBar(); renderProjectsView(); return; }
+  if (def.id === 'agents') { renderFilterBar(); renderAgentsView(); return; }
   if (def.id === 'backups') { renderFilterBar(); renderBackupsView(); return; }
   renderSections(def.id);
 }
@@ -847,6 +849,7 @@ function renderView(){
 function refreshView(){
   if (state.view === 'board') renderBoard();
   else if (state.view === 'projects') renderProjectsView();
+  else if (state.view === 'agents') renderAgentsView();
   else if (state.view === 'backups') renderBackupsView();
   else renderSections(state.view);
   updateArchiveChip();

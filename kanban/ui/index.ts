@@ -78,6 +78,10 @@ export { ColumnFilter } from './ColumnFilter'
 /* The header's view tabs, on Tenon's SegmentedControl since 26 Sep 2026. */
 export { ViewTabs } from './ViewTabs'
 export type { ViewTabsProps, ViewTabDef } from './ViewTabs'
+/* The Agents view, which is the agents dashboard's own page, from
+   PACKAGES/agents-engine/react. See kanban/js/27-agents.js. */
+export { AgentsApp } from '@tiagopedras/agents-engine/react'
+export type { AgentsAppProps } from '@tiagopedras/agents-engine/react'
 /* showModal()'s sheet, on Tenon's Modal since 25 Sep 2026. */
 export { BoardModal, mountBoardModal, unmountBoardModal } from './BoardModal'
 export type { BoardModalProps, BoardModalButton } from './BoardModal'

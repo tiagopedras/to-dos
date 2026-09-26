@@ -24,6 +24,10 @@
      DEMO_URL is: the page is served at / on Vercel and at /kanban/ locally, and a
      relative href would only resolve in one of the two. -->
 <link rel="stylesheet" href="/kanban/board.css">
+<!-- The Agents view's own stylesheet, from PACKAGES/agents-engine/react, which
+     vite writes beside board-ui.js. Every rule in it sits under .agents-ui, so
+     it reaches nothing of the board's. -->
+<link rel="stylesheet" href="/kanban/dist/board-ui.css">
 </head>
 <body>
 
@@ -218,6 +222,7 @@
 <script src="js/24-autosave-watching.js"></script>
 <script src="js/25-archiving.js"></script>
 <script src="js/26-projects.js"></script>
+<script src="js/27-agents.js"></script>
 <!-- The React half, built from kanban/ui/ by vite into kanban/dist/. An IIFE
      hanging one global, BoardUI, loaded as an ordinary classic script so it
      joins the source order above rather than being deferred past it the way a

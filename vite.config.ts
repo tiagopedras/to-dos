@@ -44,8 +44,24 @@ function tenonCss() {
   }
 }
 
+/* The Agents view is PACKAGES/agents-engine/react, the same component the
+ * agents dashboard is, reached by folder path the way server.py reaches the
+ * engine's Python half. On Vercel that folder does not exist, so the name
+ * points at a stand-in that says there are no agents there, and the build
+ * still passes. */
+const AGENTS_UI = path.resolve(__dirname, '../PACKAGES/agents-engine/react')
+const agentsUi = fs.existsSync(path.join(AGENTS_UI, 'index.ts'))
+  ? AGENTS_UI
+  : path.resolve(__dirname, 'kanban/ui/AgentsStub.tsx')
+
 export default defineConfig({
   plugins: [react(), tenonCss()],
+  resolve: {
+    alias: { '@tiagopedras/agents-engine/react': agentsUi },
+    /* That folder has no node_modules, so its imports of React and Tenon are
+     * resolved from here, which also keeps the bundle to one copy of each. */
+    dedupe: ['react', 'react-dom', '@tiagopedras/tenon'],
+  },
   /* Not optional, and not something the app-style build would have needed.
      Vite substitutes process.env.NODE_ENV for an application build but leaves
      it alone in lib mode, so without this the bundle carries React's
@@ -72,5 +88,10 @@ export default defineConfig({
        more <script> tags in a fixed order before this one, which is one more
        ordering rule for a page that already depends on 28 of them. */
     sourcemap: true,
+    /* The one stylesheet the bundle carries, the Agents view's, at a fixed
+       name beside board-ui.js for the same reason the script has one. */
+    rollupOptions: {
+      output: { assetFileNames: (info) => (info.name?.endsWith('.css') ? 'board-ui.css' : '[name][extname]') },
+    },
   },
 })

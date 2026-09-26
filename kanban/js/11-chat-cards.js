@@ -431,7 +431,8 @@ function viewDefs(){
     { id:'matrix',   label:'Matrix' },
     { id:'timeline', label:'Timeline' },
     { id:'sep1', sep:true },
-    { id:'projects', label:'Projects' }
+    { id:'projects', label:'Projects' },
+    { id:'agents',   label:'Agents' }
   ];
   return defs;
 }

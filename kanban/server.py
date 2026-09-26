@@ -1820,6 +1820,25 @@ try:
 except ImportError:
     ws_writer = None
 
+# The Agents view. Its routes are agents-engine's own, answered under
+# /agents-api so they cannot collide with this server's, and pointed at this
+# repo's agents/ folder rather than at ~/Code: the board shows the Plan and
+# Implement agents it hands work to, and nothing else on the machine. Same
+# failure as the two above: without PACKAGES the view says it has nothing to
+# show and the board is otherwise unchanged. The engine never opens an agent's
+# files; it runs the agent's own commands, so this adds no second writer for
+# any schedule.
+AGENTS_ENGINE_DIR = os.path.normpath(os.path.join(ROOT, "..", "PACKAGES", "agents-engine", "python"))
+AGENTS_ROOT = os.path.join(ROOT, "agents")
+AGENTS_PREFIX = "/agents-api"
+agents_routes = None
+if os.path.isdir(AGENTS_ENGINE_DIR):
+    sys.path.insert(0, AGENTS_ENGINE_DIR)
+    try:
+        from agents_engine import routes as agents_routes  # noqa: E402
+    except ImportError:
+        agents_routes = None
+
 Engine = ChatEndpoints = None
 if os.path.isdir(AI_CHAT_DIR):
     sys.path.insert(0, AI_CHAT_DIR)
@@ -1942,6 +1961,27 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         sys.stdout.write("saved %s\n" % what)
         sys.stdout.flush()
 
+    def _agents_get(self, route):
+        if not agents_routes:
+            return self._json(404, {"error": "agents-engine is not next to this repo"})
+        if route == "/state.json":
+            return self._json(200, agents_routes.state_view(AGENTS_ROOT))
+        return self._json(404, {"error": "no route %s" % route})
+
+    def _agents_post(self, route):
+        if not agents_routes:
+            return self._json(404, {"error": "agents-engine is not next to this repo"})
+        # Before the body is read, for the reason routes.ApiHandler.do_POST
+        # gives: a form on any website can post to loopback, and /run starts an
+        # agent.
+        if not agents_routes.origin_allowed(self.headers.get("Origin")):
+            return self._json(403, {"error": "origin not allowed"})
+        try:
+            body = json.loads((self._body() or b"{}").decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return self._json(400, {"error": "body was not valid JSON"})
+        return self._json(*agents_routes.post_view(route, body, AGENTS_ROOT))
+
     def _json(self, code, payload):
         body = json.dumps(payload).encode()
         self.send_response(code)
@@ -1991,6 +2031,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path.startswith(AGENTS_PREFIX + "/"):
+            return self._agents_get(path[len(AGENTS_PREFIX):])
         if path == "/datasets.json":
             return self._json(200, {"datasets": list_datasets(), "current": current_dataset()})
         if path == "/chat-viewed.json":
@@ -2230,6 +2272,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?")[0]
+        if path.startswith(AGENTS_PREFIX + "/"):
+            return self._agents_post(path[len(AGENTS_PREFIX):])
         if path == "/datasets":
             data = self._body()
             try:
