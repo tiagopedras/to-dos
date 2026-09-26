@@ -869,7 +869,7 @@ they settled is written up in the README rather than left here:
   inherited values greyed, and a button at its top left goes back to the parent. Built on the
   `one-board` branch, planned in `handover-one-board.md`.
 
-- **The implementing agent only runs with Tiago in the room because nothing says which kinds of work it can do alone.**
+- ~~**The implementing agent only runs with Tiago in the room because nothing says which kinds of work it can do alone.**~~ **Done, 26 Sep 2026.** Plans carry `type:`; write-ups and drafts are approved on the Plan agent's tick; `agents/implement-agent/` runs on the shared runner, off until hours are set. Figma refuses to run alone until the bridge can be checked before a run.
   `do` (`agents/implement-agent/skills/do/SKILL.md`, "What this skill never does") forbids
   any schedule, decided 6 Sep 2026, and `implement-agent.md` relies on that: it holds Write
   and Edit but no Bash (line 4), and its only safety net is that it can stop and ask.
