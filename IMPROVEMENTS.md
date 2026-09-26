@@ -167,6 +167,10 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   placeholder forms, in Tenon, would let both take a string and drop the
   markup, and `mdInline()` would go once the drawer and the Overview bodies did.
   **Partly done, 25 Sep 2026.** `inlineNodes()` in `PACKAGES/tenon` now handles both forms, source and `dist/` rebuilt — but not tagged, and to-dos's pinned Tenon version is untouched, so `mdInline()` and the two `dangerouslySetInnerHTML` uses still stand. [needs you] Bump the tag and to-dos's `package.json` pin before the rest of this can land.
+  Build: Opus. Id `dual-markdown-renderers`.
+  Files: `kanban/js/10-reference-sections.js`, `kanban/ui/TaskCard.tsx`, `package.json`, `PACKAGES/tenon`.
+  Tests: `scripts/test-board.sh test_board.mjs test_overview.mjs`.
+  Open: the entry names `PlanCard.tsx`, which no longer exists — the Plans view was folded into the one board on 22 Sep 2026. Default: bump the Tenon pin in `package.json`, then migrate `TaskCard.tsx` and `mdInline()`'s remaining callers only.
 
 - ~~**A new task lands in the first bucket in the file even when that bucket is
   filtered out.**~~ **Done, 25 Sep 2026.** `defaultAddBucket()` (`kanban/js/07-render-board.js`) now reads `state.bucketFilter`: one bucket toggled on means that bucket, several means the leftmost in `state.doc.buckets` order, none toggled keeps the old `buckets[0]` fallback. Covered in `test_board.mjs`.
@@ -619,6 +623,10 @@ they settled is written up in the README rather than left here:
   Done guard. Delete keeps one `confirm()` naming the count and the first few
   titles, and the whole action should be one `markDirty()` so a single undo
   (`kanban/js/05-undo.js`) puts every card back.
+  Build: Sonnet. Id `bulk-card-editing`.
+  Files: `kanban/js/19-drawer.js`, `kanban/js/09-columns.js`, `kanban/ui/TaskCard.tsx`, `kanban/js/02-state.js`, `kanban/js/04-tier-two-the-one-thing.js`, `kanban/js/05-undo.js`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: none.
 
 - **An agent has no face on the board, so a task handed to one reads the same as
   a task handed to a person, and there is no way to see only the agents' work.**
@@ -637,6 +645,10 @@ they settled is written up in the README rather than left here:
   to an agent, so the avatar has nowhere to go there until one is. Needs a
   decision on the generator (a vendored script, since the board loads classic
   scripts) and whether people get avatars too.
+  Build: Opus. Id `agent-avatars`.
+  Files: `kanban/js/09-columns.js`, `kanban/ui/TaskCard.tsx`, `kanban/js/19-drawer.js`, `kanban/js/07-render-board.js`, `kanban/ui/ColumnFilter.tsx`, `kanban/js/02-state.js`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: which avatar generator? Default: DiceBear's `shapes`, vendored, since the board loads classic scripts. Do people get avatars too? Default: no, agents only.
 
 - **A chat's mode is fixed when the window opens, so a chat that needs to
   write has to be told it cannot.** The board never passes `mode` to
@@ -663,10 +675,22 @@ they settled is written up in the README rather than left here:
   the board has no safe way to ask the PA" covers. The switch is only safe to ship once that is settled, and
   `"work": true` has to be set in the list's `claude.json` for any of it to run
   (`engine.py:490`).
+  Build: Opus. Id `chat-write-mode`. After `pa-queue-chat`.
+  Files: `kanban/js/10-reference-sections.js`, `PACKAGES/ai_chat_engine/engine.py`, `PACKAGES/ai_chat_engine/src/controller.ts`.
+  Tests: `scripts/test-board.sh test_chats.mjs`, `node /Users/tiagopedras/Code/PACKAGES/ai_chat_engine/test/chat.test.mjs`.
+  Open: none — blocked on `pa-queue-chat` rather than open on its own terms.
 
 - **"Who he is" tells the PA what his job is but not how he works, so prioritisation has nothing of his own to weigh against.** `PA.md:12-21` gives one paragraph — design manager, four kinds of work in parallel, the list as memory across sessions — and the two tiers under "How he prioritises" (`:55-96`) score everything against impact and effort alone, reading tags off the task rather than anything about him. Nothing in `PA.md` says how he actually works: what he pushes through versus defers, how he treats a slipping date, what he'd rather do himself versus hand off. Written down, that section would sit beside "Who he is" and feed the same two tiers every `pa-*` skill already reads, rather than becoming a rule any one skill has to apply on its own.
+  Build: Sonnet. Id `pa-working-style`. With `pa-personality`.
+  Files: `agents/pa_agent/PA.md`.
+  Tests: none found.
+  Open: none.
 
 - **The PA has a tone but not a personality, and every skill reads the same three lines to get it.** `PA.md:224-239`'s "Tone" section is the only place any of that is written down: direct, no padding, short bullets, no preamble, British English, no em dashes. It describes a house style for the reports `pa` writes, not a character — nothing there names a way of talking that would feel like anyone rather than a formatter. Every `pa-*` skill (`agents/pa_agent/CLAUDE.md`'s table lists all ten) reads `PA.md` first and inherits this section as-is, so giving the PA an actual personality means deciding what it is and rewriting `Tone` to state it, which every skill picks up for free without a second file to keep in step.
+  Build: Sonnet. Id `pa-personality`. With `pa-working-style`.
+  Files: `agents/pa_agent/PA.md`.
+  Tests: none found.
+  Open: what the personality actually is. Default: keep today's direct, no-padding tone and write it as a character rather than a style guide.
 
 - **A chat started on the board has no safe way to ask the PA for a change to
   the list.** Every chat runs as `claude -p` in the cwd its list's `claude.json` names
@@ -691,6 +715,10 @@ they settled is written up in the README rather than left here:
   agent that picks requests up while the board is locked for the length of
   the write, or the board itself draining a structured request (move, tick,
   re-date, add) with no PA in the loop.
+  Build: Opus. Id `pa-queue-chat`. With `pa-panel-chat`. Unblocks `chat-write-mode`.
+  Files: `PACKAGES/ai_chat_engine/engine.py`, `kanban/js/10-reference-sections.js`, `core/tick_queue.py`, `kanban/server.py`.
+  Tests: `scripts/test-board.sh test_chats.mjs`.
+  Open: who applies the request — PA turned into a real agent that picks requests up, or the board itself draining a structured request? Default: the board drains a `pa-queue.json` the way it already drains `tick-queue.json` and `attach-queue.json`, since that needs no new agent runner.
 
 - ~~**A chat can only be open or closed, so keeping one in view means keeping
   it on top of the board.**~~ **Done, 25 Sep 2026.** The engine's `dockable` option adds minimised and anchored, and the board keeps one AIChat instance per open chat in `chatWins`. The controller behind the board's one
@@ -745,6 +773,10 @@ they settled is written up in the README rather than left here:
   could just surface somewhere he would actually see and act on it, or something
   else. Needs that decided before either the planner or the checker entry above
   it can be built.
+  Build: Opus. Id `handover-tag-exception`.
+  Files: `agents/plan-agent/pick.py`, `agents/pa_agent/skills/pa/scripts/check_todo.py`.
+  Tests: `python3 agents/plan-agent/test_planning_agent.py`, `python3 agents/pa_agent/skills/pa/scripts/test_check_todo.py`.
+  Open: what the exception should be — the planner mints the sub-tasks itself, or the gap just surfaces somewhere he'd see it? Default: the planner mints the sub-tasks itself, the way `handOver()` already does, since it needs no new surface.
 
 - ~~**A sub-task added by hand has no way to open its own drawer, only one an agent handover minted.**~~ **Done, 25 Sep 2026.** `addSub()` mints an `id:`, a bare step gets one on its first click, and `core/migrations/migrate-sub-ids.py` does the lists already written (not yet run on any real list).
   The `↗` button that opens a
@@ -864,6 +896,10 @@ they settled is written up in the README rather than left here:
   carried by the review sub-tasks in the entry above this one, and this list decides which
   work a runner may take on its own, including a task handed straight to the Implement
   agent.
+  Build: Opus. Id `implementing-agent-fence-types`. With `implementing-agent-unattended`.
+  Files: `agents/plan-agent/PLAN-BRIEF.md`, `agents/plan-agent/plan.py`, `core/tick_queue.py`, `kanban/js/10-reference-sections.js`, `agents/implement-agent/implement-agent.md`, `agents/implement-agent/skills/do/SKILL.md`, `agents/implement-agent/README.md`.
+  Tests: `python3 agents/plan-agent/test_planning_agent.py`.
+  Open: the entry names `agents/implementing_agent/`, which no longer exists — the folder is `agents/implement-agent/` since the September rename. Whether a task handed straight to the Implement agent skips Review the plan entirely is also still open. Default: unattended runs stay with the planned route only, since that is the one route the type list already fences.
 
 - **The app and its data sit in one checkout, so the hosted web version can only ever show `demo.md` and cannot work on a data folder on the person's own machine.**
   `ROOT` and `DATA = "data"` (`kanban/server.py:41`, `:74`) put every dataset at
@@ -882,6 +918,10 @@ they settled is written up in the README rather than left here:
   file mode: a crash-copy in localStorage, and that a real list opened in a page served
   from a public URL means its safety rests on code fetched over the internet. Works with
   the entry below, since a project folder of the person's own has to be reachable the same way.
+  Build: Opus. Id `hosted-data-folder`.
+  Files: `kanban/server.py`, `kanban/js/01-markdown-model.js`, `kanban/js/21-datasets.js`.
+  Tests: none found.
+  Open: File System Access API against a small local helper the page talks to. Default: File System Access API first, since it needs no second process, and fall back to the read-only demo where the browser doesn't support it.
 
 - ~~**Every project folder has to live under `data/<dataset>/projects/`, so someone who keeps their work in a folder of their own cannot point the board at it.**~~ **Done, 25 Sep 2026.** `core/project_folders.py` holds the one check, `resolve()` (realpaths compared with `os.path.commonpath`), used by `/project.json`, `/project/open`, `project_listing()` and the planning agent's `project_dirs()`. Approved folders live in `data/<dataset>/project-folders.json`, written by `POST /project-folders` and read by `GET /project-folders.json`; the drawer's Use an existing folder picks one or approves a typed path after a confirm. `taskProject()` reads a `Project:` note carrying an absolute path, and the implementer's and planners' prompts follow the note as written.
   `projects_dir()` (`kanban/server.py:316`) is the only place a project can be, and
@@ -916,6 +956,10 @@ they settled is written up in the README rather than left here:
   proposed edit to that same brief: when a plan is sent back or an output is changed, the
   agent suggests a line and the person accepts or rejects it, so nothing in the brief
   changes without their say.
+  Build: Opus. Id `agent-setup-wizard`. With `agent-capability-cards`, `hide-agent-ui-until-setup`.
+  Files: `agents/plan-agent/`, `kanban/server.py`, `kanban/js/08-buckets.js`.
+  Tests: none found.
+  Open: whether "learning from use" (the agent suggesting a brief edit after a send-back) ships in the same pass. Default: no, ship the four-question setup first and leave learning from use as its own entry.
 
 - **Bench's agents are three the person works with, plus specialists they call in, and nothing in the app models that yet.**
   Agreed on 21 Sep 2026 after the second UX review (`/Users/tiagopedras/Code/AGENTS/ux_agent/reviews/2026-09-21-bench-delegation-2/review.md`). The PA,
@@ -927,6 +971,10 @@ they settled is written up in the README rather than left here:
   a task, but every call is written to the task's history ("Planner asked the Hiring
   expert"). Needs the `owner` field in `PACKAGES/work_streams/CONTRACT.md` read by the
   board, and a history per task, which the activity feed entry below also needs.
+  Build: Opus. Id `specialist-agents-model`. With `agent-handover-level`, `agent-output-activity-feed`.
+  Files: `PACKAGES/work-streams/CONTRACT.md`, `kanban/server.py`, `kanban/js/02-state.js`.
+  Tests: `node /Users/tiagopedras/Code/PACKAGES/work-streams/test_streams.mjs`, `python3 /Users/tiagopedras/Code/PACKAGES/work-streams/test_streams.py`.
+  Open: the entry asks for an `owner` field in the contract, which already exists (`CONTRACT.md:37`) — what's missing is the history per task, not the field. Default: build the specialist-call history only.
 
 - **Every agent works one way, plan then accept then produce, so someone who only wants the output has to read and accept a plan first.**
   The implementing agent only runs on accepted plans (the `implementing-agent`
@@ -935,6 +983,10 @@ they settled is written up in the README rather than left here:
   handover level per agent: off, plan first, or just do it. With "just do it" the
   work goes straight to review as output, with the plan still readable. The
   personas it serves are in `ux_agent/clients/tiago/products/bench/personas.md`.
+  Build: Sonnet. Id `agent-handover-level`. With `specialist-agents-model`.
+  Files: `kanban/js/04-tier-two-the-one-thing.js`, `kanban/js/19-drawer.js`, `PACKAGES/work-streams/CONTRACT.md`.
+  Tests: `scripts/test-board.sh test_board.mjs test_subtasks.mjs`.
+  Open: none.
 
 - **Someone who only uses the PA to keep their list still has agent columns, a Plans tab, an "AI can do" filter and `ai` chips in their way.**
   `renderViewTabs()` (`kanban/js/18-timeline.js:879`) always draws Plans,
@@ -943,6 +995,10 @@ they settled is written up in the README rather than left here:
   `kanban/js/07-render-board.js:8`) is always offered. Review finding 2 suggests
   hiding all of it until the person sets up their first agent, in line with the
   quality bar of showing only what is needed at that moment.
+  Build: Sonnet. Id `hide-agent-ui-until-setup`. With `agent-setup-wizard`.
+  Files: `kanban/js/18-timeline.js`, `kanban/js/02-state.js`, `kanban/js/07-render-board.js`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: none.
 
 - **The board can show its agents' schedule but cannot show their status or change their hours, because that half lives in `agents-dashboard`.**
   `schedule_listing()` (`kanban/server.py:932`) feeds `/schedule.json` and the Spend and
@@ -961,6 +1017,10 @@ they settled is written up in the README rather than left here:
   The board changes the schedule through `apply`, never by opening `schedule.py`'s file,
   so it stays the one writer, and the discovery walk over `~/Code` should not ship in the
   board.
+  Build: Opus. Id `board-agents-view`.
+  Files: `kanban/server.py`, `PACKAGES/agents-engine`, `agents-dashboard/src`, `kanban/ui/RefCards.tsx`, `kanban/js/14-schedule.js`.
+  Tests: `scripts/test-board.sh test_schedule.mjs`.
+  Open: none.
 
 - ~~**A task handed to an agent leaves the board it was on, and the Board and Plans then give two answers about where it is.**~~ **Done, 22 Sep 2026.** Stage 2 and stage 8: Reviewing replaced Waiting for review, Blocked and Handed to AI went, and the Plans tab went with them.
   `boardColumns()` (`kanban/js/02-state.js:337`) splices the synthetic `AI_COL`
@@ -995,6 +1055,10 @@ they settled is written up in the README rather than left here:
   "Planner · waiting for you · 02:05" would need the run record per task from
   `agents/planning_agent`, and the same from `implementing-agent`. This is the
   one place the review (finding 4) suggests departing from familiar patterns.
+  Build: Opus. Id `agent-run-status-line`. With `agent-output-activity-feed`, `agent-run-failure-state`.
+  Files: `kanban/js/09-columns.js`, `kanban/ui/TaskCard.tsx`, `agents/plan-agent/plan.py`, `agents/implement-agent/`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: none.
 
 - **What the implementing agent produces never reaches the board, so it cannot be checked or sent back from where the task lives.**
   A plan can be read in `openPlanModal()` and talked through in `openPlanChat()`
@@ -1006,12 +1070,20 @@ they settled is written up in the README rather than left here:
   open in the drawer; a git branch as its name, commit count and a summary, merged
   through `agents-review`; a Figma branch as a link that opens it in the desktop app;
   and a Slack or email draft shown inline on the task, ready to copy.
+  Build: Opus. Id `agent-output-activity-feed`. With `specialist-agents-model`, `agent-run-status-line`, `agent-run-failure-state`.
+  Files: `kanban/js/19-drawer.js`, `kanban/server.py`, `agents/implement-agent/`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: the entry names `openPlanModal()`/`openPlanChat()` in `kanban/js/13-plans.js`, which no longer exists — folded into the board 22 Sep 2026. Default: the equivalent surface today is the sub-task's own panel in the drawer.
 
 - **Someone new to the app cannot tell what the agents can do, or what full, partial and none mean.**
   The rules live only in `CONVENTIONS.md`, and `TIER_HINT` in
   `kanban/js/02-state.js:325` says no more than "tagged ai:: full, not done yet".
   Matters once the app ships: each agent gets a short card saying what it does,
   what it cannot do and what it needs from you (review finding 6).
+  Build: Sonnet. Id `agent-capability-cards`. With `agent-setup-wizard`.
+  Files: `kanban/js/02-state.js`, `kanban/js/18-timeline.js`, `CONVENTIONS.md`.
+  Tests: `scripts/test-board.sh test_board.mjs`.
+  Open: none.
 
 - **Nothing decides what a failed agent run looks like on a task.**
   A planning or implementing run that errors or gives up leaves no mark on the card
@@ -1023,6 +1095,10 @@ they settled is written up in the README rather than left here:
   drawer; retry, which queues the same run tonight for a planner or on the next `do` for
   the implementer; or take it back, which clears the agent as assignee so the task is
   theirs again.
+  Build: Opus. Id `agent-run-failure-state`. With `agent-run-status-line`, `agent-output-activity-feed`.
+  Files: `kanban/js/09-columns.js`, `companion/src/main/index.ts`, `companion/src/shared/types.ts`, `agents/plan-agent/`, `agents/implement-agent/`.
+  Tests: `python3 companion/test_companion.py`.
+  Open: none.
 
 - ~~**Nothing decides whether an agent the person built should look different on a card from a pre-built one.**~~
   **Done, 21 Sep 2026.** It does not. An agent the person builds is a specialist, which
@@ -1061,6 +1137,10 @@ they settled is written up in the README rather than left here:
   which changes how the board looks, so it wants a look at the result rather
   than a find and replace. The suites that read chip classes are
   `test_board.mjs`, `test_plans.mjs` and `test_overview.mjs`.
+  Build: Opus. Id `tenon-tag-chips`.
+  Files: `kanban/js/09-columns.js`, `kanban/ui/TaskCard.tsx`, `kanban/board.css`, `PACKAGES/tenon`.
+  Tests: `scripts/test-board.sh test_board.mjs test_overview.mjs`.
+  Open: the entry also names `test_plans.mjs`, which no longer exists — the Plans view folded into the board 22 Sep 2026. Default: cover the mapping with `test_board.mjs` and `test_overview.mjs` only.
 
 - ~~**The Timeline's body is still one HTML string.**~~
   **Done, 25 Sep 2026.** The lanes, bars, scale, legend and tray are
@@ -1147,6 +1227,10 @@ they settled is written up in the README rather than left here:
   splicing any renderer out, grep
   its file for a second definition of every name replaced, since a later
   duplicate in a classic script wins.
+  Build: Sonnet. Id `drawer-header-modal-to-react`.
+  Files: `kanban/js/18-timeline.js`, `kanban/js/07-render-board.js`, `kanban/js/19-drawer.js`, `kanban/js/23-conflict-modal.js`, `kanban/ui/BoardModal.tsx`.
+  Tests: `scripts/test-board.sh test_board.mjs`, `node kanban/ui/test_primitives.mjs`.
+  Open: the entry names `openPlanModal()` as part of the same job — that view no longer exists, folded into the board 22 Sep 2026. Default: drop the plan modal from scope; the drawer, the header chrome and the conflict modal are what remains.
 
 - ~~**A theme is a real layer of the list and the board has never heard of it.**~~
   **Done, 25 Sep 2026.** `[theme:: ]` is a first-class field in `core/todo.js`/
@@ -1248,6 +1332,10 @@ they settled is written up in the README rather than left here:
   open the two take turns instead: before a message is sent the board saves
   anything unsaved, and once `pa`'s reply lands it reloads `todo.md` from disk,
   so `pa` stays the writer it already is and the board never saves over it.
+  Build: Opus. Id `pa-panel-chat`. With `pa-queue-chat`.
+  Files: `kanban/js/10-reference-sections.js`, `PACKAGES/ai_chat_engine/src/controller.ts`, `kanban/js/02-state.js`, `kanban/js/20-loading-saving.js`.
+  Tests: `scripts/test-board.sh test_chats.mjs`.
+  Open: none.
 
 - ~~**Reading what got done means leaving the page that says what is next.**~~
   **Done.** Reports is not a tab any more: Tasks finished leads Overview's row
@@ -1653,6 +1741,10 @@ they settled is written up in the README rather than left here:
   run against a branch he has already created and opened in the desktop app
   himself, and that precondition needs checking at the start of the run
   rather than assumed.
+  Build: Opus. Id `implementing-agent-unattended`. With `implementing-agent-fence-types`.
+  Files: `agents/implement-agent/implement-agent.md`, `agents/implement-agent/skills/do/SKILL.md`, `AGENTS/improve-agent/README.md`.
+  Tests: none found.
+  Open: this reads as the same feature as `implementing-agent-fence-types`, decided in more detail on 21 Sep 2026 — is this entry still needed on its own? Default: fold it in there; that entry's per-type fences already cover the general branch-and-tests case this one asks for.
 
 - ~~**Opening an accepted plan offers no way to start, or return to, the
   session actually carrying it out.**~~ **Done, 14 Sep 2026 — both pieces,
