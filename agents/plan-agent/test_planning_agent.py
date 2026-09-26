@@ -384,6 +384,41 @@ def test_folding():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_plan_type():
+    """`type:` decides whether the Implement agent may carry a plan out alone
+    (core/plan_types.py), so write_plan() always writes one, and a word off the
+    list, or none, is `other`. The Plan agent's tick carries it to the board."""
+    task = todo.parse_task(["- [ ] **Write the audit** [impact:: high] `id:ab12cd`"])
+    task.bucket, task.column = "Processes", "Doing"
+    day = dt.date(2026, 9, 26)
+    tmp = tempfile.mkdtemp(prefix="type-test-")
+    real = plan.paths.plans_dir
+    plan.paths.plans_dir = lambda: tmp
+    try:
+        def kind(front):
+            out, _, _ = plan.write_plan(task, "---\n%ssummary: S.\n---\n\nBody.\n" % front, "", day)
+            return plan.read_front(out).get("type")
+        check("a listed type is kept", kind("type: write-up\n"), "write-up")
+        check("case is not a different type", kind("type: Code\n"), "code")
+        check("a word off the list is other", kind("type: report\n"), "other")
+        check("no type at all is other, never approved", kind(""), "other")
+
+        q = os.path.join(tmp, "tick-queue.json")
+        task.plan_sub = "aa0001"
+        old = paths.tick_queue_path
+        paths.tick_queue_path = lambda: q
+        try:
+            plan.queue_plan_tick(task, "write-the-audit-ab12cd.md", "write-up")
+            plan.queue_plan_tick(task, "write-the-audit-ab12cd.md")
+        finally:
+            paths.tick_queue_path = old
+        check("the Plan agent's tick carries the plan's type, and only when given",
+              [e.get("type") for e in tick_queue.read(q)], ["write-up", None])
+    finally:
+        plan.paths.plans_dir = real
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_one_file_per_task():
     """A replan overwrites the same file in place, History and all.
 
@@ -1570,6 +1605,7 @@ def main():
     test_sub_tasks()
     test_rules()
     test_folding()
+    test_plan_type()
     test_one_file_per_task()
     test_prune()
     test_briefing()

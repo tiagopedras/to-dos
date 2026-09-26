@@ -182,6 +182,29 @@ try {
   await new Promise(r => setTimeout(r, 300))
   check('the tick that reports a plan writes a Plan note on the review behind it', await evalJS(`
     (() => { const t = __task('Gamma'); const rv = subSteps(t).find(s => s.clean === 'Review the plan'); return stepNoteText(t, rv.line); })()`) === '- Plan: plans/2026-09-22/gamma.md')
+  check('a plan with no type leaves its review for him', await evalJS(`
+    subSteps(__task('Gamma')).find(s => s.clean === 'Review the plan').done`) === false)
+
+  /* ---- a pre-approved type approves itself on arrival ---- */
+
+  await evalJS(`(() => {
+    const planOf = title => subSteps(__task(title)).find(s => s.to === 'Plan agent').stableId;
+    window.__queue = [
+      { id: 'z2', sub: planOf('Delta'), by: 'Plan agent', plan: '2026-09-22/delta.md', type: 'write-up' },
+      { id: 'z3', sub: planOf('Epsilon'), by: 'Plan agent', plan: '2026-09-22/epsilon.md', type: 'deck' },
+    ];
+  })()`)
+  await evalJS(`drainTickQueue()`)
+  await new Promise(r => setTimeout(r, 300))
+  check('a write-up plan ticks the review behind it', await evalJS(`
+    subSteps(__task('Delta')).find(s => s.clean === 'Review the plan').done`) === true)
+  check('with a note saying why, beside the Plan note', await evalJS(`
+    (() => { const t = __task('Delta'); const rv = subSteps(t).find(s => s.clean === 'Review the plan'); return stepNoteText(t, rv.line); })()`) ===
+    '- Plan: plans/2026-09-22/delta.md\n- Approved: pre-approved type (write-up)')
+  check('which unblocks the Implement agent', await evalJS(`
+    (() => { const t = __task('Delta'); const im = subSteps(t).find(s => s.clean === 'Implement'); return !blockedMessage(allItems(), im.blockedBy); })()`) === true)
+  check('a deck plan still waits for his review', await evalJS(`
+    subSteps(__task('Epsilon')).find(s => s.clean === 'Review the plan').done`) === false)
   await evalJS(`state.locked = true`)
 
   check('nothing reached todo.md', await evalJS(`window.__blocked.every(b => b.startsWith('POST /tick-queue.json'))`), await evalJS(`window.__blocked.join(' | ')`))

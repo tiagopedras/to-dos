@@ -15,6 +15,10 @@ file.
 | File | What it is |
 | --- | --- |
 | `implement-agent.md` | The agent definition Claude Code reads. Symlinked into `.claude/agents/implement-agent.md`, one file rather than a folder link, so this folder is free to be organised however it needs to be. |
+| `agent.json`, `run.py`, `hooks.py` | Its unattended runner, on the shared runner in `PACKAGES/agents-engine` (RUNNER.md), the same contract as `../plan-agent`. Off until hours are set. |
+| `guard.py` | What an unattended run of types 1 to 5 may leave behind in the project folder, and putting back what it may not. |
+| `run.sh` | The runner by hand: `--dry-run`, `--dataset <list>`, `--task "<title>"`. |
+| `test_implement_agent.py` | The queue, the tools, the folder guard and the code route, with no Claude run. |
 
 ## The three things that are load-bearing
 
@@ -27,23 +31,50 @@ in `data/<dataset>/buckets/<stream>/<stream>.md`, which both halves read, so it 
 and cannot drift between the agent that researched the work and the agent that
 does it.
 
-**It only ever runs from a session he is in**, through the `do` skill. Never
-on a schedule, never in the background. The whole reason it is allowed to act is
-that it can stop and ask, which is exactly what the planners cannot do and why
-they fold into a report instead.
+**It runs alone only on the kinds of work he has agreed it may.** For most of
+its life it only ran from a session he was in, through the `do` skill, because
+being able to stop and ask was the whole reason it was allowed to act. On 21 and
+23 Sep 2026 he agreed a list of plan types it may carry out with nobody there,
+and on 26 Sep 2026 it was given a runner for those. The list is
+`core/plan_types.py`, and the Plan agent writes one of them as `type:` in every
+plan it writes.
 
-The To do column is a list `do` works through when he starts it, not a queue
-anything picks up on a clock. That was the open question when the board was
-built on 12 Sep 2026, and it was deliberately left open: the columns are laid
-out, and giving this half a runner later is a schedule file and a `run.sh` with
-nothing on the board to change. Whether it should have one is a separate
-decision from whether it should have a board.
+Two of them, a write-up and a draft, are approved on arrival: when the Plan
+agent's tick reaches the board, `drainTickQueue()` ticks Review the plan as well,
+with the note "pre-approved type". They only ever add new files to one folder and
+send nothing, so there is nothing for an accept step to catch. A prompt or skill,
+working data and a deck run once he has ticked the review, and are held to the
+same folder with one more rule: a new version is saved beside the original as
+`name-v2.md`, never over it. The tool list grants Write and Edit on the project
+folder alone, and `guard.py` checks afterwards anyway, the way the Plan agent
+hashes `todo.md` rather than trusting its own tool list. Code runs on the guards
+`AGENTS/improve-agent` already has, using its git module and its registry of repos
+and suites: a clean tree or no run, an `implement/<date>` branch, the repo's
+suites, a commit, never a merge or a push, and still no Bash.
+
+Figma work was agreed with a condition the runner cannot check: the desktop app
+open on the right file with the Figma Console bridge paired. That bridge is a
+server the MCP starts inside each Claude session, so there is nothing to ask
+before a run starts, and a Figma plan is refused with that reason and waits for
+`do`. So does a task handed straight to the Implement agent, since it has no plan
+and no type, and anything of type `other`.
+
+When a run finishes, the runner adds the agent's reply to the plan under "What
+the implementing agent did" and queues the tick on the Implement sub-task, which
+is what `do` has the driving session do. A run that breaks a rule, or says it
+could not do the plan, is set aside for him with its reason in the day's log and
+nothing ticked.
+
+It is off until he sets hours for a list on the agents dashboard. The hourly wake
+already calls `run.py --wake` through `agent.json`, and the runner treats a list
+it has no settings for as off.
 
 **It does not write `todo.md`.** That file belongs to the `pa` skill. This agent
 carries out a plan; where the work means the task itself should change, it asks
 for the change in its report, precisely enough to be applied, and `pa` makes it.
 One writer is the only rule the board's autosave survives, and the implementing agent
-is the wrong one to be it because it is the one running unattended stretches.
+is the wrong one to be it because it is the one running unattended stretches. Its
+runner asks for its tick through `core/tick_queue.py` like every other agent.
 
 ## How work reaches it
 

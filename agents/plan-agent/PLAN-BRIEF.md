@@ -146,6 +146,24 @@ under 300 words in total.
 Do not write **History**. The runner writes it, and it spans revisions you
 cannot see.
 
+`type:` says what kind of work carrying the plan out is, and it decides whether
+the Implement agent may do it without him in the room, so pick the one that is
+true of the whole plan:
+
+- `write-up`: a brief, an audit, recommendations. New files only.
+- `draft`: a message, a comment or ticket text, written out and not sent.
+- `prompt`: a prompt or a skill.
+- `data`: YAML, JSON, a spreadsheet.
+- `deck`: slides.
+- `figma`: work in a Figma file.
+- `code`: a change to a repo.
+- `other`: anything else, or a plan that mixes two of these.
+
+A write-up or a draft is approved on arrival, without him ticking the review, so
+never call a plan either of those if carrying it out would change a file that
+already exists or send anything. When in doubt, `other`: it only means the work
+waits for him.
+
 ```
 ---
 title: <the task's exact title>
@@ -154,6 +172,7 @@ bucket: <its bucket>
 column: <its state>
 to: Plan agent
 date: <today, YYYY-MM-DD>
+type: <one of: write-up, draft, prompt, data, deck, figma, code, other>
 summary: <one sentence naming what you are proposing. The card in the list
           shows this and nothing else, so it says where the whole task
           stands rather than what you make of his latest note>

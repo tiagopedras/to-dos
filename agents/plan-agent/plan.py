@@ -32,6 +32,7 @@ sys.path.insert(0, HERE)
 
 import paths  # noqa: E402
 import pick  # noqa: E402
+import plan_types  # noqa: E402
 import project_folders  # noqa: E402
 import tick_queue  # noqa: E402
 import todo  # noqa: E402
@@ -654,7 +655,7 @@ def write_plan(task, text, session, day, prior=None):
     already know.
     """
     body = text.strip()
-    summary, outcome = "", ""
+    summary, outcome, kind = "", "", ""
     m = FRONT_RE.match(body + "\n")
     if m:
         for line in m.group(1).splitlines():
@@ -662,6 +663,8 @@ def write_plan(task, text, session, day, prior=None):
                 summary = line.split(":", 1)[1].strip()
             elif line.lower().startswith("outcome:"):
                 outcome = line.split(":", 1)[1].strip().lower()
+            elif line.lower().startswith("type:"):
+                kind = line.split(":", 1)[1]
         body = body[m.end():].lstrip("\n")
     # `[fill in]` is the brief's marker for a fact the agent could not
     # establish, so reusing it here made two different things read the same: a
@@ -717,6 +720,11 @@ def write_plan(task, text, session, day, prior=None):
     front.append("needs_you: %s" % ("yes" if outcome == FOLDED else "no"))
     if outcome and outcome != FOLDED:
         front.append("outcome: %s" % outcome)
+    # What kind of work carrying it out is (core/plan_types.py). Always written,
+    # `other` when the agent named none or a word off the list, because it
+    # decides whether the Implement agent may do the work alone and a missing
+    # line must never read as an approved one.
+    front.append("type: %s" % plan_types.read(kind))
     front.append("summary: %s" % summary)
     front.append("---")
 
@@ -749,7 +757,7 @@ def queue_attach(task, session):
         log("  attach failed for %r: %s" % (task.title, exc))
 
 
-def queue_plan_tick(task, plan_file):
+def queue_plan_tick(task, plan_file, kind=""):
     """Says the plan is written, on the Plan sub-task it was written for.
 
     Through the board's queue like everything else the agent wants changed in
@@ -757,12 +765,16 @@ def queue_plan_tick(task, plan_file):
     old way, which has no Plan sub-task to tick. The ledger row records the
     sub-task too, so tomorrow night does not plan it again while the board has
     yet to be opened and apply the tick.
+
+    `kind` is the plan's `type:`, passed on so the board can approve a
+    pre-approved type on arrival. Left empty for a folded plan, which needs him
+    whatever its type.
     """
     if not getattr(task, "plan_sub", ""):
         return
     tick_queue.append(task.plan_sub, "Plan agent",
                       note="plan written to %s" % plan_file,
-                      path=paths.tick_queue_path(), plan=plan_file)
+                      path=paths.tick_queue_path(), plan=plan_file, kind=kind)
 
 
 def write_index(day, written, skipped, stopped):
