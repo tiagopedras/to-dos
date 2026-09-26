@@ -2531,6 +2531,15 @@
   .sub.checked .subtext{color:var(--tenon-text-faint); text-decoration:line-through}
   .sub input{margin-top:3px; flex:none}
   .sub .subtext{flex:1}
+  /* An agent's face — the card chip, a sub-task row and the Delegate to field
+     all use the same span. Empty for a person: agentAvatarHTML() returns ''
+     rather than markup, so this never draws a blank box. */
+  .avatar{display:inline-flex; flex:none; line-height:0; vertical-align:middle}
+  .avatar svg{display:block; border-radius:5px}
+  .tenon-tag .avatar{margin-right:4px}
+  .sub .avatar{margin-top:2px}
+  .delegate-row{display:flex; align-items:center; gap:8px}
+  .delegate-row select{flex:1}
   /* The whole row opens the sub-task; the chevron says so. */
   .sub.opens{cursor:pointer}
   .sub.opens:hover .subtext{color:var(--tenon-text-accent)}

@@ -82,6 +82,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
   </button>
   <button class="scorechip hidden" id="scoreChip"></button>
+  <button class="scorechip hidden" id="agentFilterChip"></button>
   <span class="spacer"></span>
   <!-- Hidden on every view. The column set is settled and shared by every
        bucket, so editing it is a rare, wide-reaching change that does not
@@ -181,6 +182,10 @@
      that script is classic and inline and would otherwise run first. See the
      header of core/todo.js. -->
 <script src="/core/todo.js"></script>
+<!-- An agent's face: avatarSvg()/agentAvatarHTML(), seeded by name off
+     AGENT_NAMES just above. Classic, same reasons as core/todo.js, and loaded
+     right after it so both are plain globals before any board script runs. -->
+<script src="/core/avatar.js"></script>
 <!-- The board's own script, split into one classic <script> per banner-marked
      section rather than kept as one 7,900-line inline block — see
      IMPROVEMENTS.md, "The rest of index.html could be split the same way".

@@ -84,6 +84,11 @@ const state = {
   chatViewedLoaded: false,
   query: '',
   unscoredOnly: false,
+  /* "Delegated to an agent" — see agentFilterChip and delegatedToAgent() in
+     07-render-board.js. In memory only, same as unscoredOnly beside it: a
+     narrowing for right now, not a preference worth remembering across
+     sessions. */
+  agentFilter: false,
   matrixHideWaiting: false,
   /* Width of the timeline's frozen title column. Remembered the same way the
      drawer's own width is — a drag he does once should not repeat itself. */
