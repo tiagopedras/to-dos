@@ -759,8 +759,7 @@ function onChatChange(){ if (state.openTask) openDrawer(state.openTask); }
 // answered, so the whole view needs a redraw, not just the drawer.
 function onChatStatusChanged(cfg){
   state.chatsOn = !!cfg;
-  const bubble = document.getElementById('paBubble');
-  if (bubble) bubble.classList.toggle('hidden', !cfg);
+  if (cfg) ensurePaBar();
   if (state.doc) renderView();
 }
 
@@ -812,18 +811,19 @@ function reapChatWins(){
   }
 }
 
-function makeChatWin(newFor){
+function makeChatWin(newFor, o){
   let inst;
   // Set when a message goes out on the PA's key and cleared once the run it
   // started has ended — see "The PA panel" below. Any window can be carrying
   // the PA's conversation, a `#!chat=` link to an old one included, so this
-  // is kept per window rather than only on the one the bubble opened.
+  // is kept per window rather than only on the pinned PA bar.
   // It holds what was asked, so the reply read back afterwards is matched to
   // this send rather than to an earlier turn — see paReadReply().
   let paWaiting = null;
   inst = AIChat.create({
     windowed: true,
     dockable: true,
+    pinned: !!(o && o.pinned),
     ownerLabel: chatOwnerLabel,
     readOnlyHelp: '',
     onSessionsChanged,
@@ -841,7 +841,7 @@ function makeChatWin(newFor){
   const saved = loadChatRect();
   if (saved) inst.setRect(saved);
   inst.loadStatus();
-  chatWins.set(++chatWinSeq, { inst, newFor });
+  chatWins.set(++chatWinSeq, { inst, newFor, pinned: !!(o && o.pinned) });
   return inst;
 }
 
@@ -953,18 +953,30 @@ function paPreface(ask){
     'end your reply with a fenced pa-changes block, as the pa skill\'s "From a board chat" section describes, and the board applies it.)';
 }
 
-function openPaChat(){
-  if (!chat.available() || state.locked) return null;
-  for (const w of chatWins.values()) {
-    const inst = w.inst;
-    if (!inst.isOpen() || w.newFor !== PA_KEY) continue;
-    if (inst.dockState() !== 'anchored') inst.anchor();
-    focusChatWin(inst);
-    return inst;
-  }
-  const inst = makeChatWin(PA_KEY);
+/* The PA chat is always there: a pinned bar in the bottom-right corner from
+   the moment the chat engine answers, with every other docked chat lined up
+   to its left. Closing it only puts it back down as a bar (the engine's
+   `pinned`), so there is one per page, started fresh on each load. */
+function paWin(){
+  for (const w of chatWins.values()) if (w.pinned && w.inst.isOpen()) return w.inst;
+  return null;
+}
+
+function ensurePaBar(){
+  if (!chat.available()) return null;
+  let inst = paWin();
+  if (inst) return inst;
+  inst = makeChatWin(PA_KEY, { pinned: true });
   inst.openNew(PA_KEY, PA_KEY, '', { preface: paPreface });
-  inst.anchor();
+  inst.minimise();
+  return inst;
+}
+
+function openPaChat(){
+  if (state.locked) return null;
+  const inst = ensurePaBar();
+  if (!inst) return null;
+  if (inst.dockState() !== 'anchored') inst.anchor();
   focusChatWin(inst);
   return inst;
 }
@@ -1233,11 +1245,6 @@ function paShowOutcome(inst, out){
   $('#status').textContent = 'the PA: ' + (n ? out.applied.join('; ') : 'nothing applied') + (r ? ' — ' + r + ' refused' : '');
   if (r) showToast('PA change refused: ' + out.refused.join('; '), 'blocked');
 }
-
-(() => {
-  const bubble = document.getElementById('paBubble');
-  if (bubble) bubble.addEventListener('click', () => openPaChat());
-})();
 
 /* A top-level task by its exact title — the only thing durable enough to
    name a task from outside todo.md, since t.id is 'a counter reset on every

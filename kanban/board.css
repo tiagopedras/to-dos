@@ -836,6 +836,11 @@
     margin-left:calc((var(--tldaypx, 28px) - 12px) / 2);
   }
   .tlmilestone:active{cursor:grabbing}
+  /* The diamond's edge handles, at the two edges of its day column. The
+     .tlhandle-l/-r offsets are for a handle inside a bar, so these are placed
+     from their own left instead. */
+  .tlhandle.tlmhandle{top:8px; bottom:auto; height:16px; right:auto; margin-left:0}
+  .tlrow:hover .tlmhandle{background:color-mix(in srgb, var(--bc) 35%, transparent); border-radius:var(--tenon-radius-sm)}
   .tlmilestone.over{background:var(--tenon-status-over)}
   .tlmilestone.soon{background:var(--tenon-status-soon)}
   .tlsub .tlmilestone{top:7px; width:9px; height:9px; cursor:pointer; margin-left:calc((var(--tldaypx, 28px) - 9px) / 2)}
@@ -2799,20 +2804,11 @@
   .changes .none{font-size: var(--tenon-typography-size-sm); color:var(--tenon-text-faint)}
   .hidden{display:none !important}
 
-  /* ---------- the PA bubble ----------
-     Bottom-left rather than bottom-right: the docked chats line up from the
-     bottom-right corner leftwards (the engine's dock.ts), so a bubble there
-     would sit under them. The PA chat it opens still docks bottom-right. */
-  .pa-bubble{
-    position:fixed; left:16px; bottom:16px; z-index:60;
-    width:48px; height:48px; border-radius:50%; border:none; cursor:pointer;
-    background:var(--tenon-background-accent); color:var(--tenon-text-on-accent);
-    font:600 var(--tenon-typography-size-sm)/1 inherit;
-    box-shadow:0 8px 20px rgba(10,12,16,.24), 0 2px 6px rgba(10,12,16,.14);
-  }
-  .pa-bubble:hover{filter:brightness(1.08)}
-  .pa-bubble:focus-visible{outline:2px solid var(--tenon-background-accent); outline-offset:3px}
-  body.locked .pa-bubble{display:none}
+  /* ---------- the PA bar ----------
+     The PA chat is pinned: always in the dock row, in the bottom-right
+     corner, with the other docked chats to its left (the engine's dock.ts).
+     A locked tab has no list to talk about, so it is hidden there. */
+  body.locked .aic-pinned{display:none}
 
   /* ---------- toasts ----------
      Anything that stops an action the user just took — a drag onto Done, a

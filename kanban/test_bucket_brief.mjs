@@ -157,10 +157,10 @@ try {
     await new Promise(r => setTimeout(r, 120));
     const sections = [...document.querySelectorAll('[data-brief-section]')].map(b => b.value);
     return {
-      heading: document.querySelector('.tenon-modal__title')?.textContent || '',
+      heading: document.querySelector('.tenon-modal__title:not(.aic-box *)')?.textContent || '',
       summary: document.querySelector('#briefSummary')?.value ?? null,
       sections,
-      sub: document.querySelector('.tenon-modal__subtitle')?.textContent || '',
+      sub: document.querySelector('.tenon-modal__subtitle:not(.aic-box *)')?.textContent || '',
       buttons: [...document.querySelectorAll('.tenon-modal__footer button')].map(b => b.textContent)
     };
   })()`)

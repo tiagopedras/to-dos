@@ -361,7 +361,9 @@ const until = async (expr, ms = 3000) => {
   return false
 }
 const S1 = '11111111-1111-1111-1111-111111111111', S3 = '33333333-3333-3333-3333-333333333333'
-await evalJS(`(() => { for (const w of chatWins.values()) w.inst.closeChat(); })()`)
+// The pinned PA bar is set aside here, so the counts below are only the
+// chats this section opens; "The PA panel" further down brings it back.
+await evalJS(`(() => { for (const [k, w] of chatWins) { if (w.pinned) { w.inst.destroy(); chatWins.delete(k); } else w.inst.closeChat(); } })()`)
 await until(`chatWins.size === 0`)
 await evalJS(`chat.openSession('${built.ids[0]}', 'aaaaaa', '${S1}')`)
 check('opening a chat makes one window for it', await until(`chatWins.size === 1 && document.querySelectorAll('.tenon-window.aic-box').length === 1`),
@@ -394,22 +396,24 @@ check('  and the last one leaves nothing docked', await until(`chatWins.size ===
 // ---- The PA panel ----
 // See IMPROVEMENTS.md, "There is no way to talk to the PA while the board is
 // in front of you." A chat owned by the board, not a task, opened from a
-// bubble, anchored bottom-right; it saves before each send and reads todo.md
+// pinned bar in the bottom-right corner; it saves before each send and reads todo.md
 // back once the reply lands. The run is the fetch guard's canned '{}', so the
 // reply "lands" at once; saveFile, diskVersion and reload are stubbed and
 // restored, so nothing here reaches disk either.
 const paOpen = await evalJS(`(() => {
   window.__realAvail = chat.available;
   chat.available = () => true;
-  document.getElementById('paBubble').classList.remove('hidden');
+  const bar = ensurePaBar();
+  const barDock = bar && bar.dockState();
   const before = JSON.stringify(state.doc.buckets.map(b => b.tiers.map(t => t.tasks.map(x => x.chat || ''))));
   const dirtyBefore = state.dirty;
-  document.getElementById('paBubble').click();
+  openPaChat();
   const w = [...chatWins.values()].find(w => w.newFor === PA_KEY);
   const after = JSON.stringify(state.doc.buckets.map(b => b.tiers.map(t => t.tasks.map(x => x.chat || ''))));
-  return { found: !!w, dock: w && w.inst.dockState(), noTaskKeyed: before === after, dirtyUnchanged: state.dirty === dirtyBefore };
+  return { barDock, pinned: !!(w && w.pinned), found: !!w, dock: w && w.inst.dockState(), noTaskKeyed: before === after, dirtyUnchanged: state.dirty === dirtyBefore };
 })()`)
-check('the PA bubble opens a chat window', paOpen.found, JSON.stringify(paOpen))
+check('the PA starts as a pinned, minimised bar', paOpen.barDock === 'minimised' && paOpen.pinned, JSON.stringify(paOpen))
+check('opening the PA anchors that same chat', paOpen.found, JSON.stringify(paOpen))
 check('  anchored bottom-right by default', paOpen.dock === 'anchored' && await until(`(() => {
   const el = document.querySelector('.aic-anchored'); if (!el) return false;
   const r = el.getBoundingClientRect();
@@ -420,8 +424,22 @@ check('  owned by the board, not a task', await until(`(() => {
   return !!el && el.textContent === 'The board · PA';
 })()`) && paOpen.noTaskKeyed && paOpen.dirtyUnchanged)
 check('  and minimisable', await evalJS(`!!document.querySelector('.aic-anchored .aic-minimise')`))
-await evalJS(`document.getElementById('paBubble').click()`)
-check('clicking the bubble again brings the same one forward', await evalJS(`[...chatWins.values()].filter(w => w.newFor === PA_KEY).length === 1`))
+check('  with no close button', await evalJS(`!document.querySelector('.aic-pinned [aria-label="Close"]')`))
+const other = await evalJS(`(() => {
+  const inst = makeChatWin('other-key');
+  inst.openNew('other-key', 'other-key', '', {});
+  inst.minimise();
+  window.__other = inst;
+  return true;
+})()`)
+check('another docked chat lines up to the left of the PA', other && await until(`(() => {
+  const pa = document.querySelector('.aic-pinned'), o = [...document.querySelectorAll('.aic-docked')].find(e => !e.classList.contains('aic-pinned'));
+  if (!pa || !o) return false;
+  return o.getBoundingClientRect().right <= pa.getBoundingClientRect().left && innerWidth - pa.getBoundingClientRect().right < 40;
+})()`))
+await evalJS(`window.__other.closeChat()`)
+await evalJS(`openPaChat()`)
+check('opening the PA again brings the same one forward', await evalJS(`[...chatWins.values()].filter(w => w.newFor === PA_KEY).length === 1`))
 
 const paTurn = await evalJS(`(async () => {
   const real = { saveFile, diskVersion, reload, fetch: window.fetch };
@@ -458,8 +476,12 @@ check('the run is filed under the board’s PA key', paTurn.owner === 'board-pa'
 check('the first message is seeded for /pa with the current dataset',
   paTurn.prompt.startsWith('/pa What is due this week?') && paTurn.prompt.includes("PA chat") &&
   (!paTurn.dataset || paTurn.prompt.includes('data/' + paTurn.dataset + '/todo.md')), paTurn.prompt)
+check('closing the PA only minimises it', await evalJS(`(() => {
+  const inst = paWin(); inst.closeChat();
+  return inst.isOpen() && inst.dockState() === 'minimised';
+})()`))
 await evalJS(`(() => {
-  for (const w of chatWins.values()) w.inst.closeChat();
+  for (const [k, w] of chatWins) { if (w.pinned) { w.inst.destroy(); chatWins.delete(k); } else w.inst.closeChat(); }
   chat.available = window.__realAvail;
 })()`)
 await until(`chatWins.size === 0`)

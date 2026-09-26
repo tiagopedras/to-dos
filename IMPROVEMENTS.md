@@ -18,6 +18,17 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- ~~**A task with a start date and no due date can't be resized on the
+  Timeline, only moved whole.**~~ **Done, 26 Sep 2026.** Every task's mark now
+  has an edge at each end (`timelineRowModel()` in `kanban/js/18-timeline.js`).
+  A trail's right edge sets the due date it is missing and turns it into an
+  ordinary bar; its left edge moves the start. A diamond gets two strips at the
+  edges of its day column, drawn beside it in `kanban/ui/TimelineBody.tsx`
+  since the diamond is turned 45°: the left one draws out a start date behind a
+  ghost bar, the right one moves the due date. Dragging the diamond itself still
+  moves its due date. Steps stay drag-free. Checks for both in
+  `kanban/test_timeline.mjs`.
+
 - ~~**Every browser suite defaults to the live server on 8765, so a test that
   unlocks the tab is one autosave away from the real list.**~~ **Done, 25 Sep
   2026.** `scripts/test-board.sh` starts `kanban/server.py` over a temp folder

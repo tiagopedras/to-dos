@@ -30,7 +30,7 @@ export type TimelineDragKind = 'move' | 'start' | 'due'
 export interface TimelineMark {
   kind: 'bar' | 'trail' | 'milestone'
   left: number
-  /** Absent on a milestone, which is a point. */
+  /** On a milestone, the width of its day column, where its edge handles sit. */
   width?: number
   /** `dueInfo()`'s class, when a date makes the mark urgent. */
   dueCls?: string
@@ -38,7 +38,8 @@ export interface TimelineMark {
   /** What dragging the mark itself does. Null on a step's mark, which the
    *  timeline never reschedules. */
   drag: TimelineDragKind | null
-  /** A bar with both dates gets a handle at each end. */
+  /** A handle at each end: start on the left, due on the right. Every
+   *  task's mark has them; a step's has none. */
   handles: boolean
 }
 
@@ -135,10 +136,22 @@ function Mark({ row, h }: { row: TimelineRow, h: TimelineHandlers | null }) {
     : {}
   const dragAttrs = drag ? { 'data-tlrow': row.id, 'data-tldrag': drag, ...down(drag) } : {}
   if (m.kind === 'milestone') {
-    return (
+    const diamond = (
       <div className={'tlmilestone' + (m.dueCls ? ' ' + m.dueCls : '')}
         style={bc(row.color, { left: m.left + 'px' })}
         data-open={row.id} {...dragAttrs} title={m.title} />
+    )
+    if (!m.handles) return diamond
+    /* Beside the diamond rather than in it, since it is turned 45°. The left
+       one draws out a start date, the right one moves the due date. */
+    return (
+      <>
+        {diamond}
+        <span className="tlhandle tlmhandle tlhandle-l" style={bc(row.color, { left: m.left + 'px' })}
+          data-tlrow={row.id} data-tldrag="start" title="Drag to set a start date" {...down('start')} />
+        <span className="tlhandle tlmhandle tlhandle-r" style={bc(row.color, { left: (m.left + (m.width || 0) - 7) + 'px' })}
+          data-tlrow={row.id} data-tldrag="due" {...down('due')} />
+      </>
     )
   }
   return (

@@ -307,6 +307,66 @@ check('dragging a row label below the next row reorders the lane', await rowOrde
   check('and the target line is cleared', await evalJS(`!document.querySelector('.tltarget')`))
 }
 
+/* A trail (a start, no due) has edges too. Its right edge sets the due date
+   it is missing, which turns it into an ordinary bar. */
+{
+  await evalJS(`(() => { const t = locate('${ID.two}').task; t.due = null; refreshView(); })()`)
+  check('a start with no due draws a trail with a handle at each end', await evalJS(`
+    !!document.querySelector('.tlbar.tltrail[data-tlrow="${ID.two}"] .tlhandle-l') &&
+    !!document.querySelector('.tlbar.tltrail[data-tlrow="${ID.two}"] .tlhandle-r')
+  `))
+  const t0 = await evalJS(`tlOffset(timelineScale(timelineTasks().dated), ymd(today()))`)
+  const h = await evalJS(`(() => {
+    const el = document.querySelector('.tlbar.tltrail[data-tlrow="${ID.two}"] .tlhandle-r');
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    document.querySelector('.tlscroll').scrollLeft = 0;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  })()`)
+  const to = await dayX(ID.two, t0 + 2)
+  check('the press lands on the trail’s right handle', await evalJS(`document.elementFromPoint(${h.x}, ${h.y})?.classList.contains('tlhandle-r')`) === true)
+  await mouse('mousePressed', h.x, h.y)
+  await mouse('mouseMoved', h.x + 10, h.y)
+  await mouse('mouseMoved', to.x, h.y)
+  await mouse('mouseReleased', to.x, h.y)
+  await new Promise(r => setTimeout(r, 50))
+  const d = await taskDates(ID.two)
+  const want = await dateAt(t0 + 2)
+  check('dragging a trail’s right edge sets its due date and keeps its start',
+    d.start === '2026-09-15' && d.due === want, JSON.stringify({ d, want }))
+  check('and it is drawn as an ordinary bar', await evalJS(`
+    !!document.querySelector('.tlbar[data-tlrow="${ID.two}"]') && !document.querySelector('.tlbar.tltrail[data-tlrow="${ID.two}"]')
+  `))
+}
+
+/* A diamond's left edge draws out the start date it is missing. */
+{
+  const due = await evalJS(`locate('${ID.un}').task.due`)
+  const dOff = await offsetOf(due)
+  const h = await evalJS(`(() => {
+    const el = document.querySelector('.tlmhandle.tlhandle-l[data-tlrow="${ID.un}"]');
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    document.querySelector('.tlscroll').scrollLeft = 0;
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  })()`)
+  const to = await dayX(ID.un, dOff - 3)
+  check('the press lands on the diamond’s left handle', await evalJS(`document.elementFromPoint(${h.x}, ${h.y})?.classList.contains('tlmhandle')`) === true)
+  await mouse('mousePressed', h.x, h.y)
+  await mouse('mouseMoved', h.x - 10, h.y)
+  await mouse('mouseMoved', to.x, h.y)
+  check('a ghost bar shows the range being drawn', await evalJS(`!!document.querySelector('.tlghostbar')`))
+  await mouse('mouseReleased', to.x, h.y)
+  await new Promise(r => setTimeout(r, 50))
+  const d = await taskDates(ID.un)
+  const want = await dateAt(dOff - 3)
+  check('dragging a diamond’s left edge sets its start and keeps its due',
+    d.start === want && d.due === due, JSON.stringify({ d, want }))
+  check('and it becomes a bar, the ghost gone', await evalJS(`
+    !!document.querySelector('.tlbar[data-tlrow="${ID.un}"]') && !document.querySelector('.tlghostbar')
+  `))
+}
+
 /* ---- the point of the guard ---- */
 
 check('the timeline wrote nothing, which is all it should ever do',

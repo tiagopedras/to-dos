@@ -142,7 +142,11 @@ function tlWeekends(scale){
    parent: same track, thinner mark, and no drag. A step's dates live inside
    its line's own tags rather than on a property the way a task's do, so
    rescheduling one by dragging would mean rewriting that line's text rather
-   than just setting a field. That is still only done from the drawer. */
+   than just setting a field. That is still only done from the drawer.
+
+   Every task's mark has an edge at each end. On a bar they set start and due.
+   A trail's right edge sets the due date it is missing, which makes it a bar,
+   and a diamond's left edge sets the start it is missing the same way. */
 function timelineRowModel(row, scale, sub){
   const s = tlOffset(scale, row.start), d = tlOffset(scale, row.due);
   const drag = !sub;
@@ -158,11 +162,11 @@ function timelineRowModel(row, scale, sub){
     mark = { kind: 'trail', left: Math.min(s, t0) * scale.dayPx,
              width: Math.max(1, Math.abs(t0 - s) + 1) * scale.dayPx,
              title: row.title + ' — started, no due date yet',
-             drag: drag ? 'start' : null, handles: false };
+             drag: drag ? 'move' : null, handles: drag };
   } else if (d != null) {
     const di = dueInfo(row.due);
-    mark = { kind: 'milestone', left: d * scale.dayPx, dueCls: di ? di.cls : undefined,
-             title: row.title, drag: drag ? 'due' : null, handles: false };
+    mark = { kind: 'milestone', left: d * scale.dayPx, width: scale.dayPx, dueCls: di ? di.cls : undefined,
+             title: row.title, drag: drag ? 'due' : null, handles: drag };
   }
   // A step carries no colour of its own (see timelineTasks), and never has.
   return { id: row.id, title: row.title, sub: !!sub,
@@ -450,6 +454,15 @@ function tlMarkPointerDown(e, id, kind){
   const scale = timelineScale(timelineTasks().dated);
   const bar = el.classList.contains('tlbar') ? el : el.closest('.tlbar');
   const milestone = el.classList.contains('tlmilestone') ? el : null;
+  // A trail runs to today until it has a due date, so while only its start
+  // is moving it still ends there.
+  const trailEnd = bar && bar.classList.contains('tltrail') ? tlOffset(scale, ymd(today())) : null;
+  // A diamond's edge handle sits beside the diamond rather than in a bar, so
+  // the range it is drawing out is shown as a ghost bar, the one an empty
+  // track drag draws.
+  const diamond = !bar && !milestone && el.classList.contains('tlmhandle')
+    ? track.querySelector('.tlmilestone[data-tlrow="' + id + '"]') : null;
+  let ghost = null;
   // What React drew, put back before the redraw. React compares the new
   // position with the one it last drew, not with what this drag wrote to the
   // element, so a scale that shifted by exactly the drag would leave the
@@ -484,9 +497,19 @@ function tlMarkPointerDown(e, id, kind){
     } else if (kind === 'due') {
       newDue = origStart != null ? Math.max(day, origStart) : day;
     }
-    const lo = newStart != null && newDue != null ? Math.min(newStart, newDue) : (newStart != null ? newStart : newDue);
-    const hi = newStart != null && newDue != null ? Math.max(newStart, newDue) : (newStart != null ? newStart : newDue);
-    if (bar) {
+    const endOf = newDue != null ? newDue : (trailEnd != null ? trailEnd : newStart);
+    const lo = newStart != null ? Math.min(newStart, endOf) : newDue;
+    const hi = newStart != null ? Math.max(newStart, endOf) : newDue;
+    if (diamond) {
+      if (!ghost) {
+        ghost = document.createElement('div');
+        ghost.className = 'tlbar tlghostbar';
+        ghost.style.setProperty('--bc', diamond.style.getPropertyValue('--bc'));
+        track.appendChild(ghost);
+      }
+      ghost.style.left = (lo * scale.dayPx) + 'px';
+      ghost.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
+    } else if (bar) {
       bar.style.left = (lo * scale.dayPx) + 'px';
       bar.style.width = (Math.max(1, hi - lo + 1) * scale.dayPx) + 'px';
     } else if (milestone) {
@@ -502,6 +525,7 @@ function tlMarkPointerDown(e, id, kind){
     el.removeEventListener('pointerup', up);
     el.removeEventListener('pointercancel', up);
     hideTlPopover();
+    if (ghost) { ghost.remove(); ghost = null; }
     if (!moved) return;
     if (bar) { bar.style.left = drawn.left; bar.style.width = drawn.width; }
     else if (milestone) milestone.style.left = drawn.left;
