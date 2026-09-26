@@ -156,7 +156,7 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 - ~~**The string twins of Column and Card have no caller left in the app.**~~ **Done, 25 Sep 2026.** `chipHTML()`, `cardHTML()`, `colHTML()`, `colEmptyHTML()` and `cardShellHTML()` deleted from `09-columns.js` (684→455 lines); `cardModel()`, `setColCount()` and `numberBadgeHTML()` kept, since they're still live. `test_primitives.mjs` and `test_board.mjs` rewritten to pin markup captured live before the deletion. Stale comments fixed in `17-matrix.js` and `19-drawer.js`.
 
-- **Two inline Markdown renderers know different things.** `mdInline()`
+- ~~**Two inline Markdown renderers know different things.**~~ **Done, 26 Sep 2026.** Card, Overview, chain, timeline, report and project titles render through Tenon's `Markdown` (`kanban/ui/InlineMd.tsx`), and `TaskCard.tsx` takes its title as a string. `mdInline()` stays for the string-built drawer, chat cards and report bodies until the drawer is React. `mdInline()`
   (`kanban/js/10-reference-sections.js:687`) understands `[text](url)` links
   and `[placeholder]` markers as well as code, bold and italics, and the board
   runs every card title, plan summary and drawer note through it. Tenon's
@@ -703,8 +703,8 @@ they settled is written up in the README rather than left here:
   Tests: none found.
   Open: what the personality actually is. Default: keep today's direct, no-padding tone and write it as a character rather than a style guide.
 
-- **A chat started on the board has no safe way to ask the PA for a change to
-  the list.** Every chat runs as `claude -p` in the cwd its list's `claude.json` names
+- ~~**A chat started on the board has no safe way to ask the PA for a change to
+  the list.**~~ **Done, 26 Sep 2026.** `pa` answers a board chat with a fenced `pa-changes` block (move, tick, date, add, edit); the board checks each request and applies them as one undo step, and the chat header says what was applied and what was refused. Every chat runs as `claude -p` in the cwd its list's `claude.json` names
   (`~/Code` for `twinkl`) through
   `Engine.argv()` (`PACKAGES/ai_chat_engine/engine.py:458`), so the `pa`
   skill is reachable from any of them. Two things stop it being useful. In
