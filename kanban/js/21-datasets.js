@@ -49,6 +49,7 @@ async function loadDatasets(){
       '<button class="dropdown-item dsitem" role="menuitem" data-dataset="__new__">' +
         '<span class="dstick" aria-hidden="true"></span>+ New list…</button>';
     state.datasets = true;
+    state.dataset = data.current || '';
     setDataMenuLabel(data.current);
     if (!state.locked) $('#datasetMenu').classList.remove('hidden');
     // A server that answers with no lists at all, which is a fresh checkout.

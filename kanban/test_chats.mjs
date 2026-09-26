@@ -391,6 +391,79 @@ check('closing a chat takes its instance down', await until(`chatWins.size === 1
 await evalJS(`findChatWin('${S3}').closeChat()`)
 check('  and the last one leaves nothing docked', await until(`chatWins.size === 0 && !document.querySelector('.aic-docked')`))
 
+// ---- The PA panel ----
+// See IMPROVEMENTS.md, "There is no way to talk to the PA while the board is
+// in front of you." A chat owned by the board, not a task, opened from a
+// bubble, anchored bottom-right; it saves before each send and reads todo.md
+// back once the reply lands. The run is the fetch guard's canned '{}', so the
+// reply "lands" at once; saveFile, diskVersion and reload are stubbed and
+// restored, so nothing here reaches disk either.
+const paOpen = await evalJS(`(() => {
+  window.__realAvail = chat.available;
+  chat.available = () => true;
+  document.getElementById('paBubble').classList.remove('hidden');
+  const before = JSON.stringify(state.doc.buckets.map(b => b.tiers.map(t => t.tasks.map(x => x.chat || ''))));
+  const dirtyBefore = state.dirty;
+  document.getElementById('paBubble').click();
+  const w = [...chatWins.values()].find(w => w.newFor === PA_KEY);
+  const after = JSON.stringify(state.doc.buckets.map(b => b.tiers.map(t => t.tasks.map(x => x.chat || ''))));
+  return { found: !!w, dock: w && w.inst.dockState(), noTaskKeyed: before === after, dirtyUnchanged: state.dirty === dirtyBefore };
+})()`)
+check('the PA bubble opens a chat window', paOpen.found, JSON.stringify(paOpen))
+check('  anchored bottom-right by default', paOpen.dock === 'anchored' && await until(`(() => {
+  const el = document.querySelector('.aic-anchored'); if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return Math.abs(r.bottom - innerHeight) < 2 && innerWidth - r.right < 40;
+})()`))
+check('  owned by the board, not a task', await until(`(() => {
+  const el = document.querySelector('.aic-anchored .aic-for');
+  return !!el && el.textContent === 'The board · PA';
+})()`) && paOpen.noTaskKeyed && paOpen.dirtyUnchanged)
+check('  and minimisable', await evalJS(`!!document.querySelector('.aic-anchored .aic-minimise')`))
+await evalJS(`document.getElementById('paBubble').click()`)
+check('clicking the bubble again brings the same one forward', await evalJS(`[...chatWins.values()].filter(w => w.newFor === PA_KEY).length === 1`))
+
+const paTurn = await evalJS(`(async () => {
+  const real = { saveFile, diskVersion, reload, fetch: window.fetch };
+  const log = [];
+  let body = '';
+  saveFile = async () => { log.push('save'); state.dirty = false; };
+  diskVersion = async () => ({ stamp: 'x', hash: 'moved-by-pa' });
+  reload = async () => { log.push('reload'); };
+  window.fetch = (url, opts) => {
+    if (opts && opts.method === 'POST' && String(url).startsWith('/claude')) { log.push('run'); body = opts.body; }
+    return real.fetch(url, opts);
+  };
+  const was = { dirty: state.dirty, hash: state.diskHash };
+  state.diskHash = 'before';
+  state.dirty = true;
+  state.migratedOnly = false;
+  const ta = document.querySelector('.aic-anchored .aic-input');
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, 'What is due this week?');
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 50));
+  document.querySelector('.aic-anchored .aic-send').click();
+  for (let i = 0; i < 60 && !log.includes('reload'); i++) await new Promise(r => setTimeout(r, 50));
+  Object.assign(window, { fetch: real.fetch });
+  saveFile = real.saveFile; diskVersion = real.diskVersion; reload = real.reload;
+  // Left as found: the autosave check at the end of this file reads it.
+  state.dirty = was.dirty; state.diskHash = was.hash;
+  let prompt = '', owner = '';
+  try { const j = JSON.parse(body); prompt = j.prompt; owner = j.owner; } catch (e) {}
+  return { log, prompt, owner, dataset: state.dataset };
+})()`)
+check('sending on the PA chat saves unsaved changes first', paTurn.log[0] === 'save' && paTurn.log.indexOf('run') > 0, JSON.stringify(paTurn.log))
+check('  and reloads todo.md once the reply has landed', paTurn.log[paTurn.log.length - 1] === 'reload', JSON.stringify(paTurn.log))
+check('the run is filed under the board’s PA key', paTurn.owner === 'board-pa', paTurn.owner)
+check('the first message is seeded for /pa with the current dataset',
+  paTurn.prompt.startsWith('/pa What is due this week?') && paTurn.prompt.includes("PA chat") &&
+  (!paTurn.dataset || paTurn.prompt.includes('data/' + paTurn.dataset + '/todo.md')), paTurn.prompt)
+await evalJS(`(() => {
+  for (const w of chatWins.values()) w.inst.closeChat();
+  chat.available = window.__realAvail;
+})()`)
+await until(`chatWins.size === 0`)
+
 check('a locked tab refuses to write down what was opened', await evalJS(`
   (() => {
     state.locked = true;

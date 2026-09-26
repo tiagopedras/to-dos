@@ -73,6 +73,10 @@ const state = {
      for it there is a temporal dead zone error that aborts the whole script
      with no view, no board and nothing in the console to say why. */
   chatsOn: false,
+  /* The list this tab is on, as data/.current names it — read by
+     loadDatasets(), and what the PA panel's first message tells `pa`. Empty
+     on a server with no /datasets.json. */
+  dataset: '',
   /* session id -> when that card was last opened, read from and written to
      data/<dataset>/chat-viewed.json — see loadChatViewed() in 11-chat-cards.js.
      Furniture, not content: losing it costs an unread dot and nothing else. */
