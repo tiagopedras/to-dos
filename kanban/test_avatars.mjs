@@ -128,17 +128,28 @@ try {
   })()`))
   check('an ordinary sub-task shows none', await evalJS(`
     !document.querySelectorAll('#f-subs .sub')[1].querySelector('.avatar')`))
+  const pick = v => evalJS(`(() => {
+    document.querySelector('[data-delegate-btn="f-to"]').click();
+    document.querySelector('[data-delegate-menu="f-to"] [data-delegate-value="${v}"]').click();
+  })()`)
   check('the Delegate to field shows no avatar while it is set to a person', await evalJS(`
-    document.querySelector('#f-to-avatar').innerHTML === ''`))
-  await evalJS(`(() => { const sel = document.querySelector('#f-to'); sel.value = 'Plan agent'; sel.onchange({ target: sel }); })()`)
-  check('choosing an agent draws its avatar beside the field', await evalJS(`(() => {
-    const svg = document.querySelector('#f-to-avatar svg');
-    const d = document.createElement('div'); d.innerHTML = avatarSvg('Plan agent', 20);
-    return !!svg && svg.outerHTML === d.firstElementChild.outerHTML;
+    !document.querySelector('[data-delegate-btn="f-to"] .avatar')`))
+  check('each agent in the Delegate to dropdown carries its avatar', await evalJS(`(() => {
+    const d = document.createElement('div'); d.innerHTML = avatarSvg('Plan agent', 18);
+    const svg = document.querySelector('[data-delegate-menu="f-to"] [data-delegate-value="Plan agent"] svg');
+    return !!svg && svg.outerHTML === d.firstElementChild.outerHTML &&
+      !document.querySelector('[data-delegate-menu="f-to"] [data-delegate-value=""] svg');
   })()`))
-  await evalJS(`(() => { const sel = document.querySelector('#f-to'); sel.value = 'Tiago'; sel.onchange({ target: sel }); })()`)
-  check('and choosing a person again clears it, without closing the drawer', await evalJS(`
-    document.querySelector('#f-to-avatar').innerHTML === '' && !!document.querySelector('#f-to')`))
+  await pick('Plan agent')
+  check('choosing an agent draws its avatar on the field', await evalJS(`(() => {
+    const svg = document.querySelector('[data-delegate-btn="f-to"] svg');
+    const d = document.createElement('div'); d.innerHTML = avatarSvg('Plan agent', 18);
+    return !!svg && svg.outerHTML === d.firstElementChild.outerHTML && document.querySelector('#f-to').value === 'Plan agent';
+  })()`))
+  await pick('')
+  check('and choosing Nobody again clears it, without closing the drawer', await evalJS(`
+    !document.querySelector('[data-delegate-btn="f-to"] .avatar') && !!document.querySelector('#f-to') &&
+    document.querySelector('[data-delegate-btn="f-to"]').textContent === 'Nobody'`))
   await evalJS(`closeDrawer()`)
 
   /* ---- the filter ---- */

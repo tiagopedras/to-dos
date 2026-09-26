@@ -14,7 +14,14 @@ fetch('/people.json', { cache: 'no-store' })
   .then(d => { peopleNames = (d && d.people || []).map(p => p.name).filter(Boolean); })
   .catch(() => {});
 
+/* Delegate to, and a sub-task's Assigned to, as a custom dropdown with each
+   agent's avatar beside its name, which an <option> cannot hold. The hidden
+   <select> underneath stays the field's value: its id is what the change
+   handlers and the suites read, and a pick sets it and fires its onchange,
+   so everything wired to the select works as it did. Same button-and-panel
+   shape as the Bucket field. */
 function delegateSelectHTML(value, dis, id){
+  id = id || 'f-to';
   const cur = String(value || '').trim();
   const opt = (v, label) => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>';
   /* A name already on the task that people.md does not list, "Ana" where the
@@ -22,10 +29,27 @@ function delegateSelectHTML(value, dis, id){
   const known = new Set(AGENT_NAMES.concat(peopleNames));
   const people = peopleNames.slice();
   if (cur && !agentOf(cur) && !known.has(cur)) people.unshift(cur);
-  return '<select id="' + (id || 'f-to') + '"' + dis + '>' + opt('', 'Nobody') +
-    '<optgroup label="Agents">' + AGENT_NAMES.map(a => opt(agentOf(cur) === a ? cur : a, a)).join('') + '</optgroup>' +
-    (people.length ? '<optgroup label="People">' + people.map(p => opt(p)).join('') + '</optgroup>' : '') +
-  '</select>';
+  const agents = AGENT_NAMES.map(a => agentOf(cur) === a ? cur : a);
+  const item = (v, label) => '<button type="button" class="dropdown-item delegateopt' + (v === cur ? ' on' : '') +
+    '" role="menuitemradio" aria-checked="' + (v === cur) + '" data-delegate-value="' + esc(v) + '">' +
+    agentAvatarHTML(v, 18) + '<span>' + esc(label || v) + '</span></button>';
+  return '<div class="dropdown bucketfield delegatefield">' +
+    '<select id="' + id + '" class="hidden" tabindex="-1" aria-hidden="true"' + dis + '>' + opt('', 'Nobody') +
+      '<optgroup label="Agents">' + agents.map((v, i) => opt(v, AGENT_NAMES[i])).join('') + '</optgroup>' +
+      (people.length ? '<optgroup label="People">' + people.map(p => opt(p)).join('') + '</optgroup>' : '') +
+    '</select>' +
+    '<button type="button" class="bucketbtn delegatebtn" data-delegate-btn="' + id + '"' + dis + '>' +
+      delegateBtnInner(cur) + '</button>' +
+    (dis ? '' : '<div class="dropdown-panel hidden" data-delegate-menu="' + id + '" role="menu">' +
+      item('', 'Nobody') +
+      '<div class="delegatehead">Agents</div>' + agents.map((v, i) => item(v, AGENT_NAMES[i])).join('') +
+      (people.length ? '<div class="delegatehead">People</div>' + people.map(p => item(p)).join('') : '') +
+    '</div>') +
+  '</div>';
+}
+function delegateBtnInner(value){
+  const v = String(value || '').trim();
+  return agentAvatarHTML(v, 18) + '<span>' + esc(agentOf(v) || v || 'Nobody') + '</span>';
 }
 
 /* The Theme field's dropdown, offered only from the values declared for the
@@ -1340,12 +1364,10 @@ function openDrawer(id, focusTitle){
          cannot hold an image, so the avatar sits beside it instead — one span
          the onchange handler below updates in place, since choosing a person
          after an agent (with nothing to strip) doesn't re-open the drawer. */
-      '<label class="field"><span>Delegate to</span>' +
-        '<span class="delegate-row">' + delegateSelectHTML(t.to, dis) +
-          '<span class="avatar" id="f-to-avatar">' + agentAvatarHTML(t.to, 20) + '</span>' +
-        '</span>' +
+      '<div class="field"><span>Delegate to</span>' +
+        delegateSelectHTML(t.to, dis) +
         '<span class="help">The Plan agent plans it and stops. The Implement agent carries it out.</span>' +
-      '</label>' +
+      '</div>' +
     '</div>' +
     /* Two dates, because one was doing two jobs. "Can start" is when the work
        becomes possible; "Due" is when it has to be finished. Quick wins reads
@@ -1508,10 +1530,8 @@ function openDrawer(id, focusTitle){
         return;
       }
     }
-    // The only path left where the drawer isn't rebuilt whole, so the avatar
-    // beside the field is the one thing here still worth updating by hand.
-    const av = $('#f-to-avatar');
-    if (av) av.innerHTML = agentAvatarHTML(t.to, 20);
+    // The only path left where the drawer isn't rebuilt whole; the delegated
+    // click handler redraws the dropdown's button once this returns.
     touch();
   };
   if ($('#f-theme')) $('#f-theme').onchange = e => { t.theme = e.target.value; touch(); };
@@ -1845,7 +1865,7 @@ function openSubtaskDrawer(found){
     '<label class="field"><span>Title</span><input type="text" id="s-title" value="' + esc(f.title) + '"' + dis + '></label>' +
     reviewHTML +
     '<div class="field"><span>State</span>' + stepPickerHTML('s-substate', SUB_STATES, now, ro, 'State') + '</div>' +
-    '<label class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis, 's-to') + '</label>' +
+    '<div class="field"><span>Assigned to</span>' + delegateSelectHTML(f.to, dis, 's-to') + '</div>' +
     '<div class="grid2">' +
       field('impact', 'Impact', stepSliderHTML('s-impact', IMPACT_STOPS, inh.impact, ro, 'Impact')) +
       '<div class="field"><span>Effort</span>' + stepSliderHTML('s-effort', EFFORT_STOPS, f.effort, ro, 'Effort') + '</div>' +
@@ -2348,6 +2368,53 @@ document.addEventListener('click', e => {
   }
   // Anywhere else closes it — the click-away a native <select> gets for free.
   if (menu && !menu.classList.contains('hidden')) setBucketMenu(false);
+});
+/* The Delegate to and Assigned to dropdowns (delegateSelectHTML above), one
+   delegated handler for the same reason as the Bucket field's: the panel is
+   rebuilt on every redraw. A pick sets the hidden <select> and fires its own
+   onchange, which may redraw the drawer; if the field survives, its button
+   and ticks are brought up to date here. */
+function closeDelegateMenus(except){
+  document.querySelectorAll('[data-delegate-menu]').forEach(m => {
+    if (m === except) return;
+    m.classList.add('hidden');
+    const b = document.querySelector('[data-delegate-btn="' + m.dataset.delegateMenu + '"]');
+    if (b) b.classList.remove('open');
+  });
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-delegate-btn]');
+  if (btn) {
+    const menu = document.querySelector('[data-delegate-menu="' + btn.dataset.delegateBtn + '"]');
+    closeDelegateMenus(menu);
+    if (menu) {
+      const open = menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !open);
+      btn.classList.toggle('open', open);
+    }
+    return;
+  }
+  const opt = e.target.closest('[data-delegate-value]');
+  if (opt) {
+    const id = opt.closest('[data-delegate-menu]').dataset.delegateMenu;
+    const sel = document.getElementById(id);
+    closeDelegateMenus();
+    if (!sel || sel.value === opt.dataset.delegateValue) return;
+    sel.value = opt.dataset.delegateValue;
+    if (sel.onchange) sel.onchange({ target: sel });
+    const live = document.getElementById(id);
+    if (live === sel) {
+      const b = document.querySelector('[data-delegate-btn="' + id + '"]');
+      if (b) b.innerHTML = delegateBtnInner(sel.value);
+      document.querySelectorAll('[data-delegate-menu="' + id + '"] [data-delegate-value]').forEach(o => {
+        const on = o.dataset.delegateValue === sel.value;
+        o.classList.toggle('on', on);
+        o.setAttribute('aria-checked', String(on));
+      });
+    }
+    return;
+  }
+  closeDelegateMenus();
 });
 $('#del').onclick = () => {
   if (state.locked) return;

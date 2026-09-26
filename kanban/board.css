@@ -2548,8 +2548,14 @@
   .avatar svg{display:block; border-radius:5px}
   .tenon-tag .avatar{margin-right:4px}
   .sub .avatar{margin-top:2px}
-  .delegate-row{display:flex; align-items:center; gap:8px}
-  .delegate-row select{flex:1}
+  /* Delegate to rides on the Bucket field's button and panel (.bucketfield,
+     .bucketbtn), with an avatar where the bucket has its dot. */
+  .delegateopt{display:flex; align-items:center; gap:8px}
+  .delegateopt.on{font-weight:640}
+  .delegatehead{
+    padding:7px 9px 3px; font-size: var(--tenon-typography-size-xs); font-weight:560;
+    color:var(--tenon-text-subtle); text-transform:uppercase; letter-spacing:.04em;
+  }
   /* The whole row opens the sub-task; the chevron says so. */
   .sub.opens{cursor:pointer}
   .sub.opens:hover .subtext{color:var(--tenon-text-accent)}
