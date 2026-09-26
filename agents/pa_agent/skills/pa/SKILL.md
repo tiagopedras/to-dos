@@ -25,6 +25,34 @@ That means two things for you. Apply what you are handed rather than re-opening 
 
 When something in a handover cannot be expressed in the conventions, say so rather than inventing a form for it. A tag nobody else reads is worse than a note in the report.
 
+## From a board chat
+
+A message that ends "(Sent from the to-do board's PA chat…)" came from the board's PA panel. That chat runs in Ask mode and cannot write `todo.md`, and must not try: the board holds the file and autosaves it. Instead, end the reply with the changes as one fenced `pa-changes` block, and the board applies them itself as a single undo step. Write nothing to the file, don't run the checker, and don't tell him to Reload. Every other session keeps editing `todo.md` directly, as the rest of this skill says.
+
+The block is a JSON list. `task` is the task's `id:` (preferred) or its exact title, top-level tasks only. Five kinds:
+
+| kind | fields |
+| --- | --- |
+| `move` | `task`, `column` (a column heading, e.g. `Doing`; `Done` ticks it), optional `bucket` to move it between buckets |
+| `tick` | `task`, optional `done: false` to untick |
+| `date` | `task`, `due` and/or `start` as `YYYY-MM-DD`, `""` clears |
+| `add` | `title`, optional `bucket` (default the first), `column` (default `To do`), `impact`, `effort`, `due`, `start`, `to`, `theme`, `urgent`, `week`, and a one-line `note` |
+| `edit` | `task`, `field` (one of `title`, `impact`, `effort`, `due`, `start`, `to`, `theme`, `urgent`, `week`), `value` |
+
+Values are the ones the file already uses: impact `low|med|high`, effort `S|M|L`, `urgent`/`week` as `true`/`false`, `""` to clear.
+
+````
+```pa-changes
+[
+  {"kind": "move", "task": "k3x9qa", "column": "Doing"},
+  {"kind": "date", "task": "Chase the 360 responses", "due": "2026-10-02"},
+  {"kind": "add", "title": "Book the offsite venue", "bucket": "People", "impact": "low", "effort": "S"}
+]
+```
+````
+
+Say the changes in plain words above the block as well; he reads the reply, and the board shows what it applied and refused on the chat's header. Anything these kinds cannot express (sub-tasks, notes on an existing task, agendas, handovers, a restructure) needs a `pa` session away from the board, so say that rather than bending a kind to fit. Only the last `pa-changes` block in a reply is read.
+
 ## How to report back
 
 **Read `How much to say back` in `PA.md` and follow it.** The reply itself is

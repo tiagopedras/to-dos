@@ -464,6 +464,100 @@ await evalJS(`(() => {
 })()`)
 await until(`chatWins.size === 0`)
 
+// ---- pa-changes: the PA asks, the board writes ----
+// See IMPROVEMENTS.md, "A chat started on the board has no safe way to ask the
+// PA for a change to the list." No Claude is called: the reply is written here,
+// and the transcript it is read back from is a stubbed fetch.
+const paParse = await evalJS(`(() => {
+  const none = paChangesFromReply('Nothing to change today.');
+  const bad = paChangesFromReply('x\\n\\u0060\\u0060\\u0060pa-changes\\n[{nope\\n\\u0060\\u0060\\u0060');
+  const two = paChangesFromReply('\\u0060\\u0060\\u0060pa-changes\\n[{"kind":"tick","task":"a"}]\\n\\u0060\\u0060\\u0060\\nthen\\n\\u0060\\u0060\\u0060pa-changes\\n{"changes":[{"kind":"add","title":"b"}]}\\n\\u0060\\u0060\\u0060');
+  return { none: none.found, bad: bad.error, two: two.items };
+})()`)
+check('a reply with no pa-changes block is not a request', paParse.none === false)
+check('  a block that is not JSON is refused', /not valid JSON/.test(paParse.bad), paParse.bad)
+check('  and only the last block is read', paParse.two.length === 1 && paParse.two[0].kind === 'add', JSON.stringify(paParse.two))
+
+await new Promise(r => setTimeout(r, 700))   // let any open undo burst settle
+const paApply = await evalJS(`(() => {
+  state.locked = false;
+  const before = serializeDoc(state.doc);
+  const steps = undoStack.length;
+  const fence = String.fromCharCode(96).repeat(3);
+  const reply = 'Moving the template, dating the 360s, adding the venue.\\n\\n' + fence + 'pa-changes\\n' + JSON.stringify([
+    { kind: 'move', task: 'Tidy up the shared 1:1 notes template', column: 'Doing' },
+    { kind: 'date', task: 'chase the 360 responses', due: '2026-10-02' },
+    { kind: 'tick', task: 'Decide whether to open the mid-weight design role' },
+    { kind: 'edit', task: 'Tidy up the shared 1:1 notes template', field: 'impact', value: 'high' },
+    { kind: 'add', title: 'Book the offsite venue', bucket: 'People', effort: 'S', note: 'From the PA panel.' },
+    { kind: 'delete', task: 'Chase the 360 responses' },
+    { kind: 'edit', task: 'Chase the 360 responses', field: 'impact', value: 'huge' }
+  ]) + '\\n' + fence;
+  const out = applyPaChanges(reply);
+  const find = title => { for (const b of state.doc.buckets) for (const ti of b.tiers) for (const t of ti.tasks) if (t.title === title) return { t, col: ti.name, bucket: b.name }; return null; };
+  const tidy = find('Tidy up the shared 1:1 notes template');
+  const chase = find('Chase the 360 responses');
+  const decide = find('Decide whether to open the mid-weight design role');
+  const added = find('Book the offsite venue');
+  const after = serializeDoc(state.doc);
+  const res = {
+    out, stepsAdded: undoStack.length - steps, dirty: state.dirty,
+    tidy: tidy && [tidy.col, tidy.t.impact], chaseDue: chase && chase.t.due,
+    decide: decide && [decide.col, decide.t.done], added: added && [added.bucket, added.col, added.t.effort, added.t.body.join('|'), !!added.t.stableId],
+    wroteLine: after.includes('Book the offsite venue') && after.includes('[due:: 2026-10-02]'),
+  };
+  undo();
+  res.undone = serializeDoc(state.doc) === before;
+  return res;
+})()`)
+check('a pa-changes block applies each known kind', paApply.out.applied.length === 5, JSON.stringify(paApply.out))
+check('  move puts the card in the named column', paApply.tidy && paApply.tidy[0] === 'Doing', JSON.stringify(paApply.tidy))
+check('  date re-dates it, found by title ignoring case', paApply.chaseDue === '2026-10-02', paApply.chaseDue)
+check('  tick ticks it into Done', paApply.decide && paApply.decide[0] === 'Done' && paApply.decide[1] === true, JSON.stringify(paApply.decide))
+check('  edit sets a field', paApply.tidy && paApply.tidy[1] === 'high')
+check('  add writes a new task with its fields, note and an id',
+  JSON.stringify(paApply.added) === JSON.stringify(['People', 'To do', 'S', '  - From the PA panel.', true]), JSON.stringify(paApply.added))
+check('  and the document serialises with them', paApply.wroteLine)
+check('an unknown kind is refused, by name', paApply.out.refused.some(r => r === 'unknown kind "delete"'), JSON.stringify(paApply.out.refused))
+check('  so is a bad value on a known kind', paApply.out.refused.some(r => /impact is/.test(r)))
+check('the whole block is one undo step', paApply.stepsAdded === 1 && paApply.dirty, `${paApply.stepsAdded} steps`)
+check('  and one undo takes all of it back', paApply.undone)
+
+const paFlow = await evalJS(`(async () => {
+  const real = { diskVersion, fetch: window.fetch };
+  diskVersion = async () => ({ stamp: '', hash: '' });   // todo.md did not move on disk
+  const fence = String.fromCharCode(96).repeat(3);
+  const reply = 'Done.\\n' + fence + 'pa-changes\\n[{"kind":"edit","task":"Tidy up the shared 1:1 notes template","field":"week","value":true},{"kind":"archive","task":"x"}]\\n' + fence;
+  window.fetch = (url, opts) => {
+    if (String(url).startsWith('/claude/transcript.json')) {
+      return Promise.resolve(new Response(JSON.stringify({ turns: [{ ask: 'earlier', reply: 'old' }, { ask: '/pa tidy it\\n\\n(Sent from the board)', reply }] }), { status: 200 }));
+    }
+    return real.fetch(url, opts);
+  };
+  let header = null;
+  const inst = { session: () => 'pa-session-1', setHeader: h => { header = h; } };
+  const toastsBefore = document.querySelectorAll('#toasts .toast').length;
+  await paAfterReply(inst, { ask: 'tidy it' });
+  const find = title => { for (const b of state.doc.buckets) for (const ti of b.tiers) for (const t of ti.tasks) if (t.title === title) return t; return null; };
+  const week = find('Tidy up the shared 1:1 notes template').week;
+  const toast = document.querySelectorAll('#toasts .toast').length > toastsBefore;
+  find('Tidy up the shared 1:1 notes template').week = false;
+  const header1 = header;
+  await paAfterReply(inst, { ask: 'tidy it' });
+  const reapplied = find('Tidy up the shared 1:1 notes template').week;
+  const stale = { session: () => 'pa-session-2', setHeader: h => { header = h; } };
+  header = 'untouched';
+  await paAfterReply(stale, { ask: 'something else entirely' });
+  window.fetch = real.fetch; diskVersion = real.diskVersion;
+  return { week, header: header1 && header1.subtitle, reapplied, staleHeader: header, toast };
+})()`)
+check('a reply landing in the PA chat is read back and applied', paFlow.week === true, JSON.stringify(paFlow))
+check('  the chat header says what was applied and what was refused',
+  /1 change applied/.test(paFlow.header || '') && /unknown kind "archive"/.test(paFlow.header || ''), paFlow.header)
+check('  a refusal shows as a toast too', paFlow.toast)
+check('  the same turn is never applied twice', paFlow.reapplied === false)
+check('  a transcript whose last turn is not this ask is left alone', paFlow.staleHeader === 'untouched', String(paFlow.staleHeader))
+
 check('a locked tab refuses to write down what was opened', await evalJS(`
   (() => {
     state.locked = true;
