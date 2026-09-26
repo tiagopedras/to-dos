@@ -818,7 +818,9 @@ function makeChatWin(newFor){
   // started has ended — see "The PA panel" below. Any window can be carrying
   // the PA's conversation, a `#!chat=` link to an old one included, so this
   // is kept per window rather than only on the one the bubble opened.
-  let paWaiting = false;
+  // It holds what was asked, so the reply read back afterwards is matched to
+  // this send rather than to an earlier turn — see paReadReply().
+  let paWaiting = null;
   inst = AIChat.create({
     windowed: true,
     dockable: true,
@@ -826,11 +828,11 @@ function makeChatWin(newFor){
     readOnlyHelp: '',
     onSessionsChanged,
     onSend: p => {
-      if (p.key === PA_KEY) { paWaiting = true; paBeforeSend(); }
+      if (p.key === PA_KEY) { paWaiting = { ask: p.ask || '' }; paBeforeSend(); }
       onPromptRunSend(p);
     },
     onChange: () => {
-      if (paWaiting && !inst.running()) { paWaiting = false; paAfterReply(); }
+      if (paWaiting && !inst.running()) { const sent = paWaiting; paWaiting = null; paAfterReply(inst, sent); }
       reapChatWins(); onChatChange();
     },
     onRectChange: saveChatRect,
@@ -947,7 +949,8 @@ function paPreface(ask){
   return '/pa ' + ask + '\n\n' +
     '(Sent from the to-do board\'s PA chat, a conversation about the whole list rather than one task. ' +
     'The list on screen is ' + (ds ? 'data/' + ds + '/todo.md, the dataset data/.current names' : 'the one data/.current names') +
-    '. The board saved its unsaved changes before this message and reloads todo.md from disk once you reply.)';
+    '. The board saved its unsaved changes before this message. This chat cannot write todo.md: for any change to the list, ' +
+    'end your reply with a fenced pa-changes block, as the pa skill\'s "From a board chat" section describes, and the board applies it.)';
 }
 
 function openPaChat(){
@@ -971,17 +974,264 @@ function paBeforeSend(){
   paSaving = saveFile(true).catch(() => {});
 }
 
-async function paAfterReply(){
+async function paAfterReply(inst, sent){
   await paSaving;
   if (state.locked || !state.doc || modalEl) return;
   const { stamp, hash } = await diskVersion();
-  if (!stamp) return;
-  const moved = (hash && state.diskHash) ? hash !== state.diskHash : stamp !== state.diskStamp;
-  if (!moved) return;
-  const quiet = !hasOwnChanges();
-  if (quiet) closeDrawer();                        // ids are rebuilt by the parse
-  await reload();
-  if (quiet) autoStatus('reloaded — the PA changed todo.md');
+  const moved = !!stamp && ((hash && state.diskHash) ? hash !== state.diskHash : stamp !== state.diskStamp);
+  if (moved) {
+    const quiet = !hasOwnChanges();
+    if (quiet) closeDrawer();                      // ids are rebuilt by the parse
+    await reload();
+    if (quiet) autoStatus('reloaded — the PA changed todo.md');
+  }
+  if (!inst) return;
+  const reply = await paReadReply(inst, sent);
+  if (!reply || state.locked || !state.doc || modalEl) return;
+  paShowOutcome(inst, applyPaChanges(reply));
+}
+
+/* ---- pa-changes: the PA asks, the board writes ----
+   See IMPROVEMENTS.md, "A chat started on the board has no safe way to ask the
+   PA for a change to the list." A board chat runs in Ask mode and cannot write
+   todo.md, and should not: this tab holds the whole document and autosaves it.
+   So `pa` ends its reply with a fenced block of requests instead,
+
+     ```pa-changes
+     [{ "kind": "move", "task": "k3x9qa", "column": "Doing" }]
+     ```
+
+   and the board reads it out of the reply, checks every request against the
+   five kinds below, and applies what passes through its own edit path as one
+   undo step. The block stays in the reply as written, so what was asked for is
+   on screen next to what the board says it did. The format is documented for
+   the skill in agents/pa_agent/skills/pa/SKILL.md, "From a board chat"; change
+   the two together.
+
+   The reply is read back from the session's transcript rather than from the
+   chat window, which does not hand its turns to the host. The run has ended by
+   the time this runs, but the CLI's last write can trail it, so it asks a few
+   times, and only takes a turn whose ask is the one just sent. A turn applied
+   once is remembered and never applied again. */
+const PA_CHANGE_KINDS = ['move', 'tick', 'date', 'add', 'edit'];
+const PA_EDIT_FIELDS = ['title', 'impact', 'effort', 'due', 'start', 'to', 'theme', 'urgent', 'week'];
+const PA_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const paApplied = new Set();
+
+async function paReadReply(inst, sent){
+  const sid = inst.session ? inst.session() : '';
+  if (!sid) return '';
+  const row = (state.chats[PA_KEY] || []).find(r => r.id === sid);
+  const ask = String((sent && sent.ask) || '').trim();
+  for (let i = 0; i < 5; i++) {
+    try {
+      const d = await getJSON('/claude/transcript.json?session=' + encodeURIComponent(sid) +
+        '&cwd=' + encodeURIComponent((row && row.cwd) || ''));
+      const turns = (d && d.turns) || [];
+      const last = turns[turns.length - 1];
+      if (last && last.reply && (!ask || String(last.ask || '').includes(ask))) {
+        const key = sid + '#' + turns.length;
+        if (paApplied.has(key)) return '';
+        paApplied.add(key);
+        return last.reply;
+      }
+    } catch (e) { /* not written yet, or gone */ }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  return '';
+}
+
+/* The last pa-changes block in a reply. `found` is false when there is none,
+   which is the ordinary case: most replies change nothing. */
+function paChangesFromReply(text){
+  const re = /```pa-changes[^\n]*\n([\s\S]*?)```/g;
+  let m, body = null;
+  while ((m = re.exec(String(text || '')))) body = m[1];
+  if (body === null) return { found: false, items: [], error: '' };
+  let data;
+  try { data = JSON.parse(body); }
+  catch (e) { return { found: true, items: [], error: 'the pa-changes block is not valid JSON' }; }
+  if (data && !Array.isArray(data) && Array.isArray(data.changes)) data = data.changes;
+  if (!Array.isArray(data)) return { found: true, items: [], error: 'the pa-changes block is not a list' };
+  return { found: true, items: data, error: '' };
+}
+
+/* A top-level task by its `id:` first, then by its exact title, then by the
+   title ignoring case. Two tasks answering to one name is refused rather than
+   guessed at. */
+function paFindTask(ref){
+  const want = String(ref == null ? '' : ref).trim();
+  if (!want || !state.doc) return { error: 'no task named' };
+  const all = [];
+  for (const b of state.doc.buckets) for (const ti of b.tiers) for (const t of ti.tasks) all.push(t);
+  const lower = want.toLowerCase();
+  const tries = [
+    all.filter(t => t.stableId && t.stableId === lower),
+    all.filter(t => t.title === want),
+    all.filter(t => String(t.title).toLowerCase() === lower),
+  ];
+  for (const hits of tries) {
+    if (hits.length === 1) return { task: hits[0] };
+    if (hits.length > 1) return { error: 'more than one task is called "' + want + '"' };
+  }
+  return { error: 'no task "' + want + '"' };
+}
+
+function paColumn(name){
+  const want = String(name || '').trim().toLowerCase();
+  const names = allTiers().concat(RESERVED_TIERS);
+  return names.find(n => n.toLowerCase() === want) || '';
+}
+function paBucket(name){
+  const want = String(name || '').trim().toLowerCase();
+  return state.doc.buckets.find(b => b.name.toLowerCase() === want) || null;
+}
+function paOneLine(v){ return typeof v === 'string' && !/[\r\n]/.test(v); }
+
+/* A field's new value, checked, or an error. The same values the drawer's own
+   controls can set. */
+function paFieldValue(field, value){
+  if (field === 'title') return paOneLine(value) && value.trim() ? { value: value.trim() } : { error: 'a title must be one non-empty line' };
+  if (field === 'impact') return ['', 'low', 'med', 'high'].includes(value) ? { value } : { error: 'impact is low, med, high or ""' };
+  if (field === 'effort') return ['', 'S', 'M', 'L'].includes(value) ? { value } : { error: 'effort is S, M, L or ""' };
+  if (field === 'due' || field === 'start') return value === '' || PA_DATE_RE.test(String(value)) ? { value } : { error: field + ' must be YYYY-MM-DD or ""' };
+  if (field === 'urgent' || field === 'week') return typeof value === 'boolean' ? { value } : { error: field + ' must be true or false' };
+  if (field === 'to' || field === 'theme') return paOneLine(value) ? { value: value.trim() } : { error: field + ' must be one line' };
+  return { error: 'unknown field "' + field + '"' };
+}
+
+/* Moves a task to a column, ticking or unticking it the way a drop on the
+   board does. Returns an error, or ''. */
+function paMoveTo(t, column, bucket){
+  if (column === DONE_COL) {
+    const msg = blockedMessage(allItems(), t.blockedBy || []);
+    if (msg) return msg;
+    if (bucket) paMoveTo(t, TODO_TIER, bucket);
+    setDone(t, true);
+    t.dirty = true;
+    return '';
+  }
+  setDone(t, false, { stay: true });
+  const loc = locate(t.id);
+  const target = ensureTier(bucket || loc.bucket, column);
+  if (target !== loc.tier) {
+    loc.tier.tasks.splice(loc.index, 1);
+    target.tasks.unshift(t);
+  }
+  t.dirty = true;
+  return '';
+}
+
+/* One request, applied, or refused with a reason. Returns { done } or
+   { error }, where done is a short line saying what happened. */
+function paApplyOne(req){
+  if (!req || typeof req !== 'object' || Array.isArray(req)) return { error: 'a request must be an object' };
+  const kind = String(req.kind || '');
+  if (!PA_CHANGE_KINDS.includes(kind)) return { error: 'unknown kind "' + kind + '"' };
+
+  if (kind === 'add') {
+    if (!paOneLine(req.title) || !req.title.trim()) return { error: 'add needs a one-line title' };
+    const bucket = req.bucket ? paBucket(req.bucket) : state.doc.buckets[0];
+    if (!bucket) return { error: 'no bucket "' + req.bucket + '"' };
+    const column = req.column ? paColumn(req.column) : TODO_TIER;
+    if (!column || column === DONE_COL) return { error: 'add cannot go into "' + (req.column || '') + '"' };
+    const t = { id: uid(), done: false, title: req.title.trim(), bold: true, impact: '', effort: '', due: '', start: '', to: '', theme: '',
+                urgent: false, week: false, slug: '', blockedBy: [], rank: null, extra: [], body: [], raw: '', dirty: true };
+    for (const f of PA_EDIT_FIELDS) {
+      if (f === 'title' || req[f] === undefined) continue;
+      const v = paFieldValue(f, req[f]);
+      if (v.error) return { error: v.error };
+      t[f] = v.value;
+    }
+    if (req.note !== undefined) {
+      if (!paOneLine(req.note)) return { error: 'a note must be one line' };
+      if (req.note.trim()) t.body.push('  - ' + req.note.trim());
+    }
+    t.stableId = mintId(idsInDoc(state.doc));
+    ensureTier(bucket, column).tasks.push(t);
+    return { done: 'added "' + t.title + '" to ' + bucket.name + ' · ' + column };
+  }
+
+  const found = paFindTask(req.task);
+  if (found.error) return { error: found.error };
+  const t = found.task;
+
+  if (kind === 'move') {
+    const column = paColumn(req.column);
+    if (!column) return { error: 'no column "' + (req.column || '') + '"' };
+    const bucket = req.bucket ? paBucket(req.bucket) : null;
+    if (req.bucket && !bucket) return { error: 'no bucket "' + req.bucket + '"' };
+    const err = paMoveTo(t, column, bucket);
+    return err ? { error: err } : { done: 'moved "' + t.title + '" to ' + (bucket ? bucket.name + ' · ' : '') + column };
+  }
+  if (kind === 'tick') {
+    const on = req.done !== false;
+    if (on) {
+      const msg = blockedMessage(allItems(), t.blockedBy || []);
+      if (msg) return { error: msg };
+    }
+    setDone(t, on);
+    return { done: (on ? 'ticked "' : 'unticked "') + t.title + '"' };
+  }
+  if (kind === 'date') {
+    const said = [];
+    for (const f of ['due', 'start']) {
+      if (req[f] === undefined) continue;
+      const v = paFieldValue(f, req[f]);
+      if (v.error) return { error: v.error };
+      said.push([f, v.value]);
+    }
+    if (!said.length) return { error: 'date needs due or start' };
+    said.forEach(([f, v]) => { t[f] = v; });
+    t.dirty = true;
+    return { done: 're-dated "' + t.title + '": ' + said.map(([f, v]) => f + ' ' + (v || 'cleared')).join(', ') };
+  }
+  // edit
+  const field = String(req.field || '');
+  if (!PA_EDIT_FIELDS.includes(field)) return { error: 'unknown field "' + field + '"' };
+  const v = paFieldValue(field, req.value);
+  if (v.error) return { error: v.error };
+  const was = t.title;
+  t[field] = v.value;
+  t.dirty = true;
+  return { done: 'set ' + field + ' on "' + was + '" to ' + JSON.stringify(v.value) };
+}
+
+/* Everything in the block, as one undo step. A burst of edits still open from
+   just before is closed first, and this one is closed straight after, so the
+   Undo button takes back exactly the PA's changes and nothing either side. */
+function applyPaChanges(reply){
+  const parsed = paChangesFromReply(reply);
+  const out = { found: parsed.found, applied: [], refused: [] };
+  if (!parsed.found) return out;
+  if (parsed.error) { out.refused.push(parsed.error); return out; }
+  if (state.locked || !state.doc) { out.refused.push('the board is locked'); return out; }
+
+  if (undoTimer !== null) { clearTimeout(undoTimer); undoTimer = null; undoBaseline = serializeDoc(state.doc); }
+  for (const req of parsed.items) {
+    const r = paApplyOne(req);
+    if (r.error) out.refused.push(r.error);
+    else out.applied.push(r.done);
+  }
+  if (out.applied.length) {
+    markDirty();
+    clearTimeout(undoTimer); undoTimer = null; undoBaseline = serializeDoc(state.doc);
+    refreshView();
+    if (state.openTask && locate(state.openTask)) openDrawer(state.openTask);
+  }
+  return out;
+}
+
+/* What the board did with the block: on the chat's own header, so it sits
+   with the reply, on the status line, and a toast for anything refused. */
+function paShowOutcome(inst, out){
+  if (!out || !out.found) { if (inst && inst.setHeader) inst.setHeader(null); return; }
+  const n = out.applied.length, r = out.refused.length;
+  const line = (n ? n + ' change' + (n === 1 ? '' : 's') + ' applied' : 'nothing applied') +
+    (r ? ' · ' + r + ' refused: ' + out.refused.join('; ') : '');
+  if (inst && inst.setHeader) inst.setHeader({ subtitle: line });
+  $('#status').textContent = 'the PA: ' + (n ? out.applied.join('; ') : 'nothing applied') + (r ? ' — ' + r + ' refused' : '');
+  if (r) showToast('PA change refused: ' + out.refused.join('; '), 'blocked');
 }
 
 (() => {
