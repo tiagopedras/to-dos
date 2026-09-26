@@ -1293,7 +1293,7 @@ function openDrawer(id, focusTitle){
          parse the same text this renders, and a "Message (draft):" line reads
          as a bullet either way, which is honest rather than wrong. */
       '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
-      '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(splitDrawnNotes(bodyParts(t).notes).prose)) + '</textarea>' +
+      '<div id="f-body-mount"></div>' +
     '</details>' +
     tagsSection(t) +
     /* A custom dropdown rather than a native <select> — an <option> cannot
@@ -1448,6 +1448,22 @@ function openDrawer(id, focusTitle){
     '<div class="dcol dcol-main">' + mainFields + '</div>' +
     (sideFields ? '<div class="dcol dcol-side">' + sideFields + '</div>' : '') +
   '</div>';
+
+  // The Description field, on Tenon's Textarea since 26 Sep 2026. Mounted
+  // rather than drawn as a string, into the placeholder #f-body-mount left in
+  // mainFields above; everything below still finds #f-body by id and wires it
+  // exactly as it always has, since Tenon's Textarea forwards its ref to a
+  // real <textarea>. Committed with mountFlushed so it exists before the
+  // wiring later in this function queries it.
+  if (bodyMountEl) BoardUI.unmount(bodyMountEl);
+  bodyMountEl = $('#f-body-mount');
+  BoardUI.mountFlushed(bodyMountEl, BoardUI.h(BoardUI.Textarea, {
+    id: 'f-body',
+    spellCheck: false,
+    hidden: true,
+    disabled: ro,
+    defaultValue: dedent(splitDrawnNotes(bodyParts(t).notes).prose),
+  }));
 
   // The card in the Project section is drawn with the folder name it already
   // had; what the folder holds is a read off disk, and the panel does not wait
@@ -1820,7 +1836,7 @@ function openSubtaskDrawer(found){
       '</div>' +
       (waiting && !f.done ? '<span class="help">' + (kind === 'plan' ? 'The plan is not written yet.' : 'The work is not finished yet.') + '</span>' : '') +
       (subSendBackFor === subId
-        ? '<textarea id="f-sendback-text" placeholder="What should change? The agent reads this when it takes it up again."></textarea>' +
+        ? '<div id="f-sendback-mount"></div>' +
           '<button type="button" class="btn small reject" id="f-sendback-go">Send it back</button>'
         : '') +
     '</div>';
@@ -1850,11 +1866,27 @@ function openSubtaskDrawer(found){
     '</div>' +
     (waitingOn ? '<div class="field"><span>Waiting on</span>' + waitingOn + '</div>' : '') +
     '<details class="field" data-collapse="subnote" open><summary>Note</summary>' +
-      '<textarea id="s-note" spellcheck="false"' + dis + '>' + esc(stepNoteText(t, line)) + '</textarea></details>' +
+      '<div id="s-note-mount"></div></details>' +
     '<div class="field inherited"><span>Task</span><span class="dpbtn" style="cursor:default">' + mdInline(t.title) + '</span></div>' +
     '<div class="field inherited"><span>Bucket</span><span class="dpbtn" style="cursor:default">' + esc(loc.bucket.name) + '</span></div>' +
     (proj ? '<div class="field inherited"><span>Project</span><span class="dpbtn" style="cursor:default">' + esc(proj) + '</span></div>' : '') +
   '</div></div>';
+
+  // The sub-task's Note, and the send-back message when that box is open, on
+  // Tenon's Textarea since 26 Sep 2026 — same mount-a-placeholder approach as
+  // the task drawer's own Description field above.
+  if (subNoteMountEl) BoardUI.unmount(subNoteMountEl);
+  subNoteMountEl = $('#s-note-mount');
+  BoardUI.mountFlushed(subNoteMountEl, BoardUI.h(BoardUI.Textarea, {
+    id: 's-note', spellCheck: false, disabled: ro, defaultValue: stepNoteText(t, line),
+  }));
+  if (sendbackMountEl) BoardUI.unmount(sendbackMountEl);
+  sendbackMountEl = $('#f-sendback-mount');
+  if (sendbackMountEl) {
+    BoardUI.mountFlushed(sendbackMountEl, BoardUI.h(BoardUI.Textarea, {
+      id: 'f-sendback-text', placeholder: 'What should change? The agent reads this when it takes it up again.',
+    }));
+  }
 
   if (kind) {
     const readBtn = $('#f-readplan');
@@ -2152,6 +2184,14 @@ function setNoteHeight(px){
    every edit, so without disconnecting the last one there would be an
    observer per redraw, all of them still writing the same preference. */
 let noteResizeObs = null;
+/* The React root behind #f-body-mount. openDrawer rebuilds #dbody's whole
+   innerHTML on every open, which throws away the mount's host node without
+   ever telling React — see the note above mount()/unmount() in kanban/ui —
+   so this is torn down explicitly before the next one is created. */
+let bodyMountEl = null;
+/* Same for the sub-task panel's own Note and its send-back message. */
+let subNoteMountEl = null;
+let sendbackMountEl = null;
 
 const SECTION_KEY = 'todo-board-collapsed';
 function sectionCollapsed(key){

@@ -362,8 +362,12 @@ const label = await evalJS(`
 `)
 check('the note about subtasks sits beside the label',
   /Subtasks are in the list below/.test(label.summary), label.summary)
+/* The field itself is Tenon's Textarea since 26 Sep 2026, mounted into a host
+   div rather than drawn as a raw <textarea> — so what sits under the label is
+   the rendered view and that host, not the field tag directly. #f-body is
+   still found by id, inside it. */
 check('and nothing trails under the field',
-  JSON.stringify(label.under) === JSON.stringify(['DIV', 'TEXTAREA']), JSON.stringify(label.under))
+  JSON.stringify(label.under) === JSON.stringify(['DIV', 'DIV']), JSON.stringify(label.under))
 
 /* ---- The lines the second column already draws ----
    A suggested message, a prompt, an agenda, a Jira ticket, the project folder
