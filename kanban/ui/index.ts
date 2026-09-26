@@ -46,7 +46,8 @@ import type { ReactNode } from 'react'
    markup, so the half of the board that is still strings and the half that is
    React draw the same card. That is the rule those two files have always been
    under; only the shape they agree on has moved. */
-export { Alert, Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field } from '@tiagopedras/tenon'
+export { Alert, Card, Column, ColumnEmpty, Badge, Stat, Tag, Button, Field, Textarea } from '@tiagopedras/tenon'
+export type { TextareaProps } from '@tiagopedras/tenon'
 export type {
   AlertProps, CardProps, ColumnProps, ColumnTone, BadgeProps, StatProps, TagProps,
 } from '@tiagopedras/tenon'

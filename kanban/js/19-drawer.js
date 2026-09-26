@@ -1293,7 +1293,7 @@ function openDrawer(id, focusTitle){
          parse the same text this renders, and a "Message (draft):" line reads
          as a bullet either way, which is honest rather than wrong. */
       '<div id="f-body-view" class="repdoc noteview"' + (ro ? '' : ' title="Click to edit"') + '></div>' +
-      '<textarea id="f-body" spellcheck="false" hidden' + dis + '>' + esc(dedent(splitDrawnNotes(bodyParts(t).notes).prose)) + '</textarea>' +
+      '<div id="f-body-mount"></div>' +
     '</details>' +
     tagsSection(t) +
     /* A custom dropdown rather than a native <select> — an <option> cannot
@@ -1448,6 +1448,22 @@ function openDrawer(id, focusTitle){
     '<div class="dcol dcol-main">' + mainFields + '</div>' +
     (sideFields ? '<div class="dcol dcol-side">' + sideFields + '</div>' : '') +
   '</div>';
+
+  // The Description field, on Tenon's Textarea since 26 Sep 2026. Mounted
+  // rather than drawn as a string, into the placeholder #f-body-mount left in
+  // mainFields above; everything below still finds #f-body by id and wires it
+  // exactly as it always has, since Tenon's Textarea forwards its ref to a
+  // real <textarea>. Committed with mountFlushed so it exists before the
+  // wiring later in this function queries it.
+  if (bodyMountEl) BoardUI.unmount(bodyMountEl);
+  bodyMountEl = $('#f-body-mount');
+  BoardUI.mountFlushed(bodyMountEl, BoardUI.h(BoardUI.Textarea, {
+    id: 'f-body',
+    spellCheck: false,
+    hidden: true,
+    disabled: ro,
+    defaultValue: dedent(splitDrawnNotes(bodyParts(t).notes).prose),
+  }));
 
   // The card in the Project section is drawn with the folder name it already
   // had; what the folder holds is a read off disk, and the panel does not wait
@@ -2152,6 +2168,11 @@ function setNoteHeight(px){
    every edit, so without disconnecting the last one there would be an
    observer per redraw, all of them still writing the same preference. */
 let noteResizeObs = null;
+/* The React root behind #f-body-mount. openDrawer rebuilds #dbody's whole
+   innerHTML on every open, which throws away the mount's host node without
+   ever telling React — see the note above mount()/unmount() in kanban/ui —
+   so this is torn down explicitly before the next one is created. */
+let bodyMountEl = null;
 
 const SECTION_KEY = 'todo-board-collapsed';
 function sectionCollapsed(key){
