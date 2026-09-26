@@ -166,11 +166,15 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
   through `dangerouslySetInnerHTML`. Teaching `Markdown` the link and
   placeholder forms, in Tenon, would let both take a string and drop the
   markup, and `mdInline()` would go once the drawer and the Overview bodies did.
-  **Partly done, 25 Sep 2026.** `inlineNodes()` in `PACKAGES/tenon` now handles both forms, source and `dist/` rebuilt — but not tagged, and to-dos's pinned Tenon version is untouched, so `mdInline()` and the two `dangerouslySetInnerHTML` uses still stand. [needs you] Bump the tag and to-dos's `package.json` pin before the rest of this can land.
+  `inlineNodes()` in `PACKAGES/tenon` already handles both forms in source and
+  `dist/`. What is left: tag Tenon at the next minor version and push the tag,
+  move to-dos's `package.json` pin to it, then move `TaskCard.tsx` and
+  `mdInline()`'s remaining callers onto Tenon's `Markdown`. `PlanCard.tsx` went
+  with the Plans view and is out of scope.
   Build: Opus. Id `dual-markdown-renderers`.
   Files: `kanban/js/10-reference-sections.js`, `kanban/ui/TaskCard.tsx`, `package.json`, `PACKAGES/tenon`.
   Tests: `scripts/test-board.sh test_board.mjs test_overview.mjs`.
-  Open: the entry names `PlanCard.tsx`, which no longer exists — the Plans view was folded into the one board on 22 Sep 2026. Default: bump the Tenon pin in `package.json`, then migrate `TaskCard.tsx` and `mdInline()`'s remaining callers only.
+  Open: none.
 
 - ~~**A new task lands in the first bucket in the file even when that bucket is
   filtered out.**~~ **Done, 25 Sep 2026.** `defaultAddBucket()` (`kanban/js/07-render-board.js`) now reads `state.bucketFilter`: one bucket toggled on means that bucket, several means the leftmost in `state.doc.buckets` order, none toggled keeps the old `buckets[0]` fallback. Covered in `test_board.mjs`.
@@ -716,16 +720,22 @@ they settled is written up in the README rather than left here:
   the agents: `core/tick_queue.py` takes a request from outside and
   `drainTickQueue()` (`kanban/js/10-reference-sections.js`) applies it through
   the board's own edit path, the same way `attach-queue.json` does. A
-  `pa-queue.json` along the same lines would let any board chat leave a
-  change request in plain words, tagged with the chat's owner task, for PA to
-  apply. The decision to make first is who applies it: PA turned into a real
-  agent that picks requests up while the board is locked for the length of
-  the write, or the board itself draining a structured request (move, tick,
-  re-date, add) with no PA in the loop.
+  The board applies it, and PA stays out of the file. From a board chat, `pa`
+  turns what he says into structured requests (move, tick, re-date, add a task,
+  edit a field) and leaves them in `data/<dataset>/pa-queue.json` instead of
+  writing `todo.md`. The board drains that file through its own edit path, on
+  load and right after each reply lands in the PA panel (`board-pa`), the same
+  way `drainTickQueue()` works, so the board stays the one writer and nothing
+  races the autosave. Anything outside those request kinds still needs a `pa`
+  session away from the board. Sessions outside the board keep writing
+  `todo.md` directly, as they do now. An Ask-mode chat has no Write, so the
+  request goes through a narrow route rather than a general file write: a
+  `POST /pa-queue` in `kanban/server.py`, validated against the request kinds,
+  reached from the run as the one write it is allowed.
   Build: Opus. Id `pa-queue-chat`. With `pa-panel-chat`. Unblocks `chat-write-mode`.
   Files: `PACKAGES/ai_chat_engine/engine.py`, `kanban/js/10-reference-sections.js`, `core/tick_queue.py`, `kanban/server.py`.
   Tests: `scripts/test-board.sh test_chats.mjs`.
-  Open: who applies the request — PA turned into a real agent that picks requests up, or the board itself draining a structured request? Default: the board drains a `pa-queue.json` the way it already drains `tick-queue.json` and `attach-queue.json`, since that needs no new agent runner.
+  Open: how the Ask-mode run reaches `POST /pa-queue` with Bash removed. Default: allow that one command pattern in the engine's Ask permissions (a single `curl` to the local route), nothing wider.
 
 - ~~**A chat can only be open or closed, so keeping one in view means keeping
   it on top of the board.**~~ **Done, 25 Sep 2026.** The engine's `dockable` option adds minimised and anchored, and the board keeps one AIChat instance per open chat in `chatWins`. The controller behind the board's one
@@ -879,10 +889,9 @@ they settled is written up in the README rather than left here:
   2026: a new version of a prompt, skill, data file or deck is saved as `name-v2.md` beside
   the original and never overwrites it. A seventh type is added, code on a branch, guarded
   the way `AGENTS/improve-agent` is: clean tree, an `implement/<date>` branch, tests, a
-  commit, never a merge or a push, and still no Bash for the agent. Both routes start a run:
-  a task handed straight to the Implement agent with a `type::` tag, and a plan whose
-  frontmatter declares an approved type. Still open: whether the second route skips his
-  Review the plan at all, or unattended runs stay with the first route only. Build, in
+  commit, never a merge or a push, and still no Bash for the agent. Only the planned route
+  runs unattended: a plan whose frontmatter declares an approved type. A task handed
+  straight to the Implement agent still waits for a session with `do`. Build, in
   order. `PLAN-BRIEF.md` "What to write" (`:136`) asks for `type:` in the frontmatter
   (write-up, draft, prompt, data, deck, figma, code, other), read back beside `outcome:`
   in `write_plan()` (`agents/plan-agent/plan.py:627`). When the Plan agent's tick arrives
@@ -901,12 +910,11 @@ they settled is written up in the README rather than left here:
   `agents/plan-agent`. The handover-level entry (off, plan first, just do it) and the entry on
   what the implementing agent produces are blocked on the same list of types. Approval is
   carried by the review sub-tasks in the entry above this one, and this list decides which
-  work a runner may take on its own, including a task handed straight to the Implement
-  agent.
-  Build: Opus. Id `implementing-agent-fence-types`. With `implementing-agent-unattended`.
+  planned work a runner may take on its own.
+  Build: Opus. Id `implementing-agent-fence-types`.
   Files: `agents/plan-agent/PLAN-BRIEF.md`, `agents/plan-agent/plan.py`, `core/tick_queue.py`, `kanban/js/10-reference-sections.js`, `agents/implement-agent/implement-agent.md`, `agents/implement-agent/skills/do/SKILL.md`, `agents/implement-agent/README.md`.
   Tests: `python3 agents/plan-agent/test_planning_agent.py`.
-  Open: the entry names `agents/implementing_agent/`, which no longer exists — the folder is `agents/implement-agent/` since the September rename. Whether a task handed straight to the Implement agent skips Review the plan entirely is also still open. Default: unattended runs stay with the planned route only, since that is the one route the type list already fences.
+  Open: none.
 
 - **The app and its data sit in one checkout, so the hosted web version can only ever show `demo.md` and cannot work on a data folder on the person's own machine.**
   `ROOT` and `DATA = "data"` (`kanban/server.py:41`, `:74`) put every dataset at
@@ -1202,8 +1210,7 @@ they settled is written up in the README rather than left here:
   (`renderViewTabs()`, `:879`), the bucket tabs (`renderTabs()`,
   `kanban/js/07-render-board.js:118`), the phone's column strip
   (`renderColTabs()`, `:1147`), the drawer (`openDrawer()`,
-  `kanban/js/19-drawer.js:820`, in a 1,725-line file) and the plan modal
-  behind Plans (`openPlanModal()`).
+  `kanban/js/19-drawer.js:820`, in a 1,725-line file).
 
   `showModal()` went first, on 25 Sep 2026. It keeps its signature and still
   lives in `kanban/js/23-conflict-modal.js`, but it now mounts Tenon's `Modal`
@@ -1240,15 +1247,15 @@ they settled is written up in the README rather than left here:
   stays too, as does the Reports window picker on `.tabs.small`. Moving those
   needs a multi-select toggle group in Tenon first.
 
-  What remains is the drawer, as a job of its own, because `openDrawer()` is reached from every view
-  and the Markdown and report builders it uses are shared with Plans. After
+  What remains is the drawer, as a job of its own, because `openDrawer()` is
+  reached from every view. After
   splicing any renderer out, grep
   its file for a second definition of every name replaced, since a later
   duplicate in a classic script wins.
   Build: Sonnet. Id `drawer-header-modal-to-react`.
   Files: `kanban/js/18-timeline.js`, `kanban/js/07-render-board.js`, `kanban/js/19-drawer.js`, `kanban/js/23-conflict-modal.js`, `kanban/ui/BoardModal.tsx`.
   Tests: `scripts/test-board.sh test_board.mjs`, `node kanban/ui/test_primitives.mjs`.
-  Open: the entry names `openPlanModal()` as part of the same job — that view no longer exists, folded into the board 22 Sep 2026. Default: drop the plan modal from scope; the drawer, the header chrome and the conflict modal are what remains.
+  Open: none.
 
 - ~~**A theme is a real layer of the list and the board has never heard of it.**~~
   **Done, 25 Sep 2026.** `[theme:: ]` is a first-class field in `core/todo.js`/
@@ -1741,8 +1748,10 @@ they settled is written up in the README rather than left here:
   out of scope, since that needs both revisions findable as separate
   documents, which waits on the one-file-per-task rework below.
 
-- **`implementing-agent` runs unattended on accepted plans, fenced the
-  way `improve_agent` already is.** Reverses the decision recorded in the
+- ~~**`implementing-agent` runs unattended on accepted plans, fenced the
+  way `improve_agent` already is.**~~ **Folded, 26 Sep 2026,** into the entry
+  on which kinds of work the implementing agent can do alone, whose per-type
+  fences cover this. Reverses the decision recorded in the
   struck entry at the foot of this section, which settled on session-only
   runs on 13 Sep 2026. Of 41 plans written, only 5 are accepted and 2
   produced, because accepting one still costs a sitting that isn't happening
@@ -1760,10 +1769,6 @@ they settled is written up in the README rather than left here:
   run against a branch he has already created and opened in the desktop app
   himself, and that precondition needs checking at the start of the run
   rather than assumed.
-  Build: Opus. Id `implementing-agent-unattended`. With `implementing-agent-fence-types`.
-  Files: `agents/implement-agent/implement-agent.md`, `agents/implement-agent/skills/do/SKILL.md`, `AGENTS/improve-agent/README.md`.
-  Tests: none found.
-  Open: this reads as the same feature as `implementing-agent-fence-types`, decided in more detail on 21 Sep 2026 — is this entry still needed on its own? Default: fold it in there; that entry's per-type fences already cover the general branch-and-tests case this one asks for.
 
 - ~~**Opening an accepted plan offers no way to start, or return to, the
   session actually carrying it out.**~~ **Done, 14 Sep 2026 — both pieces,
