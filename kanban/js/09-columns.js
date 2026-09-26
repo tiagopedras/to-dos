@@ -427,7 +427,7 @@ function cardModel(t, opts){
   return {
     id: t.id,
     cls: statusClass.trim() + (t.headline ? ' onething' : ''),
-    titleHTML: mdInline(t.title),
+    title: t.title,
     chips, when, progress
   };
 }

@@ -21,6 +21,7 @@ import { Fragment } from 'react'
 import type { CSSProperties } from 'react'
 import { Alert, Card, ColumnEmpty, Tag } from '@tiagopedras/tenon'
 import type { Chip } from './TaskCard'
+import { InlineMd } from './InlineMd'
 
 export interface RefModel {
   id: string
@@ -28,7 +29,8 @@ export interface RefModel {
   sub: number | null
   color: string
   done: boolean
-  titleHTML: string
+  /** The title as written, inline Markdown and all. */
+  title: string
   /** Bucket, parent and column, since the card is shown away from its own. */
   where: string
   chips: Chip[]
@@ -82,8 +84,7 @@ export function RefCard({ m }: { m: RefModel }) {
           className="reftitle"
           data-open={m.id}
           title="Open this task"
-          dangerouslySetInnerHTML={{ __html: m.titleHTML }}
-        />
+        ><InlineMd text={m.title} /></button>
       }
       action={
         m.unweek ? (

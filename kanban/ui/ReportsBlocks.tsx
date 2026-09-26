@@ -9,10 +9,8 @@
  * which window, which bucket, how many effort points, which weeks a trend
  * spans — stays in `12-reports.js`, which is the only thing that reads
  * `state.doc` and the archive. What crosses into props here is data, never
- * markup, with one exception these components share with `PlanCard`: a done
- * task's title is `mdInline(t.title)`, and porting that is porting the
- * board's Markdown, a different job from porting this view. It arrives as
- * `{ __html }` on the one row that carries it, same as `PlanCard.summaryHTML`.
+ * markup. A done task's title arrives as the string todo.md holds and Tenon's
+ * `Markdown` draws it (InlineMd.tsx), since 26 Sep 2026.
  *
  * `weeklyTrendReport`'s SVG geometry is the other thing that stays inside the
  * component rather than crossing as a prop: `cx`, `cy`, `curve`, the pace
@@ -30,6 +28,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react'
 import { Stat } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 
 /* ---- shared: one finished task as a row ---- */
 
@@ -37,23 +36,21 @@ export interface DoneRowData {
   key: string
   color: string
   dateLabel: string
-  /** mdInline(title) */
-  titleHTML: string
+  /** The title as written, inline Markdown and all. */
+  title: string
   /** null for an archived task, which has no live id to open the drawer with. */
   taskId: string | null
   chip: string
   chipClass?: string
 }
 
-function DoneRow({ color, dateLabel, titleHTML, taskId, chip, chipClass }: DoneRowData) {
+function DoneRow({ color, dateLabel, title, taskId, chip, chipClass }: DoneRowData) {
   return (
     <li style={{ ['--bc' as string]: color } as CSSProperties}>
       <span className="dt">{dateLabel}</span>
       {taskId
-        ? <button className="tt" data-open={taskId} title="Open this task"
-            dangerouslySetInnerHTML={{ __html: titleHTML }} />
-        : <span className="tt archived" title="Archived — no longer in todo.md"
-            dangerouslySetInnerHTML={{ __html: titleHTML }} />}
+        ? <button className="tt" data-open={taskId} title="Open this task"><InlineMd text={title} /></button>
+        : <span className="tt archived" title="Archived — no longer in todo.md"><InlineMd text={title} /></span>}
       <span className={'where' + (chipClass ? ' ' + chipClass : '')}>{chip}</span>
     </li>
   )

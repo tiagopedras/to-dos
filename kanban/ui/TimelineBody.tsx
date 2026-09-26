@@ -23,6 +23,7 @@
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, DragEvent, PointerEvent } from 'react'
 import { Card, ColumnEmpty, bindReorder } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 
 export type TimelineDragKind = 'move' | 'start' | 'due'
 
@@ -43,9 +44,8 @@ export interface TimelineMark {
 
 export interface TimelineRow {
   id: string
+  /** The title as written, inline Markdown and all. */
   title: string
-  /** The board's inline Markdown, already rendered. */
-  titleHTML: string
   /** A step nested under its task: thinner, no grip, no chevron, no drag. */
   sub: boolean
   blocked: boolean
@@ -81,7 +81,7 @@ export interface TimelineScale {
 
 export interface TimelineTrayCard {
   id: string
-  titleHTML: string
+  title: string
   color: string
   bucket: string
 }
@@ -173,8 +173,7 @@ function Row({ row, bucket, scale, locked, h }: {
       {...(sub ? {} : { 'data-tlreorder': row.id, style: bc(row.color) })}>
       <div className="tllabel" {...(sub || locked ? {} : { title: 'Drag to reorder within ' + bucket })}>
         {grip}{chevron}
-        <span className="tllabeltext" data-open={row.id} title={row.title}
-          dangerouslySetInnerHTML={{ __html: row.titleHTML }} />
+        <span className="tllabeltext" data-open={row.id} title={row.title}><InlineMd text={row.title} /></span>
       </div>
       <div className="tltrack" style={{ width: scale.trackWidth + 'px' }}
         {...(!sub && h ? { onPointerDown: (e: PointerEvent<HTMLElement>) => h.onTrackPointerDown(e, row.id) } : {})}>
@@ -329,7 +328,7 @@ function Tray({ cards, locked, h }: { cards: TimelineTrayCard[], locked: boolean
                 onDragStart: (e: DragEvent<HTMLElement>) => h.onTrayDragStart(e, c.id),
                 onDragEnd: (e: DragEvent<HTMLElement>) => h.onTrayDragEnd(e, c.id),
               } : {})}>
-              <span className="chaintitle" dangerouslySetInnerHTML={{ __html: c.titleHTML }} />
+              <span className="chaintitle"><InlineMd text={c.title} /></span>
               <div className="chainwhere">{c.bucket}</div>
             </Card>
           </span>

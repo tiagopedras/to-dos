@@ -337,7 +337,7 @@ const pinCheck = await evalJS(`(() => {
   const canon = el => {
     if (el.nodeType === 3) return el.textContent;
     if (el.tagName === 'SPAN' && el.parentNode.classList && el.parentNode.classList.contains('tenon-card__title') &&
-        el.parentNode.children.length === 1 && !el.className) {
+        el.parentNode.children.length === 1 && el.classList.contains('mdinline')) {
       return [...el.childNodes].map(canon).join('');
     }
     const attrs = [...el.attributes].map(a => a.name + '="' +

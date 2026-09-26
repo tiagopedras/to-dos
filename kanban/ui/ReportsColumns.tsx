@@ -34,12 +34,12 @@
  * not need to be — nothing outside this file ever called them — so they are
  * `ReportsBlocks.tsx` now, components taking the data `12-reports.js` still
  * computes rather than the markup it used to build from it. A finished task's
- * title still arrives as `{ __html: mdInline(t.title) }`, the same
- * `PlanCard.summaryHTML` bargain, because rendering *that* is still the board's
- * Markdown either way.
+ * title and a written report's summary arrive as plain strings and Tenon's
+ * `Markdown` draws them (InlineMd.tsx), since 26 Sep 2026.
  */
 import type { ReactNode } from 'react'
 import { Alert, Column } from '@tiagopedras/tenon'
+import { InlineMd } from './InlineMd'
 import {
   CompletedByCategory, RecentAccomplishments, WeeklyTrend,
   type CompletedByCategoryData, type RecentAccomplishmentsData, type WeeklyTrendProps,
@@ -56,8 +56,8 @@ export interface WrittenReport {
   date?: string
   covers?: string
   topic?: string
-  /** Inline Markdown, already rendered to HTML by the board's mdInline. */
-  summaryHTML?: string
+  /** One line of inline Markdown, as the report's frontmatter holds it. */
+  summary?: string
   url: string
 }
 
@@ -113,8 +113,8 @@ function WrittenRow(props: { report: WrittenReport; onOpen: () => void }) {
         {r.date ? <span className="repdate">{r.date}</span> : null}
       </button>
       {when ? <div className="repmeta">{when}</div> : null}
-      {r.summaryHTML
-        ? <div className="repsum" dangerouslySetInnerHTML={{ __html: r.summaryHTML }} />
+      {r.summary
+        ? <div className="repsum"><InlineMd text={r.summary} /></div>
         : null}
     </article>
   )

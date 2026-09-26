@@ -107,7 +107,6 @@ function drawProjects(){
     onSortChange: id => { if (setProjectSort(id)) drawProjects(); },
     countsFor: projectCounts,
     when: cvWhen,
-    inline: mdInline,
   }));
 }
 

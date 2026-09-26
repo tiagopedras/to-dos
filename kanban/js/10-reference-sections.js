@@ -314,7 +314,7 @@ function refModel(it, opts){
     sub: it.sub ? it.sub.line : null,
     color: it.color,
     done: !!it.done,
-    titleHTML: mdInline(it.title),
+    title: it.title,
     where,
     chips: refChips(it),
     bodyHTML: body,
@@ -590,14 +590,14 @@ function chainSection(items){
   const { order, weight } = byPriority(items, blocked);
 
   const ticket = it => ({
-    id: it.id, color: it.color, titleHTML: mdInline(it.title), done: !!it.done,
+    id: it.id, color: it.color, title: it.title, done: !!it.done,
     where: [it.bucket, it.done ? DONE_COL : it.tier].filter(Boolean).join(' \u00b7 ')
   });
   const entries = order.map(i => ({
     target: ticket(i),
     blockers: i.blockedBy.map(slug => {
       const src = itemBySlug(items, slug);
-      return src ? ticket(src) : { slug, color: '', titleHTML: '', where: '', done: false };
+      return src ? ticket(src) : { slug, color: '', title: '', where: '', done: false };
     }),
     holdsHigher: weight.get(i) > itemImpact(i)
   }));
@@ -671,6 +671,14 @@ function mdInline(s){
       return whole;
     });
 }
+/* The same link opens in a new tab when Tenon's Markdown drew it. The React
+   views draw a title through kanban/ui/InlineMd.tsx, whose links carry no
+   target of their own, and a plain click on one would take the board's tab
+   away. Capture phase, so the target is set before the browser follows it. */
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('.mdinline a[href]');
+  if (a) { a.target = '_blank'; a.rel = 'noopener'; }
+}, true);
 /* A prompt is written to be handed to Claude, so the board can do the handing
    rather than leaving it as a copy-and-paste. claude.ai/new?q= opens a fresh
    chat with the text already sitting in the box, unsent — which is the point,

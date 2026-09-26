@@ -204,7 +204,7 @@ function completedRecently(){
 function buildDoneRow(it, color, chip, chipClass){
   return {
     key: it.taskId || (it.bucketName + '|' + it.doneOn + '|' + it.title),
-    color, dateLabel: reportDay(it.doneOn), titleHTML: mdInline(it.title),
+    color, dateLabel: reportDay(it.doneOn), title: it.title,
     taskId: it.taskId || null, chip, chipClass,
   };
 }
@@ -621,9 +621,8 @@ let writtenState = { list: null, error: null, fetched: false };
 
    The counted reports are components — see ReportsBlocks.tsx — so what crosses
    here is the data they draw from, not markup. mdBlocks and mdInline stay
-   shared functions: the drawer and Plans still call them directly, and a done
-   task's title here is still `{ __html: mdInline(...) }` inside buildDoneRow(),
-   the same PlanCard.summaryHTML bargain. */
+   shared functions for the drawer's HTML strings; a done task's title here
+   crosses as the plain string and Tenon's Markdown draws it (InlineMd.tsx). */
 function reportsColumnProps(){
   if (!state.doc) return null;
   return {
@@ -671,7 +670,7 @@ async function ensureWrittenReports(){
     writtenState = {
       list: ((await res.json()).reports || []).map(r => ({
         title: r.title, date: r.date, covers: r.covers, topic: r.topic,
-        summaryHTML: r.summary ? mdInline(r.summary) : '',
+        summary: r.summary || '',
         url: r.url,
       })),
       error: null, fetched: true,
