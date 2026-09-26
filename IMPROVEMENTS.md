@@ -1310,7 +1310,8 @@ they settled is written up in the README rather than left here:
   `/claude/attachable.json` route pass it through. Row layout and the no-status
   read are unchanged.
 
-- **There is no way to talk to the PA while the board is in front of you.**
+- ~~**There is no way to talk to the PA while the board is in front of you.**~~
+  **Done, 26 Sep 2026.** A PA bubble (bottom-left, `#paBubble`) opens `openPaChat()` in `kanban/js/10-reference-sections.js`: a docked chat, anchored bottom-right, owned by the fixed key `board-pa`, its first message prefaced for `/pa` with `data/<dataset>/todo.md`; each send saves first and each reply triggers `reload()` if `todo.md` moved. Board chats still run in Ask mode (`ASK_DENIES`), so `pa` can read but not write from it until `chat-write-mode` or `pa-queue-chat` lands.
   Every conversation the board can start belongs to one card — `AIChat.create()`
   (`kanban/js/10-reference-sections.js:792`) resolves an owner through
   `locate()` or a `plan:` prefix, and `newChat()` (`:1049`) seeds it from

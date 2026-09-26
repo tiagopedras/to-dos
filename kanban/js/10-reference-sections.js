@@ -751,6 +751,8 @@ function onChatChange(){ if (state.openTask) openDrawer(state.openTask); }
 // answered, so the whole view needs a redraw, not just the drawer.
 function onChatStatusChanged(cfg){
   state.chatsOn = !!cfg;
+  const bubble = document.getElementById('paBubble');
+  if (bubble) bubble.classList.toggle('hidden', !cfg);
   if (state.doc) renderView();
 }
 
@@ -804,13 +806,25 @@ function reapChatWins(){
 
 function makeChatWin(newFor){
   let inst;
+  // Set when a message goes out on the PA's key and cleared once the run it
+  // started has ended — see "The PA panel" below. Any window can be carrying
+  // the PA's conversation, a `#!chat=` link to an old one included, so this
+  // is kept per window rather than only on the one the bubble opened.
+  let paWaiting = false;
   inst = AIChat.create({
     windowed: true,
     dockable: true,
     ownerLabel: chatOwnerLabel,
     readOnlyHelp: '',
-    onSessionsChanged, onSend: onPromptRunSend,
-    onChange: () => { reapChatWins(); onChatChange(); },
+    onSessionsChanged,
+    onSend: p => {
+      if (p.key === PA_KEY) { paWaiting = true; paBeforeSend(); }
+      onPromptRunSend(p);
+    },
+    onChange: () => {
+      if (paWaiting && !inst.running()) { paWaiting = false; paAfterReply(); }
+      reapChatWins(); onChatChange();
+    },
     onRectChange: saveChatRect,
     onFocus: () => focusChatWin(inst),
   });
@@ -837,7 +851,8 @@ function openChatWin(ownerId, ownerKey, sessionId, seed, o){
 }
 
 function chatOwnerLabel(taskId){
-  const loc = locate(taskId);
+  if (taskId === PA_KEY) return 'The board · PA';
+  const loc = state.doc && locate(taskId);
   return loc ? loc.task.title : '';
 }
 
@@ -899,6 +914,72 @@ document.addEventListener('click', e => {
 });
 
 function claudeOn(){ return chat.available() && !state.locked; }
+
+/* ---- The PA panel ----
+   A chat about the whole list, owned by the board rather than by a card. See
+   IMPROVEMENTS.md, "There is no way to talk to the PA while the board is in
+   front of you." Its one fixed key is both the owner id and the owner key the
+   sessions index files it under, so every path that turns an owner into a
+   task (locate(), tasksByChatKey(), chatKeyFor()) simply finds none, and
+   chatOwnerLabel() names it instead. It is never written onto a task line:
+   no `chat:` tag, nothing marked dirty by opening it.
+
+   No lock comes with it. `pa` writes todo.md while this tab autosaves the
+   same file, so the two take turns: before a message goes out, anything
+   unsaved here is saved; once the reply has landed, todo.md is read back
+   from disk if it moved, through reload() — the same path the Reload button
+   and a save refused with a 409 take — so a `pa` write is never saved over.
+   The server's If-Match check on every PUT covers an edit made here while
+   the reply is still coming. */
+const PA_KEY = 'board-pa';
+let paSaving = Promise.resolve();
+
+function paPreface(ask){
+  const ds = state.dataset || '';
+  return '/pa ' + ask + '\n\n' +
+    '(Sent from the to-do board\'s PA chat, a conversation about the whole list rather than one task. ' +
+    'The list on screen is ' + (ds ? 'data/' + ds + '/todo.md, the dataset data/.current names' : 'the one data/.current names') +
+    '. The board saved its unsaved changes before this message and reloads todo.md from disk once you reply.)';
+}
+
+function openPaChat(){
+  if (!chat.available() || state.locked) return null;
+  for (const w of chatWins.values()) {
+    const inst = w.inst;
+    if (!inst.isOpen() || w.newFor !== PA_KEY) continue;
+    if (inst.dockState() !== 'anchored') inst.anchor();
+    focusChatWin(inst);
+    return inst;
+  }
+  const inst = makeChatWin(PA_KEY);
+  inst.openNew(PA_KEY, PA_KEY, '', { preface: paPreface });
+  inst.anchor();
+  focusChatWin(inst);
+  return inst;
+}
+
+function paBeforeSend(){
+  if (state.locked || !state.doc || !state.dirty) return;
+  paSaving = saveFile(true).catch(() => {});
+}
+
+async function paAfterReply(){
+  await paSaving;
+  if (state.locked || !state.doc || modalEl) return;
+  const { stamp, hash } = await diskVersion();
+  if (!stamp) return;
+  const moved = (hash && state.diskHash) ? hash !== state.diskHash : stamp !== state.diskStamp;
+  if (!moved) return;
+  const quiet = !hasOwnChanges();
+  if (quiet) closeDrawer();                        // ids are rebuilt by the parse
+  await reload();
+  if (quiet) autoStatus('reloaded — the PA changed todo.md');
+}
+
+(() => {
+  const bubble = document.getElementById('paBubble');
+  if (bubble) bubble.addEventListener('click', () => openPaChat());
+})();
 
 /* A top-level task by its exact title — the only thing durable enough to
    name a task from outside todo.md, since t.id is 'a counter reset on every
