@@ -258,7 +258,8 @@ def land(item, result, target):
     out, summary, folded = plan.write_plan(task, result.get("text") or "", result.get("session"), night["day"],
                                            prior=prior)
     plan.queue_attach(task, result.get("session"))
-    plan.queue_plan_tick(task, os.path.relpath(out, paths.plans_dir()))
+    kind = "" if folded else plan.read_front(out).get("type", "")
+    plan.queue_plan_tick(task, os.path.relpath(out, paths.plans_dir()), kind)
     name = os.path.basename(out)
     night["written"].append((name, task.title, summary, folded))
     if folded:

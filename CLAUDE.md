@@ -98,9 +98,10 @@ carries out a plan he has already agreed to.
   `data/<dataset>/buckets/<stream>/<stream>.md`, which the planners read too —
   written once. That folder is gitignored (real people, real Twinkl processes);
   [BUCKETS.md](BUCKETS.md) is the tracked half.
-- **It only ever runs from a session he is in**, through the `do` skill. Never
-  scheduled, never in the background — it can act because it can stop and ask,
-  which the planners cannot.
+- **It runs alone only on the plan types in `core/plan_types.py`**, through its
+  own runner (`agents/implement-agent/hooks.py`), off until hours are set. Figma
+  work, a task handed straight to it, and anything else only run from a session
+  he is in, through the `do` skill, where it can stop and ask.
 - **It does not write `todo.md`.** Where the work means the task itself should
   change, it asks for the change in its report, precisely enough to apply, and
   `pa` makes it.

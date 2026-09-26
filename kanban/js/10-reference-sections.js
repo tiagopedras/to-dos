@@ -1051,7 +1051,15 @@ async function drainAttachQueue(){
    A request whose sub-task is not in this list is left where it is rather than
    dropped, the way attach-queue.json leaves a title that has been renamed. What
    was dealt with is removed by id, so a request that arrived while this ran is
-   not written over. */
+   not written over.
+
+   The Plan agent's tick carries the plan's `type:`. For a pre-approved type the
+   review behind it is ticked here too, with a note saying so: those plans only
+   add new files to one project folder and send nothing, so they need no accept
+   step. The list is the board's, not the agent's, and must match PRE_APPROVED
+   in core/plan_types.py. */
+const PRE_APPROVED_TYPES = ['write-up', 'draft'];
+
 async function drainTickQueue(){
   if (state.locked || !state.doc) return;
   let items;
@@ -1061,7 +1069,7 @@ async function drainTickQueue(){
   if (!Array.isArray(items) || !items.length) return;
 
   const dealt = [];
-  let ticked = 0, refused = 0, moved = 0;
+  let ticked = 0, refused = 0, moved = 0, approved = 0;
   for (const it of items) {
     if (!it || !it.id) continue;
     const found = locateSub(String(it.sub || '').trim().toLowerCase());
@@ -1088,6 +1096,19 @@ async function drainTickQueue(){
         setStepNoteText(t, rv.line, now.concat('- Plan: plans/' + rel).filter(Boolean).join('\n'));
       }
     }
+    const kind = String(it.type || '').trim().toLowerCase();
+    if (who === 'Plan agent' && PRE_APPROVED_TYPES.indexOf(kind) > -1 && f.slug && t.stableId) {
+      const rv = subSteps(t).find(x => x.slug === t.stableId + '-plan-review' &&
+                                       (x.blockedBy || []).indexOf(f.slug) > -1);
+      const g = rv && readSub(t, rv.line);
+      if (g && !g.done && !agentOf(g.to)) {
+        g.done = true; g.doneOn = ymd(today()); g.doing = false;
+        writeSub(t, rv.line, g);
+        const now = stepNoteText(t, rv.line).split('\n').filter(l => !/^- Approved:/i.test(l));
+        setStepNoteText(t, rv.line, now.concat('- Approved: pre-approved type (' + kind + ')').filter(Boolean).join('\n'));
+        approved++;
+      }
+    }
     dealt.push(it.id);
     if (who === 'Implement agent' && !t.done) {
       const cur = locate(t.id);
@@ -1104,7 +1125,9 @@ async function drainTickQueue(){
   if (ticked || refused) {
     $('#status').textContent = (ticked
       ? 'agents ticked ' + ticked + ' sub-task' + (ticked === 1 ? '' : 's') +
-        (moved ? ', ' + moved + ' card' + (moved === 1 ? '' : 's') + ' into ' + WAIT_COL : '') + ' — save to apply'
+        (moved ? ', ' + moved + ' card' + (moved === 1 ? '' : 's') + ' into ' + WAIT_COL : '') +
+        (approved ? ', ' + approved + ' plan' + (approved === 1 ? '' : 's') + ' approved as a pre-approved type' : '') +
+        ' — save to apply'
       : '') + (refused ? (ticked ? '; ' : '') + refused + ' request' + (refused === 1 ? '' : 's') + ' refused' : '');
   }
 }

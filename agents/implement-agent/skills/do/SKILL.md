@@ -28,10 +28,14 @@ he has approved the plan, which is what unblocks Implement. For a task handed
 straight to the Implement agent the task itself is the brief, and it is waiting from
 the moment he handed it over.
 
-It only ever runs from a session he is in. That is the whole reason it can act at
-all: it can stop and ask, which a schedule cannot. A runner may take a piece of work
-alone only if the work type is on the list in the backlog entry "The implementing
-agent only runs with Tiago in the room". Anything else waits for this skill.
+This skill runs it from a session he is in, where it can stop and ask. Its own
+runner (`agents/implement-agent/hooks.py`) may also take a piece of work alone, but
+only a planned one whose plan's `type:` is on the list in `core/plan_types.py`
+(write-up, draft, prompt, data, deck, code), with the guards that runner holds.
+Figma work, a task handed straight to the Implement agent, and anything else wait
+for this skill. A sub-task the runner has already finished has its tick queued, so
+check `data/<dataset>/tick-queue.json` before offering one: if its tick is waiting,
+it is done and only needs the board opened.
 
 ## Move 1: what is waiting
 
@@ -110,6 +114,8 @@ stale document, and a save from it would undo the change.
   next review.
 - **It never runs the planning agent.** That is Run the Plan agent now in the Data
   menu, and it spends money.
-- **It never runs unattended.** No cron, no schedule, no background. Decided
-  6 Sep 2026: the acting half of this system only ever runs in a session he is
-  sitting in front of.
+- **It never runs unattended itself.** No cron, no schedule, no background. The
+  unattended route is the Implement agent's own runner, decided 21 Sep 2026 for
+  the plan types in `core/plan_types.py` and off until he sets its hours on the
+  agents dashboard. Everything else only runs in a session he is sitting in
+  front of, which was the whole rule from 6 Sep 2026.
