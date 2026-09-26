@@ -722,20 +722,21 @@ they settled is written up in the README rather than left here:
   the board's own edit path, the same way `attach-queue.json` does. A
   The board applies it, and PA stays out of the file. From a board chat, `pa`
   turns what he says into structured requests (move, tick, re-date, add a task,
-  edit a field) and leaves them in `data/<dataset>/pa-queue.json` instead of
-  writing `todo.md`. The board drains that file through its own edit path, on
-  load and right after each reply lands in the PA panel (`board-pa`), the same
-  way `drainTickQueue()` works, so the board stays the one writer and nothing
-  races the autosave. Anything outside those request kinds still needs a `pa`
-  session away from the board. Sessions outside the board keep writing
-  `todo.md` directly, as they do now. An Ask-mode chat has no Write, so the
-  request goes through a narrow route rather than a general file write: a
-  `POST /pa-queue` in `kanban/server.py`, validated against the request kinds,
-  reached from the run as the one write it is allowed.
+  edit a field) and ends its reply with them as a fenced `pa-changes` JSON
+  block instead of writing `todo.md`. The chat stays in Ask mode with no new
+  permissions. When the reply lands in the PA panel (`board-pa`), the board
+  reads that block out of the reply text, checks each request against the
+  known kinds, and applies them through its own edit path as one `markDirty()`,
+  so one undo reverts them, the board stays the one writer and nothing races
+  the autosave. The reply shows the changes as written, so he sees what was
+  applied. Anything outside those request kinds still needs a `pa` session
+  away from the board. Sessions outside the board keep writing `todo.md`
+  directly, as they do now. The `pa` skill needs a short section saying that
+  in a board chat it answers with a `pa-changes` block rather than writing.
   Build: Opus. Id `pa-queue-chat`. With `pa-panel-chat`. Unblocks `chat-write-mode`.
-  Files: `PACKAGES/ai_chat_engine/engine.py`, `kanban/js/10-reference-sections.js`, `core/tick_queue.py`, `kanban/server.py`.
+  Files: `kanban/js/10-reference-sections.js`, `agents/pa_agent/skills/pa/SKILL.md`.
   Tests: `scripts/test-board.sh test_chats.mjs`.
-  Open: how the Ask-mode run reaches `POST /pa-queue` with Bash removed. Default: allow that one command pattern in the engine's Ask permissions (a single `curl` to the local route), nothing wider.
+  Open: none.
 
 - ~~**A chat can only be open or closed, so keeping one in view means keeping
   it on top of the board.**~~ **Done, 25 Sep 2026.** The engine's `dockable` option adds minimised and anchored, and the board keeps one AIChat instance per open chat in `chatWins`. The controller behind the board's one
