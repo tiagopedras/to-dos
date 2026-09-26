@@ -18,6 +18,24 @@ needs a decision, a new tag, or a new piece of the board before it can be built.
 
 ## Small
 
+- **A plan written by a background run cannot be read until the board is reloaded.**
+  The drawer's Read the plan button (`openPlanReader()`, `kanban/js/19-drawer.js:1791`)
+  gets its file only from a `- Plan: plans/<file>.md` line in the review sub-task's note
+  (`planRel`, `19-drawer.js:1847`). The Plan agent cannot write that line itself: it
+  queues a tick in `tick-queue.json` (`core/tick_queue.py:99`), and the board applies it
+  in `drainTickQueue()` (`kanban/js/10-reference-sections.js:1328`), which runs only when
+  `todo.md` is loaded (`kanban/js/20-loading-saving.js:131`). So a run started from Run
+  the Plan agent now, the Agents tab, or the overnight wake leaves a finished plan in
+  `plans/` with no button, no note and no line anywhere on an open tab. Two changes close
+  it: when the note has no `Plan:` line, the drawer finds the plan through `/plans.json`
+  (`plan_listing()`, `kanban/server.py:1445`), whose entries already carry
+  `about: task:<stableId>`, and the board drains the tick queue again when the tab
+  regains focus or an agent run ends, not only on load.
+  Build: Opus. Id `plan-reader-fallback`.
+  Files: `kanban/js/19-drawer.js`, `kanban/js/10-reference-sections.js`, `kanban/js/20-loading-saving.js`, `kanban/server.py`.
+  Tests: `scripts/test-board.sh test_subtasks.mjs test_one_board.mjs`.
+  Open: drain on focus, or poll while a run is going? Default: on focus, and once when a run the tab started reports done, since a poll is a second autosave-shaped timer.
+
 - ~~**A task with a start date and no due date can't be resized on the
   Timeline, only moved whole.**~~ **Done, 26 Sep 2026.** Every task's mark now
   has an edge at each end (`timelineRowModel()` in `kanban/js/18-timeline.js`).
@@ -1027,7 +1045,7 @@ they settled is written up in the README rather than left here:
   Tests: `scripts/test-board.sh test_board.mjs`.
   Open: none.
 
-- **The board can show its agents' schedule but cannot show their status or change their hours, because that half lives in `agents-dashboard`.**
+- ~~**The board can show its agents' schedule but cannot show their status or change their hours, because that half lives in `agents-dashboard`.**~~ **Done, 26 Sep 2026.** An Agents tab (`kanban/js/27-agents.js`) mounts `AgentsApp` from `PACKAGES/agents-engine/react`, which is now the dashboard's page too, so there is one hour track. `kanban/server.py` answers `/agents-api/state.json`, `/apply` and `/run` through `agents_engine.routes` over `to-dos/agents/` only, so the tab shows the Plan and Implement agents and nothing else. Tests: `scripts/test-board.sh test_agents.mjs`.
   `schedule_listing()` (`kanban/server.py:932`) feeds `/schedule.json` and the Spend and
   clocks modal (`kanban/ui/RefCards.tsx`, `kanban/js/14-schedule.js`), and its own header
   says everything in it is read-only. Turning the planning agent on, setting its hours and

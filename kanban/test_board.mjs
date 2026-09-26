@@ -394,7 +394,7 @@ check('the view tabs are one radiogroup with the board checked', await evalJS(`(
   const g = document.querySelector('#viewToggle [role=radiogroup].tenon-segmented')
   const on = g && g.querySelector('[role=radio][aria-checked=true]')
   return !!on && on.dataset.value === 'board' && on.tabIndex === 0 &&
-    g.querySelectorAll('[role=radio]').length === 5 &&
+    g.querySelectorAll('[role=radio]').length === 6 &&
     g.querySelectorAll('.sepbefore').length === 2
 })()`))
 await evalJS(`document.querySelector('#viewToggle [data-value=matrix]').click()`)
