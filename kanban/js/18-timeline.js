@@ -898,6 +898,7 @@ function renderHeadline(){
 function renderFilterBar(){
   renderTabs();
   renderScoreChip();
+  renderAgentFilterChip();
   // Follows the strip it belongs to, and goes with it in a preview or the demo,
   // where the file behind it is not one that can be written to.
   $('#editBuckets').classList.toggle('hidden', state.locked);
@@ -1094,6 +1095,29 @@ function renderScoreChip(){
     ? 'Back to the whole list'
     : 'Tasks with no impact or no effort score yet. Click to see just those.';
   chip.onclick = () => { state.unscoredOnly = !state.unscoredOnly; refreshView(); };
+}
+
+/* Next to the unscored chip: how many open tasks are delegated to an agent —
+   on the task itself or on any of its sub-tasks (delegatedToAgent(),
+   07-render-board.js) — across every bucket the tabs say, same reasoning as
+   renderScoreChip() above. Clicking it narrows to just those. */
+function renderAgentFilterChip(){
+  const chip = $('#agentFilterChip');
+  if (!chip) return;
+  if (!state.doc) { chip.classList.add('hidden'); return; }
+  let n = 0;
+  state.doc.buckets.forEach(b => b.tiers.forEach(ti => ti.tasks.forEach(t => {
+    if (!t.done && delegatedToAgent(t)) n++;
+  })));
+  chip.classList.toggle('hidden', n === 0 && !state.agentFilter);
+  chip.classList.toggle('on', state.agentFilter);
+  chip.textContent = state.agentFilter
+    ? 'Showing ' + n + ' delegated to an agent · show all'
+    : n + ' delegated to an agent';
+  chip.title = state.agentFilter
+    ? 'Back to the whole list'
+    : 'Tasks handed to an agent, or with a sub-task handed to one. Click to see just those.';
+  chip.onclick = () => { state.agentFilter = !state.agentFilter; refreshView(); };
 }
 
 let dragId = null;

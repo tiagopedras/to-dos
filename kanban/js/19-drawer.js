@@ -1336,8 +1336,14 @@ function openDrawer(id, focusTitle){
     '</div>' +
     '<div class="grid2">' +
       /* One question, one field: who does the work. Left on Nobody for
-         anything he is doing himself, which is most of the list. */
-      '<label class="field"><span>Delegate to</span>' + delegateSelectHTML(t.to, dis) +
+         anything he is doing himself, which is most of the list. A <select>
+         cannot hold an image, so the avatar sits beside it instead — one span
+         the onchange handler below updates in place, since choosing a person
+         after an agent (with nothing to strip) doesn't re-open the drawer. */
+      '<label class="field"><span>Delegate to</span>' +
+        '<span class="delegate-row">' + delegateSelectHTML(t.to, dis) +
+          '<span class="avatar" id="f-to-avatar">' + agentAvatarHTML(t.to, 20) + '</span>' +
+        '</span>' +
         '<span class="help">The Plan agent plans it and stops. The Implement agent carries it out.</span>' +
       '</label>' +
     '</div>' +
@@ -1399,6 +1405,9 @@ function openDrawer(id, focusTitle){
             (opens ? ' role="button" tabindex="0" title="Open this sub-task"' : '') + '>' +
           (ro ? '' : BoardUI.dragHandleHTML()) +
           '<input type="checkbox" data-line="' + s.line + '"' + (s.done ? ' checked' : '') + dis + '>' +
+          // A sub-task assigned to an agent gets the same face the card's own
+          // chip does; '' for one assigned to him or nobody.
+          agentAvatarHTML(s.to, 16) +
           /* Rendered, like the Description above it and like the card titles
              on the board. A subtask is one line, so this is mdInline rather
              than the block renderer. */
@@ -1483,6 +1492,10 @@ function openDrawer(id, focusTitle){
         return;
       }
     }
+    // The only path left where the drawer isn't rebuilt whole, so the avatar
+    // beside the field is the one thing here still worth updating by hand.
+    const av = $('#f-to-avatar');
+    if (av) av.innerHTML = agentAvatarHTML(t.to, 20);
     touch();
   };
   if ($('#f-theme')) $('#f-theme').onchange = e => { t.theme = e.target.value; touch(); };

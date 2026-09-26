@@ -316,7 +316,9 @@ await evalJS(`state.locked = false; renderBoard()`)
    still existed, the same way kanban/ui/test_primitives.mjs pins Column and
    Card. Three shapes, chosen to cover what the rest of this suite's own
    fixture (Alpha/Beta/Gamma/Delta) actually varies: a progress bar, a bare
-   card and a delegated chip. Beta is left out here — its due chip's "Nd late"
+   card and a delegated chip, the last one now carrying Plan agent's own
+   avatar (agentAvatarHTML()/avatarSvg(), core/avatar.js — 26 Sep 2026).
+   Beta is left out here — its due chip's "Nd late"
    note is relative to today, so pinning its full markup would go stale on a
    clock rather than on a real change; its own structural check ("a due date
    is a chip in its own corner") stays further up this file instead. */
@@ -329,7 +331,7 @@ await wait(200)
 const CARD_PARITY = {
   bd0001: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0001" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Alpha</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="high impact">\u{1f525}</span><span class="tenon-tag tenon-tag--neutral">S</span></div><div class="tenon-card__body"><div class="prog"><span>1/2 steps</span><span class="bar"><i style="width:50%"></i></span></div></div></article>',
   bd0003: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0003" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Gamma</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="med impact">\u{1f324}️</span><span class="tenon-tag tenon-tag--neutral">M</span></div></article>',
-  bd0004: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0004" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Delta</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="high impact">\u{1f525}</span><span class="tenon-tag tenon-tag--neutral">S</span><span class="tenon-tag tenon-tag--accent" title="Delegated to Plan agent">→ Plan agent</span></div></article>',
+  bd0004: '<article class="tenon-card tenon-card--flat tenon-card--accent tenon-card--draggable" draggable="true" tabindex="0" role="button" data-id="bd0004" style="--tenon-card-accent:var(--tenon-chart-1)"><div class="tenon-card__head"><div class="tenon-card__title">Delta</div></div><div class="tenon-card__tags"><span class="tenon-tag tenon-tag--neutral" title="high impact">\u{1f525}</span><span class="tenon-tag tenon-tag--neutral">S</span><span class="tenon-tag tenon-tag--accent" title="Delegated to Plan agent"><span class="avatar"><svg viewBox="0 0 40 40" width="16" height="16" aria-hidden="true" focusable="false"><rect width="40" height="40" rx="9" fill="var(--tenon-chart-4)"/><rect x="17" y="10" width="12" height="12" fill="var(--tenon-chart-2)" transform="rotate(45 23 16)"/><circle cx="29" cy="17" r="6" fill="var(--tenon-chart-1)"/><rect x="1" y="12" width="20" height="20" fill="var(--tenon-chart-9)" transform="rotate(45 11 22)"/></svg></span>→ Plan agent</span></div></article>',
 }
 const pinCheck = await evalJS(`(() => {
   const canon = el => {

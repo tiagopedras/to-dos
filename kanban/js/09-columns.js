@@ -383,8 +383,15 @@ function cardModel(t, opts){
   /* Kept as the board's own chip: the dashed border says "gate", not "warning",
      which is the one thing none of Tenon's tones draw. */
   if (si) chips.push({ cls: 'tag startdate', text: si.label + ' · ' + si.note });
-  if (t.to && t.to.trim()) chips.push({ tone: 'accent', text: '→ ' + t.to.trim(),
-    title: 'Delegated to ' + t.to.trim() });
+  /* An agent gets a face here too. TaskCard already wraps avatarHTML in its
+     own <span class="avatar">, so this passes the bare <svg> — agentOf() is
+     the one place that decides "agent or not" (core/avatar.js), and it's
+     undefined rather than '' for a person, since Chip.avatarHTML is optional. */
+  if (t.to && t.to.trim()) {
+    const to = t.to.trim(), agent = agentOf(to);
+    chips.push({ tone: 'accent', text: '→ ' + to, title: 'Delegated to ' + to,
+      avatarHTML: agent ? avatarSvg(agent, 16) : undefined });
+  }
   /* A ticket waiting to be raised is a fact about the task worth seeing in the
      column, but the button belongs where there is room for it — the task panel
      and the reference cards. So the card gets the marker and not the link. */

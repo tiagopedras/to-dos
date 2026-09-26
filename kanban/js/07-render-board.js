@@ -4,10 +4,19 @@
    4. Render board
    ========================================================================= */
 
+/* True when a task itself is handed to an agent, or any of its sub-tasks is —
+   the "delegated to an agent" filter matches either. Own copy rather than
+   reading t.to alone: a task can sit with nobody delegated up top while an
+   agent works one step of it (see Epsilon in test_one_board.mjs). */
+function delegatedToAgent(t){
+  return !!agentOf(t.to) || subSteps(t).some(s => !!agentOf(s.to));
+}
+
 function matches(t, tierName){
   // Scoring a task he has already finished is busywork, so done ones never
   // count as needing it however they are tagged.
   if (state.unscoredOnly && (t.done || !unscored(t))) return false;
+  if (state.agentFilter && !delegatedToAgent(t)) return false;
   // Only ever populated while a single bucket is on screen — see
   // renderThemeTabs() below — so this costs nothing everywhere else.
   if (state.themeFilter.size && !state.themeFilter.has(t.theme)) return false;

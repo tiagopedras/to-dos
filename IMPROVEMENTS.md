@@ -628,8 +628,15 @@ they settled is written up in the README rather than left here:
   Tests: `scripts/test-board.sh test_board.mjs`.
   Open: none.
 
-- **An agent has no face on the board, so a task handed to one reads the same as
-  a task handed to a person, and there is no way to see only the agents' work.**
+- ~~**An agent has no face on the board, so a task handed to one reads the same as
+  a task handed to a person, and there is no way to see only the agents' work.**~~
+  **Done, 26 Sep 2026.** `avatarSvg()`/`agentAvatarHTML()` (`core/avatar.js`) draw
+  three abstract shapes on a flat background, all in Tenon's `--tenon-chart-1..10`,
+  seeded by name — deterministic, agents only (`AGENT_NAMES`), no vendored library
+  and no network call. Shows on the card chip, each sub-task row and the drawer's
+  Delegate to field. The filter strip's new "delegated to an agent" chip matches a
+  task through its sub-tasks too (`delegatedToAgent()`, `07-render-board.js`), in
+  memory only like `unscoredOnly` beside it.
   The only mark is the text chip `'→ ' + t.to` built in `cardModel()`
   (`kanban/js/09-columns.js:368`) and drawn by `TaskCard` (`kanban/ui/TaskCard.tsx`),
   and a sub-task row in the drawer (`kanban/js/19-drawer.js:1017`) shows no

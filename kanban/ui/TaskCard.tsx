@@ -28,6 +28,10 @@ export interface Chip {
   title?: string
   /** Set on the project chip, which opens the project rather than the card. */
   project?: string
+  /** Raw `<svg>` markup for the small avatar drawn before the text — set on
+   *  the delegated chip when `[to::]` names an agent (agentAvatarHTML(),
+   *  core/avatar.js), '' or unset for a person. */
+  avatarHTML?: string
 }
 
 export type CardProgress = { kind: 'steps', done: number, total: number, pct: number }
@@ -61,9 +65,12 @@ export interface TaskCardProps {
 }
 
 function ChipSpan({ c }: { c: Chip }) {
-  if (c.tone) return <Tag tone={c.tone} title={c.title}>{c.text}</Tag>
+  const avatar = c.avatarHTML
+    ? <span className="avatar" dangerouslySetInnerHTML={{ __html: c.avatarHTML }} />
+    : null
+  if (c.tone) return <Tag tone={c.tone} title={c.title}>{avatar}{c.text}</Tag>
   return (
-    <span className={c.cls} data-project={c.project} title={c.title}>{c.text}</span>
+    <span className={c.cls} data-project={c.project} title={c.title}>{avatar}{c.text}</span>
   )
 }
 
